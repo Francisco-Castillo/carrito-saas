@@ -1,8 +1,8 @@
-package com.carrito.saas.dto.mapper.interfaces;
+package com.carrito.saas.service.mapper.interfaces;
 
 import java.util.List;
 
-public interface CarritoMapper<E, T> {
+public interface ICarritoMapper<E, T> {
 
 	E toEntity(T dto);
 

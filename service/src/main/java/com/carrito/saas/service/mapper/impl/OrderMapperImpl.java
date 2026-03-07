@@ -1,15 +1,15 @@
-package com.carrito.saas.dto.mapper.impl;
+package com.carrito.saas.service.mapper.impl;
 
 import java.util.List;
 
 import org.springframework.stereotype.Component;
 
 import com.carrito.saas.dto.OrderDTO;
-import com.carrito.saas.dto.mapper.interfaces.OrderMapper;
 import com.carrito.saas.repository.entity.Order;
+import com.carrito.saas.service.mapper.interfaces.IOrderMapper;
 
 @Component
-public class OrderMapperImpl implements OrderMapper {
+public class OrderMapperImpl implements IOrderMapper {
 
 	@Override
 	public Order toEntity(OrderDTO dto) {

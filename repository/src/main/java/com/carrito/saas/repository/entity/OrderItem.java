@@ -3,22 +3,16 @@ package com.carrito.saas.repository.entity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 @Entity
-@Table(name = "businesses")
-public class Business {
-
-    @Id
-    private Long id;
-
-    private String name;
-
-    private String slug;
-
-    private String phone;
+@Table(name = "order_items")
+public class OrderItem {
+	
+	@Id
+	private Long id;
 
 }

@@ -1,5 +1,7 @@
 package com.carrito.saas.dto;
 
+import java.math.BigDecimal;
+
 import lombok.Data;
 
 @Data
@@ -11,7 +13,7 @@ public class ProductDTO {
 
     private String description;
 
-    private Double price;
+    private BigDecimal price;
 
     private Boolean active;
 
