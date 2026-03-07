@@ -9,7 +9,6 @@ import com.carrito.saas.dto.ProductDTO;
 import com.carrito.saas.repository.entity.Product;
 import com.carrito.saas.service.mapper.interfaces.IProductMapper;
 
-import jakarta.persistence.Entity;
 
 @Component
 public class ProductMapperImpl implements IProductMapper {
@@ -30,7 +29,8 @@ public class ProductMapperImpl implements IProductMapper {
 		dto.setPrice(entity.getPrice());
 		dto.setActive(entity.isActive());
 		
-		dto.setCategoryId(entity.getCategoryId());
+		dto.setCategoryId(entity.getCategory().getId());
+		dto.setCategoryName(entity.getCategory().getName());
 		dto.setImageUrl(entity.getImageUrl());
 
 		

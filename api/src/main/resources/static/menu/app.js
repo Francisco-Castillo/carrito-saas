@@ -1,311 +1,217 @@
-const API_BASE = "http://localhost:8080/api"
-const RESTAURANT_ID = 1
+const API_URL = "http://localhost:8080/api/restaurants/1/products"
+const WHATSAPP = "5490000000000"
 
-let productsCache = []
+let products = []
+let cart = JSON.parse(localStorage.getItem("cart")) || {}
 
-loadMenu()
+init()
+
+async function init(){
+
+const res = await fetch(API_URL)
+
+products = await res.json()
+
+renderMenu()
+
 renderCart()
-
-
-
-async function loadMenu(){
-
-const res = await fetch(
-`${API_BASE}/restaurants/${RESTAURANT_ID}/products`
-)
-
-const products = await res.json()
-
-productsCache = products
-
-const menu = document.getElementById("menu")
-
-menu.innerHTML=""
-
-const categories = groupByCategory(products)
-
-Object.keys(categories).forEach(cat=>{
-
-menu.innerHTML += `
-<div class="category">
-
-<div class="category-header"
-onclick="toggleCategory('${cat}')">
-${cat}
-</div>
-
-<div class="products" id="cat-${cat}">
-${renderProducts(categories[cat])}
-</div>
-
-</div>
-`
-
-})
 
 }
 
+function groupByCategory(products) {
 
+	const categories = {}
 
-function renderProducts(products){
+	products.forEach(p => {
 
-let html=""
+		if (!categories[p.categoryId]) {
+			categories[p.categoryId] = {
+				name: p.categoryName,
+				products: []
+			}
+		}
 
-products.forEach(p=>{
+		categories[p.categoryId].products.push(p)
 
-html += `
+	})
 
-<div class="product">
+	return categories
+}
 
-<img src="${p.imageUrl || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd'}">
+function renderMenu() {
+
+	const menu = document.getElementById("menu")
+
+	const categories = groupByCategory(products)
+
+	menu.innerHTML = ""
+
+	Object.values(categories).forEach(cat => {
+
+		const categoryDiv = document.createElement("div")
+		categoryDiv.className = "category"
+
+		const header = document.createElement("div")
+		header.className = "category-header"
+		header.textContent = cat.name
+
+		const productsDiv = document.createElement("div")
+		productsDiv.className = "category-products"
+
+		header.onclick = () => {
+			productsDiv.style.display =
+				productsDiv.style.display === "block" ? "none" : "block"
+		}
+
+		cat.products.forEach(p => {
+
+			const qty = cart[p.id]?.qty || 0
+
+			const productDiv = document.createElement("div")
+			productDiv.className = "product"
+
+			productDiv.innerHTML = `
+
+<img src="${p.imageUrl}">
 
 <div class="product-info">
 
 <div class="product-name">${p.name}</div>
 
-<div class="product-desc">${p.description || ""}</div>
+<div>${p.description}</div>
 
 <div class="product-price">$${p.price}</div>
 
 </div>
 
-<div class="quantity">
+<div class="product-controls">
 
-<button class="qty-minus"
-onclick="changeQty(${p.id}, -1)">
--
-</button>
+<button class="btn btn-minus" onclick="removeItem(${p.id})">-</button>
 
-<span id="qty-${p.id}">
-${getQty(p.id)}
-</span>
+<div class="quantity" id="qty-${p.id}">${qty}</div>
 
-<button class="qty-plus"
-onclick="changeQty(${p.id}, 1)">
-+
-</button>
-
-</div>
+<button class="btn btn-plus" onclick="addItem(${p.id})">+</button>
 
 </div>
 
 `
 
-})
+			productsDiv.appendChild(productDiv)
 
-return html
+		})
 
-}
+		categoryDiv.appendChild(header)
+		categoryDiv.appendChild(productsDiv)
 
+		menu.appendChild(categoryDiv)
 
-
-function toggleCategory(cat){
-
-const el = document.getElementById("cat-"+cat)
-
-if(el.style.display==="block"){
-
-el.style.display="none"
-
-}else{
-
-el.style.display="block"
+	})
 
 }
 
-}
+function addItem(id) {
 
+	const product = products.find(p => p.id === id)
 
+	if (!cart[id]) {
+		cart[id] = {
+			product: product,
+			qty: 0
+		}
+	}
 
-function groupByCategory(products){
+	cart[id].qty++
 
-const map={}
+	saveCart()
 
-products.forEach(p=>{
+	updateQty(id)
 
-const cat=p.category||"Otros"
-
-if(!map[cat]){
-
-map[cat]=[]
-
-}
-
-map[cat].push(p)
-
-})
-
-return map
+	renderCart()
 
 }
 
+function removeItem(id) {
 
+	if (!cart[id]) return
 
-function getCart(){
+	if (cart[id].qty <= 0) return
 
-const cart=localStorage.getItem("cart")
+	cart[id].qty--
 
-if(!cart){
+	if (cart[id].qty === 0) {
+		delete cart[id]
+	}
 
-return {restaurantId:RESTAURANT_ID,items:[]}
+	saveCart()
 
-}
+	updateQty(id)
 
-return JSON.parse(cart)
-
-}
-
-
-
-function saveCart(cart){
-
-localStorage.setItem("cart",JSON.stringify(cart))
+	renderCart()
 
 }
 
+function updateQty(id) {
 
+	const el = document.getElementById(`qty-${id}`)
 
-function getQty(productId){
+	if (!el) return
 
-const cart=getCart()
-
-const item=cart.items.find(i=>i.productId===productId)
-
-return item?item.quantity:0
+	el.innerText = cart[id] ? cart[id].qty : 0
 
 }
 
+function saveCart() {
 
-
-function changeQty(productId,delta){
-
-const cart=getCart()
-
-let item=cart.items.find(i=>i.productId===productId)
-
-const product = productsCache.find(p=>p.id===productId)
-
-if(delta>0){
-
-if(!item){
-
-cart.items.push({
-productId:product.id,
-name:product.name,
-price:product.price,
-quantity:1
-})
-
-}else{
-
-item.quantity++
+	localStorage.setItem("cart", JSON.stringify(cart))
 
 }
 
-}else{
+function renderCart() {
 
-if(!item) return
+	const items = document.getElementById("cart-items")
+	const totalEl = document.getElementById("total")
 
-if(item.quantity===0) return
+	items.innerHTML = ""
 
-item.quantity--
+	let total = 0
 
-if(item.quantity===0){
+	Object.values(cart).forEach(item => {
 
-cart.items=cart.items.filter(i=>i.productId!==productId)
+		const line = document.createElement("div")
 
-}
+		line.innerText = `${item.qty} x ${item.product.name}`
 
-}
+		items.appendChild(line)
 
-saveCart(cart)
+		total += item.qty * item.product.price
 
-updateQuantities()
+	})
 
-renderCart()
-
-}
-
-
-
-function updateQuantities(){
-
-const cart=getCart()
-
-document.querySelectorAll("[id^='qty-']").forEach(el=>{
-
-const id=parseInt(el.id.replace("qty-",""))
-
-const item=cart.items.find(i=>i.productId===id)
-
-el.innerText=item?item.quantity:0
-
-})
+	totalEl.textContent = total
 
 }
 
+document.getElementById("sendOrder").onclick = () => {
 
+	if (Object.keys(cart).length === 0) {
+		alert("Agrega productos primero")
+		return
+	}
 
-function renderCart(){
+	let message = "Hola! Quiero pedir:%0A%0A"
 
-const cart=getCart()
+	let total = 0
 
-const list=document.getElementById("cart")
+	Object.values(cart).forEach(item => {
 
-const totalDiv=document.getElementById("total")
+		message += `${item.qty} x ${item.product.name}%0A`
 
-list.innerHTML=""
+		total += item.product.price * item.qty
 
-let total=0
+	})
 
-cart.items.forEach(i=>{
+	message += `%0ATotal: $${total}`
 
-const subtotal=i.price*i.quantity
-
-total+=subtotal
-
-list.innerHTML+=`
-
-<li>
-${i.quantity}x ${i.name}
-</li>
-
-`
-
-})
-
-totalDiv.innerHTML="Total: $"+total
-
-}
-
-
-
-function sendWhatsapp(){
-
-const cart=getCart()
-
-if(cart.items.length===0){
-
-alert("Carrito vacío")
-
-return
-
-}
-
-let msg="Hola! Quiero pedir:\n\n"
-
-cart.items.forEach(i=>{
-
-msg+=`${i.quantity}x ${i.name}\n`
-
-})
-
-msg+="\nGracias!"
-
-const phone="549385XXXXXXX"
-
-const url=`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
-
-window.open(url)
+	window.open(`https://wa.me/${WHATSAPP}?text=${message}`)
 
 }
