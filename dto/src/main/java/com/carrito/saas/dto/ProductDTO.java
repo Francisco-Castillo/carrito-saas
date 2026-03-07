@@ -18,5 +18,6 @@ public class ProductDTO {
     private Boolean active;
 
     private Long categoryId;
-
+    
+    private String imageUrl;
 }

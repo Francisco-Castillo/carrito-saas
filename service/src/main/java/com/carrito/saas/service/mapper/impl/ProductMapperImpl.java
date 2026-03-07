@@ -1,5 +1,6 @@
 package com.carrito.saas.service.mapper.impl;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
@@ -7,6 +8,8 @@ import org.springframework.stereotype.Component;
 import com.carrito.saas.dto.ProductDTO;
 import com.carrito.saas.repository.entity.Product;
 import com.carrito.saas.service.mapper.interfaces.IProductMapper;
+
+import jakarta.persistence.Entity;
 
 @Component
 public class ProductMapperImpl implements IProductMapper {
@@ -28,6 +31,7 @@ public class ProductMapperImpl implements IProductMapper {
 		dto.setActive(entity.isActive());
 		
 		dto.setCategoryId(entity.getCategoryId());
+		dto.setImageUrl(entity.getImageUrl());
 
 		
 
@@ -36,8 +40,11 @@ public class ProductMapperImpl implements IProductMapper {
 
 	@Override
 	public List<ProductDTO> toListDTO(List<Product> entities) {
-		// TODO Auto-generated method stub
-		return null;
+		List<ProductDTO> lista = new ArrayList<ProductDTO>();
+		entities.forEach(entity -> lista.add(toDTO(entity)));
+		return lista;
 	}
 
 }
+
+

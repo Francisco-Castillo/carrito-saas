@@ -1,128 +1,311 @@
-const params = new URLSearchParams(window.location.search);
-const slug = params.get("slug");
+const API_BASE = "http://localhost:8080/api"
+const RESTAURANT_ID = 1
 
-let menuData = null;
-let cart = [];
-let phone = "";
+let productsCache = []
 
-fetch("/api/menu/" + slug)
-.then(res => res.json())
-.then(data => {
+loadMenu()
+renderCart()
 
-menuData = data;
-phone = data.business.whatsappNumber;
 
-document.getElementById("business-name").innerText = data.business.name;
 
-renderMenu();
+async function loadMenu(){
 
-});
+const res = await fetch(
+`${API_BASE}/restaurants/${RESTAURANT_ID}/products`
+)
 
-function renderMenu(){
+const products = await res.json()
 
-const menu = document.getElementById("menu");
+productsCache = products
 
-menuData.categories.forEach(cat=>{
+const menu = document.getElementById("menu")
 
-const div = document.createElement("div");
-div.className="category";
+menu.innerHTML=""
 
-div.innerHTML=`<h2>${cat.name}</h2>`;
+const categories = groupByCategory(products)
 
-menuData.products
-.filter(p=>p.categoryId===cat.id)
-.forEach(prod=>{
+Object.keys(categories).forEach(cat=>{
 
-const p = document.createElement("div");
-p.className="product";
+menu.innerHTML += `
+<div class="category">
 
-p.innerHTML=`
-<div class="product-info">
-<div class="product-name">${prod.name}</div>
-<div>${prod.description||""}</div>
-<div class="product-price">$${prod.price}</div>
+<div class="category-header"
+onclick="toggleCategory('${cat}')">
+${cat}
 </div>
 
-<button class="add-btn" onclick="addProduct(${prod.id})">
-Agregar
-</button>
-`;
+<div class="products" id="cat-${cat}">
+${renderProducts(categories[cat])}
+</div>
 
-div.appendChild(p);
+</div>
+`
 
-});
-
-menu.appendChild(div);
-
-});
+})
 
 }
 
-function addProduct(id){
 
-const product = menuData.products.find(p=>p.id===id);
 
-let item = cart.find(i=>i.id===id);
+function renderProducts(products){
 
-if(item){
+let html=""
 
-item.qty++;
+products.forEach(p=>{
+
+html += `
+
+<div class="product">
+
+<img src="${p.imageUrl || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd'}">
+
+<div class="product-info">
+
+<div class="product-name">${p.name}</div>
+
+<div class="product-desc">${p.description || ""}</div>
+
+<div class="product-price">$${p.price}</div>
+
+</div>
+
+<div class="quantity">
+
+<button class="qty-minus"
+onclick="changeQty(${p.id}, -1)">
+-
+</button>
+
+<span id="qty-${p.id}">
+${getQty(p.id)}
+</span>
+
+<button class="qty-plus"
+onclick="changeQty(${p.id}, 1)">
++
+</button>
+
+</div>
+
+</div>
+
+`
+
+})
+
+return html
+
+}
+
+
+
+function toggleCategory(cat){
+
+const el = document.getElementById("cat-"+cat)
+
+if(el.style.display==="block"){
+
+el.style.display="none"
 
 }else{
 
-cart.push({
-id:product.id,
+el.style.display="block"
+
+}
+
+}
+
+
+
+function groupByCategory(products){
+
+const map={}
+
+products.forEach(p=>{
+
+const cat=p.category||"Otros"
+
+if(!map[cat]){
+
+map[cat]=[]
+
+}
+
+map[cat].push(p)
+
+})
+
+return map
+
+}
+
+
+
+function getCart(){
+
+const cart=localStorage.getItem("cart")
+
+if(!cart){
+
+return {restaurantId:RESTAURANT_ID,items:[]}
+
+}
+
+return JSON.parse(cart)
+
+}
+
+
+
+function saveCart(cart){
+
+localStorage.setItem("cart",JSON.stringify(cart))
+
+}
+
+
+
+function getQty(productId){
+
+const cart=getCart()
+
+const item=cart.items.find(i=>i.productId===productId)
+
+return item?item.quantity:0
+
+}
+
+
+
+function changeQty(productId,delta){
+
+const cart=getCart()
+
+let item=cart.items.find(i=>i.productId===productId)
+
+const product = productsCache.find(p=>p.id===productId)
+
+if(delta>0){
+
+if(!item){
+
+cart.items.push({
+productId:product.id,
 name:product.name,
 price:product.price,
-qty:1
-});
+quantity:1
+})
+
+}else{
+
+item.quantity++
 
 }
 
-renderCart();
+}else{
+
+if(!item) return
+
+if(item.quantity===0) return
+
+item.quantity--
+
+if(item.quantity===0){
+
+cart.items=cart.items.filter(i=>i.productId!==productId)
 
 }
+
+}
+
+saveCart(cart)
+
+updateQuantities()
+
+renderCart()
+
+}
+
+
+
+function updateQuantities(){
+
+const cart=getCart()
+
+document.querySelectorAll("[id^='qty-']").forEach(el=>{
+
+const id=parseInt(el.id.replace("qty-",""))
+
+const item=cart.items.find(i=>i.productId===id)
+
+el.innerText=item?item.quantity:0
+
+})
+
+}
+
+
 
 function renderCart(){
 
-const list = document.getElementById("cart-items");
-list.innerHTML="";
+const cart=getCart()
 
-let total=0;
+const list=document.getElementById("cart")
 
-cart.forEach(item=>{
+const totalDiv=document.getElementById("total")
 
-total+=item.price*item.qty;
+list.innerHTML=""
 
-const li=document.createElement("li");
+let total=0
 
-li.innerHTML=`
-${item.name} x${item.qty}
-<span>$${item.price*item.qty}</span>
-`;
+cart.items.forEach(i=>{
 
-list.appendChild(li);
+const subtotal=i.price*i.quantity
 
-});
+total+=subtotal
 
-document.getElementById("total").innerText=total;
+list.innerHTML+=`
+
+<li>
+${i.quantity}x ${i.name}
+</li>
+
+`
+
+})
+
+totalDiv.innerHTML="Total: $"+total
 
 }
 
-document.getElementById("send-btn").onclick=function(){
 
-let message="Hola! Quiero pedir:%0A";
 
-cart.forEach(item=>{
+function sendWhatsapp(){
 
-message+=`${item.name} x${item.qty}%0A`;
+const cart=getCart()
 
-});
+if(cart.items.length===0){
 
-message+=`%0ATotal: $${document.getElementById("total").innerText}`;
+alert("Carrito vacío")
 
-const url=`https://wa.me/${phone}?text=${message}`;
+return
 
-window.open(url);
+}
 
-};
+let msg="Hola! Quiero pedir:\n\n"
+
+cart.items.forEach(i=>{
+
+msg+=`${i.quantity}x ${i.name}\n`
+
+})
+
+msg+="\nGracias!"
+
+const phone="549385XXXXXXX"
+
+const url=`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+
+window.open(url)
+
+}
