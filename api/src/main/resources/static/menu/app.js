@@ -1,4 +1,13 @@
-const API_URL = "http://localhost:8080/api/restaurants/1/products"
+/*const API_URL = "http://localhost:8080/api/restaurants/1/products"*/
+
+const slug = getRestaurantSlug()
+
+if(!slug){
+alert("Restaurant not specified")
+}
+
+const API_URL = `/api/restaurants/slug/${slug}/products`
+
 const WHATSAPP = "5490000000000"
 
 let products = []
@@ -6,15 +15,15 @@ let cart = JSON.parse(localStorage.getItem("cart")) || {}
 
 init()
 
-async function init(){
+async function init() {
 
-const res = await fetch(API_URL)
+	const res = await fetch(API_URL)
 
-products = await res.json()
+	products = await res.json()
 
-renderMenu()
+	renderMenu()
 
-renderCart()
+	renderCart()
 
 }
 
@@ -36,6 +45,14 @@ function groupByCategory(products) {
 	})
 
 	return categories
+}
+
+function getRestaurantSlug(){
+
+const params = new URLSearchParams(window.location.search)
+
+return params.get("restaurant")
+
 }
 
 function renderMenu() {
@@ -191,6 +208,7 @@ function renderCart() {
 
 }
 
+
 document.getElementById("sendOrder").onclick = () => {
 
 	if (Object.keys(cart).length === 0) {
@@ -198,20 +216,60 @@ document.getElementById("sendOrder").onclick = () => {
 		return
 	}
 
-	let message = "Hola! Quiero pedir:%0A%0A"
+	const name = document.getElementById("customerName").value
+	const type = document.getElementById("orderType").value
+	const address = document.getElementById("address").value
+	const notes = document.getElementById("notes").value
+	
+	if (name.trim() === "") {
+		alert("Por favor ingresa tu nombre")
+		return
+	}
+
+	if (type === "Delivery" && address.trim() === "") {
+		alert("Por favor ingresa la dirección para el delivery")
+		return
+	}
+
+	let message = "Hola! Quiero hacer el siguiente pedido:%0A%0A"
+
+	Object.values(cart).forEach(item => {
+		message += `${item.qty} x ${item.product.name}%0A`
+	})
 
 	let total = 0
 
 	Object.values(cart).forEach(item => {
-
-		message += `${item.qty} x ${item.product.name}%0A`
-
-		total += item.product.price * item.qty
-
+		total += item.qty * item.product.price
 	})
 
-	message += `%0ATotal: $${total}`
+	message += `%0ATotal: $${total}%0A%0A`
+
+	message += `Nombre: ${name}%0A`
+	message += `Tipo de pedido: ${type}%0A`
+
+	if (type === "Delivery") {
+		message += `Dirección: ${address}%0A`
+	}
+
+	if (notes) {
+		message += `Observaciones: ${notes}%0A`
+	}
 
 	window.open(`https://wa.me/${WHATSAPP}?text=${message}`)
 
 }
+
+
+const orderTypeSelect = document.getElementById("orderType")
+const addressContainer = document.getElementById("addressContainer")
+
+orderTypeSelect.addEventListener("change", function(){
+
+if(this.value === "Delivery"){
+addressContainer.style.display = "block"
+}else{
+addressContainer.style.display = "none"
+}
+
+})

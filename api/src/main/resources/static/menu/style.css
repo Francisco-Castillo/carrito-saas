@@ -122,3 +122,32 @@ font-size:18px;
 }
 
 
+.order-form{
+display:flex;
+flex-direction:column;
+gap:8px;
+margin:10px 0;
+}
+
+.order-form input,
+.order-form select,
+.order-form textarea{
+
+padding:8px;
+border-radius:6px;
+border:1px solid #333;
+background:#1a1a1a;
+color:white;
+font-size:14px;
+
+}
+
+.order-form textarea{
+resize:none;
+height:60px;
+}
+
+#addressContainer{
+display:none;
+}
+

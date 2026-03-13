@@ -8,28 +8,45 @@
 
 <body>
 
-<header class="header">
-<h1>Menú</h1>
-</header>
+	<header class="header">
+		<h1>Menú</h1>
+	</header>
 
-<div id="menu"></div>
+	<div id="menu"></div>
 
-<div class="cart">
-<h2>Tu pedido</h2>
+	<div class="cart">
+		<h2>Tu pedido</h2>
 
-<div id="cart-items"></div>
+		<div id="cart-items"></div>
 
-<div class="cart-total">
-Total: $<span id="total">0</span>
-</div>
+		<div class="cart-total">
+			Total: $<span id="total">0</span>
+		</div>
 
-<button id="sendOrder" class="whatsapp-btn">
-Pedir por WhatsApp
-</button>
+		<div class="order-form">
 
-</div>
+			<input id="customerName" type="text" placeholder="Nombre y Apellido">
 
-<script src="app.js"></script>
+			<select id="orderType">
+				<option value="Retiro">Retiro en el local</option>
+				<option value="Delivery">Delivery</option>
+			</select> 
+			<div id="addressContainer">
+			<input id="address" type="text"
+				placeholder="Dirección (solo para delivery)">
+				</div>
+
+			<textarea id="notes"
+				placeholder="Observaciones (ej: sin cebolla, sin mayonesa)"></textarea>
+
+		</div>
+
+		<button id="sendOrder" class="whatsapp-btn">Pedir por
+			WhatsApp</button>
+
+	</div>
+
+	<script src="app.js"></script>
 
 </body>
 </html>
