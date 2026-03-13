@@ -10,6 +10,10 @@ body {
 	padding-bottom: 260px; /*Esto se agrega para que el panel tu pedido no se superponga con el menu*/
 }
 
+body.cart-visible {
+	padding-bottom: 260px;
+}
+
 .header {
 	padding: 15px;
 	text-align: center;
@@ -106,6 +110,7 @@ body {
 	background: #111;
 	border-top: 2px solid #333;
 	padding: 15px;
+	display: none;
 }
 
 /*background: #25D366;*/
@@ -166,4 +171,40 @@ body {
 #restaurantName {
 	color: white;
 	font-size: 26px;
+}
+
+
+/*Estilo para la animacion del acordeon*/
+.category-content{
+	max-height:0;
+	overflow:hidden;
+	transition:max-height 0.35s ease;
+}
+
+.category.open .category-content{
+	max-height:2000px;
+}
+
+.category-header{
+	cursor:pointer;
+	padding:14px;
+	font-weight:bold;
+	background:#1a1a1a;
+	border-bottom:1px solid #333;
+	
+	position: sticky;
+	top: 0;
+	z-index: 5;
+	
+	box-shadow:0 2px 4px rgba(0,0,0,0.4);
+}
+
+.category-header::after{
+	content:"▼";
+	float:right;
+	transition:transform 0.3s;
+}
+
+.category.open .category-header::after{
+	transform:rotate(180deg);
 }

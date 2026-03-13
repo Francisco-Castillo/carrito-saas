@@ -109,11 +109,10 @@ function renderMenu() {
 		header.textContent = cat.name
 
 		const productsDiv = document.createElement("div")
-		productsDiv.className = "category-products"
+		productsDiv.className = "category-content"
 
 		header.onclick = () => {
-			productsDiv.style.display =
-				productsDiv.style.display === "block" ? "none" : "block"
+			categoryDiv.classList.toggle("open")
 		}
 
 		cat.products.forEach(p => {
@@ -241,6 +240,9 @@ function renderCart() {
 	})
 
 	totalEl.textContent = total
+	
+	// Muestra u oculta el panel tu pedido si hay o no articulos
+	updateCartVisibility()
 
 }
 
@@ -336,5 +338,26 @@ function resetApp() {
 	document.getElementById("address").value = ""
 	document.getElementById("notes").value = ""
 	document.getElementById("orderType").value = "Retiro"
+	
+	updateCartVisibility()
+
+}
+
+
+function updateCartVisibility(){
+
+	const cartPanel = document.querySelector(".cart")
+
+	if(Object.keys(cart).length === 0){
+
+		cartPanel.style.display = "none"
+		document.body.classList.remove("cart-visible")
+
+	}else{
+
+		cartPanel.style.display = "block"
+		document.body.classList.add("cart-visible")
+
+	}
 
 }
