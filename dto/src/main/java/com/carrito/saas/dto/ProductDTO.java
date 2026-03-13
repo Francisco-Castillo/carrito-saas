@@ -16,6 +16,8 @@ public class ProductDTO {
     private BigDecimal price;
 
     private Boolean active;
+    
+    private Integer stock;
 
     private Long categoryId;
     

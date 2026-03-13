@@ -42,6 +42,13 @@ public class Product {
     
     private boolean active;
     
+    /**
+     * null → stock infinito (bebidas por ejemplo)
+0 → sin stock
+>0 → stock limitado
+     */
+    private Integer stock;
+    
     @Column(name = "image_url")
     private String imageUrl;
 

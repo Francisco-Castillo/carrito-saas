@@ -1,9 +1,27 @@
 package com.carrito.saas.repository.entity;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import com.carrito.saas.repository.enums.OrderStatus;
+import com.carrito.saas.repository.enums.OrderType;
+import com.carrito.saas.repository.enums.PaymentMethod;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,6 +35,61 @@ public class Order implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	@Id
-	private Long id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "business_id")
+    private Long businessId;
+
+    @Column(name = "customer_name")
+    private String customerName;
+    
+    @Column(name = "customer_phone")
+    private String customerPhone;
+    
+    @Column(name = "customer_address")
+    private String customerAddress;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "order_type")
+    private OrderType orderType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method")
+    private PaymentMethod paymentMethod;
+
+    private String notes;
+
+    private BigDecimal total;
+
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;
+
+    @CreationTimestamp
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+    
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    private List<OrderItem> items;
+    
+    @Column(name = "order_number")
+    private Integer orderNumber;
+    
+    @PrePersist
+    public void prePersist() {
+
+        if(status == null) {
+            status = OrderStatus.NEW;
+        }
+
+        if(createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+
+    }
 
 }

@@ -28,6 +28,7 @@ public class ProductMapperImpl implements IProductMapper {
 		dto.setDescription(entity.getDescription());
 		dto.setPrice(entity.getPrice());
 		dto.setActive(entity.isActive());
+		dto.setStock(entity.getStock());
 		
 		dto.setCategoryId(entity.getCategory().getId());
 		dto.setCategoryName(entity.getCategory().getName());
