@@ -8,6 +8,14 @@
 
 <body>
 
+	<div class="restaurant-header">
+
+		<img id="restaurantLogo">
+
+		<h1 id="restaurantName"></h1>
+
+	</div>
+
 	<header class="header">
 		<h1>Menú</h1>
 	</header>
@@ -30,11 +38,20 @@
 			<select id="orderType">
 				<option value="Retiro">Retiro en el local</option>
 				<option value="Delivery">Delivery</option>
-			</select> 
+			</select>
+
+
 			<div id="addressContainer">
-			<input id="address" type="text"
-				placeholder="Dirección (solo para delivery)">
-				</div>
+				<input id="address" type="text"
+					placeholder="Dirección (solo para delivery)">
+			</div>
+
+
+
+			<label>Forma de pago</label> <select id="paymentMethod">
+				<option value="Efectivo">Efectivo</option>
+				<option value="Transferencia">Transferencia</option>
+			</select>
 
 			<textarea id="notes"
 				placeholder="Observaciones (ej: sin cebolla, sin mayonesa)"></textarea>

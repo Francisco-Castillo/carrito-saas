@@ -2,13 +2,14 @@
 
 const slug = getRestaurantSlug()
 
-if(!slug){
-alert("Restaurant not specified")
+if (!slug) {
+	alert("Restaurant not specified")
 }
 
 const API_URL = `/api/restaurants/slug/${slug}/products`
 
-const WHATSAPP = "5490000000000"
+let restaurant = null
+let WHATSAPP = null
 
 let products = []
 let cart = JSON.parse(localStorage.getItem("cart")) || {}
@@ -17,6 +18,11 @@ init()
 
 async function init() {
 
+
+	resetApp()
+
+	await loadRestaurant()
+
 	const res = await fetch(API_URL)
 
 	products = await res.json()
@@ -24,6 +30,36 @@ async function init() {
 	renderMenu()
 
 	renderCart()
+
+}
+
+/**
+ * Funcion encargada de llamar al backend para obtener los datos del negocio.
+ */
+async function loadRestaurant() {
+
+	const slug = getRestaurantSlug()
+
+	const response = await fetch(`/api/restaurants/slug/${slug}`)
+
+	restaurant = await response.json()
+
+	WHATSAPP = restaurant.whatsapp
+
+	document.getElementById("restaurantName").innerText = restaurant.name
+
+	if (restaurant.logoUrl) {
+		document.getElementById("restaurantLogo").src = restaurant.logoUrl
+	} else {
+		document.getElementById("restaurantLogo").style.display = "none"
+	}
+
+	if (restaurant.primaryColor) {
+		document.documentElement.style.setProperty(
+			"--primary-color",
+			restaurant.primaryColor
+		)
+	}
 
 }
 
@@ -47,11 +83,11 @@ function groupByCategory(products) {
 	return categories
 }
 
-function getRestaurantSlug(){
+function getRestaurantSlug() {
 
-const params = new URLSearchParams(window.location.search)
+	const params = new URLSearchParams(window.location.search)
 
-return params.get("restaurant")
+	return params.get("restaurant")
 
 }
 
@@ -220,7 +256,8 @@ document.getElementById("sendOrder").onclick = () => {
 	const type = document.getElementById("orderType").value
 	const address = document.getElementById("address").value
 	const notes = document.getElementById("notes").value
-	
+	const payment = document.getElementById("paymentMethod").value
+
 	if (name.trim() === "") {
 		alert("Por favor ingresa tu nombre")
 		return
@@ -247,16 +284,21 @@ document.getElementById("sendOrder").onclick = () => {
 
 	message += `Nombre: ${name}%0A`
 	message += `Tipo de pedido: ${type}%0A`
+	
 
 	if (type === "Delivery") {
 		message += `Dirección: ${address}%0A`
 	}
+	
+	message += `Forma de pago: ${payment}%0A`
 
 	if (notes) {
 		message += `Observaciones: ${notes}%0A`
 	}
 
-	window.open(`https://wa.me/${WHATSAPP}?text=${message}`)
+	//window.open(`https://wa.me/${WHATSAPP}?text=${message}`)
+	console.log("MENSAJE WHATSAPP:")
+	console.log(decodeURIComponent(message))
 
 }
 
@@ -264,12 +306,35 @@ document.getElementById("sendOrder").onclick = () => {
 const orderTypeSelect = document.getElementById("orderType")
 const addressContainer = document.getElementById("addressContainer")
 
-orderTypeSelect.addEventListener("change", function(){
+orderTypeSelect.addEventListener("change", function() {
 
-if(this.value === "Delivery"){
-addressContainer.style.display = "block"
-}else{
-addressContainer.style.display = "none"
-}
+	if (this.value === "Delivery") {
+		addressContainer.style.display = "block"
+	} else {
+		addressContainer.style.display = "none"
+	}
 
 })
+
+
+function resetApp() {
+
+	// vaciar carrito
+	cart = {}
+
+	// limpiar lista del carrito
+	document.getElementById("cart-items").innerHTML = ""
+
+	// resetear total
+	document.getElementById("total").innerText = "0"
+
+	// limpiar productos
+	document.getElementById("menu").innerHTML = ""
+
+	// limpiar formulario
+	document.getElementById("customerName").value = ""
+	document.getElementById("address").value = ""
+	document.getElementById("notes").value = ""
+	document.getElementById("orderType").value = "Retiro"
+
+}
