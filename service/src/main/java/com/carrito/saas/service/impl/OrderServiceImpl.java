@@ -13,11 +13,13 @@ import com.carrito.saas.dto.OrderItemDTO;
 import com.carrito.saas.dto.OrderKitchenDTO;
 import com.carrito.saas.dto.OrderRequestDTO;
 import com.carrito.saas.dto.OrderResponseDTO;
+import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.Order;
 import com.carrito.saas.repository.entity.OrderItem;
 import com.carrito.saas.repository.entity.Product;
 import com.carrito.saas.repository.enums.OrderStatus;
 import com.carrito.saas.repository.enums.OrderType;
+import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.OrderRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
 import com.carrito.saas.service.interfaces.IOrderService;
@@ -29,13 +31,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderServiceImpl implements IOrderService {
 
 	private final OrderRepository orderRepository;
+	private final BusinessRepository businessRepository;
 	private final ProductRepository productRepository;
 	private final IOrderKitchenMapper iOrderKitchenMapper;
 
-	public OrderServiceImpl(OrderRepository orderRepository, ProductRepository productRepository,
-			IOrderKitchenMapper iOrderKitchenMapper) {
+	
+	public OrderServiceImpl(OrderRepository orderRepository, BusinessRepository businessRepository,
+			ProductRepository productRepository, IOrderKitchenMapper iOrderKitchenMapper) {
 		super();
 		this.orderRepository = orderRepository;
+		this.businessRepository = businessRepository;
 		this.productRepository = productRepository;
 		this.iOrderKitchenMapper = iOrderKitchenMapper;
 	}
@@ -209,5 +214,14 @@ public class OrderServiceImpl implements IOrderService {
 			throw new RuntimeException("Transición inválida: READY -> " + next);
 		}
 
+	}
+
+	@Override
+	public List<OrderKitchenDTO> getActiveOrdersBySlug(String slug) {
+		Business restaurant = businessRepository.findBySlug(slug)
+	            .orElseThrow(() -> new RuntimeException("Restaurant not found"));
+		
+		List<Order> orders = orderRepository.findActiveOrders(restaurant.getId());
+		return iOrderKitchenMapper.toListDTO(orders);
 	}
 }

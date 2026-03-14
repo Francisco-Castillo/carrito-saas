@@ -21,9 +21,15 @@ public class BusinessController {
 		this.orderService = orderService;
 	}
 
+	/*
 	@GetMapping("/{businessId}/orders/active")
 	public List<OrderKitchenDTO> getActiveOrders(@PathVariable Long businessId) {
 		return orderService.getActiveOrders(businessId);
+	}*/
+	
+	@GetMapping("/{slug}/orders/active")
+	public List<OrderKitchenDTO> getActiveOrdersBySlug(@PathVariable String slug) {
+		return orderService.getActiveOrdersBySlug(slug);
 	}
 
 }

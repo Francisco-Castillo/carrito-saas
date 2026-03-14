@@ -14,6 +14,8 @@ public interface IOrderService {
 	
 	List<OrderKitchenDTO> getActiveOrders(Long businessId);
 	
+	List<OrderKitchenDTO> getActiveOrdersBySlug(String slug);
+	
 	Order updateStatus(Long orderId, OrderStatus status);
 	
 	

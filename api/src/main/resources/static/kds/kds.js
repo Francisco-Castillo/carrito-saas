@@ -1,4 +1,14 @@
-const businessId = 1
+const params = new URLSearchParams(window.location.search)
+
+const restaurantSlug = params.get("restaurant")
+
+if(!restaurantSlug){
+
+document.body.innerHTML = "<h1>Restaurante no especificado</h1>"
+
+throw new Error("Missing restaurant slug")
+
+}
 
 const MAX_TIME = 900
 
@@ -13,7 +23,22 @@ async function loadOrders(){
 
 try{
 
-const response = await fetch(`/api/business/${businessId}/orders/active`)
+const response = await fetch(`/api/business/${restaurantSlug}/orders/active`)
+
+if(response.status === 404){
+
+document.body.innerHTML = "<h1>Restaurante no encontrado</h1>"
+return
+
+}
+
+if(!response.ok){
+
+throw new Error("Error cargando pedidos")
+
+}
+
+
 const orders = await response.json()
 
 detectNewOrders(orders)
