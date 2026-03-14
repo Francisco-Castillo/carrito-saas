@@ -1,10 +1,8 @@
-const pathParts = window.location.pathname.split("/")
-const restaurantSlug = pathParts[2]
+import { api } from "./apiClient.js"
 
 async function loadDashboard(){
 
-const res = await fetch(`/api/restaurants/${restaurantSlug}/dashboard/today`)
-const data = await res.json()
+const data = await api.getDashboardToday()
 
 document.getElementById("ordersToday").innerText = data.orders
 document.getElementById("revenueToday").innerText = "$"+data.revenue
@@ -15,8 +13,7 @@ document.getElementById("avgPrep").innerText = Math.floor(data.avgPrepTime/60)+"
 
 async function loadStatus(){
 
-const res = await fetch(`/api/restaurants/${restaurantSlug}/orders/status-summary`)
-const data = await res.json()
+const data = await api.getOrderStatusSummary()
 
 document.getElementById("newOrders").innerText = data.NEW || 0
 document.getElementById("preparingOrders").innerText = data.PREPARING || 0
@@ -26,8 +23,7 @@ document.getElementById("readyOrders").innerText = data.READY || 0
 
 async function loadTopProducts(){
 
-const res = await fetch(`/api/restaurants/${restaurantSlug}/analytics/top-products`)
-const data = await res.json()
+const data = await api.getTopProducts()
 
 const list = document.getElementById("topProducts")
 list.innerHTML=""
@@ -35,7 +31,7 @@ list.innerHTML=""
 data.forEach(p=>{
 
 const li = document.createElement("li")
-li.innerText = `${p.product} (${p.quantity})`
+li.innerText = `${p.productName} (${p.quantity})`
 list.appendChild(li)
 
 })
@@ -44,8 +40,7 @@ list.appendChild(li)
 
 async function loadSalesChart(){
 
-const res = await fetch(`/api/restaurants/${restaurantSlug}/analytics/sales-by-hour`)
-const data = await res.json()
+const data = await api.getSalesByHour()
 
 const labels = data.map(d=>d.hour)
 const values = data.map(d=>d.revenue)
@@ -81,10 +76,8 @@ options:{
 plugins:{legend:{display:false}},
 
 scales:{
-
 x:{grid:{display:false}},
 y:{grid:{color:"rgba(255,255,255,0.05)"}}
-
 }
 
 }

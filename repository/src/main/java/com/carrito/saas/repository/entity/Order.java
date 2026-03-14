@@ -79,6 +79,16 @@ public class Order implements Serializable {
     @Column(name = "order_number")
     private Integer orderNumber;
     
+    @Column(name="preparing_at")
+    private LocalDateTime preparingAt;
+
+    @Column(name="ready_at")
+    private LocalDateTime readyAt;
+
+    @Column(name="completed_at")
+    private LocalDateTime completedAt;
+    
+    
     @PrePersist
     public void prePersist() {
 
@@ -91,5 +101,10 @@ public class Order implements Serializable {
         }
 
     }
-
+/**
+ * created_at     → pedido creado
+preparing_at   → cocina empezó
+ready_at       → cocina terminó
+completed_at   → pedido entregado
+ */
 }

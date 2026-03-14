@@ -1,6 +1,7 @@
 package com.carrito.saas.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,7 +36,6 @@ public class OrderServiceImpl implements IOrderService {
 	private final ProductRepository productRepository;
 	private final IOrderKitchenMapper iOrderKitchenMapper;
 
-	
 	public OrderServiceImpl(OrderRepository orderRepository, BusinessRepository businessRepository,
 			ProductRepository productRepository, IOrderKitchenMapper iOrderKitchenMapper) {
 		super();
@@ -193,34 +193,44 @@ public class OrderServiceImpl implements IOrderService {
 	public Order updateStatus(Long orderId, OrderStatus status) {
 		Order order = orderRepository.findById(orderId).orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
 
-		validateTransition(order.getStatus(), status);
+		OrderStatus currentStatus = order.getStatus();
 
+		// Validar transición
+		currentStatus.validateTransition(status);
+
+		// Actualizar estado
 		order.setStatus(status);
+
+		LocalDateTime now = LocalDateTime.now();
+
+		switch (status) {
+
+		case PREPARING:
+			order.setPreparingAt(now);
+			break;
+
+		case READY:
+			order.setReadyAt(now);
+			break;
+
+		case DELIVERED:
+		case CANCELLED:
+			order.setCompletedAt(now);
+			break;
+
+		default:
+			break;
+		}
 
 		return orderRepository.save(order);
 	}
-
-	private void validateTransition(OrderStatus current, OrderStatus next) {
-
-		if (current == OrderStatus.NEW && next != OrderStatus.PREPARING) {
-			throw new RuntimeException("Transición inválida: NEW -> " + next);
-		}
-
-		if (current == OrderStatus.PREPARING && next != OrderStatus.READY) {
-			throw new RuntimeException("Transición inválida: PREPARING -> " + next);
-		}
-
-		if (current == OrderStatus.READY && next != OrderStatus.DELIVERED) {
-			throw new RuntimeException("Transición inválida: READY -> " + next);
-		}
-
-	}
+	
 
 	@Override
 	public List<OrderKitchenDTO> getActiveOrdersBySlug(String slug) {
 		Business restaurant = businessRepository.findBySlug(slug)
-	            .orElseThrow(() -> new RuntimeException("Restaurant not found"));
-		
+				.orElseThrow(() -> new RuntimeException("Restaurant not found"));
+
 		List<Order> orders = orderRepository.findActiveOrders(restaurant.getId());
 		return iOrderKitchenMapper.toListDTO(orders);
 	}
