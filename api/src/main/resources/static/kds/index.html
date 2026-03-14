@@ -4,55 +4,69 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Kitchen Display</title>
+<title>KDS - Cocina</title>
 
 <link rel="stylesheet" href="kds.css">
 
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
 </head>
 
-<body>
+<body class="kds-body">
 
-<div class="header">
+<div class="topbar">
 
-<div class="title">
-KITCHEN DISPLAY
+<div>KDS Cocina</div>
+
+<div id="clock">
+
+    <div id="time"></div>
+
+    <div id="date"></div>
+
 </div>
 
-<div class="clock" id="clock"></div>
-
 </div>
 
-<div class="board">
+<div class="kanban">
 
 <div class="column">
 
-<h2>🟡 NUEVOS</h2>
-<div id="newOrders"></div>
+<div class="column-header new">
+Nuevos (<span id="countNew">0</span>)
+</div>
+
+<div id="newOrders" class="column-body"></div>
 
 </div>
 
 <div class="column">
 
-<h2>🟠 PREPARANDO</h2>
-<div id="preparingOrders"></div>
+<div class="column-header preparing">
+Preparando (<span id="countPreparing">0</span>)
+</div>
+
+<div id="preparingOrders" class="column-body"></div>
 
 </div>
 
 <div class="column">
 
-<h2>🟢 LISTOS</h2>
-<div id="readyOrders"></div>
+<div class="column-header ready">
+Listos (<span id="countReady">0</span>)
+</div>
+
+<div id="readyOrders" class="column-body"></div>
 
 </div>
 
 </div>
 
 <audio id="newOrderSound">
-<source src="notification.mp3" type="audio/mpeg">
+<source src="ding.mp3" type="audio/mpeg">
 </audio>
 
 <script src="kds.js"></script>
 
 </body>
-
 </html>

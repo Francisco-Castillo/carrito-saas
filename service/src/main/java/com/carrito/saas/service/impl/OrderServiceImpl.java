@@ -32,8 +32,6 @@ public class OrderServiceImpl implements IOrderService {
 	private final ProductRepository productRepository;
 	private final IOrderKitchenMapper iOrderKitchenMapper;
 
-	
-
 	public OrderServiceImpl(OrderRepository orderRepository, ProductRepository productRepository,
 			IOrderKitchenMapper iOrderKitchenMapper) {
 		super();
@@ -154,23 +152,20 @@ public class OrderServiceImpl implements IOrderService {
 			item.setProductName(product.getName());
 			item.setPrice(product.getPrice());
 			item.setQuantity(quantity);
-			
-			BigDecimal subtotal =
-			        product.getPrice().multiply(BigDecimal.valueOf(quantity));
-			
+
+			BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(quantity));
+
 			item.setSubtotal(subtotal);
 
 			items.add(item);
-
 
 			total = total.add(subtotal);
 		}
 
 		order.setItems(items);
 		order.setTotal(total);
-		
-		Integer lastOrderNumber =
-		        orderRepository.findMaxOrderNumberByBusiness(request.getBusinessId());
+
+		Integer lastOrderNumber = orderRepository.findMaxOrderNumberByBusiness(request.getBusinessId());
 
 		order.setOrderNumber(lastOrderNumber + 1);
 
@@ -187,5 +182,32 @@ public class OrderServiceImpl implements IOrderService {
 	public List<OrderKitchenDTO> getActiveOrders(Long businessId) {
 		List<Order> orders = orderRepository.findActiveOrders(businessId);
 		return iOrderKitchenMapper.toListDTO(orders);
+	}
+
+	@Override
+	public Order updateStatus(Long orderId, OrderStatus status) {
+		Order order = orderRepository.findById(orderId).orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
+
+		validateTransition(order.getStatus(), status);
+
+		order.setStatus(status);
+
+		return orderRepository.save(order);
+	}
+
+	private void validateTransition(OrderStatus current, OrderStatus next) {
+
+		if (current == OrderStatus.NEW && next != OrderStatus.PREPARING) {
+			throw new RuntimeException("Transición inválida: NEW -> " + next);
+		}
+
+		if (current == OrderStatus.PREPARING && next != OrderStatus.READY) {
+			throw new RuntimeException("Transición inválida: PREPARING -> " + next);
+		}
+
+		if (current == OrderStatus.READY && next != OrderStatus.DELIVERED) {
+			throw new RuntimeException("Transición inválida: READY -> " + next);
+		}
+
 	}
 }

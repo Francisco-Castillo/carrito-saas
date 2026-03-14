@@ -1,28 +1,44 @@
 const businessId = 1
 
+const MAX_TIME = 900
+
+let ordersMap = new Map()
 let previousOrders = []
 
-function loadOrders(){
+/* =========================
+   CARGAR PEDIDOS
+========================= */
 
-fetch(`/api/business/${businessId}/orders/active`)
-.then(r=>r.json())
-.then(data=>{
+async function loadOrders(){
 
-detectNewOrders(data)
+try{
 
-renderOrders(data)
+const response = await fetch(`/api/business/${businessId}/orders/active`)
+const orders = await response.json()
 
-previousOrders = data
+detectNewOrders(orders)
 
-})
+syncOrders(orders)
+
+previousOrders = orders
+
+}catch(e){
+
+console.error("Error cargando pedidos", e)
 
 }
 
+}
+
+/* =========================
+   DETECTAR PEDIDOS NUEVOS
+========================= */
+
 function detectNewOrders(orders){
 
-orders.forEach(o=>{
+orders.forEach(order=>{
 
-const exists = previousOrders.find(p=>p.orderId === o.orderId)
+const exists = previousOrders.find(p=>p.orderId===order.orderId)
 
 if(!exists){
 
@@ -34,65 +50,99 @@ document.getElementById("newOrderSound").play()
 
 }
 
-function renderOrders(orders){
+/* =========================
+   SINCRONIZAR UI
+========================= */
 
-clearColumns()
+function syncOrders(orders){
 
-orders.forEach(order=>{
+const newCol = document.getElementById("newOrders")
+const prepCol = document.getElementById("preparingOrders")
+const readyCol = document.getElementById("readyOrders")
 
-const card = createOrderCard(order)
+newCol.innerHTML=""
+prepCol.innerHTML=""
+readyCol.innerHTML=""
 
-if(order.status === "NEW")
-document.getElementById("newOrders").appendChild(card)
+let newCount=0
+let prepCount=0
+let readyCount=0
 
-if(order.status === "PREPARING")
-document.getElementById("preparingOrders").appendChild(card)
+orders
+.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt))
+.forEach(order=>{
 
-if(order.status === "READY")
-document.getElementById("readyOrders").appendChild(card)
+const card = createCard(order)
+
+if(order.status === "NEW"){
+
+newCol.appendChild(card)
+newCount++
+
+}
+
+if(order.status === "PREPARING"){
+
+prepCol.appendChild(card)
+prepCount++
+
+}
+
+if(order.status === "READY"){
+
+readyCol.appendChild(card)
+readyCount++
+
+}
 
 })
 
-}
-
-function clearColumns(){
-
-document.getElementById("newOrders").innerHTML=""
-document.getElementById("preparingOrders").innerHTML=""
-document.getElementById("readyOrders").innerHTML=""
+document.getElementById("countNew").innerText=newCount
+document.getElementById("countPreparing").innerText=prepCount
+document.getElementById("countReady").innerText=readyCount
 
 }
 
-function createOrderCard(order){
+/* =========================
+   CREAR TARJETA
+========================= */
+
+function createCard(order){
 
 const div = document.createElement("div")
-
-div.className="order"
+div.className = "order-card"
+div.dataset.id = order.orderId
 
 const created = new Date(order.createdAt)
 
-const minutes = Math.floor((Date.now() - created)/60000)
+const seconds = Math.floor((Date.now() - created)/1000)
+const minutes = Math.floor(seconds/60)
 
 let timerClass="green"
 
 if(minutes>5) timerClass="orange"
 if(minutes>10) timerClass="red"
 
+if(minutes>10){
+div.classList.add("urgent")
+}
+
+let progress = (seconds/MAX_TIME)*100
+if(progress>100) progress=100
+
 let itemsHTML=""
 
 order.items.forEach(i=>{
-
 itemsHTML += `<div class="item">${i.quantity}x ${i.productName}</div>`
-
 })
 
 let button=""
 
 if(order.status==="NEW"){
 
-button = `
-<button class="btn btn-prepare"
-onclick="updateStatus(${order.orderId},'PREPARING')">
+button=`
+<button class="btn btn-start"
+onclick="advanceOrder(${order.orderId},'PREPARING')">
 COMENZAR
 </button>
 `
@@ -101,9 +151,9 @@ COMENZAR
 
 if(order.status==="PREPARING"){
 
-button = `
+button=`
 <button class="btn btn-ready"
-onclick="updateStatus(${order.orderId},'READY')">
+onclick="advanceOrder(${order.orderId},'READY')">
 LISTO
 </button>
 `
@@ -112,30 +162,40 @@ LISTO
 
 if(order.status==="READY"){
 
-button = `
+button=`
 <button class="btn btn-delivered"
-onclick="updateStatus(${order.orderId},'DELIVERED')">
+onclick="advanceOrder(${order.orderId},'DELIVERED')">
 ENTREGADO
 </button>
 `
 
 }
 
-div.innerHTML=`
+div.innerHTML = `
+
+<div>
 
 <div class="order-number">#${order.orderNumber}</div>
 
 <div class="customer">${order.customerName}</div>
 
-<div class="items">
 ${itemsHTML}
+
 </div>
 
+<div>
+
 <div class="timer ${timerClass}">
-${minutes} min
+${minutes}:${String(seconds%60).padStart(2,"0")}
+</div>
+
+<div class="progress">
+<div class="progress-bar" style="width:${progress}%"></div>
 </div>
 
 ${button}
+
+</div>
 
 `
 
@@ -143,23 +203,68 @@ return div
 
 }
 
-function updateStatus(orderId,status){
+/* =========================
+   AVANZAR ESTADO
+========================= */
 
-fetch(`/api/orders/${orderId}/status?status=${status}`,{
+async function advanceOrder(orderId,status){
+
+try{
+
+await fetch(`/api/orders/${orderId}/status?status=${status}`,{
 method:"PATCH"
 })
-.then(loadOrders)
+
+/* recargar pedidos */
+
+loadOrders()
+
+}catch(e){
+
+console.error("Error actualizando estado", e)
 
 }
+
+}
+
+/* =========================
+   RELOJ
+========================= */
 
 function updateClock(){
 
 const now = new Date()
 
-document.getElementById("clock").innerText =
-now.toLocaleTimeString()
+const time = now.toLocaleTimeString()
+
+const day = String(now.getDate()).padStart(2,'0')
+const month = String(now.getMonth()+1).padStart(2,'0')
+const year = now.getFullYear()
+
+const date = `${day}/${month}/${year}`
+
+document.getElementById("time").innerText=time
+document.getElementById("date").innerText=date
 
 }
+
+/* =========================
+   FULLSCREEN
+========================= */
+
+document.addEventListener("click",()=>{
+
+if(!document.fullscreenElement){
+
+document.documentElement.requestFullscreen()
+
+}
+
+})
+
+/* =========================
+   LOOP PRINCIPAL
+========================= */
 
 setInterval(loadOrders,4000)
 setInterval(updateClock,1000)

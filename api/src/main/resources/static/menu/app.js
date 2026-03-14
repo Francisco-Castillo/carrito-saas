@@ -18,18 +18,19 @@ init()
 
 async function init() {
 
+resetApp()
 
-	resetApp()
+await loadRestaurant()
 
-	await loadRestaurant()
+const res = await fetch(API_URL)
 
-	const res = await fetch(API_URL)
+products = await res.json()
 
-	products = await res.json()
+renderMenu()
 
-	renderMenu()
+renderCart()
 
-	renderCart()
+updateCartVisibility()
 
 }
 
