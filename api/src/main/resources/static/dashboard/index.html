@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<title>Dashboard</title>
+
+<link rel="stylesheet" href="dashboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+<header class="topbar">
+
+<div class="title">
+<h1 id="restaurantName">Dashboard</h1>
+<span id="date"></span>
+</div>
+
+</header>
+
+<main>
+
+<section class="stats">
+
+<div class="stat-card">
+<span>Pedidos hoy</span>
+<h2 id="ordersToday">0</h2>
+</div>
+
+<div class="stat-card">
+<span>Ingresos</span>
+<h2 id="revenueToday">$0</h2>
+</div>
+
+<div class="stat-card">
+<span>Ticket promedio</span>
+<h2 id="avgTicket">$0</h2>
+</div>
+
+<div class="stat-card">
+<span>Tiempo cocina</span>
+<h2 id="avgPrep">0m</h2>
+</div>
+
+</section>
+
+<section class="orders-status">
+
+<h2>Pedidos activos</h2>
+
+<div class="status-grid">
+
+<div class="status-card">
+<span>Nuevos</span>
+<h3 id="newOrders">0</h3>
+</div>
+
+<div class="status-card">
+<span>Preparando</span>
+<h3 id="preparingOrders">0</h3>
+</div>
+
+<div class="status-card">
+<span>Listos</span>
+<h3 id="readyOrders">0</h3>
+</div>
+
+</div>
+
+</section>
+
+<section class="chart-section">
+
+<h2>Ventas hoy</h2>
+
+<canvas id="salesChart"></canvas>
+
+</section>
+
+<section class="top-products">
+
+<h2>Top productos</h2>
+
+<ul id="topProducts"></ul>
+
+</section>
+
+</main>
+
+<script src="dashboard.js"></script>
+
+</body>
+
+</html>
