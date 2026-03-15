@@ -7,16 +7,12 @@
 		<artifactId>carrito-saas</artifactId>
 		<version>0.0.1-SNAPSHOT</version>
 	</parent>
-	<artifactId>service</artifactId>
+	<artifactId>security</artifactId>
+
 	<dependencies>
 		<dependency>
 			<groupId>com.carrito</groupId>
 			<artifactId>repository</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>com.carrito</groupId>
-			<artifactId>dto</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>
@@ -27,7 +23,7 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
-		
+
 		<!-- JWT: JJWT library -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
@@ -46,5 +42,13 @@
 			<version>0.11.5</version>
 			<scope>runtime</scope>
 		</dependency>
+		
+		<dependency>
+    <groupId>jakarta.servlet</groupId>
+    <artifactId>jakarta.servlet-api</artifactId>
+    <version>6.0.0</version>
+    <scope>provided</scope>
+</dependency>
+
 	</dependencies>
 </project>

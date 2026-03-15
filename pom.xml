@@ -29,6 +29,7 @@
 		<module>service</module>
 		<module>repository</module>
 		<module>dto</module>
+		<module>security</module>
 	</modules>
 
 	<build>
