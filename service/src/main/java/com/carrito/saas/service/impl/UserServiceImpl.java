@@ -4,6 +4,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.carrito.saas.dto.CreateUserRequestDTO;
+import com.carrito.saas.dto.UserLoginInfoDTO;
 import com.carrito.saas.dto.UserResponseDTO;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.BusinessUser;
@@ -69,5 +70,16 @@ public class UserServiceImpl implements IUserService {
 	        );
 	    }
 	
+	public UserLoginInfoDTO getLoginInfo(String username){
+
+	    BusinessUser ru = businessUserRepository
+	            .findByUserUsername(username)
+	            .orElseThrow();
+
+	    return new UserLoginInfoDTO(
+	            ru.getRole().getName(),
+	            ru.getBusiness().getSlug()
+	    );
+	}
 
 }

@@ -26,28 +26,51 @@ public class JwtFilter extends OncePerRequestFilter {
 	}
 
 	@Override
-	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-			throws ServletException, IOException {
-		String authHeader = request.getHeader("Authorization");
+	protected void doFilterInternal(HttpServletRequest request,
+	                                HttpServletResponse response,
+	                                FilterChain filterChain)
+	        throws ServletException, IOException {
 
-		if (authHeader != null && authHeader.startsWith("Bearer ")) {
+	    String path = request.getServletPath();
 
-			String token = authHeader.substring(7);
+	    if (path.startsWith("/api/auth")) {
+	        filterChain.doFilter(request, response);
+	        return;
+	    }
 
-			if (jwtUtil.validateToken(token)) {
+	    String header = request.getHeader("Authorization");
 
-				String username = jwtUtil.extractUsername(token);
+	    if (header == null || !header.startsWith("Bearer ")) {
+	        filterChain.doFilter(request, response);
+	        return;
+	    }
 
-				var userDetails = userDetailsService.loadUserByUsername(username);
+	    try {
 
-				var auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+	        String token = header.substring(7);
+	        String username = jwtUtil.extractUsername(token);
 
-				SecurityContextHolder.getContext().setAuthentication(auth);
-			}
-		}
+	        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-		filterChain.doFilter(request, response);
+	            var userDetails = userDetailsService.loadUserByUsername(username);
 
+	            if (jwtUtil.validateToken(token, userDetails)) {
+
+	                UsernamePasswordAuthenticationToken auth =
+	                        new UsernamePasswordAuthenticationToken(
+	                                userDetails,
+	                                null,
+	                                userDetails.getAuthorities()
+	                        );
+
+	                SecurityContextHolder.getContext().setAuthentication(auth);
+	            }
+	        }
+
+	    } catch (Exception e) {
+	        SecurityContextHolder.clearContext();
+	    }
+
+	    filterChain.doFilter(request, response);
 	}
-
 }
