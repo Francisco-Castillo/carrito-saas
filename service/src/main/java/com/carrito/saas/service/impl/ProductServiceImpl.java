@@ -23,7 +23,8 @@ public class ProductServiceImpl implements IProductService {
 
 	@Override
 	public List<ProductDTO> getProductsByRestaurant(Long restaurantId) {
-		  List<Product> products = productRepository.findByBusinessIdAndActiveTrue(restaurantId);
+		// Buscamos los productos que pertenezcan al negocio, que esten activos y tengan stock mayor a cero.
+		  List<Product> products = productRepository.findByBusinessIdAndActiveTrueAndStockGreaterThan(restaurantId,0);
 		  return iProductMapper.toListDTO(products);
 	}
 

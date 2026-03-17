@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.carrito.saas.dto.reportes.DashboardTodayDTO;
 import com.carrito.saas.dto.reportes.OrderStatusSummaryDTO;
 import com.carrito.saas.repository.entity.Business;
+import com.carrito.saas.repository.enums.OrderStatus;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.OrderRepository;
 import com.carrito.saas.service.interfaces.IDashboardService;
@@ -36,8 +37,9 @@ public class DashboardServiceImpl implements IDashboardService {
 	    long orders = orderRepository
 	            .countOrdersToday(restaurant.getId(), today);
 
+	    // Las ventas totales del dia solo consideran aquellos pedidos en estado "Entregado", podria ser "Listo" Tamb.
 	    double revenue = orderRepository
-	            .sumRevenueToday(restaurant.getId(), today);
+	            .sumRevenueToday(restaurant.getId(), today, List.of(OrderStatus.DELIVERED));
 
 	    double avgTicket = orders == 0 ? 0 : revenue / orders;
 

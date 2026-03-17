@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import com.carrito.saas.repository.entity.Order;
+import com.carrito.saas.repository.enums.OrderStatus;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
@@ -57,8 +58,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 			FROM Order o
 			WHERE o.businessId = :restaurantId
 			AND DATE(o.createdAt) = :today
+			AND o.status IN :statuses
 			""")
-	double sumRevenueToday(Long restaurantId, LocalDate today);
+	double sumRevenueToday(Long restaurantId, LocalDate today, List<OrderStatus> statuses);
 
 	/**
 	 * Tiempo promedio de preparacion

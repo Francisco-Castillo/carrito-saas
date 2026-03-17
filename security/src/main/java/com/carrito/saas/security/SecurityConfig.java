@@ -57,6 +57,9 @@ public class SecurityConfig {
 	            // Menu publico
 	            .requestMatchers("/api/restaurants/slug/**").permitAll()
 	            
+	            // Crear usuarios publico
+	            .requestMatchers("/api/restaurants/**").permitAll()
+	            
 	            // endpoint público para crear pedidos
 	            .requestMatchers(HttpMethod.POST, "/api/orders")
 	            .permitAll()

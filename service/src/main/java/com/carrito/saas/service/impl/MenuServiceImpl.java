@@ -48,7 +48,8 @@ public class MenuServiceImpl implements IMenuService {
 
 		List<Category> categories = categoryRepository.findByBusinessId(business.getId());
 
-		List<Product> products = productRepository.findByBusinessIdAndActiveTrue(business.getId());
+		// Buscamos los productos del negocio que esten activos cuyo stock sea mayor a cero.
+		List<Product> products = productRepository.findByBusinessIdAndActiveTrueAndStockGreaterThan(business.getId(),0);
 
 		MenuDTO menu = new MenuDTO();
 

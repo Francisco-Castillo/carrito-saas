@@ -1,98 +1,256 @@
 import { api } from "./apiClient.js"
 
-async function loadDashboard(){
+/* =========================
+   AUTH
+========================= */
 
-const data = await api.getDashboardToday()
+function isTokenExpired(token) {
 
-document.getElementById("ordersToday").innerText = data.orders
-document.getElementById("revenueToday").innerText = "$"+data.revenue
-document.getElementById("avgTicket").innerText = "$"+data.avgTicket
-document.getElementById("avgPrep").innerText = Math.floor(data.avgPrepTime/60)+"m"
-
-}
-
-async function loadStatus(){
-
-const data = await api.getOrderStatusSummary()
-
-document.getElementById("newOrders").innerText = data.NEW || 0
-document.getElementById("preparingOrders").innerText = data.PREPARING || 0
-document.getElementById("readyOrders").innerText = data.READY || 0
+	try {
+		const payload = JSON.parse(atob(token.split(".")[1]));
+		const exp = payload.exp * 1000;
+		return Date.now() > exp;
+	} catch (e) {
+		return true;
+	}
 
 }
 
-async function loadTopProducts(){
+function logout() {
 
-const data = await api.getTopProducts()
-
-const list = document.getElementById("topProducts")
-list.innerHTML=""
-
-data.forEach(p=>{
-
-const li = document.createElement("li")
-li.innerText = `${p.productName} (${p.quantity})`
-list.appendChild(li)
-
-})
+	localStorage.removeItem("token");
+	window.location.href = "/login/login.html";
 
 }
 
-async function loadSalesChart(){
+function checkAuth() {
 
-const data = await api.getSalesByHour()
+	const token = localStorage.getItem("token");
 
-const labels = data.map(d=>d.hour)
-const values = data.map(d=>d.revenue)
-
-new Chart(document.getElementById("salesChart"),{
-
-type:"line",
-
-data:{
-
-labels:labels,
-
-datasets:[{
-
-label:"Ventas",
-
-data:values,
-
-borderColor:"#6366f1",
-
-backgroundColor:"rgba(99,102,241,0.2)",
-
-fill:true,
-
-tension:0.3
-
-}]
-
-},
-
-options:{
-
-plugins:{legend:{display:false}},
-
-scales:{
-x:{grid:{display:false}},
-y:{grid:{color:"rgba(255,255,255,0.05)"}}
-}
+	if (!token || isTokenExpired(token)) {
+		logout();
+	}
 
 }
 
-})
+/* =========================
+   UTIL
+========================= */
+
+function formatARS(value) {
+	return "$ " + new Intl.NumberFormat("es-AR", {
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2
+	}).format(value);
+}
+
+/* =========================
+   DASHBOARD
+========================= */
+
+async function loadDashboard() {
+
+	try {
+
+		const data = await api.getDashboardToday()
+
+		const revenue = document.getElementById("revenueToday")
+		const avgTicket = document.getElementById("avgTicket")
+		const orders = document.getElementById("ordersToday")
+		const avgPrep = document.getElementById("avgPrep")
+
+		if (revenue) revenue.innerText = formatARS(data.revenue)
+		if (avgTicket) avgTicket.innerText = formatARS(data.avgTicket)
+		if (orders) orders.innerText = data.orders
+		if (avgPrep) avgPrep.innerText = Math.floor(data.avgPrepTime / 60) + "m"
+
+	} catch (e) {
+
+		console.error("Error cargando dashboard", e)
+
+	}
 
 }
 
-function updateDate(){
+async function loadStatus() {
 
-const now = new Date()
+	try {
 
-document.getElementById("date").innerText =
-now.toLocaleDateString("es-ES")
+		const data = await api.getOrderStatusSummary()
 
+		const newOrders = document.getElementById("newOrders")
+		const preparing = document.getElementById("preparingOrders")
+		const ready = document.getElementById("readyOrders")
+
+		if (newOrders) newOrders.innerText = data.NEW || 0
+		if (preparing) preparing.innerText = data.PREPARING || 0
+		if (ready) ready.innerText = data.READY || 0
+
+	} catch (e) {
+
+		console.error("Error cargando estados", e)
+
+	}
+
+}
+
+async function loadTopProducts() {
+
+	try {
+
+		const data = await api.getTopProducts()
+
+		const list = document.getElementById("topProducts")
+		if (!list) return
+
+		list.innerHTML = ""
+
+		data.forEach(p => {
+
+			const li = document.createElement("li")
+			li.innerText = `${p.productName} (${p.quantity})`
+			list.appendChild(li)
+
+		})
+
+	} catch (e) {
+
+		console.error("Error cargando top productos", e)
+
+	}
+
+}
+
+async function loadSalesChart() {
+
+	try {
+
+		const data = await api.getSalesByHour()
+
+		const labels = data.map(d => d.hour)
+		const values = data.map(d => d.revenue)
+
+		const ctx = document.getElementById("salesChart")
+
+		if (!ctx) return
+
+		new Chart(ctx, {
+
+			type: "line",
+
+			data: {
+
+				labels: labels,
+
+				datasets: [{
+
+					label: "Ventas",
+
+					data: values,
+
+					borderColor: "#6366f1",
+					backgroundColor: "rgba(99,102,241,0.2)",
+					fill: true,
+					tension: 0.3
+
+				}]
+
+			},
+
+			options: {
+
+				responsive: true,
+				maintainAspectRatio: false,
+
+				plugins: {
+
+					legend: { display: false },
+
+					tooltip: {
+						callbacks: {
+							label: function(context) {
+								return "Ventas: $ " + new Intl.NumberFormat("es-AR").format(context.parsed.y)
+							}
+						}
+					}
+
+				},
+
+				scales: {
+
+					x: {
+
+						title: {
+							display: true,
+							text: "Horas",
+							color: "#94a3b8",
+							font: { size: 14 }
+						},
+
+						grid: { display: false }
+
+					},
+
+					y: {
+
+						title: {
+							display: true,
+							text: "Pesos ($)",
+							color: "#94a3b8",
+							font: { size: 14 }
+						},
+
+						ticks: {
+							callback: function(value) {
+								return "$ " + new Intl.NumberFormat("es-AR").format(value)
+							}
+						},
+
+						grid: { color: "rgba(255,255,255,0.05)" }
+
+					}
+
+				}
+
+			}
+
+		})
+
+	} catch (e) {
+
+		console.error("Error cargando grafico", e)
+
+	}
+
+}
+
+/* =========================
+   DATE
+========================= */
+
+function updateDate() {
+
+	const now = new Date()
+
+	const date = document.getElementById("date")
+
+	if (date) {
+		date.innerText = now.toLocaleDateString("es-ES")
+	}
+
+}
+
+/* =========================
+   INIT
+========================= */
+
+checkAuth()
+
+setInterval(checkAuth, 60000)
+
+const logoutBtn = document.getElementById("logoutBtn")
+if (logoutBtn) {
+	logoutBtn.addEventListener("click", logout)
 }
 
 updateDate()
