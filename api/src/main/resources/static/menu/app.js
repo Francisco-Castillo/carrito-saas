@@ -273,40 +273,40 @@ document.getElementById("sendOrder").onclick = () => {
 
 	let message = "Hola! Quiero hacer el siguiente pedido:%0A%0A"
 
+	// Lista de productos con viñetas
 	Object.values(cart).forEach(item => {
-		message += `${item.qty} x ${item.product.name}%0A`
+		message += `• ${item.qty} x ${item.product.name}%0A`
 	})
 
+	// Total en negrita
 	let total = 0
-
 	Object.values(cart).forEach(item => {
 		total += item.qty * item.product.price
 	})
+	message += `%0A*Total:* $${total}%0A`
 
-	message += `%0ATotal: $${total}%0A%0A`
+	// Línea divisora
+	message += "----------------%0A"
 
-	message += `Nombre: ${name}%0A`
-	message += `Tipo de pedido: ${type}%0A`
+	// Otros campos en negrita
+	message += `*Nombre:* ${name}%0A`
+	message += `*Tipo de pedido:* ${type}%0A`
 	
-
 	if (type === "Delivery") {
-		message += `Dirección: ${address}%0A`
+		message += `*Dirección:* ${address}%0A`
 	}
 	
-	message += `Forma de pago: ${payment}%0A`
+	message += `*Forma de pago:* ${payment}%0A`
 
 	if (notes) {
-		message += `Observaciones: ${notes}%0A`
+		message += `*Observaciones:* ${notes}%0A`
 	}
 	
 	console.log("MENSAJE WHATSAPP:")
 	console.log(decodeURIComponent(message))
 
 	window.open(`https://wa.me/${WHATSAPP}?text=${message}`)
-	
-
 }
-
 
 const orderTypeSelect = document.getElementById("orderType")
 const addressContainer = document.getElementById("addressContainer")
