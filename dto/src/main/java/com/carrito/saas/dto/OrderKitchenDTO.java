@@ -21,5 +21,7 @@ public class OrderKitchenDTO {
     private LocalDateTime createdAt;
 
     private List<OrderItemKitchenDTO> items;
+    
+    private String notes;
 
 }

@@ -178,88 +178,56 @@ function createCard(order) {
 	const minutes = Math.floor(seconds / 60)
 
 	let timerClass = "green"
-
 	if (minutes > 5) timerClass = "orange"
 	if (minutes > 10) timerClass = "red"
-
-	if (minutes > 10) {
-		div.classList.add("urgent")
-	}
+	if (minutes > 10) div.classList.add("urgent")
 
 	let progress = (seconds / MAX_TIME) * 100
 	if (progress > 100) progress = 100
 
+	// Items del pedido
 	let itemsHTML = ""
-
 	order.items.forEach(i => {
 		itemsHTML += `<div class="item">${i.quantity}x ${i.productName}</div>`
 	})
 
+	// Observaciones / notas
+	let notesHTML = ""
+	if (order.notes && order.notes.trim() !== "") {
+		notesHTML = `<div class="order-notes">📝 ${order.notes}</div>`
+	}
+
+	// Botón según estado
 	let button = ""
-
 	if (order.status === "NEW") {
-
-		button = `
-<button class="btn btn-start"
-onclick="advanceOrder(${order.orderId},'PREPARING')">
-COMENZAR
-</button>
-`
-
+		button = `<button class="btn btn-start" onclick="advanceOrder(${order.orderId},'PREPARING')">COMENZAR</button>`
 	}
-
 	if (order.status === "PREPARING") {
-
-		button = `
-<button class="btn btn-ready"
-onclick="advanceOrder(${order.orderId},'READY')">
-LISTO
-</button>
-`
-
+		button = `<button class="btn btn-ready" onclick="advanceOrder(${order.orderId},'READY')">LISTO</button>`
 	}
-
 	if (order.status === "READY") {
-
-		button = `
-<button class="btn btn-delivered"
-onclick="advanceOrder(${order.orderId},'DELIVERED')">
-ENTREGADO
-</button>
-`
-
+		button = `<button class="btn btn-delivered" onclick="advanceOrder(${order.orderId},'DELIVERED')">ENTREGADO</button>`
 	}
 
 	div.innerHTML = `
-
 <div>
-
-<div class="order-number">#${order.orderNumber}</div>
-
-<div class="customer">${order.customerName}</div>
-
-${itemsHTML}
-
+	<div class="order-number">#${order.orderNumber}</div>
+	<div class="customer">${order.customerName}</div>
+	${itemsHTML}
+	${notesHTML}
 </div>
 
 <div>
-
-<div class="timer ${timerClass}">
-${minutes}:${String(seconds % 60).padStart(2, "0")}
+	<div class="timer ${timerClass}">
+		${minutes}:${String(seconds % 60).padStart(2, "0")}
+	</div>
+	<div class="progress">
+		<div class="progress-bar" style="width:${progress}%"></div>
+	</div>
+	${button}
 </div>
-
-<div class="progress">
-<div class="progress-bar" style="width:${progress}%"></div>
-</div>
-
-${button}
-
-</div>
-
 `
-
 	return div
-
 }
 
 /* =========================

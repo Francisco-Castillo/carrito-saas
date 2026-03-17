@@ -320,3 +320,14 @@ margin-top:2px;
     opacity:1;
     transform:scale(1.1);
 }
+
+.order-notes{
+	background: #16181D;
+	padding: 8px 12px;
+	margin-top: 8px;
+	border-left: 3px solid #F59E0B; /* indicador visual */
+	border-radius: 8px;
+	font-size: 14px;
+	color: #D1D5DB;
+	white-space: pre-wrap; /* mantiene saltos de línea si el cliente escribió varios */
+}
