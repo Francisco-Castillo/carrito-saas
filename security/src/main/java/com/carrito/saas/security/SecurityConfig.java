@@ -51,8 +51,15 @@ public class SecurityConfig {
 	                "/dashboard/**"
 	            ).permitAll()
 	            
+	            // Carta digital publica
+	            .requestMatchers("/menu/**").permitAll()
+	            
+	            // Menu publico
+	            .requestMatchers("/api/restaurants/slug/**").permitAll()
+	            
 	            // endpoint público para crear pedidos
-	            .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
+	            .requestMatchers(HttpMethod.POST, "/api/orders")
+	            .permitAll()
 
 	            .anyRequest().authenticated()
 	        )

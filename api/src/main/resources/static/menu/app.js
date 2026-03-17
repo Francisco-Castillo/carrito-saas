@@ -45,7 +45,7 @@ async function loadRestaurant() {
 
 	restaurant = await response.json()
 
-	WHATSAPP = restaurant.whatsapp
+	WHATSAPP = restaurant.whatsappNumber
 
 	document.getElementById("restaurantName").innerText = restaurant.name
 
@@ -298,10 +298,12 @@ document.getElementById("sendOrder").onclick = () => {
 	if (notes) {
 		message += `Observaciones: ${notes}%0A`
 	}
-
-	//window.open(`https://wa.me/${WHATSAPP}?text=${message}`)
+	
 	console.log("MENSAJE WHATSAPP:")
 	console.log(decodeURIComponent(message))
+
+	window.open(`https://wa.me/${WHATSAPP}?text=${message}`)
+	
 
 }
 
