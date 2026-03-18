@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.carrito.saas.dto.OrderDTO;
 import com.carrito.saas.dto.OrderRequestDTO;
-import com.carrito.saas.dto.OrderResponseDTO;
 import com.carrito.saas.repository.entity.Order;
 import com.carrito.saas.repository.enums.OrderStatus;
 import com.carrito.saas.service.interfaces.IOrderService;
@@ -36,7 +35,7 @@ public class OrderController {
 		OrderDTO order = orderService.createOrder(request);
 
 	    messagingTemplate.convertAndSend(
-	            "/topic/orders",
+	            "/topic/orders/"+ order.getBusinessSlug(),
 	            order
 	    );
 
@@ -48,7 +47,9 @@ public class OrderController {
 
 		OrderDTO order = orderService.updateStatus(orderId, status);
 
-		messagingTemplate.convertAndSend("/topic/orders", order);
+		 messagingTemplate.convertAndSend(
+		            "/topic/orders/"+ order.getBusinessSlug(),
+		            order);
 
 		return ResponseEntity.ok().build();
 	}

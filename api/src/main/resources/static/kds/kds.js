@@ -54,7 +54,7 @@ function unlockAudio() {
 async function loadOrders() {
 	try {
 		const token = localStorage.getItem("token")
-		const response = await fetch(`/api/business/${restaurantSlug}/orders/active`, {
+		const response = await fetch(`/api/business/orders/active`, {
 			headers: {
 				"Authorization": "Bearer " + token
 			}
@@ -563,7 +563,7 @@ function connectWebSocket() {
 
 		console.log("KDS conectado")
 
-		stompClient.subscribe('/topic/orders', function(message) {
+		stompClient.subscribe(`/topic/orders/${restaurantSlug}`, function(message) {
 
 			const order = JSON.parse(message.body)
 

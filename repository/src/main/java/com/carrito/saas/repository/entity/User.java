@@ -2,6 +2,7 @@ package com.carrito.saas.repository.entity;
 
 import java.util.Set;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -25,6 +26,9 @@ public class User {
 	private String username;
 
 	private String password;
+	
+	@Column(unique = true)
+	private String email;
 	
 	@ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

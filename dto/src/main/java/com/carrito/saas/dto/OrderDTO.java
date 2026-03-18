@@ -12,6 +12,8 @@ public class OrderDTO {
 	private Long orderId;
 
 	private Long businessId;
+	
+	private String businessSlug;
 
 	private String customerName;
 

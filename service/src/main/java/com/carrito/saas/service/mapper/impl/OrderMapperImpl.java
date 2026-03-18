@@ -29,7 +29,8 @@ public class OrderMapperImpl implements IOrderMapper {
 		
 		OrderDTO orderDTO = new OrderDTO();
 		orderDTO.setOrderId(entity.getId());
-		orderDTO.setBusinessId(entity.getBusinessId());
+		orderDTO.setBusinessId(entity.getBusiness().getId());
+		orderDTO.setBusinessSlug(entity.getBusiness().getSlug());
 		orderDTO.setCustomerName(entity.getCustomerName());
 		orderDTO.setCustomerPhone(entity.getCustomerPhone());
 		orderDTO.setCustomerAddress(entity.getCustomerAddress());

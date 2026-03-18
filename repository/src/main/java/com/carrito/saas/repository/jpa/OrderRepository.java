@@ -17,7 +17,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	@Query("""
 			SELECT COALESCE(MAX(o.orderNumber),0)
 			FROM Order o
-			WHERE o.businessId = :businessId
+			WHERE o.business.id = :businessId
 			""")
 	Integer findMaxOrderNumberByBusiness(Long businessId);
 
@@ -25,7 +25,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 			SELECT DISTINCT o
 			FROM Order o
 			LEFT JOIN FETCH o.items
-			WHERE o.businessId = :businessId
+			WHERE o.business.id = :businessId
 			AND o.status NOT IN ('DELIVERED','CANCELLED')
 			ORDER BY o.createdAt ASC
 			""")
@@ -41,7 +41,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	@Query("""
 			SELECT COUNT(o)
 			FROM Order o
-			WHERE o.businessId = :restaurantId
+			WHERE o.business.id = :restaurantId
 			AND DATE(o.createdAt) = :today
 			""")
 	long countOrdersToday(Long restaurantId, LocalDate today);
@@ -56,7 +56,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	@Query("""
 			SELECT COALESCE(SUM(o.total),0)
 			FROM Order o
-			WHERE o.businessId = :restaurantId
+			WHERE o.business.id = :restaurantId
 			AND DATE(o.createdAt) = :today
 			AND o.status IN :statuses
 			""")
@@ -72,7 +72,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	@Query("""
 			SELECT AVG(TIMESTAMPDIFF(SECOND,o.preparingAt,o.readyAt))
 			FROM Order o
-			WHERE o.businessId = :restaurantId
+			WHERE o.business.id = :restaurantId
 			AND DATE(o.createdAt) = :today
 			AND o.readyAt IS NOT NULL
 			""")
@@ -88,7 +88,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	@Query("""
 			SELECT o.status, COUNT(o)
 			FROM Order o
-			WHERE o.businessId = :restaurantId
+			WHERE o.business.id = :restaurantId
 			GROUP BY o.status
 			""")
 	List<Object[]> countOrdersByStatus(Long restaurantId);
@@ -103,7 +103,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 			SELECT oi.productName, SUM(oi.quantity)
 			FROM OrderItem oi
 			JOIN oi.order o
-			WHERE o.businessId = :restaurantId
+			WHERE o.business.id = :restaurantId
 			AND o.createdAt >= :start
 			AND o.createdAt < :end
 			GROUP BY oi.productName
@@ -120,7 +120,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	@Query("""
 			SELECT HOUR(o.createdAt), SUM(o.total)
 			FROM Order o
-			WHERE o.businessId = :restaurantId
+			WHERE o.business.id = :restaurantId
 			AND o.createdAt >= :start
 			AND o.createdAt < :end
 			GROUP BY HOUR(o.createdAt)

@@ -14,7 +14,6 @@ import com.carrito.saas.dto.OrderDTO;
 import com.carrito.saas.dto.OrderItemDTO;
 import com.carrito.saas.dto.OrderKitchenDTO;
 import com.carrito.saas.dto.OrderRequestDTO;
-import com.carrito.saas.dto.OrderResponseDTO;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.Order;
 import com.carrito.saas.repository.entity.OrderItem;
@@ -24,6 +23,7 @@ import com.carrito.saas.repository.enums.OrderType;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.OrderRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
+import com.carrito.saas.security.SecurityService;
 import com.carrito.saas.service.interfaces.IOrderService;
 import com.carrito.saas.service.mapper.interfaces.IOrderKitchenMapper;
 import com.carrito.saas.service.mapper.interfaces.IOrderMapper;
@@ -38,15 +38,18 @@ public class OrderServiceImpl implements IOrderService {
 	private final ProductRepository productRepository;
 	private final IOrderKitchenMapper iOrderKitchenMapper;
 	private final IOrderMapper iOrderMapper;
+	private final SecurityService securityService;
 
 	public OrderServiceImpl(OrderRepository orderRepository, BusinessRepository businessRepository,
-			ProductRepository productRepository, IOrderKitchenMapper iOrderKitchenMapper, IOrderMapper iOrderMapper) {
+			ProductRepository productRepository, IOrderKitchenMapper iOrderKitchenMapper, IOrderMapper iOrderMapper,
+			SecurityService securityService) {
 		super();
 		this.orderRepository = orderRepository;
 		this.businessRepository = businessRepository;
 		this.productRepository = productRepository;
 		this.iOrderKitchenMapper = iOrderKitchenMapper;
 		this.iOrderMapper = iOrderMapper;
+		this.securityService = securityService;
 	}
 
 	@Override
@@ -57,8 +60,8 @@ public class OrderServiceImpl implements IOrderService {
 			throw new RuntimeException("Pedido inválido");
 		}
 
-		if (request.getBusinessId() == null) {
-			throw new RuntimeException("RestaurantId es obligatorio");
+		if (request.getBusinessSlug() == null || request.getBusinessSlug().isBlank()) {
+			throw new RuntimeException("Restaurante es obligatorio");
 		}
 
 		if (request.getCustomerName() == null || request.getCustomerName().isBlank()) {
@@ -81,6 +84,10 @@ public class OrderServiceImpl implements IOrderService {
 		if (request.getItems() == null || request.getItems().isEmpty()) {
 			throw new RuntimeException("El pedido debe contener al menos un producto");
 		}
+
+		Business business = businessRepository.findBySlug(request.getBusinessSlug())
+				
+				.orElseThrow(() -> new RuntimeException("No se encontró restaurante"));
 
 		// -------- agrupar productos duplicados --------
 
@@ -113,7 +120,7 @@ public class OrderServiceImpl implements IOrderService {
 
 		Order order = new Order();
 		order.setStatus(OrderStatus.NEW);
-		order.setBusinessId(request.getBusinessId());
+		order.setBusiness(business);
 		order.setCustomerName(request.getCustomerName());
 		order.setCustomerPhone(request.getCustomerPhone());
 		order.setOrderType(request.getOrderType());
@@ -135,7 +142,7 @@ public class OrderServiceImpl implements IOrderService {
 				throw new RuntimeException("Cantidad demasiado grande para el producto: " + entry.getKey());
 			}
 
-			if (!product.getBusinessId().equals(request.getBusinessId())) {
+			if (!product.getBusinessId().equals(business.getId())) {
 				throw new RuntimeException("Producto no pertenece al restaurante");
 			}
 
@@ -174,15 +181,11 @@ public class OrderServiceImpl implements IOrderService {
 		order.setItems(items);
 		order.setTotal(total);
 
-		Integer lastOrderNumber = orderRepository.findMaxOrderNumberByBusiness(request.getBusinessId());
+		Integer lastOrderNumber = orderRepository.findMaxOrderNumberByBusiness(business.getId());
 
 		order.setOrderNumber(lastOrderNumber + 1);
 
 		Order savedOrder = orderRepository.save(order);
-
-		/*OrderResponseDTO response = new OrderResponseDTO();
-		response.setOrderId(savedOrder.getId());
-		response.setStatus(savedOrder.getStatus().name());*/
 
 		return iOrderMapper.toDTO(savedOrder);
 	}
@@ -231,11 +234,13 @@ public class OrderServiceImpl implements IOrderService {
 	}
 
 	@Override
-	public List<OrderKitchenDTO> getActiveOrdersBySlug(String slug) {
-		Business restaurant = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new RuntimeException("Restaurant not found"));
+	public List<OrderKitchenDTO> getActiveOrders() {
+		Long businessId = securityService.getCurrentBusinessId();
 
-		List<Order> orders = orderRepository.findActiveOrders(restaurant.getId());
+		List<Order> orders = orderRepository.findActiveOrders(businessId);
+
 		return iOrderKitchenMapper.toListDTO(orders);
 	}
+
+	
 }

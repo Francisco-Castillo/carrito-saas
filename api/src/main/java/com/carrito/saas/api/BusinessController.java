@@ -3,7 +3,6 @@ package com.carrito.saas.api;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -20,16 +19,10 @@ public class BusinessController {
 		super();
 		this.orderService = orderService;
 	}
-
-	/*
-	@GetMapping("/{businessId}/orders/active")
-	public List<OrderKitchenDTO> getActiveOrders(@PathVariable Long businessId) {
-		return orderService.getActiveOrders(businessId);
-	}*/
 	
-	@GetMapping("/{slug}/orders/active")
-	public List<OrderKitchenDTO> getActiveOrdersBySlug(@PathVariable String slug) {
-		return orderService.getActiveOrdersBySlug(slug);
+	@GetMapping("/orders/active")
+	public List<OrderKitchenDTO>  getActiveOrders() {
+		return orderService.getActiveOrders();
 	}
 
 }

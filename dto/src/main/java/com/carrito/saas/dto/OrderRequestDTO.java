@@ -11,7 +11,7 @@ import lombok.Data;
 public class OrderRequestDTO {
 
 
-    private Long businessId;
+    private String businessSlug;
 
     private String customerName;
 
