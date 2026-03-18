@@ -190,7 +190,7 @@ public class OrderServiceImpl implements IOrderService {
 	}
 
 	@Override
-	public Order updateStatus(Long orderId, OrderStatus status) {
+	public void updateStatus(Long orderId, OrderStatus status) {
 		Order order = orderRepository.findById(orderId).orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
 
 		OrderStatus currentStatus = order.getStatus();
@@ -221,8 +221,9 @@ public class OrderServiceImpl implements IOrderService {
 		default:
 			break;
 		}
+		
+		orderRepository.save(order);
 
-		return orderRepository.save(order);
 	}
 	
 

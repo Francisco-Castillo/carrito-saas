@@ -22,11 +22,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	Integer findMaxOrderNumberByBusiness(Long businessId);
 
 	@Query("""
-			SELECT o
+			SELECT DISTINCT o
 			FROM Order o
 			LEFT JOIN FETCH o.items
 			WHERE o.businessId = :businessId
-			AND o.status <> 'DELIVERED'
+			AND o.status NOT IN ('DELIVERED','CANCELLED')
 			ORDER BY o.createdAt ASC
 			""")
 	List<Order> findActiveOrders(Long businessId);

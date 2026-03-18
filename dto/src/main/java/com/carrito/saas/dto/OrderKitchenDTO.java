@@ -13,6 +13,8 @@ public class OrderKitchenDTO {
 	private Long orderId;
 
     private Integer orderNumber;
+    
+    private String orderType;
 
     private String customerName;
 
@@ -23,5 +25,7 @@ public class OrderKitchenDTO {
     private List<OrderItemKitchenDTO> items;
     
     private String notes;
+    
+    
 
 }

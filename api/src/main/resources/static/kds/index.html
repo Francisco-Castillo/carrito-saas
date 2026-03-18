@@ -90,6 +90,24 @@ Listos (<span id="countReady">0</span>)
     <source src="ready.mp3" type="audio/mpeg">
 </audio>
 
+<!-- Modal Cancelación Pedido -->
+<div id="cancelModal" class="modal hidden">
+  <div class="modal-content">
+    <h3>Cancelar pedido</h3>
+    <p>¿Seguro que deseas cancelar este pedido?</p>
+
+    <div class="modal-buttons">
+      <button class="btn btn-delivered" onclick="hideCancelModal()">
+        No
+      </button>
+
+      <button class="btn btn-start" onclick="confirmCancelOrder()">
+        Sí cancelar
+      </button>
+    </div>
+  </div>
+</div>
+
 <script src="kds.js"></script>
 
 </body>

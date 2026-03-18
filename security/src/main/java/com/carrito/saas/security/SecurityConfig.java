@@ -63,7 +63,6 @@ public class SecurityConfig {
 	            // endpoint público para crear pedidos
 	            .requestMatchers(HttpMethod.POST, "/api/orders")
 	            .permitAll()
-
 	            .anyRequest().authenticated()
 	        )
 
