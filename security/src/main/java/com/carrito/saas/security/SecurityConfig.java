@@ -60,6 +60,10 @@ public class SecurityConfig {
 	            // Crear usuarios publico
 	            .requestMatchers("/api/restaurants/**").permitAll()
 	            
+	            // Permite websocket.
+	            
+	            .requestMatchers("/ws/**").permitAll()
+	            
 	            // endpoint público para crear pedidos
 	            .requestMatchers(HttpMethod.POST, "/api/orders")
 	            .permitAll()

@@ -8,7 +8,9 @@
 
 <link rel="stylesheet" href="kds.css">
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link
+	href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+	rel="stylesheet">
 
 <script>
 const token = localStorage.getItem("token");
@@ -32,83 +34,83 @@ if (window.location.pathname.includes("/kds/") && !roles.includes("KITCHEN")) {
 
 <body class="kds-body">
 
-<div class="topbar">
+	<div class="topbar">
 
-    <div>KDS Cocina</div>
+		<div>KDS Cocina</div>
 
-    <div class="topbar-right">
+		<div class="topbar-right">
 
-        <div id="clock">
-            <div id="time"></div>
-            <div id="date"></div>
-        </div>
+			<div id="clock">
+				<div id="time"></div>
+				<div id="date"></div>
+			</div>
 
-        <div id="logout" onclick="logout()">⏻</div>
+			<div id="logout" onclick="logout()">⏻</div>
 
-    </div>
+		</div>
 
-</div>
+	</div>
 
-<div class="kanban">
+	<div class="kanban">
 
-<div class="column">
+		<div class="column">
 
-<div class="column-header new">
-Nuevos (<span id="countNew">0</span>)
-</div>
+			<div class="column-header new">
+				Nuevos (<span id="countNew">0</span>)
+			</div>
 
-<div id="newOrders" class="column-body"></div>
+			<div id="newOrders" class="column-body"></div>
 
-</div>
+		</div>
 
-<div class="column">
+		<div class="column">
 
-<div class="column-header preparing">
-Preparando (<span id="countPreparing">0</span>)
-</div>
+			<div class="column-header preparing">
+				Preparando (<span id="countPreparing">0</span>)
+			</div>
 
-<div id="preparingOrders" class="column-body"></div>
+			<div id="preparingOrders" class="column-body"></div>
 
-</div>
+		</div>
 
-<div class="column">
+		<div class="column">
 
-<div class="column-header ready">
-Listos (<span id="countReady">0</span>)
-</div>
+			<div class="column-header ready">
+				Listos (<span id="countReady">0</span>)
+			</div>
 
-<div id="readyOrders" class="column-body"></div>
+			<div id="readyOrders" class="column-body"></div>
 
-</div>
+		</div>
 
-</div>
+	</div>
 
-<audio id="newOrderSound">
-<source src="ding.mp3" type="audio/mpeg">
-</audio>
-<audio id="readySound">
-    <source src="ready.mp3" type="audio/mpeg">
-</audio>
+	<audio id="newOrderSound">
+		<source src="ding.mp3" type="audio/mpeg">
+	</audio>
+	<audio id="readySound">
+		<source src="ready.mp3" type="audio/mpeg">
+	</audio>
 
-<!-- Modal Cancelación Pedido -->
-<div id="cancelModal" class="modal hidden">
-  <div class="modal-content">
-    <h3>Cancelar pedido</h3>
-    <p>¿Seguro que deseas cancelar este pedido?</p>
+	<!-- Modal Cancelación Pedido -->
+	<div id="cancelModal" class="modal hidden">
+		<div class="modal-content">
+			<h3>Cancelar pedido</h3>
+			<p>¿Seguro que deseas cancelar este pedido?</p>
 
-    <div class="modal-buttons">
-      <button class="btn btn-delivered" onclick="hideCancelModal()">
-        No
-      </button>
+			<div class="modal-buttons">
+				<button class="btn btn-delivered" onclick="hideCancelModal()">
+					No</button>
 
-      <button class="btn btn-start" onclick="confirmCancelOrder()">
-        Sí cancelar
-      </button>
-    </div>
-  </div>
-</div>
-
-<script src="kds.js"></script>
+				<button class="btn btn-start" onclick="confirmCancelOrder()">
+					Sí cancelar</button>
+			</div>
+		</div>
+	</div>
+	<script
+		src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/stompjs@2/lib/stomp.min.js"></script>
+	<script src="kds.js"></script>
 
 </body>
 </html>

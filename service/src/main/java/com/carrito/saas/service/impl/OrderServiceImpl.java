@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import com.carrito.saas.dto.OrderDTO;
 import com.carrito.saas.dto.OrderItemDTO;
 import com.carrito.saas.dto.OrderKitchenDTO;
 import com.carrito.saas.dto.OrderRequestDTO;
@@ -25,6 +26,7 @@ import com.carrito.saas.repository.jpa.OrderRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
 import com.carrito.saas.service.interfaces.IOrderService;
 import com.carrito.saas.service.mapper.interfaces.IOrderKitchenMapper;
+import com.carrito.saas.service.mapper.interfaces.IOrderMapper;
 
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,19 +37,21 @@ public class OrderServiceImpl implements IOrderService {
 	private final BusinessRepository businessRepository;
 	private final ProductRepository productRepository;
 	private final IOrderKitchenMapper iOrderKitchenMapper;
+	private final IOrderMapper iOrderMapper;
 
 	public OrderServiceImpl(OrderRepository orderRepository, BusinessRepository businessRepository,
-			ProductRepository productRepository, IOrderKitchenMapper iOrderKitchenMapper) {
+			ProductRepository productRepository, IOrderKitchenMapper iOrderKitchenMapper, IOrderMapper iOrderMapper) {
 		super();
 		this.orderRepository = orderRepository;
 		this.businessRepository = businessRepository;
 		this.productRepository = productRepository;
 		this.iOrderKitchenMapper = iOrderKitchenMapper;
+		this.iOrderMapper = iOrderMapper;
 	}
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public OrderResponseDTO createOrder(OrderRequestDTO request) {
+	public OrderDTO createOrder(OrderRequestDTO request) {
 
 		if (request == null) {
 			throw new RuntimeException("Pedido inválido");
@@ -176,11 +180,11 @@ public class OrderServiceImpl implements IOrderService {
 
 		Order savedOrder = orderRepository.save(order);
 
-		OrderResponseDTO response = new OrderResponseDTO();
+		/*OrderResponseDTO response = new OrderResponseDTO();
 		response.setOrderId(savedOrder.getId());
-		response.setStatus(savedOrder.getStatus().name());
+		response.setStatus(savedOrder.getStatus().name());*/
 
-		return response;
+		return iOrderMapper.toDTO(savedOrder);
 	}
 
 	@Override
@@ -190,7 +194,7 @@ public class OrderServiceImpl implements IOrderService {
 	}
 
 	@Override
-	public void updateStatus(Long orderId, OrderStatus status) {
+	public OrderDTO updateStatus(Long orderId, OrderStatus status) {
 		Order order = orderRepository.findById(orderId).orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
 
 		OrderStatus currentStatus = order.getStatus();
@@ -221,11 +225,10 @@ public class OrderServiceImpl implements IOrderService {
 		default:
 			break;
 		}
-		
-		orderRepository.save(order);
 
+		Order orderSaved = orderRepository.save(order);
+		return iOrderMapper.toDTO(orderSaved);
 	}
-	
 
 	@Override
 	public List<OrderKitchenDTO> getActiveOrdersBySlug(String slug) {

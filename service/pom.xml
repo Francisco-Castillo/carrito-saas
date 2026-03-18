@@ -27,7 +27,7 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
-		
+
 		<!-- JWT: JJWT library -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
@@ -46,5 +46,7 @@
 			<version>0.11.5</version>
 			<scope>runtime</scope>
 		</dependency>
+
+
 	</dependencies>
 </project>

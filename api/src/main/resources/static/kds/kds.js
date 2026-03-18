@@ -8,6 +8,8 @@ if (!restaurantSlug) {
 
 const MAX_TIME = 900
 let previousOrders = []
+let stompClient = null
+let audioUnlocked = false
 
 /* =========================
    SONIDOS
@@ -26,6 +28,24 @@ function playReadySound() {
 		sound.currentTime = 0
 		sound.play().catch(() => { })
 	}
+}
+
+function unlockAudio() {
+
+	if (audioUnlocked) return
+
+	const sound = document.getElementById("newOrderSound")
+
+	if (!sound) return
+
+	sound.play()
+		.then(() => {
+			sound.pause()
+			sound.currentTime = 0
+			audioUnlocked = true
+			console.log("Audio desbloqueado")
+		})
+		.catch(() => { })
 }
 
 /* =========================
@@ -163,7 +183,7 @@ ${typeIcon} ${typeLabel}
 
 		notesHTML = `
 <div class="order-notes">
-📝 ${order.notes}
+${order.notes}
 </div>
 `
 	}
@@ -249,7 +269,7 @@ async function advanceOrder(orderId, status) {
 			headers: { "Authorization": "Bearer " + token }
 		})
 		if (status === "READY") playReadySound()
-		loadOrders()
+
 	} catch (e) { console.error("Error actualizando estado", e) }
 }
 
@@ -266,20 +286,27 @@ function updateClock() {
 }
 
 /* =========================
+   DESBLOQUEAR AUDIO
+========================= */
+
+document.addEventListener("click", unlockAudio, { once: true })
+document.addEventListener("touchstart", unlockAudio, { once: true })
+document.addEventListener("keydown", unlockAudio, { once: true })
+
+/* =========================
    FULLSCREEN
 ========================= */
 document.addEventListener("click", () => {
-	const sound = document.getElementById("newOrderSound")
-	if (sound) {
-		sound.play().then(() => { sound.pause(); sound.currentTime = 0 }).catch(() => { })
+	if (!document.fullscreenElement) {
+		document.documentElement.requestFullscreen()
 	}
-	if (!document.fullscreenElement) document.documentElement.requestFullscreen()
 }, { once: true })
 
 /* =========================
    LOOP PRINCIPAL
 ========================= */
-setInterval(loadOrders, 4000)
+/*setInterval(loadOrders, 4000)*/
+connectWebSocket()
 setInterval(updateClock, 1000)
 loadOrders()
 updateClock()
@@ -520,3 +547,110 @@ async function confirmCancelOrder() {
 		console.error("Error cancelando pedido", e)
 	}
 }
+
+
+
+
+function connectWebSocket() {
+
+	const socket = new SockJS('/ws/orders')
+
+	stompClient = Stomp.over(socket)
+
+	stompClient.debug = null
+
+	stompClient.connect({}, function() {
+
+		console.log("KDS conectado")
+
+		stompClient.subscribe('/topic/orders', function(message) {
+
+			const order = JSON.parse(message.body)
+
+			handleOrderEvent(order)
+
+		})
+
+	}, function() {
+
+		console.log("WebSocket desconectado. Reintentando en 5s")
+
+		setTimeout(connectWebSocket, 5000)
+
+	})
+}
+
+function handleOrderEvent(order) {
+
+	const existing = document.querySelector(
+		`.order-card[data-id="${order.orderId}"]`
+	)
+
+	// PEDIDO NUEVO
+	if (!existing) {
+
+		const card = createCard(order)
+
+		card.classList.add("fade-in")
+
+		enableDrag(card)
+
+		moveCardToColumn(card, order.status)
+
+
+		if (order.status === "NEW") {
+			playNewOrderSound()
+		}
+
+		return
+	}
+
+	// PEDIDO ACTUALIZADO
+	const newCard = createCard(order)
+
+	newCard.classList.add("fade-in")
+
+	enableDrag(newCard)
+
+	existing.replaceWith(newCard)
+
+	moveCardToColumn(newCard, order.status)
+
+}
+
+function moveCardToColumn(card, status) {
+
+	let column = null
+
+	if (status === "NEW") {
+		column = document.getElementById("newOrders")
+	}
+
+	if (status === "PREPARING") {
+		column = document.getElementById("preparingOrders")
+	}
+
+	if (status === "READY") {
+		column = document.getElementById("readyOrders")
+	}
+
+	// eliminar tarjeta si ya fue entregada o cancelada
+	if (status === "DELIVERED" || status === "CANCELLED") {
+
+		card.classList.add("fade-out")
+
+		setTimeout(() => {
+			card.remove()
+		}, 200)
+
+		return
+	}
+
+	if (!column) return
+
+	card.dataset.status = status
+
+	column.appendChild(card)
+}
+
+
