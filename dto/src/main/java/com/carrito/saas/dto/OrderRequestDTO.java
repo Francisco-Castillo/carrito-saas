@@ -10,9 +10,6 @@ import lombok.Data;
 @Data
 public class OrderRequestDTO {
 
-
-    private String businessSlug;
-
     private String customerName;
 
     private String customerPhone;

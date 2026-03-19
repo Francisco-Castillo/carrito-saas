@@ -1,9 +1,9 @@
 package com.carrito.saas.service.interfaces;
 
-import com.carrito.saas.repository.entity.Business;
+import com.carrito.saas.dto.BusinessDTO;
 
 public interface IBusinessService {
 	
-	Business getBusinessBySlug(String slug);
+	BusinessDTO getBusinessBySlug(String slug);
 
 }

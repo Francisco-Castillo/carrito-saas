@@ -7,6 +7,6 @@ import com.carrito.saas.dto.UserResponseDTO;
 public interface IUserService {
 	
 	UserResponseDTO createUser(String restaurantSlug, CreateUserRequestDTO request);
-	UserLoginInfoDTO getLoginInfo(String username);
+	UserLoginInfoDTO getLoginInfo(String username, String slug);
 
 }

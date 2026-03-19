@@ -54,13 +54,13 @@ public class OrderServiceImpl implements IOrderService {
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public OrderDTO createOrder(OrderRequestDTO request) {
+	public OrderDTO createOrder(String slug, OrderRequestDTO request) {
 
 		if (request == null) {
 			throw new RuntimeException("Pedido inválido");
 		}
 
-		if (request.getBusinessSlug() == null || request.getBusinessSlug().isBlank()) {
+		if (slug == null || slug.isBlank()) {
 			throw new RuntimeException("Restaurante es obligatorio");
 		}
 
@@ -85,8 +85,8 @@ public class OrderServiceImpl implements IOrderService {
 			throw new RuntimeException("El pedido debe contener al menos un producto");
 		}
 
-		Business business = businessRepository.findBySlug(request.getBusinessSlug())
-				
+		Business business = businessRepository.findBySlug(slug)
+
 				.orElseThrow(() -> new RuntimeException("No se encontró restaurante"));
 
 		// -------- agrupar productos duplicados --------
@@ -198,7 +198,11 @@ public class OrderServiceImpl implements IOrderService {
 
 	@Override
 	public OrderDTO updateStatus(Long orderId, OrderStatus status) {
-		Order order = orderRepository.findById(orderId).orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		Order order = orderRepository.findByIdAndBusinessId(orderId, businessId)
+				.orElseThrow(() -> new RuntimeException("Pedido no encontrado o no autorizado"));
 
 		OrderStatus currentStatus = order.getStatus();
 
@@ -242,5 +246,4 @@ public class OrderServiceImpl implements IOrderService {
 		return iOrderKitchenMapper.toListDTO(orders);
 	}
 
-	
 }

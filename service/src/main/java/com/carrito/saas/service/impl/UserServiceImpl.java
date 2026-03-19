@@ -70,16 +70,22 @@ public class UserServiceImpl implements IUserService {
 	        );
 	    }
 	
-	public UserLoginInfoDTO getLoginInfo(String username){
+	public UserLoginInfoDTO getLoginInfo(String username, String slug){
 
-	    BusinessUser ru = businessUserRepository
-	            .findByUserUsername(username)
-	            .orElseThrow();
+		User user = userRepository.findByUsername(username)
+		        .orElseThrow(() -> new RuntimeException("User not found"));
 
-	    return new UserLoginInfoDTO(
-	            ru.getRole().getName(),
-	            ru.getBusiness().getSlug()
-	    );
+		    Business business = businessRepository.findBySlug(slug)
+		        .orElseThrow(() -> new RuntimeException("Business not found"));
+
+		    BusinessUser bu = businessUserRepository
+		        .findByUserAndBusiness(user, business)
+		        .orElseThrow(() -> new RuntimeException("No pertenece a este negocio"));
+
+		    return new UserLoginInfoDTO(
+		        bu.getRole().getName(),
+		        business.getSlug()
+		    );
 	}
 
 }

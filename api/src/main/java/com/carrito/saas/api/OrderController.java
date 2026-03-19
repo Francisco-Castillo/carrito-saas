@@ -30,9 +30,9 @@ public class OrderController {
 		this.messagingTemplate = messagingTemplate;
 	}
 
-	@PostMapping
-	public OrderDTO createOrder(@RequestBody OrderRequestDTO request) {
-		OrderDTO order = orderService.createOrder(request);
+	@PostMapping("/menu/{slug}")
+	public OrderDTO createOrder(@PathVariable String slug, @RequestBody OrderRequestDTO request) {
+		OrderDTO order = orderService.createOrder(slug, request);
 
 	    messagingTemplate.convertAndSend(
 	            "/topic/orders/"+ order.getBusinessSlug(),

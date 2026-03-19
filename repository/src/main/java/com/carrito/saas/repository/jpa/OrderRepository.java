@@ -3,6 +3,7 @@ package com.carrito.saas.repository.jpa;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -127,5 +128,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 			ORDER BY HOUR(o.createdAt)
 			""")
 	List<Object[]> findSalesByHourToday(Long restaurantId, LocalDateTime start, LocalDateTime end);
+	
+	Optional<Order> findByIdAndBusinessId(Long id, Long businessId);
 
 }

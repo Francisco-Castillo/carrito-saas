@@ -10,7 +10,7 @@ import com.carrito.saas.repository.enums.OrderStatus;
 public interface IOrderService {
 
 
-	OrderDTO createOrder(OrderRequestDTO request);
+	OrderDTO createOrder(String slug, OrderRequestDTO request);
 
 	List<OrderKitchenDTO> getActiveOrders(Long businessId);
 

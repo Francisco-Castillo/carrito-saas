@@ -19,59 +19,59 @@
 
 <div class="login-container">
 
-<div class="login-card">
+  <div class="login-card fade-in">
 
-<div class="logo">
-🍔 Carrito SaaS
-</div>
+    <!-- HEADER -->
+    <div class="header">
+      <div class="logo">🍔</div>
+      <h1>Carrito SaaS</h1>
+      <p class="subtitle">Panel de gestión para foodtrucks</p>
+    </div>
 
-<p class="subtitle">
-Panel de gestión para restaurantes
-</p>
+    <!-- RESTAURANTE -->
+    <div class="restaurant-box">
+      <span class="restaurant-label">Restaurante</span>
+      <span class="restaurant-name" id="restaurantName">Cargando...</span>
+    </div>
 
-<form id="loginForm">
+    <!-- FORM -->
+    <form id="loginForm">
 
-<div class="input-group">
+      <div class="input-group">
+        <span class="icon">👤</span>
+        <input type="text" id="username" placeholder="Usuario" required>
+      </div>
 
-<span class="icon">👤</span>
+      <div class="input-group">
+        <span class="icon">🔒</span>
+        <input type="password" id="password" placeholder="Contraseña" required>
+      </div>
 
-<input
-type="text"
-id="username"
-placeholder="Usuario"
-required
->
+      <!-- RECORDAR -->
+      <div class="options">
+        <label>
+          <input type="checkbox" id="rememberMe">
+          Recordarme
+        </label>
+      </div>
 
-</div>
+      <button class="login-btn" id="loginBtn">
+        <span class="btn-text">Iniciar sesión</span>
+        <div class="loader"></div>
+      </button>
 
-<div class="input-group">
+      <!-- ERROR -->
+      <div id="errorMessage" class="error"></div>
 
-<span class="icon">🔒</span>
+    </form>
 
-<input
-type="password"
-id="password"
-placeholder="Contraseña"
-required
->
+    <!-- FOOTER -->
+    <div class="footer">
+      <p>© 2026 Carrito SaaS</p>
+      <span class="powered">Powered by SDE Group</span>
+    </div>
 
-</div>
-
-<button class="login-btn" id="loginBtn">
-
-<span class="btn-text">Iniciar sesión</span>
-
-<div class="loader"></div>
-
-</button>
-
-</form>
-
-<p class="footer">
-© 2026 Carrito SaaS
-</p>
-
-</div>
+  </div>
 
 </div>
 
