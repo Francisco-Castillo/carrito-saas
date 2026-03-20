@@ -312,7 +312,11 @@ loadOrders()
 updateClock()
 function logout() {
 	localStorage.removeItem("token");
-	window.location.href = "/login/login.html";
+	if (restaurantSlug) {
+		window.location.href = `/login/login.html?restaurant=${restaurantSlug}`;
+	} else {
+		window.location.href = "/login/login.html";
+	}
 }
 
 /* =========================
