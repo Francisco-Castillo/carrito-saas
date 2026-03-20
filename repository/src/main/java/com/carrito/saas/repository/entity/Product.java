@@ -26,9 +26,7 @@ public class Product {
 
     @Column(name = "business_id")
     private Long businessId;
-/*
-    @Column(name = "category_id")
-    private Long categoryId;*/
+
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
@@ -39,6 +37,12 @@ public class Product {
     private String description;
 
     private BigDecimal price;
+    
+    /**
+     * Costo real del producto (no visible al cliente)
+     */
+    @Column(nullable = false)
+    private BigDecimal cost;
     
     private boolean active;
     
@@ -51,5 +55,8 @@ public class Product {
     
     @Column(name = "image_url")
     private String imageUrl;
+    
+    @Column(name = "unit_measure")
+    private String unitMeasure;
 
 }

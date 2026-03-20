@@ -18,25 +18,38 @@ import lombok.Setter;
 @Entity
 @Table(name = "order_items")
 public class OrderItem {
-	
+
 	@Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "order_id")
-    private Order order;
+	@ManyToOne
+	@JoinColumn(name = "order_id")
+	private Order order;
 
-    @Column(name = "product_id")
-    private Long productId;
+	@Column(name = "product_id")
+	private Long productId;
 
-    @Column(name = "product_name")
-    private String productName;
+	@Column(name = "product_name")
+	private String productName;
 
-    private BigDecimal price;
+	private BigDecimal price;
+	
+	/**
+	 * Costo del producto al momento de la venta
+	 */
+	private BigDecimal cost;
 
-    private Integer quantity;
-    
-    private BigDecimal subtotal;
+	private Integer quantity;
+
+	private BigDecimal subtotal;
+
+	// referencia al combo (si aplica)
+	@ManyToOne
+	@JoinColumn(name = "combo_id")
+	private Combo combo;
+	
+	@Column(name = "is_combo_root")
+	private Boolean comboRoot;
 
 }

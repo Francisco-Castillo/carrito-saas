@@ -1,4 +1,3 @@
-/*const API_URL = "http://localhost:8080/api/restaurants/1/products"*/
 
 const slug = getRestaurantSlug()
 
@@ -6,43 +5,75 @@ if (!slug) {
 	alert("Restaurant not specified")
 }
 
-const API_URL = `/api/restaurants/slug/${slug}/products`
+//const API_URL = `/api/restaurants/slug/${slug}/products`
+const API_URL = `/api/menu/${slug}`
 
 let restaurant = null
 let WHATSAPP = null
 
 let products = []
+let combos = []
+let categoriesData = []
+
 let cart = JSON.parse(localStorage.getItem("cart")) || {}
 
 init()
 
 async function init() {
 
-resetApp()
+	resetApp()
 
-await loadRestaurant()
+	await loadRestaurant()
 
-const res = await fetch(API_URL)
+	const res = await fetch(API_URL)
+	const data = await res.json()
 
-products = await res.json()
+	// 🔥 SAFE ASSIGN (evita errores)
+	products = data.products || []
+	combos = data.combos || []
+	categoriesData = data.categories || []
 
-renderMenu()
+	// 🔥 Convertimos combos en pseudo productos
+	const comboProducts = mapCombosToProducts(combos)
 
-renderCart()
+	// 🔥 Unificamos
+	products = [...products, ...comboProducts]
 
-updateCartVisibility()
-
+	renderMenu()
+	renderCart()
+	updateCartVisibility()
 }
 
 /**
- * Funcion encargada de llamar al backend para obtener los datos del negocio.
+ * Convierte combos en productos visuales
+ */
+function mapCombosToProducts(combos) {
+
+	if (!combos || combos.length === 0) return []
+
+	return combos.map(c => ({
+		id: `combo-${c.id}`,
+		name: c.name,
+		description: (c.items || [])
+			.map(i => `${i.quantity} x ${i.productName}`)
+			.join(", "),
+		price: c.price,
+		categoryId: c.categoryId,
+		categoryName: "Combos",
+		imageUrl: "https://images.unsplash.com/photo-1600891964599-f61ba0e24092",
+		isCombo: true,
+		items: c.items || []
+	}))
+}
+
+/**
+ * Obtener datos del negocio
  */
 async function loadRestaurant() {
 
 	const slug = getRestaurantSlug()
 
 	const response = await fetch(`/api/restaurants/slug/${slug}`)
-
 	restaurant = await response.json()
 
 	WHATSAPP = restaurant.whatsappNumber
@@ -61,7 +92,6 @@ async function loadRestaurant() {
 			restaurant.primaryColor
 		)
 	}
-
 }
 
 function groupByCategory(products) {
@@ -78,24 +108,19 @@ function groupByCategory(products) {
 		}
 
 		categories[p.categoryId].products.push(p)
-
 	})
 
 	return categories
 }
 
 function getRestaurantSlug() {
-
 	const params = new URLSearchParams(window.location.search)
-
 	return params.get("restaurant")
-
 }
 
 function renderMenu() {
 
 	const menu = document.getElementById("menu")
-
 	const categories = groupByCategory(products)
 
 	menu.innerHTML = ""
@@ -131,7 +156,7 @@ function renderMenu() {
 
 <div class="product-name">${p.name}</div>
 
-<div>${p.description}</div>
+<div>${p.description || ""}</div>
 
 <div class="product-price">$${p.price}</div>
 
@@ -139,48 +164,45 @@ function renderMenu() {
 
 <div class="product-controls">
 
-<button class="btn btn-minus" onclick="removeItem(${p.id})">-</button>
+<button class="btn btn-minus" onclick="removeItem('${p.id}')">-</button>
 
 <div class="quantity" id="qty-${p.id}">${qty}</div>
 
-<button class="btn btn-plus" onclick="addItem(${p.id})">+</button>
+<button class="btn btn-plus" onclick="addItem('${p.id}')">+</button>
 
 </div>
 
 `
 
 			productsDiv.appendChild(productDiv)
-
 		})
 
 		categoryDiv.appendChild(header)
 		categoryDiv.appendChild(productsDiv)
 
 		menu.appendChild(categoryDiv)
-
 	})
-
 }
 
 function addItem(id) {
 
-	const product = products.find(p => p.id === id)
+	const product = products.find(p => p.id == id)
+
+	if (!product) return
 
 	if (!cart[id]) {
 		cart[id] = {
 			product: product,
-			qty: 0
+			qty: 0,
+			isCombo: product.isCombo || false
 		}
 	}
 
 	cart[id].qty++
 
 	saveCart()
-
 	updateQty(id)
-
 	renderCart()
-
 }
 
 function removeItem(id) {
@@ -196,11 +218,8 @@ function removeItem(id) {
 	}
 
 	saveCart()
-
 	updateQty(id)
-
 	renderCart()
-
 }
 
 function updateQty(id) {
@@ -210,13 +229,10 @@ function updateQty(id) {
 	if (!el) return
 
 	el.innerText = cart[id] ? cart[id].qty : 0
-
 }
 
 function saveCart() {
-
 	localStorage.setItem("cart", JSON.stringify(cart))
-
 }
 
 function renderCart() {
@@ -231,22 +247,17 @@ function renderCart() {
 	Object.values(cart).forEach(item => {
 
 		const line = document.createElement("div")
-
 		line.innerText = `${item.qty} x ${item.product.name}`
 
 		items.appendChild(line)
 
 		total += item.qty * item.product.price
-
 	})
 
 	totalEl.textContent = total
-	
-	// Muestra u oculta el panel tu pedido si hay o no articulos
+
 	updateCartVisibility()
-
 }
-
 
 document.getElementById("sendOrder").onclick = () => {
 
@@ -273,37 +284,29 @@ document.getElementById("sendOrder").onclick = () => {
 
 	let message = "Hola! Quiero hacer el siguiente pedido:%0A%0A"
 
-	// Lista de productos con viñetas
 	Object.values(cart).forEach(item => {
 		message += `• ${item.qty} x ${item.product.name}%0A`
 	})
 
-	// Total en negrita
 	let total = 0
 	Object.values(cart).forEach(item => {
 		total += item.qty * item.product.price
 	})
+
 	message += `%0A*Total:* $${total}%0A`
-
-	// Línea divisora
 	message += "----------------%0A"
-
-	// Otros campos en negrita
 	message += `*Nombre:* ${name}%0A`
 	message += `*Tipo de pedido:* ${type}%0A`
-	
+
 	if (type === "Delivery") {
 		message += `*Dirección:* ${address}%0A`
 	}
-	
+
 	message += `*Forma de pago:* ${payment}%0A`
 
 	if (notes) {
 		message += `*Observaciones:* ${notes}%0A`
 	}
-	
-	console.log("MENSAJE WHATSAPP:")
-	console.log(decodeURIComponent(message))
 
 	window.open(`https://wa.me/${WHATSAPP}?text=${message}`)
 }
@@ -311,56 +314,41 @@ document.getElementById("sendOrder").onclick = () => {
 const orderTypeSelect = document.getElementById("orderType")
 const addressContainer = document.getElementById("addressContainer")
 
-orderTypeSelect.addEventListener("change", function() {
+orderTypeSelect.addEventListener("change", function () {
 
 	if (this.value === "Delivery") {
 		addressContainer.style.display = "block"
 	} else {
 		addressContainer.style.display = "none"
 	}
-
 })
-
 
 function resetApp() {
 
-	// vaciar carrito
 	cart = {}
 
-	// limpiar lista del carrito
 	document.getElementById("cart-items").innerHTML = ""
-
-	// resetear total
 	document.getElementById("total").innerText = "0"
-
-	// limpiar productos
 	document.getElementById("menu").innerHTML = ""
 
-	// limpiar formulario
 	document.getElementById("customerName").value = ""
 	document.getElementById("address").value = ""
 	document.getElementById("notes").value = ""
 	document.getElementById("orderType").value = "Retiro"
-	
-	updateCartVisibility()
 
+	updateCartVisibility()
 }
 
-
-function updateCartVisibility(){
+function updateCartVisibility() {
 
 	const cartPanel = document.querySelector(".cart")
 
-	if(Object.keys(cart).length === 0){
-
+	if (Object.keys(cart).length === 0) {
 		cartPanel.style.display = "none"
 		document.body.classList.remove("cart-visible")
-
-	}else{
-
+	} else {
 		cartPanel.style.display = "block"
 		document.body.classList.add("cart-visible")
-
 	}
-
 }
+

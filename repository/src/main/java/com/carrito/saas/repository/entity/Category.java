@@ -13,8 +13,9 @@ public class Category {
     @Id
     private Long id;
 
-    @Column(name = "business_id")
-    private Long businessId;
+    @ManyToOne
+    @JoinColumn(name = "business_id")
+    private Business business;
 
     private String name;
 

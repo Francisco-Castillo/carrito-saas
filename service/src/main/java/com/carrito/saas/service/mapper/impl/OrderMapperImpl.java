@@ -50,14 +50,23 @@ public class OrderMapperImpl implements IOrderMapper {
 			for (OrderItem orderItem : entity.getItems()) {
 				OrderItemDTO item = new OrderItemDTO();
 				item.setProductId(orderItem.getProductId());
+				
+				if (orderItem.getCombo() != null) {
+					item.setComboId(orderItem.getCombo().getId());
+				}
+				item.setComboRoot(orderItem.getComboRoot());
 				item.setQuantity(orderItem.getQuantity());
 				item.setProductName(orderItem.getProductName());
+				item.setPrice(orderItem.getPrice());
+				item.setCost(orderItem.getCost());
+				item.setSubtotal(orderItem.getSubtotal());
+				
 				itemsDTO.add(item);
 			}
 			
 			orderDTO.setItems(itemsDTO);
 		}
-		
+		orderDTO.setTotal(entity.getTotal());
 		return orderDTO;
 	}
 

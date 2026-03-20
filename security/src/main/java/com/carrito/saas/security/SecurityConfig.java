@@ -51,6 +51,7 @@ public class SecurityConfig {
 	            ).permitAll()
 	            
 	            // Carta digital publica
+	            .requestMatchers("/api/menu/**").permitAll()
 	            .requestMatchers("/menu/**").permitAll()
 	            
 	            // Menu publico

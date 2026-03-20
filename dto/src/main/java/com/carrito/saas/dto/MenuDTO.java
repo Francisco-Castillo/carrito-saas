@@ -12,5 +12,7 @@ public class MenuDTO {
     private List<CategoryDTO> categories;
 
     private List<ProductDTO> products;
+    
+    private List<ComboDTO> combos;
 
 }
