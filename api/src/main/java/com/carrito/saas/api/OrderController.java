@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.carrito.saas.dto.CancelOrderRequestDTO;
 import com.carrito.saas.dto.OrderDTO;
 import com.carrito.saas.dto.OrderRequestDTO;
 import com.carrito.saas.repository.entity.Order;
@@ -50,6 +51,16 @@ public class OrderController {
 		 messagingTemplate.convertAndSend(
 		            "/topic/orders/"+ order.getBusinessSlug(),
 		            order);
+
+		return ResponseEntity.ok().build();
+	}
+
+	@PatchMapping("/{id}/cancel")
+	public ResponseEntity<Void> cancelOrder(@PathVariable Long id, @RequestBody CancelOrderRequestDTO request) {
+
+		OrderDTO order = orderService.cancelOrder(id, request.getReasonId(), request.getNote());
+
+		messagingTemplate.convertAndSend("/topic/orders/" + order.getBusinessSlug(), order);
 
 		return ResponseEntity.ok().build();
 	}

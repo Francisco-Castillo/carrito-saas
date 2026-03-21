@@ -15,6 +15,7 @@ import com.carrito.saas.dto.OrderItemDTO;
 import com.carrito.saas.dto.OrderKitchenDTO;
 import com.carrito.saas.dto.OrderRequestDTO;
 import com.carrito.saas.repository.entity.Business;
+import com.carrito.saas.repository.entity.CancellationReason;
 import com.carrito.saas.repository.entity.Combo;
 import com.carrito.saas.repository.entity.ComboProduct;
 import com.carrito.saas.repository.entity.Order;
@@ -23,6 +24,7 @@ import com.carrito.saas.repository.entity.Product;
 import com.carrito.saas.repository.enums.OrderStatus;
 import com.carrito.saas.repository.enums.OrderType;
 import com.carrito.saas.repository.jpa.BusinessRepository;
+import com.carrito.saas.repository.jpa.CancellationReasonRepository;
 import com.carrito.saas.repository.jpa.ComboRepository;
 import com.carrito.saas.repository.jpa.OrderRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
@@ -40,20 +42,20 @@ public class OrderServiceImpl implements IOrderService {
 	private final BusinessRepository businessRepository;
 	private final ProductRepository productRepository;
 	private final ComboRepository comboRepository;
+	private final CancellationReasonRepository cancellationReasonRepository;
 	private final IOrderKitchenMapper iOrderKitchenMapper;
 	private final IOrderMapper iOrderMapper;
 	private final SecurityService securityService;
 
-	
-
 	public OrderServiceImpl(OrderRepository orderRepository, BusinessRepository businessRepository,
 			ProductRepository productRepository, ComboRepository comboRepository,
-			IOrderKitchenMapper iOrderKitchenMapper, IOrderMapper iOrderMapper, SecurityService securityService) {
-		super();
+			CancellationReasonRepository cancellationReasonRepository, IOrderKitchenMapper iOrderKitchenMapper,
+			IOrderMapper iOrderMapper, SecurityService securityService) {
 		this.orderRepository = orderRepository;
 		this.businessRepository = businessRepository;
 		this.productRepository = productRepository;
 		this.comboRepository = comboRepository;
+		this.cancellationReasonRepository = cancellationReasonRepository;
 		this.iOrderKitchenMapper = iOrderKitchenMapper;
 		this.iOrderMapper = iOrderMapper;
 		this.securityService = securityService;
@@ -63,192 +65,190 @@ public class OrderServiceImpl implements IOrderService {
 	@Transactional(rollbackFor = Exception.class)
 	public OrderDTO createOrder(String slug, OrderRequestDTO request) {
 
-	    if (request == null) {
-	        throw new RuntimeException("Pedido inválido");
-	    }
+		if (request == null) {
+			throw new RuntimeException("Pedido inválido");
+		}
 
-	    if (slug == null || slug.isBlank()) {
-	        throw new RuntimeException("Restaurante es obligatorio");
-	    }
+		if (slug == null || slug.isBlank()) {
+			throw new RuntimeException("Restaurante es obligatorio");
+		}
 
-	    if (request.getCustomerName() == null || request.getCustomerName().isBlank()) {
-	        throw new RuntimeException("El nombre del cliente es obligatorio");
-	    }
+		if (request.getCustomerName() == null || request.getCustomerName().isBlank()) {
+			throw new RuntimeException("El nombre del cliente es obligatorio");
+		}
 
-	    if (request.getOrderType() == null) {
-	        throw new RuntimeException("Debe indicar tipo de pedido");
-	    }
+		if (request.getOrderType() == null) {
+			throw new RuntimeException("Debe indicar tipo de pedido");
+		}
 
-	    if (request.getPaymentMethod() == null) {
-	        throw new RuntimeException("Debe indicar método de pago");
-	    }
+		if (request.getPaymentMethod() == null) {
+			throw new RuntimeException("Debe indicar método de pago");
+		}
 
-	    if (request.getOrderType() == OrderType.DELIVERY
-	            && (request.getCustomerAddress() == null || request.getCustomerAddress().isBlank())) {
-	        throw new RuntimeException("Debe indicar dirección para delivery");
-	    }
+		if (request.getOrderType() == OrderType.DELIVERY
+				&& (request.getCustomerAddress() == null || request.getCustomerAddress().isBlank())) {
+			throw new RuntimeException("Debe indicar dirección para delivery");
+		}
 
-	    if (request.getItems() == null || request.getItems().isEmpty()) {
-	        throw new RuntimeException("El pedido debe contener al menos un producto");
-	    }
+		if (request.getItems() == null || request.getItems().isEmpty()) {
+			throw new RuntimeException("El pedido debe contener al menos un producto");
+		}
 
-	    Business business = businessRepository.findBySlug(slug)
-	            .orElseThrow(() -> new RuntimeException("No se encontró restaurante"));
+		Business business = businessRepository.findBySlug(slug)
+				.orElseThrow(() -> new RuntimeException("No se encontró restaurante"));
 
-	    Order order = new Order();
-	    order.setStatus(OrderStatus.NEW);
-	    order.setBusiness(business);
-	    order.setCustomerName(request.getCustomerName());
-	    order.setCustomerPhone(request.getCustomerPhone());
-	    order.setOrderType(request.getOrderType());
-	    order.setCustomerAddress(request.getCustomerAddress());
-	    order.setPaymentMethod(request.getPaymentMethod());
-	    order.setNotes(request.getNotes());
+		Order order = new Order();
+		order.setStatus(OrderStatus.NEW);
+		order.setBusiness(business);
+		order.setCustomerName(request.getCustomerName());
+		order.setCustomerPhone(request.getCustomerPhone());
+		order.setOrderType(request.getOrderType());
+		order.setCustomerAddress(request.getCustomerAddress());
+		order.setPaymentMethod(request.getPaymentMethod());
+		order.setNotes(request.getNotes());
 
-	    List<OrderItem> items = new ArrayList<>();
-	    BigDecimal total = BigDecimal.ZERO;
+		List<OrderItem> items = new ArrayList<>();
+		BigDecimal total = BigDecimal.ZERO;
 
-	    // Separar productos y combos
-	    List<Long> productIds = new ArrayList<>();
-	    List<Long> comboIds = new ArrayList<>();
+		// Separar productos y combos
+		List<Long> productIds = new ArrayList<>();
+		List<Long> comboIds = new ArrayList<>();
 
-	    for (OrderItemDTO item : request.getItems()) {
+		for (OrderItemDTO item : request.getItems()) {
 
-	        if (item.getQuantity() == null || item.getQuantity() <= 0) {
-	            throw new RuntimeException("Cantidad inválida");
-	        }
+			if (item.getQuantity() == null || item.getQuantity() <= 0) {
+				throw new RuntimeException("Cantidad inválida");
+			}
 
-	        if (item.getProductId() != null) {
-	            productIds.add(item.getProductId());
-	        }
+			if (item.getProductId() != null) {
+				productIds.add(item.getProductId());
+			}
 
-	        if (item.getComboId() != null) {
-	            comboIds.add(item.getComboId());
-	        }
-	    }
+			if (item.getComboId() != null) {
+				comboIds.add(item.getComboId());
+			}
+		}
 
-	    //  traer productos
-	    List<Product> products = productRepository.findAllByIdInForUpdate(productIds);
-	    Map<Long, Product> productMap = products.stream()
-	            .collect(Collectors.toMap(Product::getId, p -> p));
+		// traer productos
+		List<Product> products = productRepository.findAllByIdInForUpdate(productIds);
+		Map<Long, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, p -> p));
 
-	    //  traer combos con sus productos
+		// traer combos con sus productos
 
-	    List<Combo> combos;
+		List<Combo> combos;
 
-	    if (comboIds.isEmpty()) {
-	        combos = Collections.emptyList();
-	    } else {
-	        combos = comboRepository.findFullMenuCombosByIds(comboIds, business.getId());
-	    }
-	    
-	    Map<Long, Combo> comboMap = combos.stream()
-	            .collect(Collectors.toMap(Combo::getId, c -> c));
+		if (comboIds.isEmpty()) {
+			combos = Collections.emptyList();
+		} else {
+			combos = comboRepository.findFullMenuCombosByIds(comboIds, business.getId());
+		}
 
-	    // Procesar items
-	    for (OrderItemDTO dto : request.getItems()) {
+		Map<Long, Combo> comboMap = combos.stream().collect(Collectors.toMap(Combo::getId, c -> c));
 
-	        int quantity = dto.getQuantity();
+		// Procesar items
+		for (OrderItemDTO dto : request.getItems()) {
 
-	        // =========================
-	        // PRODUCTO NORMAL
-	        // =========================
-	        if (dto.getProductId() != null) {
+			int quantity = dto.getQuantity();
 
-	            Product product = productMap.get(dto.getProductId());
+			// =========================
+			// PRODUCTO NORMAL
+			// =========================
+			if (dto.getProductId() != null) {
 
-	            if (product == null) {
-	                throw new RuntimeException("Producto no existe");
-	            }
+				Product product = productMap.get(dto.getProductId());
 
-	            int updatedRows = productRepository.decrementStock(product.getId(), quantity);
+				if (product == null) {
+					throw new RuntimeException("Producto no existe");
+				}
 
-	            if (updatedRows == 0) {
-	                throw new RuntimeException("Stock insuficiente: " + product.getName());
-	            }
+				int updatedRows = productRepository.decrementStock(product.getId(), quantity);
 
-	            OrderItem item = new OrderItem();
-	            item.setOrder(order);
-	            item.setProductId(product.getId());
-	            item.setProductName(product.getName());
-	            item.setPrice(product.getPrice());
-	            item.setCost(product.getCost());
-	            item.setQuantity(quantity);
-	            item.setComboRoot(false);
+				if (updatedRows == 0) {
+					throw new RuntimeException("Stock insuficiente: " + product.getName());
+				}
 
-	            BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(quantity));
-	            item.setSubtotal(subtotal);
+				OrderItem item = new OrderItem();
+				item.setOrder(order);
+				item.setProductId(product.getId());
+				item.setProductName(product.getName());
+				item.setPrice(product.getPrice());
+				item.setCost(product.getCost());
+				item.setQuantity(quantity);
+				item.setComboRoot(false);
 
-	            items.add(item);
-	            total = total.add(subtotal);
-	        }
+				BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(quantity));
+				item.setSubtotal(subtotal);
 
-	        // =========================
-	        // COMBO
-	        // =========================
-	        if (dto.getComboId() != null) {
+				items.add(item);
+				total = total.add(subtotal);
+			}
 
-	            Combo combo = comboMap.get(dto.getComboId());
+			// =========================
+			// COMBO
+			// =========================
+			if (dto.getComboId() != null) {
 
-	            if (combo == null) {
-	                throw new RuntimeException("Combo no existe");
-	            }
+				Combo combo = comboMap.get(dto.getComboId());
 
-	            //item root (para analytics)
-	            OrderItem root = new OrderItem();
-	            root.setOrder(order);
-	            root.setCombo(combo);
-	            root.setProductName(combo.getName());
-	            root.setPrice(combo.getPrice());
-	            root.setCost(BigDecimal.ZERO);
-	            root.setQuantity(quantity);
-	            root.setComboRoot(true);
+				if (combo == null) {
+					throw new RuntimeException("Combo no existe");
+				}
 
-	            BigDecimal comboSubtotal = combo.getPrice().multiply(BigDecimal.valueOf(quantity));
-	            root.setSubtotal(comboSubtotal);
+				// item root (para analytics)
+				OrderItem root = new OrderItem();
+				root.setOrder(order);
+				root.setCombo(combo);
+				root.setProductName(combo.getName());
+				root.setPrice(combo.getPrice());
+				root.setCost(BigDecimal.ZERO);
+				root.setQuantity(quantity);
+				root.setComboRoot(true);
 
-	            items.add(root);
-	            total = total.add(comboSubtotal);
+				BigDecimal comboSubtotal = combo.getPrice().multiply(BigDecimal.valueOf(quantity));
+				root.setSubtotal(comboSubtotal);
 
-	            // Descomponer combo
-	            for (ComboProduct cp : combo.getItems()) {
+				items.add(root);
+				total = total.add(comboSubtotal);
 
-	                Product product = cp.getProduct();
+				// Descomponer combo
+				for (ComboProduct cp : combo.getItems()) {
 
-	                int finalQty = cp.getQuantity().multiply(BigDecimal.valueOf(quantity)).intValue();
+					Product product = cp.getProduct();
 
-	                int updatedRows = productRepository.decrementStock(product.getId(), finalQty);
+					int finalQty = cp.getQuantity().multiply(BigDecimal.valueOf(quantity)).intValue();
 
-	                if (updatedRows == 0) {
-	                    throw new RuntimeException("Stock insuficiente en combo: " + product.getName());
-	                }
+					int updatedRows = productRepository.decrementStock(product.getId(), finalQty);
 
-	                OrderItem item = new OrderItem();
-	                item.setOrder(order);
-	                item.setProductId(product.getId());
-	                item.setProductName(product.getName());
-	                item.setPrice(product.getPrice());
-	                item.setQuantity(finalQty);
-	                item.setCombo(combo);
-	                item.setComboRoot(false);
+					if (updatedRows == 0) {
+						throw new RuntimeException("Stock insuficiente en combo: " + product.getName());
+					}
 
-	                BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(finalQty));
-	                item.setSubtotal(subtotal);
+					OrderItem item = new OrderItem();
+					item.setOrder(order);
+					item.setProductId(product.getId());
+					item.setProductName(product.getName());
+					item.setPrice(product.getPrice());
+					item.setQuantity(finalQty);
+					item.setCombo(combo);
+					item.setComboRoot(false);
 
-	                items.add(item);
-	            }
-	        }
-	    }
+					BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(finalQty));
+					item.setSubtotal(subtotal);
 
-	    order.setItems(items);
-	    order.setTotal(total);
+					items.add(item);
+				}
+			}
+		}
 
-	    Integer lastOrderNumber = orderRepository.findMaxOrderNumberByBusiness(business.getId());
-	    order.setOrderNumber(lastOrderNumber + 1);
+		order.setItems(items);
+		order.setTotal(total);
 
-	    Order savedOrder = orderRepository.save(order);
+		Integer lastOrderNumber = orderRepository.findMaxOrderNumberByBusiness(business.getId());
+		order.setOrderNumber(lastOrderNumber + 1);
 
-	    return iOrderMapper.toDTO(savedOrder);
+		Order savedOrder = orderRepository.save(order);
+
+		return iOrderMapper.toDTO(savedOrder);
 	}
 
 	@Override
@@ -286,9 +286,12 @@ public class OrderServiceImpl implements IOrderService {
 			break;
 
 		case DELIVERED:
-		case CANCELLED:
-			order.setCompletedAt(now);
-			break;
+	        order.setCompletedAt(now);
+	        break;
+
+	    case CANCELLED:
+	        order.setCancelledAt(now);
+	        break;
 
 		default:
 			break;
@@ -305,6 +308,47 @@ public class OrderServiceImpl implements IOrderService {
 		List<Order> orders = orderRepository.findActiveOrders(businessId);
 
 		return iOrderKitchenMapper.toListDTO(orders);
+	}
+
+	@Override
+	@Transactional
+	public OrderDTO cancelOrder(Long orderId, Long reasonId, String note) {
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		Order order = orderRepository.findByIdAndBusinessId(orderId, businessId)
+				.orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
+
+		order.getStatus().validateTransition(OrderStatus.CANCELLED);
+
+		// devolver stock si corresponde
+		if (order.getStatus() == OrderStatus.NEW) {
+
+			for (OrderItem item : order.getItems()) {
+
+				 // ignorar root de combos
+				if (Boolean.TRUE.equals(item.getComboRoot()))
+					continue;
+
+				int updated = productRepository.incrementStock(item.getProductId(), item.getQuantity());
+
+				if (updated == 0) {
+					throw new RuntimeException("No se pudo devolver stock del producto: " + item.getProductId());
+				}
+			}
+		}
+
+		CancellationReason reason = cancellationReasonRepository.findById(reasonId)
+				.orElseThrow(() -> new RuntimeException("Motivo inválido"));
+
+		order.setStatus(OrderStatus.CANCELLED);
+		order.setCancellationReason(reason);
+		order.setCancellationNote(note);
+		order.setCancelledAt(LocalDateTime.now());
+
+		Order saved = orderRepository.save(order);
+
+		return iOrderMapper.toDTO(saved);
 	}
 
 }

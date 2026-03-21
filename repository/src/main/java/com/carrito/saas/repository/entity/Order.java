@@ -94,6 +94,16 @@ public class Order implements Serializable {
     @Column(name="completed_at")
     private LocalDateTime completedAt;
     
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cancellation_reason_id")
+    private CancellationReason cancellationReason;
+
+    @Column(name = "cancellation_note")
+    private String cancellationNote;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+    
     
     @PrePersist
     public void prePersist() {

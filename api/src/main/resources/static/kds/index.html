@@ -95,8 +95,18 @@ if (window.location.pathname.includes("/kds/") && !roles.includes("KITCHEN")) {
 	<!-- Modal Cancelación Pedido -->
 	<div id="cancelModal" class="modal hidden">
 		<div class="modal-content">
+
 			<h3>Cancelar pedido</h3>
-			<p>¿Seguro que deseas cancelar este pedido?</p>
+			<p>Selecciona el motivo de la cancelación</p>
+
+			<!-- Motivos -->
+			<select id="cancelReason" class="input">
+				<option value="">Seleccionar motivo</option>
+			</select>
+
+			<!-- Nota opcional -->
+			<input type="text" id="cancelNote" class="input"
+				placeholder="Observación (opcional)" />
 
 			<div class="modal-buttons">
 				<button class="btn btn-delivered" onclick="hideCancelModal()">
@@ -105,11 +115,15 @@ if (window.location.pathname.includes("/kds/") && !roles.includes("KITCHEN")) {
 				<button class="btn btn-start" onclick="confirmCancelOrder()">
 					Sí cancelar</button>
 			</div>
+
 		</div>
 	</div>
+	
+	<div id="toastContainer" class="toast-container"></div>
 	<script
 		src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/stompjs@2/lib/stomp.min.js"></script>
+	<script src="toast.js"></script>
 	<script src="kds.js"></script>
 
 </body>

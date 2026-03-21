@@ -516,42 +516,126 @@ function revertState(orderId, status) {
    MODAL CANCELAR PEDIDO
 ========================= */
 
+/* =========================
+   MODAL CANCELAR PEDIDO
+========================= */
+
 let cancelOrderId = null
+let cancellationReasons = []
 
-function showCancelModal(orderId) {
-	cancelOrderId = orderId
-	const modal = document.getElementById("cancelModal")
-	if (modal) modal.classList.remove("hidden")
-}
-
-function hideCancelModal() {
-	const modal = document.getElementById("cancelModal")
-	if (modal) modal.classList.add("hidden")
-	cancelOrderId = null
-}
-
-async function confirmCancelOrder() {
-	if (!cancelOrderId) return
+// cargar motivos desde backend
+async function loadCancellationReasons() {
 
 	try {
 		const token = localStorage.getItem("token")
 
-		await fetch(`/api/orders/${cancelOrderId}/status?status=CANCELLED`, {
+		const res = await fetch("/api/cancellation-reasons", {
+			headers: {
+				"Authorization": "Bearer " + token
+			}
+		})
+
+		cancellationReasons = await res.json()
+
+	} catch (e) {
+		console.error("Error cargando motivos", e)
+	}
+}
+
+// abrir modal
+async function showCancelModal(orderId) {
+
+	cancelOrderId = orderId
+
+	// cargar motivos si no están
+	if (cancellationReasons.length === 0) {
+		await loadCancellationReasons()
+	}
+
+	const select = document.getElementById("cancelReason")
+	select.innerHTML = `<option value="">Seleccionar motivo</option>`
+
+	cancellationReasons.forEach(r => {
+		const option = document.createElement("option")
+		option.value = r.id
+		option.textContent = r.description
+		select.appendChild(option)
+	})
+
+	const modal = document.getElementById("cancelModal")
+	if (modal) modal.classList.remove("hidden")
+}
+
+// cerrar modal
+function hideCancelModal() {
+	const modal = document.getElementById("cancelModal")
+	if (modal) modal.classList.add("hidden")
+
+	cancelOrderId = null
+
+	// limpiar campos
+	document.getElementById("cancelReason").value = ""
+	document.getElementById("cancelNote").value = ""
+}
+
+//  confirmar cancelación
+async function confirmCancelOrder() {
+
+	if (!cancelOrderId) return
+
+	const reasonSelect = document.getElementById("cancelReason")
+	const noteInput = document.getElementById("cancelNote")
+
+	const reasonId = reasonSelect.value
+	const note = noteInput.value
+
+	// 🔥 botón
+	const btn = document.querySelector("#cancelModal .btn-start")
+
+	// limpiar errores previos
+	reasonSelect.classList.remove("error")
+
+	// ❌ validación
+	if (!reasonId) {
+		reasonSelect.classList.add("error")
+		showToast("Selecciona un motivo de cancelación", "warning")
+		return
+	}
+
+	try {
+		const token = localStorage.getItem("token")
+
+		// 🔥 ACTIVAR LOADING
+		btn.disabled = true
+		btn.innerText = "Cancelando..."
+
+		await fetch(`/api/orders/${cancelOrderId}/cancel`, {
 			method: "PATCH",
 			headers: {
 				"Authorization": "Bearer " + token,
 				"Content-Type": "application/json"
-			}
+			},
+			body: JSON.stringify({
+				reasonId: parseInt(reasonId),
+				note: note
+			})
 		})
+
+		showToast("Pedido cancelado correctamente", "success")
 
 		hideCancelModal()
 		loadOrders()
 
 	} catch (e) {
 		console.error("Error cancelando pedido", e)
+		showToast("Error al cancelar pedido", "error")
+
+	} finally {
+		// 🔥 RESTAURAR BOTÓN (SIEMPRE)
+		btn.disabled = false
+		btn.innerText = "Sí cancelar"
 	}
 }
-
 
 
 
@@ -656,5 +740,7 @@ function moveCardToColumn(card, status) {
 
 	column.appendChild(card)
 }
+
+
 
 
