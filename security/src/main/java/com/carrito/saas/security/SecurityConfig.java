@@ -47,6 +47,7 @@ public class SecurityConfig {
 	                "/css/**",
 	                "/js/**",
 	                "/kds/**",
+	                "/admin/**",
 	                "/dashboard/**"
 	            ).permitAll()
 	            

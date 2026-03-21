@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<div class="container">
+
+    <h1>Panel de Administración</h1>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('products')">Productos</button>
+        <button class="tab" onclick="switchTab('categories')">Categorías</button>
+        <button class="tab" onclick="switchTab('combos')">Combos</button>
+    </div>
+
+    <!-- PRODUCTOS -->
+    <div id="products" class="tab-content active">
+
+        <div class="toolbar">
+            <input type="text" id="search" placeholder="Buscar producto..." oninput="filterProducts()">
+            <button onclick="openProductModal()">+ Nuevo</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Precio</th>
+                    <th>Stock</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="productTable"></tbody>
+        </table>
+
+    </div>
+
+    <!-- CATEGORIAS -->
+    <div id="categories" class="tab-content">
+        <h2>Categorías</h2>
+        <button onclick="addCategory()">+ Nueva</button>
+        <ul id="categoryList"></ul>
+    </div>
+
+    <!-- COMBOS -->
+    <div id="combos" class="tab-content">
+        <h2>Combos</h2>
+        <button onclick="addCombo()">+ Nuevo Combo</button>
+        <ul id="comboList"></ul>
+    </div>
+
+</div>
+
+<!-- MODAL PRODUCTO -->
+<div id="productModal" class="modal hidden">
+    <div class="modal-content">
+        <h3>Producto</h3>
+
+        <input id="pName" class="input" placeholder="Nombre">
+        <input id="pPrice" class="input" type="number" placeholder="Precio">
+        <input id="pStock" class="input" type="number" placeholder="Stock">
+
+        <div class="modal-buttons">
+            <button onclick="closeProductModal()">Cancelar</button>
+            <button onclick="saveProduct()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>

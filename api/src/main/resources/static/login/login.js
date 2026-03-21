@@ -89,7 +89,7 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
 	const password = document.getElementById("password").value.trim();
 	const errorBox = document.getElementById("errorMessage");
 
-	// 🔥 obtener slug correctamente
+	// obtener slug correctamente
 	const params = new URLSearchParams(window.location.search);
 	const restaurantSlug = params.get("restaurant");
 
@@ -133,7 +133,7 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
 			})
 		});
 
-		// 🔥 manejo correcto de errores HTTP
+		// manejo correcto de errores HTTP
 		if (!res.ok) {
 			let msg = "Error de autenticación";
 
@@ -147,7 +147,7 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
 
 		const data = await res.json();
 
-		// 🔐 guardar sesión
+		// guardar sesión
 		localStorage.setItem("token", data.token);
 		localStorage.setItem("businessId", data.businessId);
 		localStorage.setItem("role", data.role);
@@ -157,7 +157,7 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
 		const role = data.role;
 		const slug = data.restaurantSlug;
 
-		// 🚀 redirección
+		//  redirección
 		if (role.includes("OWNER")) {
 
 			window.location.href = `/dashboard/index.html?restaurant=${slug}`;
@@ -165,6 +165,7 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
 		} else if (role.includes("KITCHEN")) {
 
 			window.location.href = `/kds/index.html?restaurant=${slug}`;
+			//window.location.href = `/admin/admin.html?restaurant=${slug}`;
 
 		} else {
 
