@@ -23,19 +23,17 @@ public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(name = "business_id")
-    private Long businessId;
-
-    
+   
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
 
+    @Column(nullable = false)
     private String name;
 
     private String description;
 
+    @Column(nullable = false)
     private BigDecimal price;
     
     /**
@@ -44,7 +42,7 @@ public class Product {
     @Column(nullable = false)
     private BigDecimal cost;
     
-    private boolean active;
+    private boolean active=true;
     
     /**
      * null → stock infinito (bebidas por ejemplo)
@@ -60,3 +58,4 @@ public class Product {
     private String unitMeasure;
 
 }
+

@@ -1,10 +1,12 @@
 package com.carrito.saas.service.mapper.impl;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
 
 import com.carrito.saas.dto.CategoryDTO;
+import com.carrito.saas.dto.ProductDTO;
 import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.service.mapper.interfaces.ICategoryMapper;
 
@@ -27,14 +29,17 @@ public class CategoryMapperImpl implements ICategoryMapper {
 
 		dto.setId(entity.getId());
 		dto.setName(entity.getName());
+		dto.setActive(entity.getActive());
+		dto.setOrder(entity.getOrden());
 
 		return dto;
 	}
 
 	@Override
 	public List<CategoryDTO> toListDTO(List<Category> entities) {
-		// TODO Auto-generated method stub
-		return null;
+		List<CategoryDTO> lista = new ArrayList<CategoryDTO>();
+		entities.forEach(entity -> lista.add(toDTO(entity)));
+		return lista;
 	}
 
 }

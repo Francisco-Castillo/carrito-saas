@@ -57,7 +57,7 @@ public class MenuServiceImpl implements IMenuService {
 
 		// Buscamos los productos del negocio que esten activos cuyo stock sea mayor a
 		// cero.
-		List<Product> products = productRepository.findByBusinessIdAndActiveTrueAndStockGreaterThan(business.getId(),
+		List<Product> products = productRepository.findByCategory_Business_IdAndActiveTrueAndStockGreaterThan(business.getId(),
 				0);
 
 		// NUEVO: traer combos

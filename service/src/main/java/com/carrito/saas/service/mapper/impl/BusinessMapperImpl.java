@@ -1,10 +1,12 @@
 package com.carrito.saas.service.mapper.impl;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
 
 import com.carrito.saas.dto.BusinessDTO;
+import com.carrito.saas.dto.CategoryDTO;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.service.mapper.interfaces.IBusinessMapper;
 
@@ -37,8 +39,9 @@ public class BusinessMapperImpl implements IBusinessMapper{
 
 	@Override
 	public List<BusinessDTO> toListDTO(List<Business> entities) {
-		// TODO Auto-generated method stub
-		return null;
+		List<BusinessDTO> lista = new ArrayList<BusinessDTO>();
+		entities.forEach(entity -> lista.add(toDTO(entity)));
+		return lista;
 	}
 
 }

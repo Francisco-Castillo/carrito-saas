@@ -16,12 +16,18 @@ import jakarta.persistence.LockModeType;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-	List<Product> findByBusinessId(Long businessId);
+	//List<Product> findByBusinessId(Long businessId);
 
+	// Todos los productos de un negocio
+    List<Product> findByCategory_Business_Id(Long businessId);
+	
 	List<Product> findByCategoryId(Long categoryId);
 
-	List<Product> findByBusinessIdAndActiveTrueAndStockGreaterThan(Long businessId, Integer stock);
+	//List<Product> findByBusinessIdAndActiveTrueAndStockGreaterThan(Long businessId, Integer stock);
 
+	// Solo activos y con stock > X
+    List<Product> findByCategory_Business_IdAndActiveTrueAndStockGreaterThan(Long businessId, Integer stock);
+	
 	List<Product> findByActiveTrue();
 
 	List<Product> findAllByIdIn(List<Long> ids);
@@ -68,4 +74,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 	        @Param("quantity") Integer quantity
 	);
 
+	List<Product> findByCategoryIdAndActiveTrue(Long categoriaId);
+    
+	//List<Product> findByActiveTrue();
 }
