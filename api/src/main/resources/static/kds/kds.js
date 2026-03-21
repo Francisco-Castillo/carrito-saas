@@ -543,6 +543,7 @@ async function loadCancellationReasons() {
 }
 
 // abrir modal
+// abrir modal
 async function showCancelModal(orderId) {
 
 	cancelOrderId = orderId
@@ -563,13 +564,33 @@ async function showCancelModal(orderId) {
 	})
 
 	const modal = document.getElementById("cancelModal")
-	if (modal) modal.classList.remove("hidden")
+	if (!modal) return
+
+	// reset clases
+	modal.classList.remove("hidden", "hide")
+
+	//  forzar reflow (clave para animación)
+	void modal.offsetWidth
+
+	//  animación entrada
+	modal.classList.add("show")
 }
 
 // cerrar modal
+// cerrar modal
 function hideCancelModal() {
+
 	const modal = document.getElementById("cancelModal")
-	if (modal) modal.classList.add("hidden")
+	if (!modal) return
+
+	//  animación salida
+	modal.classList.remove("show")
+	modal.classList.add("hide")
+
+	setTimeout(() => {
+		modal.classList.add("hidden")
+		modal.classList.remove("hide")
+	}, 250)
 
 	cancelOrderId = null
 
@@ -589,13 +610,13 @@ async function confirmCancelOrder() {
 	const reasonId = reasonSelect.value
 	const note = noteInput.value
 
-	// 🔥 botón
+	//  botón
 	const btn = document.querySelector("#cancelModal .btn-start")
 
 	// limpiar errores previos
 	reasonSelect.classList.remove("error")
 
-	// ❌ validación
+	//  validación
 	if (!reasonId) {
 		reasonSelect.classList.add("error")
 		showToast("Selecciona un motivo de cancelación", "warning")
@@ -605,7 +626,7 @@ async function confirmCancelOrder() {
 	try {
 		const token = localStorage.getItem("token")
 
-		// 🔥 ACTIVAR LOADING
+		//  ACTIVAR LOADING
 		btn.disabled = true
 		btn.innerText = "Cancelando..."
 
@@ -631,7 +652,7 @@ async function confirmCancelOrder() {
 		showToast("Error al cancelar pedido", "error")
 
 	} finally {
-		// 🔥 RESTAURAR BOTÓN (SIEMPRE)
+		//  RESTAURAR BOTÓN (SIEMPRE)
 		btn.disabled = false
 		btn.innerText = "Sí cancelar"
 	}
@@ -741,6 +762,12 @@ function moveCardToColumn(card, status) {
 	column.appendChild(card)
 }
 
+/*Cierra el modal cuando se hace clic afuera */
+document.getElementById("cancelModal").addEventListener("click", function(e) {
+	if (e.target === this) {
+		hideCancelModal()
+	}
+})
 
 
 
