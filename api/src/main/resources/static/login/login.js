@@ -164,8 +164,8 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
 
 		} else if (role.includes("KITCHEN")) {
 
-			window.location.href = `/kds/index.html?restaurant=${slug}`;
-			//window.location.href = `/admin/admin.html?restaurant=${slug}`;
+			//window.location.href = `/kds/index.html?restaurant=${slug}`;
+			window.location.href = `/admin/admin.html?restaurant=${slug}`;
 
 		} else {
 

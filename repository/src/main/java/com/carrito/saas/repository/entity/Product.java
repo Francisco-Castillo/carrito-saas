@@ -2,8 +2,12 @@ package com.carrito.saas.repository.entity;
 
 import java.math.BigDecimal;
 
+import com.carrito.saas.repository.enums.UnitMeasure;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -54,8 +58,9 @@ public class Product {
     @Column(name = "image_url")
     private String imageUrl;
     
+    @Enumerated(EnumType.STRING)
     @Column(name = "unit_measure")
-    private String unitMeasure;
+    private UnitMeasure unitMeasure;
 
 }
 

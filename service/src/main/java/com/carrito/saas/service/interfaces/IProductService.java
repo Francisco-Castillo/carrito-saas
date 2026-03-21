@@ -11,7 +11,7 @@ public interface IProductService {
 	
 	ProductDTO crearProducto(ProductCreateDTO dto);
 	
-	ProductDTO actualizarProducto(Long id, ProductCreateDTO dto);
+	ProductDTO actualizarProducto(Long id, ProductDTO dto);
 	
 	void eliminarProducto(Long id);
 

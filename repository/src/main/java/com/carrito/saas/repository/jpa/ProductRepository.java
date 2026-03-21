@@ -77,4 +77,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 	List<Product> findByCategoryIdAndActiveTrue(Long categoriaId);
     
 	//List<Product> findByActiveTrue();
+	
+	@Query("""
+		       SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END
+		       FROM Product p
+		       WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(:name))
+		       AND p.category.id = :categoryId
+		       AND p.active = true
+		       """)
+		boolean existsByNameAndCategory(@Param("name") String name,
+		                                @Param("categoryId") Long categoryId);
 }
