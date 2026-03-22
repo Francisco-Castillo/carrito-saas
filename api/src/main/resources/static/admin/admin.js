@@ -13,8 +13,21 @@ function goTo(view) {
 }
 
 function logout() {
+    // Limpiamos el localStorage
     localStorage.clear();
-    window.location.href = "/login.html";
+
+    // Obtenemos los parámetros de la URL actual
+    const params = new URLSearchParams(window.location.search);
+    const restaurant = params.get("restaurant");
+
+    // Construimos la URL de login con el parámetro si existe
+    let loginUrl = "/login/login.html";
+    if (restaurant) {
+        loginUrl += `?restaurant=${restaurant}`;
+    }
+
+    // Redirigimos
+    window.location.href = loginUrl;
 }
 
 /* ================= PRODUCTS ================= */
@@ -207,21 +220,62 @@ async function loadCategories() {
             }
         });
 
-        // ================= BOTONES DE TOGGLE =================
-        document.querySelectorAll(".toggle-btn").forEach(btn => {
-            btn.addEventListener("click", async (e) => {
-                const row = e.target.closest("tr");
-                const id = row.dataset.id;
-                const activar = e.target.classList.contains("activate");
+		/* ================= BOTONES DE ACTIVAR/DESACTIVAR PREMIUM ================= */
+		document.querySelectorAll(".toggle-btn").forEach(btn => {
+		    btn.addEventListener("click", async (e) => {
+		        const row = e.target.closest("tr");
+		        const id = row.dataset.id;
+		        const spanName = row.querySelector(".name-text");
+		        const badge = row.querySelector(".badge");
 
-                const confirmModal = await showToastModal(`¿Seguro que deseas ${activar ? "activar" : "desactivar"} esta categoría?`);
-                if (!confirmModal) return;
+		        // Determinar nuevo estado
+		        const activar = e.target.classList.contains("activate");
 
-                await fetch(`${API}/categorias/${id}/activar?activo=${activar}`, { method: "PUT" });
-                loadCategories();
-                showSuccessToast(`Categoría ${activar ? "activada" : "desactivada"} con éxito`);
-            });
-        });
+		        // Determinar nombre actual y order (order = posición en la tabla)
+		        const name = spanName.textContent.trim();
+		        const tbody = row.parentElement;
+		        const order = Array.from(tbody.querySelectorAll("tr")).indexOf(row) + 1;
+
+		        const payload = {
+		            name,
+		            order,
+		            active: activar
+		        };
+
+		        // Modal confirmación tipo toast
+		        const confirmModal = await showToastModal(`¿Seguro que deseas ${activar ? "activar" : "desactivar"} esta categoría?`);
+		        if (!confirmModal) return;
+
+		        try {
+		            const res = await fetch(`${API}/categorias/${id}`, {
+		                method: "PUT",
+		                headers: {
+		                    "Content-Type": "application/json",
+		                    "Authorization": "Bearer " + localStorage.getItem("token")
+		                },
+		                body: JSON.stringify(payload)
+		            });
+
+		            const data = await res.json();
+		            if (!res.ok) throw new Error(data.message || "Error actualizando categoría");
+
+		            // Actualizar badge y botón sin recargar toda la tabla
+		            badge.textContent = activar ? "Activo" : "Inactivo";
+		            badge.classList.remove("active", "inactive");
+		            badge.classList.add(activar ? "active" : "inactive");
+
+		            const toggleBtn = row.querySelector(".toggle-btn");
+		            toggleBtn.textContent = activar ? "Desactivar" : "Activar";
+		            toggleBtn.classList.remove("activate", "deactivate");
+		            toggleBtn.classList.add(activar ? "deactivate" : "activate");
+
+		            showSuccessToast(`Categoría ${activar ? "activada" : "desactivada"} con éxito`);
+
+		        } catch (err) {
+		            showSuccessToast(`Error: ${err.message}`);
+		        }
+		    });
+		});
 
         // ================= EDICIÓN INLINE =================
         document.querySelectorAll(".name-text").forEach(span => {
@@ -320,3 +374,100 @@ function loadDashboard() {
 /* ================= INIT ================= */
 
 goTo("dashboard");
+
+
+/* ================= CREAR CATEGORÍA ================= */
+function openCreateCategoryModal() {
+    return new Promise(resolve => {
+        const backdrop = document.createElement("div");
+        backdrop.className = "toast-modal-backdrop";
+
+        const modal = document.createElement("div");
+        modal.className = "toast-modal";
+        modal.innerHTML = `
+            <h3>Crear nueva categoría</h3>
+            <input type="text" id="new-category-name" placeholder="Nombre de la categoría" style="width: 90%; padding: 8px; margin-top: 12px; border-radius:6px; border:2px solid #1e293b; background:#1e293b; color:#e2e8f0;">
+            <p id="name-error" style="color:#ef4444; font-size: 12px; margin-top:4px; display:none;">El nombre es obligatorio</p>
+            <div style="margin-top: 16px;">
+                <button id="confirm-create">Crear</button>
+            </div>
+        `;
+
+        backdrop.appendChild(modal);
+        document.body.appendChild(backdrop);
+
+        const nameInput = modal.querySelector("#new-category-name");
+        const errorMsg = modal.querySelector("#name-error");
+        const btnCreate = modal.querySelector("#confirm-create");
+
+        // Evento botón Crear
+        btnCreate.addEventListener("click", async () => {
+            const name = nameInput.value.trim();
+
+            if (!name) {
+                // Mostrar borde rojo y mensaje
+                nameInput.style.borderColor = "#ef4444";
+                errorMsg.style.display = "block";
+                return;
+            } else {
+                nameInput.style.borderColor = "#22c55e"; // opcional: verde cuando es válido
+                errorMsg.style.display = "none";
+            }
+
+            try {
+                // Determinar order (al final)
+                const tbody = document.querySelector(".table tbody");
+                const lastOrder = tbody ? tbody.querySelectorAll("tr").length + 1 : 1;
+
+                const res = await fetch(`${API}/categorias`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + localStorage.getItem("token")
+                    },
+                    body: JSON.stringify({ name, order: lastOrder, active: true })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || "Error creando categoría");
+
+                showSuccessToast("Categoría creada con éxito");
+                document.body.removeChild(backdrop);
+                resolve(true);
+                loadCategories();
+
+            } catch (e) {
+                showSuccessToast(`Error: ${e.message}`);
+            }
+        });
+
+        // Reset borde y error al escribir
+        nameInput.addEventListener("input", () => {
+            nameInput.style.borderColor = "#1e293b";
+            errorMsg.style.display = "none";
+        });
+
+        // Clic fuera
+        backdrop.addEventListener("click", (e) => {
+            if (e.target === backdrop) {
+                document.body.removeChild(backdrop);
+                resolve(false);
+            }
+        });
+
+        // Escape
+        const escHandler = (e) => {
+            if (e.key === "Escape") {
+                document.body.removeChild(backdrop);
+                document.removeEventListener("keydown", escHandler);
+                resolve(false);
+            }
+        };
+        document.addEventListener("keydown", escHandler);
+    });
+}
+
+/* ================= MODIFICAR BOTÓN "+ NUEVO" ================= */
+document.querySelector(".primary").addEventListener("click", async () => {
+    await openCreateCategoryModal();
+});

@@ -128,22 +128,26 @@ body {
 }
 
 /* BOTONES DE TOGGLE */
+/* Botón activar/desactivar consistente */
 .toggle-btn {
-    padding: 6px 12px;
-    border-radius: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
     border: none;
     cursor: pointer;
     font-weight: 500;
-    color: #fff;
-    margin-right: 5px;
+    transition: background 0.2s;
 }
 
-.toggle-btn.activate {
-    background: #6366f1;
-}
-
+/* Botón desactivar: color rojo tipo toast */
 .toggle-btn.deactivate {
-    background: #ef4444;
+    background-color: #ef4444; /* rojo */
+    color: white;
+}
+
+/* Botón activar: color violeta (consistente tamaño) */
+.toggle-btn.activate {
+    background-color: #6366f1; /* violeta */
+    color: white;
 }
 
 /* INPUT INLINE EDIT */

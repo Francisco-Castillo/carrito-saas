@@ -41,7 +41,7 @@ public class CategoryController {
 	
 	@GetMapping
 	public List<CategoryDTO> obtenerTodasLasCategorias(){
-		return iCategoryService.findAllByBusinessId();
+		return iCategoryService.findAllByBusinessIdAndActiveTrueOrFalse();
 	}
 
 }

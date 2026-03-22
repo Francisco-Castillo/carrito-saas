@@ -36,14 +36,13 @@ public class CategoryServiceImpl implements ICategoryService {
 	@Transactional
 	public CategoryDTO crearCategoria(CategoryDTO dto) {
 
-		if (dto.getBusinessId() == null || dto.getBusinessId().equals(0L)) {
-			throw new RuntimeException("El restaurante es requerido");
-		}
-
+		Long businessId = securityService.getCurrentBusinessId();
+		
+	
 		if (dto.getName() == null || dto.getName().isBlank())
 			throw new RuntimeException("Nombre requerido");
 
-		Business business = businessRepository.findById(dto.getBusinessId())
+		Business business = businessRepository.findById(businessId)
 				.orElseThrow(() -> new RuntimeException("Restaurante no encontrado"));
 
 		String normalizedName = dto.getName().trim();
