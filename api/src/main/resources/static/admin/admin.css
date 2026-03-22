@@ -76,7 +76,6 @@ body {
     color: white;
     cursor: pointer;
 }
-
 /* TABLE */
 .table {
     width: 100%;
@@ -84,11 +83,16 @@ body {
     background: #020617;
     border-radius: 12px;
     overflow: hidden;
+    table-layout: fixed; /* ancho fijo de columnas para evitar salto */
 }
 
 .table th, .table td {
     padding: 14px;
     text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative; /* necesario para el input absolute */
 }
 
 .table th {
@@ -99,23 +103,249 @@ body {
     border-bottom: 1px solid #1e293b;
 }
 
-.badge {
-    padding: 5px 10px;
-    border-radius: 6px;
-    font-size: 12px;
+.table tr:hover {
+    background: #1e293b50; /* hover tipo toast */
 }
 
-.active {
+/* BADGES */
+.badge {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: #fff;
+    font-weight: 500;
+    min-width: 70px;
+    text-align: center;
+}
+
+.badge.active {
     background: #22c55e;
 }
 
-.inactive {
+.badge.inactive {
     background: #ef4444;
 }
 
-/* CARDS */
-.card {
-    background: #020617;
-    padding: 20px;
-    border-radius: 12px;
+/* BOTONES DE TOGGLE */
+.toggle-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    color: #fff;
+    margin-right: 5px;
 }
+
+.toggle-btn.activate {
+    background: #6366f1;
+}
+
+.toggle-btn.deactivate {
+    background: #ef4444;
+}
+
+/* INPUT INLINE EDIT */
+.inline-input {
+    position: absolute; /* flota sobre el span */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #94a3b8;
+    background: #0f172a;
+    color: #e2e8f0;
+    box-sizing: border-box;
+    display: none;
+    z-index: 10;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+    .table th, .table td {
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    .toggle-btn {
+        padding: 4px 8px;
+        font-size: 13px;
+    }
+
+    .badge {
+        font-size: 12px;
+        padding: 3px 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .table th:nth-child(3),
+    .table td:nth-child(3) {
+        display: none; /* esconder columna acciones en pantallas muy pequeñas */
+    }
+}
+
+/* FOOTER DE TABLA */
+.table tfoot {
+    background: #1e293b;
+    font-weight: 500;
+}
+
+.table tfoot td {
+    padding: 12px 14px;
+    text-align: left;
+    border-top: 1px solid #1e293b;
+}
+
+/*TOAST FLUYENTE*/
+
+/* TOAST FLUYENTE */
+.toast-success {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #22c55e;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    opacity: 0;
+    transform: translateX(50px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    z-index: 2000;
+}
+
+/* mostrar toast */
+.toast-success.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* MODAL TOAST */
+.toast-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(4px);
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.toast-modal {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 20px 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    min-width: 280px;
+    max-width: 90%;
+    text-align: center;
+    transform: translateY(-20px);
+    opacity: 0;
+    animation: modal-in 0.3s forwards;
+}
+
+.toast-modal button {
+    margin-top: 15px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    background: #6366f1;
+    color: white;
+    cursor: pointer;
+}
+
+@keyframes modal-in {
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes modal-out {
+    to { transform: translateY(-20px); opacity: 0; }
+}
+
+/* DRAG HANDLE */
+.drag-handle {
+    cursor: grab;
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+/* TOAST ÉXITO */
+.toast-success {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #22c55e;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    opacity: 0;
+    transform: translateX(50px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    z-index: 2000;
+}
+
+.toast-success.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* MODAL TOAST */
+.toast-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(4px);
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.toast-modal {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 20px 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    min-width: 280px;
+    max-width: 90%;
+    text-align: center;
+    transform: translateY(-20px);
+    opacity: 0;
+    animation: modal-in 0.3s forwards;
+}
+
+.toast-modal button {
+    margin-top: 15px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    background: #6366f1;
+    color: white;
+    cursor: pointer;
+}
+
+@keyframes modal-in {
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes modal-out {
+    to { transform: translateY(-20px); opacity: 0; }
+}
+
+
