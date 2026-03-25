@@ -33,7 +33,8 @@ public class JwtFilter extends OncePerRequestFilter {
 
 	    String path = request.getServletPath();
 
-	    if (path.startsWith("/api/auth")) {
+	    // Ignorar endpoints públicos y Actuator
+	    if (path.startsWith("/actuator") || path.startsWith("/api/auth")) {
 	        filterChain.doFilter(request, response);
 	        return;
 	    }

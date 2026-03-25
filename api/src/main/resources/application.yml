@@ -18,3 +18,15 @@ spring:
   jackson:
     serialization:
       indent-output: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - prometheus
+  server:
+    port: 9090

@@ -1,5 +1,6 @@
 package com.carrito.saas.security;
 
+import org.springframework.boot.security.autoconfigure.actuate.web.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -51,6 +52,10 @@ public class SecurityConfig {
 	                "/dashboard/**"
 	            ).permitAll()
 	            
+	            // Permite todos los endpoints de Actuator, incluyendo prometheus
+	            .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
+	            
+	            
 	            // Carta digital publica
 	            .requestMatchers("/api/menu/**").permitAll()
 	            .requestMatchers("/menu/**").permitAll()
@@ -70,7 +75,6 @@ public class SecurityConfig {
 	            .permitAll()
 	            .anyRequest().authenticated()
 	        )
-
 	        .addFilterBefore(jwtFilter,
 	            org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
 

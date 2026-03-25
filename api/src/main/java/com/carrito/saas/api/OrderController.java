@@ -1,5 +1,6 @@
 package com.carrito.saas.api;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -17,6 +18,8 @@ import com.carrito.saas.repository.entity.Order;
 import com.carrito.saas.repository.enums.OrderStatus;
 import com.carrito.saas.service.interfaces.IOrderService;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 @RestController
 @RequestMapping("/api/orders")
 
@@ -24,6 +27,8 @@ public class OrderController {
 
 	private final IOrderService orderService;
 	private final SimpMessagingTemplate messagingTemplate;
+	@Autowired
+	MeterRegistry registry;
 
 	public OrderController(IOrderService orderService, SimpMessagingTemplate messagingTemplate) {
 		super();
@@ -39,6 +44,8 @@ public class OrderController {
 	            "/topic/orders/"+ order.getBusinessSlug(),
 	            order
 	    );
+	    
+	    registry.counter("pedidos.creados").increment();
 
 	    return order;
 	}
