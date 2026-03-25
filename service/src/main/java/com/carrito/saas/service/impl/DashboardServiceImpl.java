@@ -43,8 +43,14 @@ public class DashboardServiceImpl implements IDashboardService {
 
 	    double avgTicket = orders == 0 ? 0 : revenue / orders;
 
+	    /*
 	    long avgPrepTime = orderRepository
-	            .avgPrepTimeToday(restaurant.getId(), today);
+	            .avgPrepTimeToday(restaurant.getId(), today);*/
+	    /**
+	     * Tiempo promedio en cocina.
+	     */
+	    Double avg = orderRepository.avgPrepTimeToday(restaurant.getId(), today);
+	    long avgPrepTime = avg != null ? avg.longValue() : 0L;
 
 	    DashboardTodayDTO dto = new DashboardTodayDTO();
 

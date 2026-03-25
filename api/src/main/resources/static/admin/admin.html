@@ -4,48 +4,53 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SDE Admin</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="/favicon.ico">
+<link
+	href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+	rel="stylesheet">
 <link rel="stylesheet" href="admin.css">
+<link rel="stylesheet" href="../dashboard/dashboard.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 
 </head>
 
 <body>
 
-<div class="app">
+	<div class="app">
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-        <h2 class="logo">SDE</h2>
+		<!-- SIDEBAR -->
+		<aside class="sidebar">
+			<h2 class="logo">SDE</h2>
 
-        <nav>
-            <button onclick="goTo('dashboard')">📊 Dashboard</button>
-            <button onclick="goTo('products')">🍔 Productos</button>
-            <button onclick="goTo('categories')">📂 Categorías</button>
-            <button onclick="goTo('combos')">🔥 Combos</button>
-        </nav>
+			<nav>
+				<button data-view="dashboard">📊 Dashboard</button>
+				<button data-view="products">🍔 Productos</button>
+				<button data-view="categories">📂 Categorías</button>
+				<button data-view="combos">🔥 Combos</button>
+			</nav>
 
-        <button class="logout" onclick="logout()">🚪 Logout</button>
-    </aside>
+			<button class="logout" >🚪 Logout</button>
+		</aside>
 
-    <!-- MAIN -->
-    <main class="main">
+		<!-- MAIN -->
+		<main class="main">
 
-        <header class="topbar">
-            <h1 id="view-title">Dashboard</h1>
-            <button class="primary" onclick="openCreate()">+ Nuevo</button>
-        </header>
+			<header class="topbar">
+				<h1 id="view-title">Dashboard</h1>
+				<button class="primary" onclick="openCreate()">+ Nuevo</button>
+			</header>
 
-        <section id="content"></section>
+			<section id="content"></section>
 
-    </main>
+		</main>
 
-</div>
+	</div>
 
-<!-- al final del body, antes de admin.js -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-<script src="admin.js"></script>
-<script src="admin.js"></script>
+	<!-- al final del body, antes de admin.js -->
+	<script
+		src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+	<script type="module" src="admin.js"></script>
 
 </body>
 </html>

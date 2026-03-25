@@ -1,6 +1,86 @@
+import { initDashboard } from '../dashboard/dashboard.js';
 const API = "http://localhost:8080/api";
 let currentView = "dashboard";
 const businessId = 1; // TODO: obtener dinámico
+
+	export function renderDashboard(containerId = "content") {
+	    const container = document.getElementById(containerId);
+	
+	    container.innerHTML = `
+		<main>
+
+		<section class="stats">
+
+		<div class="stat-card">
+		<span>Pedidos hoy</span>
+		<h2 id="ordersToday">0</h2>
+		</div>
+
+		<div class="stat-card">
+		<span>Total vendido hoy</span>
+		<h2 id="revenueToday">$0</h2>
+		</div>
+
+		<div class="stat-card">
+		<span>Ticket promedio</span>
+		<h2 id="avgTicket">$0</h2>
+		</div>
+
+		<div class="stat-card">
+		<span>Tiempo cocina</span>
+		<h2 id="avgPrep">0m</h2>
+		</div>
+
+		</section>
+
+		<section class="orders-status">
+
+		<h2>Pedidos activos</h2>
+
+		<div class="status-grid">
+
+		<div class="status-card">
+		<span>Nuevos</span>
+		<h3 id="newOrders">0</h3>
+		</div>
+
+		<div class="status-card">
+		<span>Preparando</span>
+		<h3 id="preparingOrders">0</h3>
+		</div>
+
+		<div class="status-card">
+		<span>Listos</span>
+		<h3 id="readyOrders">0</h3>
+		</div>
+
+		</div>
+
+		</section>
+
+		<section class="chart-section">
+
+		<h2>Ventas hoy</h2>
+
+		<div class="chart-container">
+		<canvas id="salesChart"></canvas>
+		</div>
+
+		</section>
+
+		<section class="top-products">
+
+		<h2>Top productos</h2>
+
+		<ul id="topProducts"></ul>
+
+		</section>
+
+		</main>
+	    `;
+	    initDashboard();
+	}
+
 
 function goTo(view) {
     currentView = view;
@@ -9,7 +89,9 @@ function goTo(view) {
     if (view === "products") loadProducts();
     if (view === "categories") loadCategories();
     if (view === "combos") loadCombos();
-    if (view === "dashboard") loadDashboard();
+	if (view === "dashboard") {
+	      renderDashboard("content"); // inyecta dashboard
+	  }
 }
 
 function logout() {
@@ -471,3 +553,17 @@ function openCreateCategoryModal() {
 document.querySelector(".primary").addEventListener("click", async () => {
     await openCreateCategoryModal();
 });
+
+/*
+Este es el listener que controla los clic de las pestañas
+*/
+document.querySelectorAll(".sidebar button").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const view = btn.getAttribute("data-view"); // o un dataset
+        goTo(view);
+    });
+});
+
+
+document.querySelector(".logout").addEventListener("click", logout);
+

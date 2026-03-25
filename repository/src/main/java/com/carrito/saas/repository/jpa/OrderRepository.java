@@ -71,13 +71,13 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	 * @return
 	 */
 	@Query("""
-			SELECT AVG(TIMESTAMPDIFF(SECOND,o.preparingAt,o.readyAt))
-			FROM Order o
-			WHERE o.business.id = :restaurantId
-			AND DATE(o.createdAt) = :today
-			AND o.readyAt IS NOT NULL
-			""")
-	Long avgPrepTimeToday(Long restaurantId, LocalDate today);
+		    SELECT COALESCE(AVG(TIMESTAMPDIFF(SECOND,o.preparingAt,o.readyAt)), 0)
+		    FROM Order o
+		    WHERE o.business.id = :restaurantId
+		    AND DATE(o.createdAt) = :today
+		    AND o.readyAt IS NOT NULL
+		""")
+		Double avgPrepTimeToday(Long restaurantId, LocalDate today);
 
 	/**
 	 * Conteo por estado
