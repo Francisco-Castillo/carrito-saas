@@ -105,5 +105,12 @@ public class CategoryServiceImpl implements ICategoryService {
 		return iCategoryMapper.toListDTO(categoryRepository.findByBusiness_IdOrderByOrdenAsc(businessId));
 	}
 
+	@Override
+	public CategoryDTO findById(Long id) {
+		Category categoria = categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada con id: " + id));
+		return iCategoryMapper.toDTO(categoria);
+	}
+
 }
 

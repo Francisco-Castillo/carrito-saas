@@ -2,6 +2,7 @@ package com.carrito.saas.api;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -58,8 +59,11 @@ public class ProductController {
 	}
 
 	@PostMapping("/productos")
-	public ProductDTO crear(@RequestBody ProductCreateDTO dto) {
-		return productService.crearProducto(dto);
+	public ResponseEntity<ProductDTO> crear(@RequestBody ProductCreateDTO dto) {
+
+		ProductDTO creado = productService.crearProducto(dto);
+
+		return ResponseEntity.ok(creado);
 	}
 
 	@PutMapping("/{id}")

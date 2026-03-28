@@ -30,6 +30,7 @@
 		<module>repository</module>
 		<module>dto</module>
 		<module>security</module>
+		<module>common</module>
 	</modules>
 
 	<build>

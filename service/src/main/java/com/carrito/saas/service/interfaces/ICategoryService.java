@@ -29,5 +29,7 @@ public interface ICategoryService {
 	 * @return listado de categorias.
 	 */
 	List<CategoryDTO> findAllByBusinessIdAndActiveTrueOrFalse();
+	
+	CategoryDTO findById(Long id);
 
 }

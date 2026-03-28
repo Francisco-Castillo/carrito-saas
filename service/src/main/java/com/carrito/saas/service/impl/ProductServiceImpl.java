@@ -10,6 +10,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.carrito.saas.dto.ProductCreateDTO;
 import com.carrito.saas.dto.ProductDTO;
+import com.carrito.saas.exception.BusinessException;
+import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.repository.entity.Product;
 import com.carrito.saas.repository.jpa.CategoryRepository;
@@ -44,20 +46,20 @@ public class ProductServiceImpl implements IProductService {
 	@Override
 	@Transactional
 	public ProductDTO crearProducto(ProductCreateDTO dto) {
+
 		validarProducto(dto.getName(), dto.getDescription(), dto.getPrice(), dto.getCost(), dto.getCategoryId());
 
 		Category categoria = categoryRepository.findById(dto.getCategoryId())
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Categoria no encontrada"));
+				.orElseThrow(() -> new BusinessException("Categoria no encontrada", ErrorType.NOT_FOUND));
 
-		// Normalizar el nombre del producto.
+		// Normalizar nombre
 		String normalizedName = dto.getName().trim();
 
-		// Validamos existencia
+		// Validar duplicado
 		boolean exists = productRepository.existsByNameAndCategory(normalizedName, categoria.getId());
 
 		if (exists) {
-			throw new ResponseStatusException(HttpStatus.CONFLICT,
-					"Ya existe un producto con ese nombre en esta categoría");
+			throw new BusinessException("Ya existe un producto con ese nombre en esta categoría", ErrorType.CONFLICT);
 		}
 
 		Product p = new Product();
@@ -98,19 +100,19 @@ public class ProductServiceImpl implements IProductService {
 	private void validarProducto(String nombre, String descripcion, BigDecimal precio, BigDecimal cost,
 			Long categoriaId) {
 		if (nombre == null || nombre.isBlank())
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nombre requerido");
+			throw new BusinessException("El nombre es obligatorio", ErrorType.VALIDATION);
 
 		if (descripcion == null || descripcion.isBlank())
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Descripcion requerido");
+			throw new BusinessException("Descripcion requerido", ErrorType.VALIDATION);
 
 		if (precio == null || precio.compareTo(BigDecimal.ZERO) < 0)
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Precio inválido");
+			throw new BusinessException("Precio inválido", ErrorType.VALIDATION);
 
 		if (cost == null || cost.compareTo(BigDecimal.ZERO) < 0)
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Costo inválido");
+			throw new BusinessException("Costo inválido", ErrorType.VALIDATION);
 
 		if (categoriaId == null)
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Categoria requerida");
+			throw new BusinessException("Categoria requerida", ErrorType.VALIDATION);
 	}
 
 }
