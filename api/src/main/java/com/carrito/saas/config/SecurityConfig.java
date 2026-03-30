@@ -1,4 +1,4 @@
-package com.carrito.saas.security;
+package com.carrito.saas.config;
 
 import org.springframework.boot.security.autoconfigure.actuate.web.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
@@ -14,15 +14,20 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import com.carrito.saas.security.JwtFilter;
+
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 public class SecurityConfig {
 
+	private final TenantContextFilter requestContextFilter;
 	private final JwtFilter jwtFilter;
 
-	public SecurityConfig(JwtFilter jwtFilter) {
-		super();
+	
+	public SecurityConfig(TenantContextFilter requestContextFilter, JwtFilter jwtFilter) {
+		this.requestContextFilter = requestContextFilter;
 		this.jwtFilter = jwtFilter;
 	}
 
@@ -51,30 +56,35 @@ public class SecurityConfig {
 	                "/admin/**",
 	                "/dashboard/**"
 	            ).permitAll()
-	            
-	            // Permite todos los endpoints de Actuator, incluyendo prometheus
+
+	            // Actuator (incluye Prometheus)
 	            .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
-	            
-	            
-	            // Carta digital publica
+
+	            // Carta digital pública
 	            .requestMatchers("/api/menu/**").permitAll()
 	            .requestMatchers("/menu/**").permitAll()
-	            
-	            // Menu publico
+
+	            // Restaurante público
 	            .requestMatchers("/api/restaurants/slug/**").permitAll()
-	            
-	            // Crear usuarios publico
+
+	            // Crear restaurantes
 	            .requestMatchers("/api/restaurants/**").permitAll()
-	            
-	            // Permite websocket.
-	            
+
+	            // Websocket
 	            .requestMatchers("/ws/**").permitAll()
-	            
-	            // endpoint público para crear pedidos
-	            .requestMatchers(HttpMethod.POST, "/api/orders")
-	            .permitAll()
+
+	            // Crear pedidos público
+	            .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
+
 	            .anyRequest().authenticated()
 	        )
+
+	        // ORDEN DE FILTROS (correcto y sin dependencia entre ellos)
+	        // 1. Contexto (tenant + correlationId)
+	        .addFilterBefore(requestContextFilter,
+	            org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+
+	        // 2. JWT (auth + user)
 	        .addFilterBefore(jwtFilter,
 	            org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
 
