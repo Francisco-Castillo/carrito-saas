@@ -19,8 +19,11 @@ import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.service.interfaces.IProductService;
 import com.carrito.saas.service.mapper.interfaces.IBusinessMapper;
 
+import lombok.extern.slf4j.Slf4j;
+
 @RestController
 @RequestMapping("/api")
+@Slf4j
 public class ProductController {
 
 	private final IProductService productService;
@@ -60,7 +63,7 @@ public class ProductController {
 
 	@PostMapping("/productos")
 	public ResponseEntity<ProductDTO> crear(@RequestBody ProductCreateDTO dto) {
-
+		log.error("TEST ERROR LOG");
 		ProductDTO creado = productService.crearProducto(dto);
 
 		return ResponseEntity.ok(creado);

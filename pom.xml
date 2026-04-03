@@ -31,6 +31,7 @@
 		<module>dto</module>
 		<module>security</module>
 		<module>common</module>
+		<module>jobs</module>
 	</modules>
 
 	<build>

@@ -29,4 +29,10 @@ public class ProductDTO {
     private String imageUrl;
     
     private UnitMeasure unitMeasure;
+
+	public ProductDTO() {
+		super();
+	}
+    
+    
 }

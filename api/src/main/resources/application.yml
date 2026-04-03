@@ -1,5 +1,6 @@
 server:
-  port: 9090
+  port: 8080
+  address: 0.0.0.0
 
 spring:
   datasource:
@@ -28,8 +29,11 @@ management:
           - info
           - metrics
           - prometheus
+  metrics:
+    tags:
+      application: carrito-saas
   server:
-    port: 9090
+    port: 8080
 
 logging:
   level:
@@ -40,4 +44,4 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [business:%X{businessId:-}] [user:%X{userId:-}] [corr:%X{correlationId:-}] %-5level %logger{36} - %msg%n"
 
   file:
-    name: logs/app.log
+    name: logs/app.log	
