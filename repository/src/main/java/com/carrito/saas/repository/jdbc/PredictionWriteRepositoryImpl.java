@@ -19,7 +19,7 @@ public class PredictionWriteRepositoryImpl implements PredictionWriteRepository{
 	        """, businessId);
 
 	        jdbc.update("""
-	            INSERT INTO daily_metrics(business_id, date, predicted_orders, peak_hour, top_product_id)
+	            INSERT INTO daily_metrics(business_id, date, total_orders, peak_hour, top_product_id)
 	            VALUES (?, CURRENT_DATE, ?, ?, ?)
 	        """, businessId, orders, peakHour, topProductId);
 		

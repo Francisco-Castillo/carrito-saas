@@ -4,9 +4,11 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.carrito.saas.repository.entity.Order;
+import com.carrito.saas.repository.projection.AverageOrdersProjection;
 import com.carrito.saas.repository.projection.DailyAverageProjection;
 import com.carrito.saas.repository.projection.HourlyProjection;
 import com.carrito.saas.repository.projection.ProductProjection;
@@ -84,13 +86,23 @@ public interface PredictionRepository extends JpaRepository<Order, Long> {
 
 	// 🍔 Top 1
 	@Query(value = """
-			    SELECT oi.product_id as productId, SUM(oi.quantity) as quantity
+			    SELECT oi.product_id as productId,
+			    oi.product_name as productName, 
+			     SUM(oi.quantity) as quantity
 			    FROM order_items oi
 			    JOIN orders o ON o.id = oi.order_id
 			    WHERE o.business_id = :businessId
-			    GROUP BY oi.product_id
+			    GROUP BY oi.product_id , oi.product_name
 			    ORDER BY quantity DESC
 			    LIMIT 1
 			""", nativeQuery = true)
 	ProductProjection getTopProduct(Long businessId);
+	
+	@Query(value = """
+		    SELECT AVG(dm.total_orders) as avgOrders
+		    FROM daily_metrics dm
+		    WHERE dm.business_id = :businessId
+		      AND dm.date >= CURRENT_DATE - INTERVAL '7 days'
+		""", nativeQuery = true)
+		AverageOrdersProjection getAverageOrdersLast7Days(@Param("businessId") Long businessId);
 }

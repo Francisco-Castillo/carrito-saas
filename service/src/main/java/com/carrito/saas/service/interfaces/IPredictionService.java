@@ -36,5 +36,22 @@ public interface IPredictionService {
 	List<ProductDTO> getProducts();
 	
 	List<ProductDTO> getProductsForBusiness(Long businessId);
+	
+	/**
+	 * Obtiene el promedio histórico de pedidos diarios del negocio autenticado.
+	 *
+	 * <p>
+	 * Calculado sobre los últimos 7 días a partir de datos agregados en
+	 * {@code daily_metrics}. Este valor representa el comportamiento base
+	 * del negocio y se utiliza para comparar contra predicciones actuales.
+	 * </p>
+	 *
+	 * <p>
+	 * <b>Nota:</b> si no existen datos históricos suficientes, se retorna 0.
+	 * </p>
+	 *
+	 * @return promedio de pedidos diarios del negocio
+	 */
+	Double getAverageOrders();
 
 }

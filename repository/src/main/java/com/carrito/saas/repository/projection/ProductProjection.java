@@ -4,5 +4,6 @@ public interface ProductProjection {
 	
 	Long getProductId();
     Long getQuantity();
+    String getProductName();
 
 }

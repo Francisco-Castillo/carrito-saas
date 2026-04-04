@@ -27,7 +27,7 @@ public class GeneratePredictionServiceImpl implements IGeneratePredictionService
 		
 		TodayPredictionDTO p = predictionService.getTodayForBusiness(businessId);
 
-		writeRepository.replaceDailyMetric(businessId, p.getPredictedOrders(), p.getPeakHour(), p.getTopProductId());
+		writeRepository.replaceDailyMetric(businessId, p.getPredictedOrders(), p.getPeakHour(), p.getTopProductId()); // Consumo real.
 
 		writeRepository.replaceHourly(businessId);
 		writeRepository.replaceProducts(businessId);
