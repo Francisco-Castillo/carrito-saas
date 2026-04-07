@@ -12,6 +12,8 @@ public class ProductDTO {
 	private Long id;
 
     private String name;
+    
+    private Double trendPercentage;
 
     private String description;
 

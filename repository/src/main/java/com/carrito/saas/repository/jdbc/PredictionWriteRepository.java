@@ -7,5 +7,8 @@ public interface PredictionWriteRepository {
     void replaceHourly(Long businessId);
 
     void replaceProducts(Long businessId);
+    
+
+    
 
 }

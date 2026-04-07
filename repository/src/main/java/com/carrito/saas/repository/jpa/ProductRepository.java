@@ -3,6 +3,7 @@ package com.carrito.saas.repository.jpa;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,7 +15,7 @@ import com.carrito.saas.repository.entity.Product;
 import jakarta.persistence.LockModeType;
 
 @Repository
-public interface ProductRepository extends JpaRepository<Product, Long> {
+public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
 	//List<Product> findByBusinessId(Long businessId);
 
@@ -26,7 +27,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 	//List<Product> findByBusinessIdAndActiveTrueAndStockGreaterThan(Long businessId, Integer stock);
 
 	// Solo activos y con stock > X
-    List<Product> findByCategory_Business_IdAndActiveTrueAndStockGreaterThan(Long businessId, Integer stock);
+
 	
 	List<Product> findByActiveTrue();
 
@@ -87,4 +88,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 		       """)
 		boolean existsByNameAndCategory(@Param("name") String name,
 		                                @Param("categoryId") Long categoryId);
+	
+	// Solo activos y con stock > X
+    List<Product> findByCategory_Business_IdAndActiveTrueAndStockGreaterThan(Long businessId, Integer stock);
 }

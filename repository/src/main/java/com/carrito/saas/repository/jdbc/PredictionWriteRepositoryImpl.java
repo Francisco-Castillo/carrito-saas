@@ -65,4 +65,7 @@ public class PredictionWriteRepositoryImpl implements PredictionWriteRepository{
 		
 	}
 
+
+	
+
 }

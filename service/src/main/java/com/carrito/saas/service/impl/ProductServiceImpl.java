@@ -2,14 +2,22 @@ package com.carrito.saas.service.impl;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.carrito.saas.dto.PageResponse;
 import com.carrito.saas.dto.ProductCreateDTO;
 import com.carrito.saas.dto.ProductDTO;
+import com.carrito.saas.dto.ProductFilterDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Category;
@@ -17,6 +25,7 @@ import com.carrito.saas.repository.entity.Product;
 import com.carrito.saas.repository.jpa.CategoryRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
 import com.carrito.saas.service.interfaces.IProductService;
+import com.carrito.saas.service.interfaces.IProductTrendService;
 import com.carrito.saas.service.mapper.interfaces.IProductMapper;
 
 @Service
@@ -25,22 +34,62 @@ public class ProductServiceImpl implements IProductService {
 	private final ProductRepository productRepository;
 	private final CategoryRepository categoryRepository;
 	private final IProductMapper iProductMapper;
+	private final IProductTrendService productTrendService;
+
+	
 
 	public ProductServiceImpl(ProductRepository productRepository, CategoryRepository categoryRepository,
-			IProductMapper iProductMapper) {
-		super();
+			IProductMapper iProductMapper, IProductTrendService productTrendService) {
 		this.productRepository = productRepository;
 		this.categoryRepository = categoryRepository;
 		this.iProductMapper = iProductMapper;
+		this.productTrendService = productTrendService;
 	}
 
 	@Override
-	public List<ProductDTO> getProductsByRestaurant(Long restaurantId) {
-		// Buscamos los productos que pertenezcan al negocio, que esten activos y tengan
-		// stock mayor a cero.
-		List<Product> products = productRepository
-				.findByCategory_Business_IdAndActiveTrueAndStockGreaterThan(restaurantId, 0);
-		return iProductMapper.toListDTO(products);
+	public PageResponse<ProductDTO> getProductsByRestaurant(
+	        Long restaurantId,
+	        int page,
+	        int size,
+	        String sortBy,
+	        String sortDir,
+	        ProductFilterDTO filter
+	) {
+
+	    Sort sort = sortDir.equalsIgnoreCase("desc")
+	            ? Sort.by(sortBy).descending()
+	            : Sort.by(sortBy).ascending();
+
+	    Pageable pageable = PageRequest.of(page, size, sort);
+
+	    Specification<Product> spec = ProductSpecification.byRestaurant(restaurantId)
+	            .and(ProductSpecification.isActive())
+	            .and(ProductSpecification.hasStock())
+	            .and(ProductSpecification.withFilters(filter));
+
+	    Page<Product> productPage = productRepository.findAll(spec, pageable);
+
+	    List<ProductDTO> content = iProductMapper.toListDTO(productPage.getContent());
+	    
+	    List<Long> productIds = content.stream()
+	            .map(ProductDTO::getId)
+	            .toList();
+	    
+	    Map<Long, Double> trends = productTrendService.getTrends(restaurantId, productIds);
+	    
+	    content.forEach(p -> {
+	        Double trend = trends.getOrDefault(p.getId(), 0.0);
+	        p.setTrendPercentage(trend);
+	    });
+
+	    return PageResponse.<ProductDTO>builder()
+	            .content(content)
+	            .page(productPage.getNumber())
+	            .size(productPage.getSize())
+	            .totalElements(productPage.getTotalElements())
+	            .totalPages(productPage.getTotalPages())
+	            .last(productPage.isLast())
+	            .build();
 	}
 
 	@Override
