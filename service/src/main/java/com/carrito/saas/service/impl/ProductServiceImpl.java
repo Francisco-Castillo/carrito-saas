@@ -1,6 +1,7 @@
 package com.carrito.saas.service.impl;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -9,21 +10,23 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.carrito.saas.dto.PageResponse;
 import com.carrito.saas.dto.ProductCreateDTO;
 import com.carrito.saas.dto.ProductDTO;
 import com.carrito.saas.dto.ProductFilterDTO;
+import com.carrito.saas.dto.ProductInsight;
+import com.carrito.saas.dto.ProductPredictionDTO;
+import com.carrito.saas.dto.ProductTrendDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.repository.entity.Product;
 import com.carrito.saas.repository.jpa.CategoryRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
+import com.carrito.saas.service.interfaces.IProductPredictionService;
 import com.carrito.saas.service.interfaces.IProductService;
 import com.carrito.saas.service.interfaces.IProductTrendService;
 import com.carrito.saas.service.mapper.interfaces.IProductMapper;
@@ -35,61 +38,84 @@ public class ProductServiceImpl implements IProductService {
 	private final CategoryRepository categoryRepository;
 	private final IProductMapper iProductMapper;
 	private final IProductTrendService productTrendService;
-
-	
+	private final IProductPredictionService productPredictionService;
+	private final ProductInsightService productInsightService;
 
 	public ProductServiceImpl(ProductRepository productRepository, CategoryRepository categoryRepository,
-			IProductMapper iProductMapper, IProductTrendService productTrendService) {
+			IProductMapper iProductMapper, IProductTrendService productTrendService,
+			IProductPredictionService productPredictionService, ProductInsightService productInsightService) {
+
 		this.productRepository = productRepository;
 		this.categoryRepository = categoryRepository;
 		this.iProductMapper = iProductMapper;
 		this.productTrendService = productTrendService;
+		this.productPredictionService = productPredictionService;
+		this.productInsightService = productInsightService;
 	}
 
 	@Override
-	public PageResponse<ProductDTO> getProductsByRestaurant(
-	        Long restaurantId,
-	        int page,
-	        int size,
-	        String sortBy,
-	        String sortDir,
-	        ProductFilterDTO filter
-	) {
+	public PageResponse<ProductDTO> getProductsByRestaurant(Long restaurantId, int page, int size, String sortBy,
+			String sortDir, ProductFilterDTO filter) {
 
-	    Sort sort = sortDir.equalsIgnoreCase("desc")
-	            ? Sort.by(sortBy).descending()
-	            : Sort.by(sortBy).ascending();
+		// 1) Sorting
+		Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
 
-	    Pageable pageable = PageRequest.of(page, size, sort);
+		Pageable pageable = PageRequest.of(page, size, sort);
 
-	    Specification<Product> spec = ProductSpecification.byRestaurant(restaurantId)
-	            .and(ProductSpecification.isActive())
-	            .and(ProductSpecification.hasStock())
-	            .and(ProductSpecification.withFilters(filter));
+		// 2) Specification
+		Specification<Product> spec = ProductSpecification.byRestaurant(restaurantId)
+				.and(ProductSpecification.isActive()).and(ProductSpecification.hasStock())
+				.and(ProductSpecification.withFilters(filter));
 
-	    Page<Product> productPage = productRepository.findAll(spec, pageable);
+		// 3) Query principal
+		Page<Product> productPage = productRepository.findAll(spec, pageable);
 
-	    List<ProductDTO> content = iProductMapper.toListDTO(productPage.getContent());
-	    
-	    List<Long> productIds = content.stream()
-	            .map(ProductDTO::getId)
-	            .toList();
-	    
-	    Map<Long, Double> trends = productTrendService.getTrends(restaurantId, productIds);
-	    
-	    content.forEach(p -> {
-	        Double trend = trends.getOrDefault(p.getId(), 0.0);
-	        p.setTrendPercentage(trend);
-	    });
+		List<ProductDTO> content = iProductMapper.toListDTO(productPage.getContent());
 
-	    return PageResponse.<ProductDTO>builder()
-	            .content(content)
-	            .page(productPage.getNumber())
-	            .size(productPage.getSize())
-	            .totalElements(productPage.getTotalElements())
-	            .totalPages(productPage.getTotalPages())
-	            .last(productPage.isLast())
-	            .build();
+		// IMPORTANTE: evitar trabajo innecesario
+		if (content.isEmpty()) {
+			return buildPageResponse(productPage, content);
+		}
+
+		// 4) Extraer IDs
+		List<Long> productIds = new ArrayList<>(content.size());
+		for (ProductDTO p : content) {
+			productIds.add(p.getId());
+		}
+
+		// 5) Obtener trends en BULK (1 sola query)
+		Map<Long, ProductTrendDTO> trends = productTrendService.getTrends(restaurantId, productIds);
+
+		// Si querés activar insights en el futuro
+		Map<Long, ProductPredictionDTO> predictions = productPredictionService.getPredictions(restaurantId, productIds);
+
+		// Merge + Insight
+		for (ProductDTO p : content) {
+
+			ProductTrendDTO trend = trends.get(p.getId());
+
+			if (trend != null) {
+				p.setTrendPercentage(trend.getTrendPercentage());
+				p.setTrendDirection(trend.getTrendDirection());
+			} else {
+				p.setTrendPercentage(0.0);
+				p.setTrendDirection("STABLE");
+			}
+
+			ProductPredictionDTO prediction = predictions.get(p.getId());
+
+			ProductInsight insight = productInsightService.calculate(trend != null ? trend.getTrendPercentage() : null,
+					prediction != null ? prediction.getPredictedGrowth() : null);
+
+			p.setProductInsight(insight);
+		}
+
+		return buildPageResponse(productPage, content);
+	}
+
+	private PageResponse<ProductDTO> buildPageResponse(Page<Product> page, List<ProductDTO> content) {
+		return PageResponse.<ProductDTO>builder().content(content).page(page.getNumber()).size(page.getSize())
+				.totalElements(page.getTotalElements()).totalPages(page.getTotalPages()).last(page.isLast()).build();
 	}
 
 	@Override

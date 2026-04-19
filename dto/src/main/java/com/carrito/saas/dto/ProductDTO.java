@@ -8,33 +8,34 @@ import lombok.Data;
 
 @Data
 public class ProductDTO {
-	
+
 	private Long id;
 
-    private String name;
-    
-    private Double trendPercentage;
+	private String name;
 
-    private String description;
+	private Double trendPercentage;
+	private String trendDirection;
+	private ProductInsight productInsight;
 
-    private BigDecimal price;
-    private BigDecimal cost;
+	private String description;
 
-    private Boolean active;
-    
-    private Integer stock;
+	private BigDecimal price;
+	private BigDecimal cost;
 
-    private Long categoryId;
-    
-    private String categoryName;
-    
-    private String imageUrl;
-    
-    private UnitMeasure unitMeasure;
+	private Boolean active;
+
+	private Integer stock;
+
+	private Long categoryId;
+
+	private String categoryName;
+
+	private String imageUrl;
+
+	private UnitMeasure unitMeasure;
 
 	public ProductDTO() {
 		super();
 	}
-    
-    
+
 }

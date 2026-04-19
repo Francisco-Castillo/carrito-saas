@@ -15,10 +15,12 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 public class CacheConfig {
 	@Bean
 	public CacheManager cacheManager() {
-		CaffeineCacheManager cacheManager = new CaffeineCacheManager("product-trends");
-		cacheManager.setCaffeine(Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES) // TTL
-				.maximumSize(10_000) // límite de entradas
-		);
+
+		CaffeineCacheManager cacheManager = new CaffeineCacheManager("productTrends", "productPredictions", "topUp",
+				"topDown");
+
+		cacheManager.setCaffeine(Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).maximumSize(10_000));
+
 		return cacheManager;
 	}
 }
