@@ -45,6 +45,10 @@ public class Order implements Serializable {
 	@ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "business_id", nullable = false)
 	private Business business;
+	
+	@ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "table_id", nullable = false)
+	private RestaurantTable restaurantTable;
 
     @Column(name = "customer_name")
     private String customerName;
