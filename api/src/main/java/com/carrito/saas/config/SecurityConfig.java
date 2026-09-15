@@ -74,7 +74,7 @@ public class SecurityConfig {
 	            .requestMatchers("/ws/**").permitAll()
 
 	            // Crear pedidos público
-	            .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
+	            .requestMatchers(HttpMethod.POST, "/api/orders", "/api/orders/menu/{slug}").permitAll()
 
 	            .anyRequest().authenticated()
 	        )
