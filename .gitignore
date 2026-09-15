@@ -31,3 +31,11 @@ build/
 
 ### VS Code ###
 .vscode/
+### Application logs ###
+# logging.file.name points at logs/app.log, so both the repository root and
+# each module directory can hold one. Logs are build output, not source.
+logs/
+*.log
+
+# Local Pi runtime state
+.atl/
