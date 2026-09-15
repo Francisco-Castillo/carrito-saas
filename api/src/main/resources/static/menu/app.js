@@ -76,7 +76,11 @@ async function loadRestaurant() {
 	const response = await fetch(`/api/restaurants/slug/${slug}`)
 	restaurant = await response.json()
 
-	WHATSAPP = restaurant.whatsappNumber
+	// Lectura defensiva: un valor que es solo espacios cuenta como ausente
+	WHATSAPP =
+		typeof restaurant.whatsappNumber === "string"
+			? restaurant.whatsappNumber.trim()
+			: ""
 
 	document.getElementById("restaurantName").innerText = restaurant.name
 
@@ -259,7 +263,7 @@ function renderCart() {
 	updateCartVisibility()
 }
 
-document.getElementById("sendOrder").onclick = () => {
+document.getElementById("sendOrder").onclick = async () => {
 
 	if (Object.keys(cart).length === 0) {
 		alert("Agrega productos primero")
@@ -277,8 +281,96 @@ document.getElementById("sendOrder").onclick = () => {
 		return
 	}
 
-	if (type === "Delivery" && address.trim() === "") {
+	if (type === "DELIVERY" && address.trim() === "") {
 		alert("Por favor ingresa la dirección para el delivery")
+		return
+	}
+
+	// El pedido entra primero a la cocina
+	const items = Object.entries(cart).map(([id, item]) => {
+
+		if (item.isCombo) {
+			return { comboId: Number(id.replace("combo-", "")), quantity: item.qty }
+		}
+
+		return { productId: Number(id), quantity: item.qty }
+	})
+
+	const payload = {
+		customerName: name,
+		orderType: type,
+		paymentMethod: payment,
+		notes: notes,
+		items: items
+	}
+
+	if (type === "DELIVERY") {
+		payload.customerAddress = address
+	}
+
+	// Evita doble envío: un doble tap no debe crear dos pedidos
+	const sendButton = document.getElementById("sendOrder")
+
+	sendButton.disabled = true
+
+	try {
+
+		const response = await fetch(`/api/orders/menu/${slug}`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(payload)
+		})
+
+		if (!response.ok) {
+			throw new Error("El local rechazó el pedido (HTTP " + response.status + ")")
+		}
+
+		alert("¡Pedido recibido! Ya lo enviamos a la cocina.")
+
+		resetOrderState()
+		return
+
+	} catch (error) {
+
+		// Fallback: el pedido no se pierde, pero nunca prometemos un canal que
+		// no existe. Sin número de WhatsApp configurado no hay a dónde navegar.
+		if (hasWhatsappNumber()) {
+			alert("No pudimos enviar tu pedido al local. Vamos a confirmarlo por WhatsApp.")
+			sendOrderByWhatsApp(name, type, address, notes, payment)
+		} else {
+			alert(
+				"No pudimos enviar tu pedido al local. " +
+				"Este local no tiene un número de WhatsApp configurado para confirmarlo automáticamente. " +
+				"Por favor confirmá tu pedido directamente con el local " +
+				"(en el mostrador o por cualquier otro medio de contacto que tenga publicado)."
+			)
+		}
+
+	} finally {
+		sendButton.disabled = false
+	}
+}
+
+/**
+ * ¿Hay un número de WhatsApp utilizable? Defensivo: vacío, null o solo
+ * espacios cuenta como ausente.
+ */
+function hasWhatsappNumber() {
+	return typeof WHATSAPP === "string" && WHATSAPP.trim() !== ""
+}
+
+/**
+ * Fallback: confirma el pedido por WhatsApp (flujo original, sin cambios)
+ */
+function sendOrderByWhatsApp(name, type, address, notes, payment) {
+
+	// Defensivo: jamás armar ni abrir un enlace wa.me sin un número válido,
+	// así ningún llamador futuro puede reintroducir la pérdida silenciosa.
+	if (!hasWhatsappNumber()) {
+		alert(
+			"No pudimos enviar tu pedido al local y este local no tiene WhatsApp configurado. " +
+			"Por favor confirmá tu pedido directamente con el local."
+		)
 		return
 	}
 
@@ -298,7 +390,7 @@ document.getElementById("sendOrder").onclick = () => {
 	message += `*Nombre:* ${name}%0A`
 	message += `*Tipo de pedido:* ${type}%0A`
 
-	if (type === "Delivery") {
+	if (type === "DELIVERY") {
 		message += `*Dirección:* ${address}%0A`
 	}
 
@@ -308,7 +400,27 @@ document.getElementById("sendOrder").onclick = () => {
 		message += `*Observaciones:* ${notes}%0A`
 	}
 
-	window.open(`https://wa.me/${WHATSAPP}?text=${message}`)
+	// Navigate instead of window.open(): this runs after an await, so the
+	// click's transient activation may already have lapsed and the popup would
+	// be blocked silently, losing the order. A navigation is never blocked.
+	window.location.href = `https://wa.me/${WHATSAPP}?text=${message}`
+}
+
+/**
+ * Estado limpio tras un pedido confirmado: carrito vacío y formulario nuevo
+ */
+function resetOrderState() {
+
+	cart = {}
+	localStorage.removeItem("cart")
+
+	document.getElementById("customerName").value = ""
+	document.getElementById("address").value = ""
+	document.getElementById("notes").value = ""
+	document.getElementById("orderType").value = "RETIRO"
+	document.getElementById("addressContainer").style.display = "none"
+
+	renderCart()
 }
 
 const orderTypeSelect = document.getElementById("orderType")
@@ -316,7 +428,7 @@ const addressContainer = document.getElementById("addressContainer")
 
 orderTypeSelect.addEventListener("change", function () {
 
-	if (this.value === "Delivery") {
+	if (this.value === "DELIVERY") {
 		addressContainer.style.display = "block"
 	} else {
 		addressContainer.style.display = "none"
@@ -334,7 +446,8 @@ function resetApp() {
 	document.getElementById("customerName").value = ""
 	document.getElementById("address").value = ""
 	document.getElementById("notes").value = ""
-	document.getElementById("orderType").value = "Retiro"
+	document.getElementById("orderType").value = "RETIRO"
+	document.getElementById("addressContainer").style.display = "none"
 
 	updateCartVisibility()
 }
