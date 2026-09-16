@@ -100,6 +100,7 @@ public class Grid3Template implements PdfTemplateStrategy {
 	            pdfTable.addCell(cell);
 	        }
 
+	        pdfTable.completeRow();
 	        document.add(pdfTable);
 
 	        document.close();

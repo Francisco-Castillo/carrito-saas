@@ -148,9 +148,10 @@ class QrPdfTemplateUrlTests {
 	@Test
 	void grid3TemplateHandsTheConfiguredPublicMenuUrlToTheQrEncoder() {
 
-		// GRID_3X3 lays cells out on a 3-column PdfPTable; fewer than 3 tables
-		// leaves the single row incomplete and the PDF ends up empty (pre-existing
-		// rendering quirk, unrelated to the URL). Three tables complete one row.
+		// GRID_3X3 lays cells out on a 3-column PdfPTable, and three tables
+		// complete one row. Grid3Template now calls completeRow() so a partial
+		// trailing row is no longer dropped, but this test keeps a complete row
+		// so it isolates the URL contract from row rendering.
 		pdfTemplateFactory.get(QrTemplate.GRID_3X3)
 				.generate(List.of(inMemoryTable(1), inMemoryTable(2), inMemoryTable(3)), config(QrTemplate.GRID_3X3));
 
