@@ -39,17 +39,23 @@ public interface ITableController {
 
 	/**
 	 * Descargar PDF Individual
-	 * 
+	 *
+	 * <p>GET has no body: the options arrive as query parameters
+	 * (e.g. {@code ?template=SINGLE}), never as a request body.
+	 *
 	 * @param id
 	 * @return
 	 */
-	public ResponseEntity<byte[]> downloadPdf(@PathVariable Long id, @RequestBody QrPdfRequestDTO request);
+	public ResponseEntity<byte[]> downloadPdf(@PathVariable Long id, QrPdfRequestDTO request);
 
 	/**
 	 * Descargar Todos
-	 * 
+	 *
+	 * <p>GET has no body: the options arrive as query parameters
+	 * (e.g. {@code ?template=SINGLE}), never as a request body.
+	 *
 	 * @return
 	 */
-	public ResponseEntity<byte[]> downloadAllPdf(@RequestBody QrPdfRequestDTO request);
+	public ResponseEntity<byte[]> downloadAllPdf(QrPdfRequestDTO request);
 
 }

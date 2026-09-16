@@ -1,10 +1,6 @@
 
 const slug = getRestaurantSlug()
 
-if (!slug) {
-	alert("Restaurant not specified")
-}
-
 //const API_URL = `/api/restaurants/slug/${slug}/products`
 const API_URL = `/api/menu/${slug}`
 
@@ -17,16 +13,55 @@ let categoriesData = []
 
 let cart = JSON.parse(localStorage.getItem("cart")) || {}
 
-init()
+// The link must be complete before anything loads: a truncated QR link
+// (missing ?restaurant=slug) gets a readable message and a dead end,
+// never a broken menu that still lets the customer send an order to
+// /api/orders/menu/undefined.
+if (!slug) {
+	showMenuLoadError(
+		"No pudimos abrir la carta: el enlace del QR está incompleto o no es válido. " +
+		"Pedile al local un nuevo QR o hacé tu pedido directamente en el mostrador."
+	)
+} else {
+	init()
+}
 
 async function init() {
 
 	resetApp()
 
-	await loadRestaurant()
+	try {
+		await loadRestaurant()
+	} catch (error) {
+		// The restaurant could not be loaded (bad slug, unregistered local,
+		// network failure): stop here instead of rendering a page with a
+		// broken name and an empty menu.
+		showMenuLoadError(
+			"No pudimos cargar la carta de este local. Revisá tu conexión y volvé a escanear el QR; " +
+			"si el problema continúa, avisale al local para que te dé un enlace nuevo."
+		)
+		return
+	}
 
-	const res = await fetch(API_URL)
-	const data = await res.json()
+	// Any failure to load the menu (non-2xx status, network rejection, malformed
+	// JSON) must show a customer-readable message and stop the boot — the same
+	// contract as the restaurant-load failure above, never a silently empty menu.
+	let data
+	try {
+		const res = await fetch(API_URL)
+
+		if (!res.ok) {
+			throw new Error("Menu request failed with HTTP " + res.status)
+		}
+
+		data = await res.json()
+	} catch (error) {
+		showMenuLoadError(
+			"No pudimos cargar los productos de la carta. Revisá tu conexión y probá de nuevo en unos minutos; " +
+			"si sigue fallando, avisale al local o hacé tu pedido directamente en el mostrador."
+		)
+		return
+	}
 
 	// 🔥 SAFE ASSIGN (evita errores)
 	products = data.products || []
@@ -74,9 +109,20 @@ async function loadRestaurant() {
 	const slug = getRestaurantSlug()
 
 	const response = await fetch(`/api/restaurants/slug/${slug}`)
+
+	// A 404 (or any error) means this link does not point at a real local:
+	// throwing stops the boot instead of rendering an unnamed restaurant.
+	if (!response.ok) {
+		throw new Error("Restaurant request failed with HTTP " + response.status)
+	}
+
 	restaurant = await response.json()
 
-	WHATSAPP = restaurant.whatsappNumber
+	// Lectura defensiva: un valor que es solo espacios cuenta como ausente
+	WHATSAPP =
+		typeof restaurant.whatsappNumber === "string"
+			? restaurant.whatsappNumber.trim()
+			: ""
 
 	document.getElementById("restaurantName").innerText = restaurant.name
 
@@ -259,7 +305,7 @@ function renderCart() {
 	updateCartVisibility()
 }
 
-document.getElementById("sendOrder").onclick = () => {
+document.getElementById("sendOrder").onclick = async () => {
 
 	if (Object.keys(cart).length === 0) {
 		alert("Agrega productos primero")
@@ -277,8 +323,120 @@ document.getElementById("sendOrder").onclick = () => {
 		return
 	}
 
-	if (type === "Delivery" && address.trim() === "") {
+	if (type === "DELIVERY" && address.trim() === "") {
 		alert("Por favor ingresa la dirección para el delivery")
+		return
+	}
+
+	// El pedido entra primero a la cocina
+	const items = Object.entries(cart).map(([id, item]) => {
+
+		if (item.isCombo) {
+			return { comboId: Number(id.replace("combo-", "")), quantity: item.qty }
+		}
+
+		return { productId: Number(id), quantity: item.qty }
+	})
+
+	const payload = {
+		customerName: name,
+		orderType: type,
+		paymentMethod: payment,
+		notes: notes,
+		items: items
+	}
+
+	if (type === "DELIVERY") {
+		payload.customerAddress = address
+	}
+
+	// Evita doble envío: un doble tap no debe crear dos pedidos
+	const sendButton = document.getElementById("sendOrder")
+
+	sendButton.disabled = true
+
+	try {
+
+		const response = await fetch(`/api/orders/menu/${slug}`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(payload)
+		})
+
+		if (!response.ok) {
+			throw new Error("El local rechazó el pedido (HTTP " + response.status + ")")
+		}
+
+		alert("¡Pedido recibido! Ya lo enviamos a la cocina.")
+
+		resetOrderState()
+		return
+
+	} catch (error) {
+
+		// Fallback: el pedido no se pierde, pero nunca prometemos un canal que
+		// no existe. Sin número de WhatsApp configurado no hay a dónde navegar.
+		if (hasWhatsappNumber()) {
+			alert("No pudimos enviar tu pedido al local. Vamos a confirmarlo por WhatsApp.")
+			sendOrderByWhatsApp(name, type, address, notes, payment)
+		} else {
+			alert(
+				"No pudimos enviar tu pedido al local. " +
+				"Este local no tiene un número de WhatsApp configurado para confirmarlo automáticamente. " +
+				"Por favor confirmá tu pedido directamente con el local " +
+				"(en el mostrador o por cualquier otro medio de contacto que tenga publicado)."
+			)
+		}
+
+	} finally {
+		sendButton.disabled = false
+	}
+}
+
+/**
+ * Customer-facing dead end: shows a readable message in the page and STOPS
+ * (no menu fetch, no broken render). The cart is emptied and the order
+ * panel hidden so a broken link can never submit an order.
+ */
+function showMenuLoadError(message) {
+
+	cart = {}
+
+	const menu = document.getElementById("menu")
+
+	if (menu) {
+		menu.innerHTML = ""
+
+		const notice = document.createElement("div")
+		notice.className = "menu-load-error"
+		notice.textContent = message
+
+		menu.appendChild(notice)
+	}
+
+	updateCartVisibility()
+}
+
+/**
+ * ¿Hay un número de WhatsApp utilizable? Defensivo: vacío, null o solo
+ * espacios cuenta como ausente.
+ */
+function hasWhatsappNumber() {
+	return typeof WHATSAPP === "string" && WHATSAPP.trim() !== ""
+}
+
+/**
+ * Fallback: confirma el pedido por WhatsApp (flujo original, sin cambios)
+ */
+function sendOrderByWhatsApp(name, type, address, notes, payment) {
+
+	// Defensivo: jamás armar ni abrir un enlace wa.me sin un número válido,
+	// así ningún llamador futuro puede reintroducir la pérdida silenciosa.
+	if (!hasWhatsappNumber()) {
+		alert(
+			"No pudimos enviar tu pedido al local y este local no tiene WhatsApp configurado. " +
+			"Por favor confirmá tu pedido directamente con el local."
+		)
 		return
 	}
 
@@ -298,7 +456,7 @@ document.getElementById("sendOrder").onclick = () => {
 	message += `*Nombre:* ${name}%0A`
 	message += `*Tipo de pedido:* ${type}%0A`
 
-	if (type === "Delivery") {
+	if (type === "DELIVERY") {
 		message += `*Dirección:* ${address}%0A`
 	}
 
@@ -308,7 +466,27 @@ document.getElementById("sendOrder").onclick = () => {
 		message += `*Observaciones:* ${notes}%0A`
 	}
 
-	window.open(`https://wa.me/${WHATSAPP}?text=${message}`)
+	// Navigate instead of window.open(): this runs after an await, so the
+	// click's transient activation may already have lapsed and the popup would
+	// be blocked silently, losing the order. A navigation is never blocked.
+	window.location.href = `https://wa.me/${WHATSAPP}?text=${message}`
+}
+
+/**
+ * Estado limpio tras un pedido confirmado: carrito vacío y formulario nuevo
+ */
+function resetOrderState() {
+
+	cart = {}
+	localStorage.removeItem("cart")
+
+	document.getElementById("customerName").value = ""
+	document.getElementById("address").value = ""
+	document.getElementById("notes").value = ""
+	document.getElementById("orderType").value = "RETIRO"
+	document.getElementById("addressContainer").style.display = "none"
+
+	renderCart()
 }
 
 const orderTypeSelect = document.getElementById("orderType")
@@ -316,7 +494,7 @@ const addressContainer = document.getElementById("addressContainer")
 
 orderTypeSelect.addEventListener("change", function () {
 
-	if (this.value === "Delivery") {
+	if (this.value === "DELIVERY") {
 		addressContainer.style.display = "block"
 	} else {
 		addressContainer.style.display = "none"
@@ -334,7 +512,8 @@ function resetApp() {
 	document.getElementById("customerName").value = ""
 	document.getElementById("address").value = ""
 	document.getElementById("notes").value = ""
-	document.getElementById("orderType").value = "Retiro"
+	document.getElementById("orderType").value = "RETIRO"
+	document.getElementById("addressContainer").style.display = "none"
 
 	updateCartVisibility()
 }

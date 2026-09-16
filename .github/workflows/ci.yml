@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        # Must stay in sync with api/src/main/resources/application.yml.
+        image: postgres:17
+        env:
+          POSTGRES_DB: carrito_db
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: admin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin -d carrito_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Verify
+        run: mvn -B --no-transfer-progress verify
+
+      - name: Menu page contract tests (JS)
+        # menu/app.js has no Maven runner. This executes the real file in a node
+        # vm sandbox with a DOM/fetch stub and pins the customer-facing failure
+        # contract, so it must run here or it protects nothing.
+        run: node api/src/test/js/menu-app.test.mjs

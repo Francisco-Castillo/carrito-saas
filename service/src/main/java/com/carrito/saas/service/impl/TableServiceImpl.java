@@ -21,6 +21,7 @@ import com.carrito.saas.repository.enums.TableStatus;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.TableRepository;
 import com.carrito.saas.security.SecurityService;
+import com.carrito.saas.service.interfaces.IMenuUrlBuilder;
 import com.carrito.saas.service.interfaces.IQrCodeService;
 import com.carrito.saas.service.interfaces.IQrPdfService;
 import com.carrito.saas.service.interfaces.ITableService;
@@ -47,7 +48,7 @@ public class TableServiceImpl implements ITableService {
 
 	private final IQrPdfService qrPdfService;
 
-	// private final QrProperties qrProperties;
+	private final IMenuUrlBuilder menuUrlBuilder;
 
 	private final SecurityService securityService;
 	
@@ -59,10 +60,7 @@ public class TableServiceImpl implements ITableService {
 		Long businessId = securityService.getCurrentBusinessId();
 		RestaurantTable table = findOwnedTable(tableId, businessId);
 
-		/*
-		 * String url = qrProperties.getPublicMenuUrl() + "/" + table.getQrToken();
-		 */
-		String url = "" + "/" + table.getQrToken();
+		String url = menuUrlBuilder.buildMenuUrl(table.getBusiness().getSlug());
 
 		return qrCodeService.generateQr(url, size);
 	}
@@ -227,9 +225,7 @@ public class TableServiceImpl implements ITableService {
 
 		TableResponseDTO response=	restaurantTableMapper.toDTO(table);
 
-		//response.setQrUrl(qrProperties.getPublicMenuUrl() + "/" + table.getQrToken());
-		
-		response.setQrUrl("http://localhost:8080"+"/" + table.getQrToken());
+		response.setQrUrl(menuUrlBuilder.buildMenuUrl(table.getBusiness().getSlug()));
 
 		return response;
 	}
