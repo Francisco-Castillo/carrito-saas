@@ -46,3 +46,9 @@ jobs:
 
       - name: Verify
         run: mvn -B --no-transfer-progress verify
+
+      - name: Menu page contract tests (JS)
+        # menu/app.js has no Maven runner. This executes the real file in a node
+        # vm sandbox with a DOM/fetch stub and pins the customer-facing failure
+        # contract, so it must run here or it protects nothing.
+        run: node api/src/test/js/menu-app.test.mjs

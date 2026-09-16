@@ -1,10 +1,6 @@
 
 const slug = getRestaurantSlug()
 
-if (!slug) {
-	alert("Restaurant not specified")
-}
-
 //const API_URL = `/api/restaurants/slug/${slug}/products`
 const API_URL = `/api/menu/${slug}`
 
@@ -17,16 +13,55 @@ let categoriesData = []
 
 let cart = JSON.parse(localStorage.getItem("cart")) || {}
 
-init()
+// The link must be complete before anything loads: a truncated QR link
+// (missing ?restaurant=slug) gets a readable message and a dead end,
+// never a broken menu that still lets the customer send an order to
+// /api/orders/menu/undefined.
+if (!slug) {
+	showMenuLoadError(
+		"No pudimos abrir la carta: el enlace del QR está incompleto o no es válido. " +
+		"Pedile al local un nuevo QR o hacé tu pedido directamente en el mostrador."
+	)
+} else {
+	init()
+}
 
 async function init() {
 
 	resetApp()
 
-	await loadRestaurant()
+	try {
+		await loadRestaurant()
+	} catch (error) {
+		// The restaurant could not be loaded (bad slug, unregistered local,
+		// network failure): stop here instead of rendering a page with a
+		// broken name and an empty menu.
+		showMenuLoadError(
+			"No pudimos cargar la carta de este local. Revisá tu conexión y volvé a escanear el QR; " +
+			"si el problema continúa, avisale al local para que te dé un enlace nuevo."
+		)
+		return
+	}
 
-	const res = await fetch(API_URL)
-	const data = await res.json()
+	// Any failure to load the menu (non-2xx status, network rejection, malformed
+	// JSON) must show a customer-readable message and stop the boot — the same
+	// contract as the restaurant-load failure above, never a silently empty menu.
+	let data
+	try {
+		const res = await fetch(API_URL)
+
+		if (!res.ok) {
+			throw new Error("Menu request failed with HTTP " + res.status)
+		}
+
+		data = await res.json()
+	} catch (error) {
+		showMenuLoadError(
+			"No pudimos cargar los productos de la carta. Revisá tu conexión y probá de nuevo en unos minutos; " +
+			"si sigue fallando, avisale al local o hacé tu pedido directamente en el mostrador."
+		)
+		return
+	}
 
 	// 🔥 SAFE ASSIGN (evita errores)
 	products = data.products || []
@@ -74,6 +109,13 @@ async function loadRestaurant() {
 	const slug = getRestaurantSlug()
 
 	const response = await fetch(`/api/restaurants/slug/${slug}`)
+
+	// A 404 (or any error) means this link does not point at a real local:
+	// throwing stops the boot instead of rendering an unnamed restaurant.
+	if (!response.ok) {
+		throw new Error("Restaurant request failed with HTTP " + response.status)
+	}
+
 	restaurant = await response.json()
 
 	// Lectura defensiva: un valor que es solo espacios cuenta como ausente
@@ -349,6 +391,30 @@ document.getElementById("sendOrder").onclick = async () => {
 	} finally {
 		sendButton.disabled = false
 	}
+}
+
+/**
+ * Customer-facing dead end: shows a readable message in the page and STOPS
+ * (no menu fetch, no broken render). The cart is emptied and the order
+ * panel hidden so a broken link can never submit an order.
+ */
+function showMenuLoadError(message) {
+
+	cart = {}
+
+	const menu = document.getElementById("menu")
+
+	if (menu) {
+		menu.innerHTML = ""
+
+		const notice = document.createElement("div")
+		notice.className = "menu-load-error"
+		notice.textContent = message
+
+		menu.appendChild(notice)
+	}
+
+	updateCartVisibility()
 }
 
 /**
