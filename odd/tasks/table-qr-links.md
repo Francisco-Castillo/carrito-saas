@@ -1,7 +1,7 @@
 # Feature: table-qr-links
 
 **Branch**: `fix-qr-mesa-links` (from `fix-pedidos-carta-qr`)
-**Status**: 2/2 tasks done and green; pending independent verification
+**Status**: 2/2 tasks done and green; independent verification passed with no blocking findings
 **Commits**: one per task, no push
 
 ## Objective
@@ -75,7 +75,10 @@ explicit non-goal, not silently abandoned.
 ## Constraints
 
 - **Strict TDD: ON.** Every task begins with an executed, failing run. The literal RED output is
-  pasted into the Evidence section of this document before the fix is written. Filesystem mtime is
+  pasted into the Evidence section of this document. Note, because independent verification refuted the
+  stronger wording used earlier: the evidence is *observed* before the fix, but the document edit is
+  committed **inside the same commit as the fix**, so git alone cannot prove that ordering. It is
+  corroborated by the untracked runtime log (see Independent verification). Filesystem mtime is
   not accepted as proof that a failing run was observed.
 - **Runner**: `mvn -B --no-transfer-progress verify` for the full suite; `mvn -Dtest=<Class> test`
   for the focused RED/GREEN loop; `node api/src/test/js/menu-app.test.mjs` for the JS contract.
@@ -114,8 +117,7 @@ injection and never constructs the templates, so adding a constructor dependency
 | Task | Status | Commit | Evidence |
 | --- | --- | --- | --- |
 | T1 | done | `2e457f6` | RED `2/2` failures (literal below); GREEN `2/2`; full suite 24/24; JS 4/4 |
-| T2 | done | — | RED `5/5` failures (literal below); GREEN `5/5`; full suite 29/29; JS 4/4 |
-| T2 | pending | — | — |
+| T2 | done | `10b72f0` | RED `5/5` failures (literal below); GREEN `5/5`; full suite 29/29; JS 4/4 |
 
 ## Evidence
 
@@ -211,7 +213,49 @@ Full suite after the fix: `Tests run: 29, Failures: 0, Errors: 0, Skipped: 0`, B
 
 ### Independent verification
 
-_pending_
+Performed by `gentle-ai-verify` over the frozen range `3526f13..10b72f0`, read-only.
+**Frozen revision unmodified: all 7 touched files byte-identical before and after, `HEAD` unchanged,
+`git diff --stat` empty.**
+
+Verdicts: **AC1 MET, AC2 MET, AC3 MET, AC4 MET, AC5 MET, AC6 MET.** No blocking findings.
+
+What the verification *independently established* (not accepted from this document):
+
+- **Mutation proof, run in a `/tmp` copy with the base blobs restored** — `TableQrServiceLinkTests` goes
+  from green to `2/2` failures and `QrPdfTemplateUrlTests` to `5/5` failures, with the observed values
+  being the old hardcoded `http://localhost:8080/<token>` and `http://localhost:3030/<token>`. Crucially
+  the mutated `qrUrl` failure showed the old hardcoded URL and **not** the empty string that
+  `RestaurantTableMapperImpl.toDTO` sets, which rules out the one vacuous-pass hypothesis.
+- **No shared-wrong expectation:** `qr.example.test` exists only in the test and this document, so the
+  `@SpringBootTest(properties = ...)` override cannot be satisfied by any literal in production.
+- **Repo-wide grep:** the only surviving `3030`/`8080` occurrences are `SecurityConfig`'s CORS origin and
+  `admin.js`'s API base — neither is a QR payload. Exactly five payload producers remain, all through
+  `MenuUrlBuilder`.
+- **Lazy-loading containment:** every call path reaching `buildResponse`/`generateQr`/the templates is
+  covered by `TableServiceImpl`'s class-level `@Transactional` (including `findAll` and `findById`, which
+  have no HTTP mapping at all), with `spring.jpa.open-in-view=true` as an accidental second net. No
+  `LazyInitializationException` is reachable today. A test does **not** pin this.
+- **Ordering corroboration:** the untracked `api/logs/app.log` shows the T1 RED run at 13:09 calling
+  `TableServiceImpl.create` **without** a nested `MenuUrlBuilder.buildMenuUrl`, and the same run after the
+  13:12 fix calling it nested — evidence git cannot provide because the document edit rides inside the fix
+  commits.
+- **`Grid3Template` finding reproduced independently** with a scratch OpenPDF program, and it is **worse**
+  than first recorded (see gap 4).
+- **Why the pre-existing PDF test was not a safety net:** `TableQrPdfContractTests` asserts only
+  `length > 100` and the `%PDF-` magic bytes, so a PDF whose QR encodes a dead host is perfectly valid to it.
+
+Refuted claims (all non-technical, all now corrected here):
+
+1. This document's Progress table recorded no commit for T2 and carried a stale duplicate `T2 | pending`
+   row. Fixed.
+2. The stronger claim that the document *proves* the RED preceded the fix is unprovable from the artifact.
+   Reworded in Constraints, with the log-based corroboration recorded above.
+3. `CreateOrderWithoutTableTests`' javadoc still says "Currently RED" while the test passes, because
+   `Order.restaurantTable` no longer has `nullable = false`. Pre-existing, outside this range: follow-up.
+
+Not determinable: whether `businesses.slug NOT NULL` is enforced at the database level or only by
+Hibernate (`check_nullability: true`); whether the `GRID_3X3` and `ACRYLIC` templates resolve the lazy
+business over real HTTP (reasoned yes, only `SINGLE` was observed over HTTP).
 
 ## Open gaps and decisions
 
@@ -223,12 +267,24 @@ _pending_
    anyway because it is part of the same dead-URL defect, but nothing user-visible depends on it.
 3. **`qrToken` remains a real, unique column** and is still returned by the DTO. It is simply no
    longer part of any printed URL. Not removed, to keep this slice reversible.
-4. **NEW, verified pre-existing defect found while doing T2 — `Grid3Template` drops incomplete rows.**
-   `Grid3Template` lays every cell into a 3-column `PdfPTable`. When `tables.size() % 3 != 0`, the final
-   incomplete row never renders; with 1 or 2 tables the table renders zero rows and `document.close()`
-   throws `ExceptionConverter: java.io.IOException: The document has no pages.` Consequence:
-   `GET /api/tables/qr/pdf?template=GRID_3X3` with 1 or 2 tables returns a broken/empty PDF for reasons
-   **independent of the URL defect**. Observed literally: the first T2 RED run failed with that
-   `RuntimeException` instead of the URL assertion, which is how it was found. Out of scope for this
-   slice (fixing it means changing document logic), disclosed as follow-up material. The T2 tests use 3
-   tables (one complete row) so they exercise the URL contract instead of tripping on this quirk.
+4. **NEW, verified pre-existing defect found while doing T2 — `Grid3Template` drops rows.**
+   `Grid3Template` lays every cell into a 3-column `PdfPTable`. Independently reproduced with a scratch
+   OpenPDF 2.0.3 program: **1 or 2 tables → zero rows render and `document.close()` throws
+   `ExceptionConverter: java.io.IOException: The document has no pages.`** (so
+   `GET /api/tables/qr/pdf?template=GRID_3X3` fails with a 500); **4, 5, 7, 8 tables → the trailing partial
+   row is silently dropped**, producing a byte-identical page to the complete-row case, while
+   `generateQr` is still called for the dropped tables. The second half is the worse one: a printed sheet
+   can silently be missing tables with no error at all. Three tables renders correctly (one complete
+   row), which is why the T2 tests use 3. Independent of the URL defect; fixing it means changing document
+   logic and is out of scope.
+5. **New coupling not pinned by any test.** `buildResponse` and the three templates now touch the lazy
+   `RestaurantTable.business` association; they are safe only because `TableServiceImpl` carries a
+   class-level `@Transactional` (plus the `open-in-view` default as a second net). Removing that annotation
+   or calling these paths outside a transaction would break them at runtime with no test failing first.
+6. **Redundant coverage.** `everyTableOfTheBusinessReceivesTheSamePublicMenuUrl` restates the `GRID_3X3`
+   captor test with fewer assertions, so it adds no independent coverage. Kept because it names the accepted
+   trade-off in executable form.
+7. **Pre-existing, out of scope, each worth its own slice:** `static/admin/admin.js:2` points its API base at
+   `http://localhost:8080/api` while the app serves 9090; `CreateOrderWithoutTableTests`' javadoc claims
+   "Currently RED" while it passes; `BusinessDTO.slug` accepts a blank string (degrades gracefully in
+   `menu/app.js`); `BusinessController.iBusinessService` is never assigned.
