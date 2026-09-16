@@ -1,7 +1,7 @@
 # Feature: table-qr-links
 
 **Branch**: `fix-qr-mesa-links` (from `fix-pedidos-carta-qr`)
-**Status**: tracking created — 0/2 tasks done, no source write yet
+**Status**: 1/2 tasks done and green
 **Commits**: one per task, no push
 
 ## Objective
@@ -87,7 +87,7 @@ explicit non-goal, not silently abandoned.
 
 ## Tasks
 
-- [ ] **T1 — Service layer: the table QR and the DTO `qrUrl` come from the builder.**
+- [x] **T1 — Service layer: the table QR and the DTO `qrUrl` come from the builder.**
   Inject `IMenuUrlBuilder` into `TableServiceImpl`; replace both hardcoded constructions
   (`generateQr:65`, `buildResponse:232`). Remove the two stale comment blocks that still document
   the abandoned `QrProperties` wiring. RED-first test: `TableQrServiceLinkTests`.
@@ -113,20 +113,57 @@ injection and never constructs the templates, so adding a constructor dependency
 
 | Task | Status | Commit | Evidence |
 | --- | --- | --- | --- |
-| T1 | pending | — | — |
+| T1 | done | — | RED `2/2` failures (literal below); GREEN `2/2`; full suite 24/24; JS 4/4 |
 | T2 | pending | — | — |
 
 ## Evidence
 
 ### RED logs (literal command output)
 
-_pending — T1_
+**T1** — `mvn -B --no-transfer-progress -Dtest=TableQrServiceLinkTests -Dsurefire.failIfNoSpecifiedTests=false test`
+(before any production change; `-Dsurefire.failIfNoSpecifiedTests=false` is required or the 8-module reactor
+fails at the first module without a matching test, i.e. `common`)
 
-_pending — T2_
+```text
+[ERROR] Tests run: 2, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 9.907 s <<< FAILURE! -- in com.carrito.saas.TableQrServiceLinkTests
+[ERROR] com.carrito.saas.TableQrServiceLinkTests.createdTableReturnsThePublicMenuUrlAsQrUrl -- Time elapsed: 0.942 s <<< FAILURE!
+org.opentest4j.AssertionFailedError:
+[the created table's qrUrl must equal menuUrlBuilder.buildMenuUrl(slug)]
+expected: "http://localhost:9090/menu/index.html?restaurant=table-qr-link-business"
+ but was: "http://localhost:8080/0b3df586-a852-49af-8ec8-b79cd4da752c"
+
+[ERROR] com.carrito.saas.TableQrServiceLinkTests.tableQrPngEncodesThePublicMenuUrl -- Time elapsed: 0.174 s <<< FAILURE!
+org.opentest4j.AssertionFailedError:
+[the table QR PNG must encode menuUrlBuilder.buildMenuUrl(slug)]
+expected: "http://localhost:9090/menu/index.html?restaurant=table-qr-link-business"
+ but was: "/06205d49-d9c1-4fa4-9ed8-a22b99ac89fa"
+
+[INFO] Results:
+[ERROR] Tests run: 2, Failures: 2, Errors: 0, Skipped: 0
+[INFO] BUILD FAILURE
+```
+
+The two failures reproduce exactly the two defects: `generateQr` encodes a bare `/<qrToken>`, and
+`buildResponse` emits `http://localhost:8080/<qrToken>`.
+
+**T2** — _pending_
 
 ### GREEN runs
 
-_pending_
+**T1** — focused: `Tests run: 2, Failures: 0, Errors: 0, Skipped: 0`, BUILD SUCCESS.
+Full suite after the fix: `Tests run: 24, Failures: 0, Errors: 0, Skipped: 0`, BUILD SUCCESS
+(baseline was 22; the 2 new tests are this class). JS: `4 test(s) passed`.
+
+### Notes carried forward from T1
+
+1. **The controller contract lives on the interface, not the impl.** `ITableController.create` declares
+   `@Valid @RequestBody CreateTableRequestDTO`, so `POST /api/tables` requires a JSON body; posting query
+   params yields `HttpMessageNotReadableException` → HTTP 500. The earlier assumption in this document,
+   based on reading only `TableController`, was wrong.
+2. **No `ObjectMapper` bean in this context**; tests instantiate `new ObjectMapper()`, as
+   `PublicMenuOrderHttpTests` already does.
+3. `RestaurantTableMapperImpl.toDTO` hardcodes `setQrUrl("")` and `setStatus(AVAILABLE)`, so the DTO's
+   `qrUrl` is service-owned — which is why this repair belongs in `TableServiceImpl`.
 
 ### Independent verification
 
