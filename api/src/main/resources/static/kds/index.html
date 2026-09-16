@@ -13,21 +13,31 @@
 	rel="stylesheet">
 
 <script>
-const token = localStorage.getItem("token");
-if (!token) {
-    window.location.href = "/login.html";
-}
-
-const payload = JSON.parse(atob(token.split(".")[1]));
-const roles = payload.roles;
-
-// Validación de rol
-if (window.location.pathname.includes("/dashboard/") && !roles.includes("OWNER")) {
-    window.location.href = "/login.html";
-}
-if (window.location.pathname.includes("/kds/") && !roles.includes("KITCHEN")) {
-    window.location.href = "/login.html";
-}
+// El rol lo valida el servidor (403 en la API): este guard solo cubre la
+// ausencia de una sesión usable. Nunca lanza y nunca deja la página corriendo
+// sin sesión: si falla la lectura del slug o del token (almacenamiento
+// bloqueado, modo privado), cae al redirect de todos modos. Sin slug legible
+// redirige sin él, con él conserva el restaurante.
+(function () {
+    let target = "/login/login.html";
+    try {
+        const slug = new URLSearchParams(window.location.search).get("restaurant");
+        if (slug) {
+            target += "?restaurant=" + encodeURIComponent(slug);
+        }
+        const token = localStorage.getItem("token");
+        // Se compara el valor RECORTADO: un token " null " o "null\n" tampoco
+        // es una sesión, y aceptarlo deja la página corriendo sin sesión.
+        const session = typeof token === "string" ? token.trim() : "";
+        const usable = session !== "" && session !== "null" && session !== "undefined";
+        if (usable) {
+            return;
+        }
+    } catch (error) {
+        // Sesión o slug ilegibles: redirigimos con lo que se pudo armar.
+    }
+    window.location.replace(target);
+})();
 </script>
 
 </head>

@@ -60,3 +60,11 @@ jobs:
         # guard keeps every static client on a relative /api base, so it must
         # run here or it protects nothing.
         run: node api/src/test/js/frontend-origin.test.mjs
+
+      - name: Page guard and login redirect contract (JS)
+        # The /kds and /dashboard inline guards and the login redirect chain
+        # have no Maven runner. This executes the real guard scripts and
+        # login.js in node vm sandboxes, so a wrong redirect target, a guard
+        # that keeps executing after redirecting, or a lost role destination
+        # fails CI here or it protects nothing.
+        run: node api/src/test/js/page-guard.test.mjs
