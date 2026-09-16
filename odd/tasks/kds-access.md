@@ -232,8 +232,14 @@ EXIT CODE: 1
 7. **Riesgo operativo descubierto acá**: reconstruir el jar **debajo de una JVM corriendo** la deja sin poder servir ningún estático (500 en todas las páginas) — la JVM lee el jar anidado con un handle que queda inválido. Ocurrió con el `mvn verify` del padre a las 16:07 sobre la app arrancada a las 15:19; se arregló reiniciando. Para el ensayo: rebuild y restart siempre en ese orden, con la app parada.
 8. **Batch de 20 requests a las 15:50:17 con 500 en todas las páginas** (más 1 a las 15:41:08): sin actor identificado. No fue el escritor (su transcript tiene 6 comandos, ninguno HTTP ni Maven, verificado) ni el verificador (que corrió a las 16:09). Se solapa con la franja en que el usuario intentaba entrar al KDS. Queda como anomalía abierta junto al punto 4.
 
-## Estado del ensayo manual (AC9)
+## Ensayo manual (AC9) — PASÓ
 
-La app quedó **corriendo** en `192.168.1.5:9090` con el fix servido, con la JVM arrancada limpia a las 16:14. Verificado después del reinicio: `/login/login.html`, `/kds/index.html`, `/dashboard/index.html`, `/menu/index.html`, `/admin/admin.html` y `/kds/kds.js` → **200**; `/api/business/orders/active` sin token → **403**; el guard servido en `/kds/index.html` contiene `login/login.html` y **cero** ocurrencias de `payload.roles`.
+La app quedó **corriendo** en `192.168.1.5:9090` con el fix servido, con la JVM arrancada limpia. Verificado del lado servidor después del reinicio: `/login/login.html`, `/kds/index.html`, `/dashboard/index.html`, `/menu/index.html`, `/admin/admin.html` y `/kds/kds.js` → **200**; `/api/business/orders/active` sin token → **403**; el guard servido en `/kds/index.html` contiene `login/login.html` y **cero** ocurrencias de `payload.roles`.
 
-Camino para AC9: entrar a `http://192.168.1.5:9090/login/login.html?restaurant=demo-pizzeria` con `demo`/`demo1234` (ahora cae en el panel admin por la rama ADMIN), y después abrir `http://192.168.1.5:9090/kds/index.html?restaurant=demo-pizzeria`: tiene que dibujar los pedidos #3 y #4, que están en `status=NEW`.
+**Resultado (16/09/2026, confirmado por el usuario):** el login con `demo`/`demo1234` funciona y el KDS entra bien. Es la evidencia que ningún test podía dar: el render real en un navegador logueado. Junto con el escaneo del celular del mismo día (menú + pedido #3 y #4 creados de verdad), quedan cerradas las dos mitades del piloto que antes sólo estaban cubiertas por tests en capas.
+
+Queda **una sola cosa sin verificar en esta sesión**: que la tarjeta del pedido se dibuje y suene en el KDS con un pedido nuevo llegando en vivo por WebSocket desde otro dispositivo (el ensayo anterior ya había probado la emisión al topic `/topic/orders/demo-pizzeria` con un cliente STOMP crudo, así que lo que falta es el dibujo de la tarjeta en el navegador de cocina). Es el próximo ensayo, no un pendiente del arreglo.
+
+### Estado de los criterios
+
+AC1–AC13: **cumplidos**. AC1–AC8 y AC10–AC13 por test (17 casos de node, más las mutaciones de las dos verificaciones independientes); AC9 por el ensayo manual confirmado arriba.
