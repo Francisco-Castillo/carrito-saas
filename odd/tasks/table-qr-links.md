@@ -5,6 +5,8 @@
 **Post-merge cleanup (on `develop`)**: the redundant test gap 6 describes was removed, so `QrPdfTemplateUrlTests`
 now holds **4** tests instead of 5 and the suite is **28**, not 29. The counts quoted below are the ones
 observed at verification time; the removal is test-only and adds no coverage change.
+**Follow-up fix (on `develop`, `7a6fb56`)**: gap 4 was fixed, adding 5 tests in `Grid3RowRenderingTests`, so
+the suite is now **33**.
 **Commits**: one per task, no push
 
 ## Objective
@@ -270,16 +272,25 @@ business over real HTTP (reasoned yes, only `SINGLE` was observed over HTTP).
    anyway because it is part of the same dead-URL defect, but nothing user-visible depends on it.
 3. **`qrToken` remains a real, unique column** and is still returned by the DTO. It is simply no
    longer part of any printed URL. Not removed, to keep this slice reversible.
-4. **NEW, verified pre-existing defect found while doing T2 — `Grid3Template` drops rows.**
+4. **FIXED — `Grid3Template` dropped rows (found while doing T2).**
    `Grid3Template` lays every cell into a 3-column `PdfPTable`. Independently reproduced with a scratch
    OpenPDF 2.0.3 program: **1 or 2 tables → zero rows render and `document.close()` throws
    `ExceptionConverter: java.io.IOException: The document has no pages.`** (so
-   `GET /api/tables/qr/pdf?template=GRID_3X3` fails with a 500); **4, 5, 7, 8 tables → the trailing partial
-   row is silently dropped**, producing a byte-identical page to the complete-row case, while
-   `generateQr` is still called for the dropped tables. The second half is the worse one: a printed sheet
-   can silently be missing tables with no error at all. Three tables renders correctly (one complete
-   row), which is why the T2 tests use 3. Independent of the URL defect; fixing it means changing document
-   logic and is out of scope.
+   `GET /api/tables/qr/pdf?template=GRID_3X3` failed with a 500); **4, 5, 7, 8 tables → the trailing partial
+   row was silently dropped**, producing a byte-identical page to the complete-row case, while
+   `generateQr` was still called for the dropped tables. The second half was the worse one: a printed sheet
+   could silently be missing tables with no error at all.
+
+   **Root cause:** an OpenPDF row is only rendered when it is complete — one cause, two very different
+   symptoms (HTTP 500 versus silent data loss).
+
+   **Fix (commit `7a6fb56`, on `develop`):** a single added line, `pdfTable.completeRow();` after the cell
+   loop and before `document.add(pdfTable)`. Measured as byte-neutral for the already-complete cases: 3 and
+   6 tables produce identical bytes with and without the call, so nothing that rendered before changed.
+   Verified with 5 new tests in `api/src/test/java/com/carrito/saas/Grid3RowRenderingTests.java` (1, 2, 4 and
+   5 tables plus the HTTP endpoint). The literal RED was the strongest kind: with 4 and 5 tables the text
+   extracted from the generated document was exactly `Mesa1Mesa2Mesa3`, and the endpoint answered 500
+   instead of 200. Suite went 28 → 33 tests. `completeRow()` was the whole fix; no workaround was needed.
 5. **New coupling not pinned by any test.** `buildResponse` and the three templates now touch the lazy
    `RestaurantTable.business` association; they are safe only because `TableServiceImpl` carries a
    class-level `@Transactional` (plus the `open-in-view` default as a second net). Removing that annotation
