@@ -52,3 +52,11 @@ jobs:
         # vm sandbox with a DOM/fetch stub and pins the customer-facing failure
         # contract, so it must run here or it protects nothing.
         run: node api/src/test/js/menu-app.test.mjs
+
+      - name: Frontend origin guard (JS)
+        # A hardcoded application origin in a client duplicates deployment
+        # data: the server port already flipped 9090 -> 8080 -> 9090 while
+        # admin.js kept the old host, which broke every admin API call. This
+        # guard keeps every static client on a relative /api base, so it must
+        # run here or it protects nothing.
+        run: node api/src/test/js/frontend-origin.test.mjs

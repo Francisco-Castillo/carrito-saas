@@ -1,5 +1,5 @@
 import { initDashboard } from '../dashboard/dashboard.js';
-const API = "http://localhost:8080/api";
+const API = "/api";
 let currentView = "dashboard";
 const businessId = 1; // TODO: obtener dinámico
 
