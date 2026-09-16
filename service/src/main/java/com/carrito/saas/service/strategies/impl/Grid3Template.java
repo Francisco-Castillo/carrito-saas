@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.carrito.saas.dto.QrPdfRequestDTO;
 import com.carrito.saas.repository.entity.RestaurantTable;
 import com.carrito.saas.repository.enums.QrTemplate;
+import com.carrito.saas.service.interfaces.IMenuUrlBuilder;
 import com.carrito.saas.service.interfaces.IQrCodeService;
 import com.carrito.saas.service.strategies.interfaces.PdfTemplateStrategy;
 import com.lowagie.text.Document;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 public class Grid3Template implements PdfTemplateStrategy {
 
 	private final IQrCodeService qrCodeService;
+	private final IMenuUrlBuilder menuUrlBuilder;
 
 	@Override
 	public QrTemplate getTemplate() {
@@ -65,8 +67,8 @@ public class Grid3Template implements PdfTemplateStrategy {
 
 	            byte[] qr =
 	                    qrCodeService.generateQr(
-	                            "http://localhost:3030/"
-	                                    + table.getQrToken(),
+	                            menuUrlBuilder.buildMenuUrl(
+	                                    table.getBusiness().getSlug()),
 	                            qrSize);
 
 	            if (qr == null || qr.length == 0) {

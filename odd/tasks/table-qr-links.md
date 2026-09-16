@@ -1,7 +1,7 @@
 # Feature: table-qr-links
 
 **Branch**: `fix-qr-mesa-links` (from `fix-pedidos-carta-qr`)
-**Status**: 1/2 tasks done and green
+**Status**: 2/2 tasks done and green; pending independent verification
 **Commits**: one per task, no push
 
 ## Objective
@@ -91,7 +91,7 @@ explicit non-goal, not silently abandoned.
   Inject `IMenuUrlBuilder` into `TableServiceImpl`; replace both hardcoded constructions
   (`generateQr:65`, `buildResponse:232`). Remove the two stale comment blocks that still document
   the abandoned `QrProperties` wiring. RED-first test: `TableQrServiceLinkTests`.
-- [ ] **T2 — The three PDF templates stop hardcoding `localhost:3030`.**
+- [x] **T2 — The three PDF templates stop hardcoding `localhost:3030`.**
   Inject `IMenuUrlBuilder` into `SingleTemplate`, `Grid3Template` and `AcrylicTemplate`; replace the
   three hardcoded strings. RED-first test: `QrPdfTemplateUrlTests`.
 
@@ -113,7 +113,8 @@ injection and never constructs the templates, so adding a constructor dependency
 
 | Task | Status | Commit | Evidence |
 | --- | --- | --- | --- |
-| T1 | done | — | RED `2/2` failures (literal below); GREEN `2/2`; full suite 24/24; JS 4/4 |
+| T1 | done | `2e457f6` | RED `2/2` failures (literal below); GREEN `2/2`; full suite 24/24; JS 4/4 |
+| T2 | done | — | RED `5/5` failures (literal below); GREEN `5/5`; full suite 29/29; JS 4/4 |
 | T2 | pending | — | — |
 
 ## Evidence
@@ -146,13 +147,47 @@ expected: "http://localhost:9090/menu/index.html?restaurant=table-qr-link-busine
 The two failures reproduce exactly the two defects: `generateQr` encodes a bare `/<qrToken>`, and
 `buildResponse` emits `http://localhost:8080/<qrToken>`.
 
-**T2** — _pending_
+**T2** — same focused command, `-Dtest=QrPdfTemplateUrlTests -Dsurefire.failIfNoSpecifiedTests=false test`,
+with `@SpringBootTest(properties = "qr.public-menu-url=https://qr.example.test/")`. The override makes any
+hardcoded host structurally unable to satisfy the assertion.
+
+```text
+[ERROR] Tests run: 5, Failures: 5, Errors: 0, Skipped: 0, Time elapsed: 10.42 s <<< FAILURE! -- in com.carrito.saas.QrPdfTemplateUrlTests
+
+[ERROR] QrPdfTemplateUrlTests.singleTemplateHandsTheConfiguredPublicMenuUrlToTheQrEncoder
+[the SINGLE template must hand menuUrlBuilder.buildMenuUrl(slug) to the QR encoder, not a hardcoded host
+ (actual: http://localhost:3030/1d0a34b2-82e3-4b33-95ca-e840a766d29a)]
+expected: "https://qr.example.test/menu/index.html?restaurant=qr-pdf-url-business"
+ but was: "http://localhost:3030/1d0a34b2-82e3-4b33-95ca-e840a766d29a"
+
+[ERROR] QrPdfTemplateUrlTests.acrylicTemplateHandsTheConfiguredPublicMenuUrlToTheQrEncoder
+ (actual: http://localhost:3030/48b0dcac-a08e-4f5d-b7e8-99462cc8518c)
+
+[ERROR] QrPdfTemplateUrlTests.grid3TemplateHandsTheConfiguredPublicMenuUrlToTheQrEncoder
+ (actual: [http://localhost:3030/2c65fbde-828c-4a90-a446-b4411bad2740, http://localhost:3030/80333649-b7c3-4994-bff1-46fe979301c6, ...])
+
+[ERROR] QrPdfTemplateUrlTests.everyTableOfTheBusinessReceivesTheSamePublicMenuUrl
+ (actual: [http://localhost:3030/d310e302-685d-424a-8cf3-8e25f1f3ce61, http://localhost:3030/b84c7f18-cdc2-4d66-a90f-27dbfa4e2b26, ...])
+
+[ERROR] QrPdfTemplateUrlTests.printedSingleTablePdfContainsTheConfiguredPublicMenuUrl
+[the printed PDF must show the configured public menu URL, not a dead host
+ (actual: Mesa3MesaN°3http://localhost:3030/3f041216-d665-44fd-ac23-d383439603b5)]
+Expecting actual: "Mesa3MesaN°3http://localhost:3030/3f041216-d665-44fd-ac23-d383439603b5"
+to contain: "https://qr.example.test/menu/index.html?restaurant=qr-pdf-url-business"
+```
+
+The last failure is the strongest evidence in this document: the text extracted from a **real rendered
+PDF** shows the dead host, so the defect was proven on the printed artifact, not only on an argument.
 
 ### GREEN runs
 
 **T1** — focused: `Tests run: 2, Failures: 0, Errors: 0, Skipped: 0`, BUILD SUCCESS.
 Full suite after the fix: `Tests run: 24, Failures: 0, Errors: 0, Skipped: 0`, BUILD SUCCESS
 (baseline was 22; the 2 new tests are this class). JS: `4 test(s) passed`.
+
+**T2** — focused: `Tests run: 5, Failures: 0, Errors: 0, Skipped: 0`.
+Full suite after the fix: `Tests run: 29, Failures: 0, Errors: 0, Skipped: 0`, BUILD SUCCESS (22 baseline
++ 2 from T1 + 5 from T2). JS: `4 test(s) passed`.
 
 ### Notes carried forward from T1
 
@@ -164,6 +199,15 @@ Full suite after the fix: `Tests run: 24, Failures: 0, Errors: 0, Skipped: 0`, B
    `PublicMenuOrderHttpTests` already does.
 3. `RestaurantTableMapperImpl.toDTO` hardcodes `setQrUrl("")` and `setStatus(AVAILABLE)`, so the DTO's
    `qrUrl` is service-owned — which is why this repair belongs in `TableServiceImpl`.
+
+### Notes carried forward from T2
+
+4. **`@MockitoBean IQrCodeService` must return a real PNG.** `Image.getInstance(qr)` throws on a null or
+   empty array (and `Grid3Template` throws its own `IllegalStateException`), so the test stubs the mock with
+   `new ZxingQrCodeServiceImpl().generateQr("stub", 180)` — a real encoder with no dependencies.
+5. **OpenPDF 2.0.3 text extraction**: use `com.lowagie.text.pdf.parser.PdfTextExtractor.getTextFromPage(int)`;
+   there is no no-arg `getText()`. Strip `\s+` from both sides before comparing so PDF line wrapping
+   cannot make the assertion flaky.
 
 ### Independent verification
 
@@ -179,3 +223,12 @@ _pending_
    anyway because it is part of the same dead-URL defect, but nothing user-visible depends on it.
 3. **`qrToken` remains a real, unique column** and is still returned by the DTO. It is simply no
    longer part of any printed URL. Not removed, to keep this slice reversible.
+4. **NEW, verified pre-existing defect found while doing T2 — `Grid3Template` drops incomplete rows.**
+   `Grid3Template` lays every cell into a 3-column `PdfPTable`. When `tables.size() % 3 != 0`, the final
+   incomplete row never renders; with 1 or 2 tables the table renders zero rows and `document.close()`
+   throws `ExceptionConverter: java.io.IOException: The document has no pages.` Consequence:
+   `GET /api/tables/qr/pdf?template=GRID_3X3` with 1 or 2 tables returns a broken/empty PDF for reasons
+   **independent of the URL defect**. Observed literally: the first T2 RED run failed with that
+   `RuntimeException` instead of the URL assertion, which is how it was found. Out of scope for this
+   slice (fixing it means changing document logic), disclosed as follow-up material. The T2 tests use 3
+   tables (one complete row) so they exercise the URL contract instead of tripping on this quirk.
