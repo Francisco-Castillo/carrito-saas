@@ -15,10 +15,22 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        # Re-enables Hibernate's pre-insert nullability check for columns mapped
+        # nullable=false. Hibernate skips it by default when a Bean Validation
+        # provider is on the classpath (it defers to @NotNull, which the
+        # repository module cannot see, so a null slug would otherwise reach
+        # the database silently).
+        check_nullability: true
 
   jackson:
     serialization:
       indent-output: true
+
+# Public origin encoded into every printed QR. The local default only works on
+# this machine: QR_PUBLIC_MENU_URL MUST be set to the real public origin for a
+# QR to work off-device.
+qr:
+  public-menu-url: ${QR_PUBLIC_MENU_URL:http://localhost:9090}
 
 management:
   endpoints:
@@ -44,4 +56,4 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [business:%X{businessId:-}] [user:%X{userId:-}] [corr:%X{correlationId:-}] %-5level %logger{36} - %msg%n"
 
   file:
-    name: logs/app.log	
+    name: logs/app.log
