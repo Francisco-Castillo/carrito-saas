@@ -157,7 +157,8 @@ class QrPdfTemplateUrlTests {
 		List<String> capturedUrls = capturedQrUrls(3);
 
 		assertThat(capturedUrls)
-				.as("the GRID_3X3 template must hand menuUrlBuilder.buildMenuUrl(slug) to the QR encoder for every table, not a hardcoded host (actual: %s)",
+				.as("every table of one business must receive the same public menu URL, whatever its qrToken "
+						+ "-- the accepted trade-off of dropping per-table identity (actual: %s)",
 						capturedUrls)
 				.containsExactly(menuUrlBuilder.buildMenuUrl(SLUG), menuUrlBuilder.buildMenuUrl(SLUG),
 						menuUrlBuilder.buildMenuUrl(SLUG));
@@ -187,22 +188,6 @@ class QrPdfTemplateUrlTests {
 		assertThat(capturedUrl)
 				.as("the dead localhost:3030 host must be gone from the QR content (actual: %s)", capturedUrl)
 				.doesNotContain("localhost:3030");
-	}
-
-	@Test
-	void everyTableOfTheBusinessReceivesTheSamePublicMenuUrl() {
-
-		// Three tables: GRID_3X3 needs a complete 3-column row to render at all.
-		pdfTemplateFactory.get(QrTemplate.GRID_3X3)
-				.generate(List.of(inMemoryTable(1), inMemoryTable(2), inMemoryTable(3)), config(QrTemplate.GRID_3X3));
-
-		List<String> capturedUrls = capturedQrUrls(3);
-
-		assertThat(capturedUrls)
-				.as("every table of one business shares the same public menu URL, whatever its qrToken (actual: %s)",
-						capturedUrls)
-				.containsExactly(menuUrlBuilder.buildMenuUrl(SLUG), menuUrlBuilder.buildMenuUrl(SLUG),
-						menuUrlBuilder.buildMenuUrl(SLUG));
 	}
 
 	@Test

@@ -1,7 +1,10 @@
 # Feature: table-qr-links
 
 **Branch**: `fix-qr-mesa-links` (from `fix-pedidos-carta-qr`)
-**Status**: 2/2 tasks done and green; independent verification passed with no blocking findings
+**Status**: 2/2 tasks done and green; independent verification passed with no blocking findings.
+**Post-merge cleanup (on `develop`)**: the redundant test gap 6 describes was removed, so `QrPdfTemplateUrlTests`
+now holds **4** tests instead of 5 and the suite is **28**, not 29. The counts quoted below are the ones
+observed at verification time; the removal is test-only and adds no coverage change.
 **Commits**: one per task, no push
 
 ## Objective
@@ -281,9 +284,14 @@ business over real HTTP (reasoned yes, only `SINGLE` was observed over HTTP).
    `RestaurantTable.business` association; they are safe only because `TableServiceImpl` carries a
    class-level `@Transactional` (plus the `open-in-view` default as a second net). Removing that annotation
    or calling these paths outside a transaction would break them at runtime with no test failing first.
-6. **Redundant coverage.** `everyTableOfTheBusinessReceivesTheSamePublicMenuUrl` restates the `GRID_3X3`
-   captor test with fewer assertions, so it adds no independent coverage. Kept because it names the accepted
-   trade-off in executable form.
+6. **Redundant coverage — removed after the merge.** `everyTableOfTheBusinessReceivesTheSamePublicMenuUrl`
+   used the same 3-table `GRID_3X3` setup and asserted only `containsExactly(url, url, url)`, a **strict
+   subset** of the three assertions the `GRID_3X3` captor test already makes (which adds
+   `containsOnly(EXPECTED_URL)` and `doesNotContain("localhost:3030")`). Added coverage: zero. It was
+   deleted, and the accepted trade-off it was meant to name now lives in the surviving test's assertion
+   message, so the decision stays expressed in executable form without a duplicate test. **This corrects an
+   earlier claim in this document** that the test was kept because it was the only executable statement of
+   the trade-off — that was wrong: the `GRID_3X3` test pinned it more strongly all along.
 7. **Pre-existing, out of scope, each worth its own slice:** `static/admin/admin.js:2` points its API base at
    `http://localhost:8080/api` while the app serves 9090; `CreateOrderWithoutTableTests`' javadoc claims
    "Currently RED" while it passes; `BusinessDTO.slug` accepts a blank string (degrades gracefully in
