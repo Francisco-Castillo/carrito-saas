@@ -129,8 +129,8 @@ public class OrderServiceImpl implements IOrderService {
 			}
 		}
 
-		// traer productos
-		List<Product> products = productRepository.findAllByIdInForUpdate(productIds);
+		// traer productos (scopeados por negocio: un id ajeno no entra al mapa)
+		List<Product> products = productRepository.findAllByIdInForUpdate(productIds, business.getId());
 		Map<Long, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, p -> p));
 
 		// traer combos con sus productos
@@ -161,7 +161,7 @@ public class OrderServiceImpl implements IOrderService {
 					throw new RuntimeException("Producto no existe");
 				}
 
-				int updatedRows = productRepository.decrementStock(product.getId(), quantity);
+				int updatedRows = productRepository.decrementStock(product.getId(), quantity, business.getId());
 
 				if (updatedRows == 0) {
 					throw new RuntimeException("Stock insuficiente: " + product.getName());
@@ -217,7 +217,7 @@ public class OrderServiceImpl implements IOrderService {
 
 					int finalQty = cp.getQuantity().multiply(BigDecimal.valueOf(quantity)).intValue();
 
-					int updatedRows = productRepository.decrementStock(product.getId(), finalQty);
+					int updatedRows = productRepository.decrementStock(product.getId(), finalQty, business.getId());
 
 					if (updatedRows == 0) {
 						throw new RuntimeException("Stock insuficiente en combo: " + product.getName());
@@ -330,7 +330,7 @@ public class OrderServiceImpl implements IOrderService {
 				if (Boolean.TRUE.equals(item.getComboRoot()))
 					continue;
 
-				int updated = productRepository.incrementStock(item.getProductId(), item.getQuantity());
+				int updated = productRepository.incrementStock(item.getProductId(), item.getQuantity(), businessId);
 
 				if (updated == 0) {
 					throw new RuntimeException("No se pudo devolver stock del producto: " + item.getProductId());

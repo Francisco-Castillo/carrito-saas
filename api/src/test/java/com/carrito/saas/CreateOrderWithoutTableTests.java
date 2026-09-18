@@ -13,11 +13,13 @@ import com.carrito.saas.dto.OrderDTO;
 import com.carrito.saas.dto.OrderItemDTO;
 import com.carrito.saas.dto.OrderRequestDTO;
 import com.carrito.saas.repository.entity.Business;
+import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.repository.entity.Product;
 import com.carrito.saas.repository.enums.OrderStatus;
 import com.carrito.saas.repository.enums.OrderType;
 import com.carrito.saas.repository.enums.PaymentMethod;
 import com.carrito.saas.repository.jpa.BusinessRepository;
+import com.carrito.saas.repository.jpa.CategoryRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
 import com.carrito.saas.service.interfaces.IOrderService;
 
@@ -58,6 +60,9 @@ class CreateOrderWithoutTableTests {
 	private BusinessRepository businessRepository;
 
 	@Autowired
+	private CategoryRepository categoryRepository;
+
+	@Autowired
 	private ProductRepository productRepository;
 
 	@Test
@@ -70,8 +75,15 @@ class CreateOrderWithoutTableTests {
 		business.setSlug(SLUG);
 		businessRepository.saveAndFlush(business);
 
+		// --- Seed: category owned by the business (product load is business-scoped) ---
+		Category category = new Category();
+		category.setBusiness(business);
+		category.setName("No Table Order Test Category");
+		category = categoryRepository.saveAndFlush(category);
+
 		// --- Seed: product with a known price and enough stock ----------------
 		Product product = new Product();
+		product.setCategory(category);
 		product.setName("No Table Order Test Product");
 		product.setPrice(new BigDecimal("100.00"));
 		product.setCost(new BigDecimal("40.00"));

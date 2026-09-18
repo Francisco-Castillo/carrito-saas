@@ -120,8 +120,18 @@ class PublicMenuOrderHttpTests {
 		business.setSlug(SLUG);
 		businessRepository.saveAndFlush(business);
 
+		// --- Seed: category owned by the business ------------------------------
+		// A product always has a category in the real API (ProductServiceImpl
+		// rejects a product without one), and the tenant-scoped product load joins
+		// on it — the fixture must model a reachable state.
+		Category category = new Category();
+		category.setBusiness(business);
+		category.setName("Menu");
+		category = categoryRepository.saveAndFlush(category);
+
 		// --- Seed: product with stock >= ordered quantity ---------------------
 		Product product = new Product();
+		product.setCategory(category);
 		product.setName("Public Menu HTTP Test Product");
 		product.setPrice(new BigDecimal("250.50"));
 		product.setCost(new BigDecimal("80.00"));
@@ -199,6 +209,7 @@ class PublicMenuOrderHttpTests {
 
 		// --- Seed: component products; stock must be non-null and sufficient --
 		Product burger = new Product();
+		burger.setCategory(category);
 		burger.setName("Combo Test Burger");
 		burger.setPrice(new BigDecimal("400.00"));
 		burger.setCost(new BigDecimal("150.00"));
@@ -207,6 +218,7 @@ class PublicMenuOrderHttpTests {
 		burger = productRepository.saveAndFlush(burger);
 
 		Product fries = new Product();
+		fries.setCategory(category);
 		fries.setName("Combo Test Fries");
 		fries.setPrice(new BigDecimal("150.00"));
 		fries.setCost(new BigDecimal("50.00"));

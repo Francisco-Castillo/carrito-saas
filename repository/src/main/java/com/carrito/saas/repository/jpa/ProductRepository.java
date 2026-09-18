@@ -31,17 +31,20 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 	
 	List<Product> findByActiveTrue();
 
-	List<Product> findAllByIdIn(List<Long> ids);
-
 	/**
 	 * mientras una transacción usa esos productos, nadie más puede modificarlos
-	 * 
+	 *
+	 * <p>El predicado de negocio es obligatorio: el canal público de pedidos es
+	 * anónimo y su única ancla de tenant es el slug de la URL, así que un id de
+	 * producto ajeno no debe entrar al mapa de carga ni bajo lock pesimista.
+	 *
 	 * @param ids
+	 * @param businessId
 	 * @return
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
-	@Query("SELECT p FROM Product p WHERE p.id IN :ids")
-	List<Product> findAllByIdInForUpdate(@Param("ids") List<Long> ids);
+	@Query("SELECT p FROM Product p WHERE p.id IN :ids AND p.category.business.id = :businessId")
+	List<Product> findAllByIdInForUpdate(@Param("ids") List<Long> ids, @Param("businessId") Long businessId);
 
 	/**
 	 * No hace SELECT del producto para validar stock, sino que actualizas el
@@ -60,19 +63,23 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 			UPDATE Product p
 			SET p.stock = p.stock - :quantity
 			WHERE p.id = :productId
+			AND p.category.business.id = :businessId
 			AND p.stock >= :quantity
 			""")
-	int decrementStock(@Param("productId") Long productId, @Param("quantity") Integer quantity);
+	int decrementStock(@Param("productId") Long productId, @Param("quantity") Integer quantity,
+			@Param("businessId") Long businessId);
 	
 	@Modifying
 	@Query("""
 	    UPDATE Product p
 	    SET p.stock = p.stock + :quantity
 	    WHERE p.id = :productId
+	    AND p.category.business.id = :businessId
 	""")
 	int incrementStock(
 	        @Param("productId") Long productId,
-	        @Param("quantity") Integer quantity
+	        @Param("quantity") Integer quantity,
+	        @Param("businessId") Long businessId
 	);
 
 	List<Product> findByCategoryIdAndActiveTrue(Long categoriaId);
