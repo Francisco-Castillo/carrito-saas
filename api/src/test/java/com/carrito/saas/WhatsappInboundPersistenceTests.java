@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -46,8 +47,12 @@ import com.carrito.saas.api.WhatsappWebhookController;
 import com.carrito.saas.config.MetaWebhookJsonMapper;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.Category;
+import com.carrito.saas.repository.entity.Combo;
+import com.carrito.saas.repository.entity.ComboProduct;
 import com.carrito.saas.repository.entity.OrderProposal;
+import com.carrito.saas.repository.entity.OrderProposalItem;
 import com.carrito.saas.repository.entity.Product;
+import com.carrito.saas.repository.enums.ItemResolution;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.CategoryRepository;
 import com.carrito.saas.repository.jpa.OrderProposalRepository;
@@ -55,6 +60,7 @@ import com.carrito.saas.repository.jpa.OrderRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
 import com.carrito.saas.repository.enums.ProposalStatus;
 import com.carrito.saas.service.whatsapp.IBusinessPhoneResolver;
+import com.carrito.saas.service.interfaces.IMenuService;
 import com.carrito.saas.service.whatsapp.IInboundMessageHandler;
 import com.carrito.saas.service.whatsapp.InboundMessage;
 import com.carrito.saas.service.whatsapp.MetaInboundMessageTranslator;
@@ -97,6 +103,18 @@ class WhatsappInboundPersistenceTests {
 	private static final String UNKNOWN_SENDER = "5499999999999";
 
 	private static final Long BUSINESS_ID = 987_900_001L;
+
+	/** The fixture message's text — the flagship message of the feature document. */
+	private static final String FLAGSHIP_TEXT = "hola quiero 2 milanesas con papas y una coca";
+
+	/** Fixture catalog ids, captured by {@link #seedBusinessWithMetaSenderPhone()}. */
+	private Long milanesaId;
+
+	private Long papasFritasId;
+
+	private Long cocaColaId;
+
+	private Category flagshipCategory;
 
 	/**
 	 * Fixture byte-identical to the one in {@code WhatsappWebhookContractTests}
@@ -169,6 +187,9 @@ class WhatsappInboundPersistenceTests {
 	private ProductRepository productRepository;
 
 	@Autowired
+	private com.carrito.saas.repository.jpa.ComboRepository comboRepository;
+
+	@Autowired
 	private OrderRepository orderRepository;
 
 	/**
@@ -183,6 +204,12 @@ class WhatsappInboundPersistenceTests {
 
 	@jakarta.persistence.PersistenceContext
 	private jakarta.persistence.EntityManager entityManager;
+
+	/**
+	 * T6b: the menu read path the handler normalizes against. Substituted in the
+	 * direct-construction tests to prove an unresolved phone never reaches it.
+	 */
+	private final IMenuService menuService = org.mockito.Mockito.mock(IMenuService.class);
 
 	private MockMvc mockMvc;
 
@@ -428,11 +455,15 @@ class WhatsappInboundPersistenceTests {
 		PersistingInboundMessageHandler handler = new PersistingInboundMessageHandler(
 				racingRepo,
 				fromPhone -> new PhoneResolution.NotFound(),
-				businessRepository);
+				businessRepository,
+				menuService);
 
 		assertThatCode(() -> handler.handle(new InboundMessage(
 						"whatsapp", "wamid.X", META_SENDER, "text", Instant.now())))
 				.doesNotThrowAnyException();
+		// A phone that does not resolve never reaches the menu: normalization only
+		// happens for a resolved business.
+		verifyNoInteractions(menuService);
 	}
 
 	/**
@@ -456,11 +487,13 @@ class WhatsappInboundPersistenceTests {
 		PersistingInboundMessageHandler handler = new PersistingInboundMessageHandler(
 				racingRepo,
 				fromPhone -> new PhoneResolution.NotFound(),
-				businessRepository);
+				businessRepository,
+				menuService);
 
 		assertThatThrownBy(() -> handler.handle(new InboundMessage(
 						"whatsapp", "wamid.X", META_SENDER, "text", Instant.now())))
 				.isInstanceOf(DataIntegrityViolationException.class);
+		verifyNoInteractions(menuService);
 	}
 
 	// ------------------------------------------------- open gap 32: no broadcast
@@ -517,6 +550,253 @@ class WhatsappInboundPersistenceTests {
 		assertThat(countOrdersForBusiness(BUSINESS_ID)).isZero();
 	}
 
+	// ------------------------------------------------------------- T6b: the lines reach the database
+
+	/** The fixture payload with a different message text (same sender, same Meta id). */
+	private static String payloadWithText(String text) {
+
+		return META_TEXT_MESSAGE_PAYLOAD.replace(FLAGSHIP_TEXT, text);
+	}
+
+	/**
+	 * P2 rule R-actionable, pinned: when EVERY line is {@link ItemResolution#RESOLVED}
+	 * (and at least one exists), the proposal is actionable and stays PENDING. The
+	 * asserted line values are the normalizer's OBSERVED output for {@code "2 milanesas"}
+	 * against the flagship catalog (an exact full-name match), not a derived expectation.
+	 */
+	@Test
+	void allResolvedLinesPersistWithStateQuantityAndRawPhrase() throws Exception {
+
+		seedBusinessWithMetaSenderPhone();
+
+		postSigned(payloadWithText("2 milanesas")).andExpect(status().isOk());
+
+		OrderProposal proposal = proposalRepository.findByMessageId("wamid.HBg...").orElseThrow();
+		assertThat(proposal.getStatus()).isEqualTo(ProposalStatus.PENDING);
+		assertThat(proposal.getItems()).hasSize(1);
+		OrderProposalItem milanesa = proposal.getItems().get(0);
+		assertThat(milanesa.getResolution()).isEqualTo(ItemResolution.RESOLVED);
+		assertThat(milanesa.getProductId()).isEqualTo(milanesaId);
+		assertThat(milanesa.getComboId()).isNull();
+		assertThat(milanesa.getProductName()).isEqualTo("Milanesa");
+		assertThat(milanesa.getQuantity()).isEqualTo(2);
+		assertThat(milanesa.getRawLine()).isEqualTo("milanesas");
+		assertThat(milanesa.getCandidates()).isNull();
+	}
+
+	/**
+	 * P1: a COMBO line is representable and visible — the case the T5 table could not
+	 * represent at all (no {@code combo_id}). Observed normalizer output for
+	 * {@code "un combo feliz"} against a catalog with the combo {@code "Combo feliz"}:
+	 * an EXACT match, so it resolves; quantity 1 comes from the number word {@code un}.
+	 */
+	@Test
+	void comboLinePersistsWithComboIdAndResolvedState() throws Exception {
+
+		Business business = seedBusinessWithMetaSenderPhone();
+		Combo combo = seedCombo(business, "Combo feliz");
+
+		postSigned(payloadWithText("un combo feliz")).andExpect(status().isOk());
+
+		OrderProposal proposal = proposalRepository.findByMessageId("wamid.HBg...").orElseThrow();
+		assertThat(proposal.getStatus()).isEqualTo(ProposalStatus.PENDING);
+		assertThat(proposal.getItems()).hasSize(1);
+		OrderProposalItem comboLine = proposal.getItems().get(0);
+		assertThat(comboLine.getResolution()).isEqualTo(ItemResolution.RESOLVED);
+		assertThat(comboLine.getComboId()).isEqualTo(combo.getId());
+		assertThat(comboLine.getProductId()).isNull();
+		assertThat(comboLine.getProductName()).isEqualTo("Combo feliz");
+		assertThat(comboLine.getQuantity()).isEqualTo(1);
+		assertThat(comboLine.getRawLine()).isEqualTo("combo feliz");
+	}
+
+	/**
+	 * P1 + P2: a SUGGESTED line is persisted with its single candidate and a state a
+	 * caller CANNOT mistake for a resolution — the proposal stays PENDING (never
+	 * CONFIRMED) and the line state is SUGGESTED, structurally distinct from RESOLVED
+	 * (T7's obligation: a suggestion is accepted explicitly, never placed silently).
+	 * Observed normalizer output for {@code "papas"} (a prefix match, which never
+	 * resolves).
+	 */
+	@Test
+	void suggestedLinePersistsDistinguishableFromResolvedAndNeverLooksConfirmed() throws Exception {
+
+		seedBusinessWithMetaSenderPhone();
+
+		postSigned(payloadWithText("papas")).andExpect(status().isOk());
+
+		OrderProposal proposal = proposalRepository.findByMessageId("wamid.HBg...").orElseThrow();
+		assertThat(proposal.getStatus()).isEqualTo(ProposalStatus.PENDING);
+		assertThat(proposal.getItems()).hasSize(1);
+		OrderProposalItem papas = proposal.getItems().get(0);
+		assertThat(papas.getResolution()).isEqualTo(ItemResolution.SUGGESTED);
+		assertThat(papas.getResolution()).isNotEqualTo(ItemResolution.RESOLVED);
+		assertThat(papas.getProductId()).isEqualTo(papasFritasId);
+		assertThat(papas.getProductName()).isEqualTo("Papas fritas");
+		assertThat(papas.getQuantity()).isEqualTo(1);
+		assertThat(papas.getRawLine()).isEqualTo("papas");
+	}
+
+	/**
+	 * P3: an AMBIGUOUS line persists its candidate NAMES so an operator can see the
+	 * choice without re-running the normalizer. The normalizer's {@code Ambiguous}
+	 * already carries names (unlike the phone resolver's id-only Ambiguous — open
+	 * gap 29 concerns THAT type, not this one), so no re-read was needed. Observed
+	 * normalizer output for {@code "una coca cola"} against two products whose names
+	 * normalize to the same tokens ({@code "Coca Cola"}, {@code "Coca-Cola"}).
+	 */
+	@Test
+	void ambiguousLinePersistsWithItsCandidateNamesVisible() throws Exception {
+
+		Business business = seedBusinessWithMetaSenderPhone();
+		seedProduct(business, "Coca Cola"); // same normalized tokens as the fixture "Coca-Cola"
+
+		postSigned(payloadWithText("una coca cola")).andExpect(status().isOk());
+
+		OrderProposal proposal = proposalRepository.findByMessageId("wamid.HBg...").orElseThrow();
+		assertThat(proposal.getStatus()).isEqualTo(ProposalStatus.PENDING);
+		assertThat(proposal.getItems()).hasSize(1);
+		OrderProposalItem coca = proposal.getItems().get(0);
+		assertThat(coca.getResolution()).isEqualTo(ItemResolution.AMBIGUOUS);
+		assertThat(coca.getProductId()).isNull();
+		assertThat(coca.getComboId()).isNull();
+		assertThat(coca.getQuantity()).isEqualTo(1);
+		assertThat(coca.getRawLine()).isEqualTo("coca cola");
+		assertThat(coca.getCandidates())
+				.contains("Coca Cola")
+				.contains("Coca-Cola");
+	}
+
+	/**
+	 * P3: an UNRESOLVED line keeps the raw text verbatim, visible to the operator —
+	 * what was not understood is exactly why the message was recorded.
+	 */
+	@Test
+	void unresolvedLinePersistsItsRawTextVisible() throws Exception {
+
+		seedBusinessWithMetaSenderPhone();
+
+		postSigned(payloadWithText("hola")).andExpect(status().isOk());
+
+		OrderProposal proposal = proposalRepository.findByMessageId("wamid.HBg...").orElseThrow();
+		assertThat(proposal.getItems()).hasSize(1);
+		OrderProposalItem hola = proposal.getItems().get(0);
+		assertThat(hola.getResolution()).isEqualTo(ItemResolution.UNRESOLVED);
+		assertThat(hola.getRawLine()).isEqualTo("hola");
+		assertThat(hola.getProductId()).isNull();
+		assertThat(hola.getComboId()).isNull();
+		assertThat(hola.getProductName()).isNull();
+		assertThat(hola.getQuantity()).isNull();
+	}
+
+	/**
+	 * P2 rule R-nothing, pinned: when NOTHING in the message could be attributed to
+	 * the catalog (no Resolved, Suggested or Ambiguous outcome), the result is NOT a
+	 * proposal — the record is FAILED with a reason — and the raw text is STILL kept
+	 * on the lines (P3: FAILED is not silent loss).
+	 */
+	@Test
+	void messageWhereNothingIsUnderstoodIsFailedButKeepsItsRawText() throws Exception {
+
+		seedBusinessWithMetaSenderPhone();
+
+		postSigned(payloadWithText("hola")).andExpect(status().isOk());
+
+		OrderProposal proposal = proposalRepository.findByMessageId("wamid.HBg...").orElseThrow();
+		assertThat(proposal.getStatus()).isEqualTo(ProposalStatus.FAILED);
+		assertThat(proposal.getFailureReason()).isNotBlank();
+		assertThat(proposal.getItems()).hasSize(1);
+		assertThat(proposal.getItems().get(0).getResolution()).isEqualTo(ItemResolution.UNRESOLVED);
+		assertThat(proposal.getItems().get(0).getRawLine()).isEqualTo("hola");
+	}
+
+	/**
+	 * P2 rule R-incomplete, pinned: a proposal carrying ANY Suggested or Ambiguous
+	 * line is not complete — it stays PENDING and needs human input. The asserted
+	 * sequence is the normalizer's OBSERVED output for the flagship message against
+	 * the flagship catalog: six outcomes in message order, unresolved runs intact
+	 * ({@code "hola quiero"}, {@code "con"}, {@code "y"}), one exact Resolved line,
+	 * two prefix Suggested lines, and the coca's quantity taken from the number word
+	 * {@code "una"}.
+	 */
+	@Test
+	void flagshipMessagePersistsLinesInMessageOrderWithMixedStatesAndStaysPending() throws Exception {
+
+		seedBusinessWithMetaSenderPhone();
+
+		postSigned(META_TEXT_MESSAGE_PAYLOAD).andExpect(status().isOk());
+
+		OrderProposal proposal = proposalRepository.findByMessageId("wamid.HBg...").orElseThrow();
+		assertThat(proposal.getStatus()).isEqualTo(ProposalStatus.PENDING);
+		assertThat(proposal.getItems()).extracting(OrderProposalItem::getRawLine)
+				.containsExactly("hola quiero", "milanesas", "con", "papas", "y", "coca");
+		assertThat(proposal.getItems()).extracting(OrderProposalItem::getResolution)
+				.containsExactly(ItemResolution.UNRESOLVED, ItemResolution.RESOLVED,
+						ItemResolution.UNRESOLVED, ItemResolution.SUGGESTED,
+						ItemResolution.UNRESOLVED, ItemResolution.SUGGESTED);
+		assertThat(proposal.getItems())
+				.filteredOn(i -> i.getResolution() == ItemResolution.RESOLVED)
+				.allSatisfy(i -> assertThat(i.getQuantity()).isEqualTo(2));
+		assertThat(proposal.getItems())
+				.filteredOn(i -> i.getResolution() == ItemResolution.SUGGESTED)
+				.allSatisfy(i -> assertThat(i.getQuantity()).isEqualTo(1));
+	}
+
+	/**
+	 * T4 idempotency now covers the LINES too: the same message posted twice yields
+	 * exactly one proposal carrying exactly ONE set of lines — never duplicated.
+	 */
+	@Test
+	void sameMessageTwiceYieldsOneProposalWithExactlyOneSetOfLines() throws Exception {
+
+		seedBusinessWithMetaSenderPhone();
+
+		postSigned(META_TEXT_MESSAGE_PAYLOAD).andExpect(status().isOk());
+		postSigned(META_TEXT_MESSAGE_PAYLOAD).andExpect(status().isOk());
+
+		assertThat(proposalRepository.count()).isEqualTo(1);
+		OrderProposal proposal = proposalRepository.findByMessageId("wamid.HBg...").orElseThrow();
+		assertThat(proposal.getItems()).hasSize(6);
+		assertThat(proposal.getItems())
+				.filteredOn(i -> i.getResolution() == ItemResolution.RESOLVED)
+				.hasSize(1);
+	}
+
+	// ------------------------------------------------------------- helpers (T6b fixtures)
+
+	/** One active product with stock, in the fixture business's flagship category. */
+	private Product seedProduct(Business business, String name) {
+
+		Category category = flagshipCategory;
+		Product product = new Product();
+		product.setCategory(category);
+		product.setName(name);
+		product.setPrice(new BigDecimal("100.00"));
+		product.setCost(new BigDecimal("30.00"));
+		product.setStock(10);
+		product.setActive(true);
+		return productRepository.saveAndFlush(product);
+	}
+
+	/**
+	 * A combo with one component (the exact pass and {@code findFullMenuCombos} both
+	 * need at least one item: the query INNER-JOINs the combo's items and products).
+	 */
+	private Combo seedCombo(Business business, String name) {
+
+		Combo combo = new Combo();
+		combo.setCategory(flagshipCategory);
+		combo.setName(name);
+		combo.setPrice(new BigDecimal("250.00"));
+		combo.setActive(true);
+		ComboProduct item = new ComboProduct();
+		item.setCombo(combo);
+		item.setProduct(productRepository.findById(milanesaId).orElseThrow());
+		item.setQuantity(java.math.BigDecimal.ONE);
+		combo.setItems(new java.util.ArrayList<>(List.of(item)));
+		return comboRepository.saveAndFlush(combo);
+	}
+
 	// ------------------------------------------------------------------ helpers
 
 	private ResultActions postSigned(String payload) throws Exception {
@@ -536,6 +816,14 @@ class WhatsappInboundPersistenceTests {
 				.getSingleResult();
 	}
 
+	/**
+	 * Seeds the fixture business AND, since T6b, its flagship catalog: the handler now
+	 * loads the resolved business's menu and normalizes the message against it, so the
+	 * fixture message must find its lines for the pre-existing PENDING assertions to
+	 * keep their meaning (AC2). Catalog names chosen so the OBSERVED flagship outcome
+	 * is exactly the feature document's: an exact Resolved "Milanesa", prefix
+	 * Suggested "Papas fritas" and "Coca-Cola".
+	 */
 	private Business seedBusinessWithMetaSenderPhone() {
 
 		Business business = new Business();
@@ -543,7 +831,17 @@ class WhatsappInboundPersistenceTests {
 		business.setName("Inbound Persistence Business");
 		business.setSlug("inbound-persistence-business");
 		business.setPhone(META_SENDER);
-		return businessRepository.saveAndFlush(business);
+		business = businessRepository.saveAndFlush(business);
+
+		Category category = new Category();
+		category.setBusiness(business);
+		category.setName("Inbound Fixture Category");
+		flagshipCategory = categoryRepository.saveAndFlush(category);
+
+		milanesaId = seedProduct(business, "Milanesa").getId();
+		papasFritasId = seedProduct(business, "Papas fritas").getId();
+		cocaColaId = seedProduct(business, "Coca-Cola").getId();
+		return business;
 	}
 
 	/**

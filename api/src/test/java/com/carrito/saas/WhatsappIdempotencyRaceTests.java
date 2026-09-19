@@ -30,6 +30,7 @@ import com.carrito.saas.api.WhatsappWebhookController;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.OrderProposal;
 import com.carrito.saas.repository.entity.OrderProposalItem;
+import com.carrito.saas.repository.enums.ItemResolution;
 import com.carrito.saas.repository.enums.ProposalStatus;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.OrderProposalRepository;
@@ -303,6 +304,9 @@ class WhatsappIdempotencyRaceTests {
 				OrderProposalItem item = new OrderProposalItem();
 				item.setProposal(proposal);
 				item.setRawLine(line);
+				// T6b made the per-line resolution NOT NULL; this fixture is cleanup
+				// plumbing, not a normalization product, so it uses the raw-text state.
+				item.setResolution(ItemResolution.UNRESOLVED);
 				proposal.getItems().add(item);
 			}
 			entityManager.persist(proposal);

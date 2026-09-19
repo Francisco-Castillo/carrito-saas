@@ -1,5 +1,6 @@
 package com.carrito.saas.service.whatsapp;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -10,12 +11,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
+import com.carrito.saas.dto.MenuDTO;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.OrderProposal;
 import com.carrito.saas.repository.entity.OrderProposalItem;
+import com.carrito.saas.repository.enums.ItemResolution;
 import com.carrito.saas.repository.enums.ProposalStatus;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.OrderProposalRepository;
+import com.carrito.saas.service.interfaces.IMenuService;
 
 /**
  * The production {@link IInboundMessageHandler}: records every accepted
@@ -66,6 +70,50 @@ import com.carrito.saas.repository.jpa.OrderProposalRepository;
  * {@link PhoneResolution.Ambiguous} exposes only business ids; to name the
  * conflicting businesses in the failure reason, this handler re-reads them
  * by id and includes both ids and names (falling back to the bare id).</p>
+ *
+ * <p><strong>Normalization (T6b): the lines reach the database.</strong> When
+ * the phone resolves to exactly one business, the message text is normalized
+ * against that business's menu — read through the EXISTING menu path
+ * ({@link IMenuService#getMenu(String)}, no new query) — and every outcome
+ * becomes a persisted {@link OrderProposalItem}, so every outcome is
+ * representable and visible to an operator later without re-running the
+ * normalizer (P1) and nothing is silently lost (P3): an
+ * {@link NormalizationResult.Unresolved Unresolved} keeps its raw text, an
+ * {@link NormalizationResult.Ambiguous Ambiguous} keeps its candidate names
+ * (which the normalizer already carries — unlike the phone resolver's
+ * id-only Ambiguous, open gap 29 — so no re-read was needed), and a
+ * {@link NormalizationResult.Suggested Suggested} keeps its full candidate
+ * line with the {@link ItemResolution#SUGGESTED} state a caller cannot
+ * mistake for a resolution.</p>
+ *
+ * <p><strong>The P2 mapping from line outcomes to {@link ProposalStatus}, as
+ * RULES (not cases):</strong></p>
+ * <ol>
+ *   <li><strong>R-routing</strong> — the phone did not resolve to exactly one
+ *   business: {@link ProposalStatus#FAILED}, no lines (there is nothing to
+ *   normalize against; unchanged T5 behaviour).</li>
+ *   <li><strong>R-nothing</strong> — the phone resolved but NO outcome is
+ *   attributable to the catalog (no Resolved, Suggested or Ambiguous):
+ *   {@link ProposalStatus#FAILED} with a reason — nothing understood is not a
+ *   proposal. The Unresolved lines are STILL persisted so the raw text
+ *   survives (P3; FAILED is a business outcome, answered 200).</li>
+ *   <li><strong>R-incomplete</strong> — at least one catalog-attributable
+ *   outcome AND at least one line {@code SUGGESTED} or {@code AMBIGUOUS}:
+ *   {@link ProposalStatus#PENDING}. The proposal is NOT complete; what it
+ *   needs is said by the line states (explicit acceptance for SUGGESTED,
+ *   customer precision for AMBIGUOUS) — exactly the T7/T8 obligations
+ *   registered in T6a.</li>
+ *   <li><strong>R-actionable</strong> — at least one catalog-attributable
+ *   outcome AND every line {@code RESOLVED}: {@link ProposalStatus#PENDING},
+ *   actionable.</li>
+ * </ol>
+ *
+ * <p>R-incomplete and R-actionable both map to {@code PENDING} because the
+ * enum (deliberately NOT extended here) has no "incomplete" state — the
+ * actionable/incomplete distinction is carried by {@link ItemResolution} on
+ * the lines, which is what T7's confirmation rule and T8's rendering
+ * consume. Each rule is pinned by a test in
+ * {@code WhatsappInboundPersistenceTests}.</p>
  */
 @Component
 public class PersistingInboundMessageHandler implements IInboundMessageHandler {
@@ -79,19 +127,29 @@ public class PersistingInboundMessageHandler implements IInboundMessageHandler {
 	 */
 	static final String MESSAGE_ID_UNIQUE_CONSTRAINT = "uq_order_proposals_message_id";
 
+	/**
+	 * The pure normalizer is stateless, so one instance serves every message;
+	 * it is deliberately NOT a Spring bean (no Spring, no database — T6a).
+	 */
+	private final TextOrderNormalizer normalizer = new TextOrderNormalizer();
+
 	private final OrderProposalRepository orderProposals;
 
 	private final IBusinessPhoneResolver phoneResolver;
 
 	private final BusinessRepository businesses;
 
+	private final IMenuService menuService;
+
 	public PersistingInboundMessageHandler(OrderProposalRepository orderProposals,
 			IBusinessPhoneResolver phoneResolver,
-			BusinessRepository businesses) {
+			BusinessRepository businesses,
+			IMenuService menuService) {
 
 		this.orderProposals = orderProposals;
 		this.phoneResolver = phoneResolver;
 		this.businesses = businesses;
+		this.menuService = menuService;
 	}
 
 	@Override
@@ -150,7 +208,7 @@ public class PersistingInboundMessageHandler implements IInboundMessageHandler {
 
 		if (resolution instanceof PhoneResolution.Resolved resolved) {
 			proposal.setBusiness(resolved.business());
-			proposal.setStatus(ProposalStatus.PENDING);
+			applyNormalization(proposal, normalizeAgainstMenu(message.text(), resolved.business()));
 		} else if (resolution instanceof PhoneResolution.NotFound) {
 			proposal.setStatus(ProposalStatus.FAILED);
 			proposal.setFailureReason("no business owns the sender phone: " + message.fromPhone());
@@ -162,10 +220,85 @@ public class PersistingInboundMessageHandler implements IInboundMessageHandler {
 			throw new IllegalStateException("Unknown phone resolution: " + resolution);
 		}
 
-		// The lines table exists (T5) but nothing produces lines yet: the
-		// deterministic normalizer is T6. Until then every proposal has none.
-		proposal.setItems(new java.util.ArrayList<OrderProposalItem>());
 		return proposal;
+	}
+
+	/**
+	 * R-routing boundary: only a message whose phone resolved to exactly one
+	 * business is normalized, against that business's menu read through the
+	 * EXISTING path ({@link IMenuService#getMenu(String)} — no new query).
+	 * A menu read failure is infrastructure, not a business outcome: it
+	 * propagates and the webhook answers 500.
+	 */
+	private NormalizationResult normalizeAgainstMenu(String text, Business business) {
+
+		MenuDTO menu = menuService.getMenu(business.getSlug());
+		return normalizer.normalize(text, menu);
+	}
+
+	/**
+	 * Every outcome becomes a persisted line (P1 + P3), and the P2 mapping
+	 * decides the proposal status. The switch over the sealed outcome type is
+	 * deliberately EXHAUSTIVE with NO default arm — adding a variant to
+	 * {@code NormalizationResult} breaks compilation here instead of silently
+	 * losing outcomes.
+	 */
+	private void applyNormalization(OrderProposal proposal, NormalizationResult result) {
+
+		List<OrderProposalItem> items = new ArrayList<>();
+		boolean catalogAttributable = false;
+		boolean needsHumanInput = false;
+		for (NormalizationResult.Outcome outcome : result.outcomes()) {
+			OrderProposalItem item = new OrderProposalItem();
+			item.setProposal(proposal);
+			switch (outcome) {
+				case NormalizationResult.Resolved(NormalizedLine line) -> {
+					item.setProductId(line.productId());
+					item.setComboId(line.comboId());
+					item.setProductName(line.name());
+					item.setQuantity(line.quantity());
+					item.setRawLine(line.rawPhrase());
+					item.setResolution(ItemResolution.RESOLVED);
+					catalogAttributable = true;
+				}
+				case NormalizationResult.Suggested(NormalizedLine line) -> {
+					item.setProductId(line.productId());
+					item.setComboId(line.comboId());
+					item.setProductName(line.name());
+					item.setQuantity(line.quantity());
+					item.setRawLine(line.rawPhrase());
+					item.setResolution(ItemResolution.SUGGESTED);
+					catalogAttributable = true;
+					needsHumanInput = true;
+				}
+				case NormalizationResult.Ambiguous ambiguous -> {
+					item.setQuantity(ambiguous.quantity());
+					item.setRawLine(ambiguous.rawPhrase());
+					item.setCandidates(String.join("\n", ambiguous.candidateNames()));
+					item.setResolution(ItemResolution.AMBIGUOUS);
+					catalogAttributable = true;
+					needsHumanInput = true;
+				}
+				case NormalizationResult.Unresolved unresolved -> {
+					item.setRawLine(unresolved.rawPhrase());
+					item.setResolution(ItemResolution.UNRESOLVED);
+				}
+			}
+			items.add(item);
+		}
+		proposal.setItems(items);
+
+		if (!catalogAttributable) {
+			// R-nothing: nothing understood is not a proposal — but the raw text
+			// stays on the lines (P3), so the record is still worth reading.
+			proposal.setStatus(ProposalStatus.FAILED);
+			proposal.setFailureReason("no catalog item could be matched to this message; the text is preserved verbatim on the proposal lines");
+		}
+		else {
+			// R-incomplete and R-actionable: both PENDING; the difference
+			// (needs human input vs actionable) is carried by the line states.
+			proposal.setStatus(ProposalStatus.PENDING);
+		}
 	}
 
 	/**

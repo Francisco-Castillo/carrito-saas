@@ -75,9 +75,11 @@ import java.util.Set;
  * identically, identical spellings still match; a fold collision can only
  * merge catalog names onto shared tokens, which the matcher reports as
  * ambiguity instead of guessing. Even the number words are only protected
- * in their bare form: {@code treses} folds to {@code tres}, the quantity
- * word, so a nonsense token can supply quantity 3 when it precedes a
- * matched span — a quantity-only effect, never a wrong line.
+ * in their bare form, and the axis is a PROPERTY, not a list of known cases:
+ * the plural of a number word folds back onto that same number word (the
+ * plural-suffix branches apply to a number word's plural exactly as to any
+ * other word), so a plural-form token can supply a quantity when it precedes
+ * a matched span — a quantity-only effect, never a wrong line.
  *
  * <p>Honest limit, stated where the guarantee now lives (T6, user decision
  * 2026-09-19): this rule CAN produce a wrong line when it is wrong — the
