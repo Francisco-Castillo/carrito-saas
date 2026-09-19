@@ -39,6 +39,7 @@ import com.carrito.saas.config.MetaWebhookJsonMapper;
 import com.carrito.saas.service.config.WhatsappProperties;
 import com.carrito.saas.service.whatsapp.IInboundMessageHandler;
 import com.carrito.saas.service.whatsapp.InboundMessage;
+import com.carrito.saas.service.whatsapp.MetaInboundMessageTranslator;
 import com.carrito.saas.service.whatsapp.MetaWebhookPayload;
 
 /**
@@ -492,6 +493,128 @@ class WhatsappWebhookContractTests {
 	}
 
 	// ------------------------------------------------------------------
+
+	// ------------------------------------------------------------------ T6c
+
+	/**
+	 * T6c: the customer display name Meta sends in
+	 * {@code contacts[].profile.name} travels through the port. The full
+	 * signed-POST flow must hand the handler an {@link InboundMessage}
+	 * carrying it.
+	 */
+	@Test
+	void wellSignedMetaTextMessageCarriesTheCustomerProfileNameToThePort() throws Exception {
+
+		byte[] body = META_TEXT_MESSAGE_PAYLOAD.getBytes(StandardCharsets.UTF_8);
+
+		mockMvc.perform(post("/api/whatsapp/webhook")
+					.contentType(MediaType.APPLICATION_JSON)
+					.header(SIGNATURE_HEADER, sha256Signature(APP_SECRET, body))
+					.content(body))
+				.andExpect(status().isOk());
+
+		ArgumentCaptor<InboundMessage> captor = ArgumentCaptor.forClass(InboundMessage.class);
+		verify(inboundMessageHandler).handle(captor.capture());
+		assertThat(captor.getValue().customerName()).isEqualTo("Juan");
+	}
+
+	/**
+	 * T6c: the payload path for the customer name is VERIFIED, not assumed —
+	 * {@code MetaWebhookPayload.Value} carries {@code contacts[]}, each
+	 * {@code Contact} carries a {@code Profile}, and {@code Profile} carries
+	 * {@code name}; the F4 wire-name test above pins exactly those wire names
+	 * against this same fixture through the production mapper.
+	 *
+	 * <p>Not every payload carries a name: a notification without
+	 * {@code contacts} must translate to a NULL customer name and must NOT
+	 * throw — that is the ordinary case in production.</p>
+	 */
+	@Test
+	void payloadWithoutContactsLeavesTheCustomerNameNull() {
+
+		MetaWebhookPayload payload = metaWebhookJsonMapper
+				.readPayload(minimalMessagesPayload("").getBytes(StandardCharsets.UTF_8));
+
+		InboundMessage message = new MetaInboundMessageTranslator().translate(payload).orElseThrow();
+		assertThat(message.customerName()).isNull();
+	}
+
+	/** A contact without {@code profile} also leaves the name NULL. */
+	@Test
+	void payloadWithoutProfileLeavesTheCustomerNameNull() {
+
+		String contacts = "\"contacts\": [ { \"wa_id\": \"5491122334455\" } ],";
+		MetaWebhookPayload payload = metaWebhookJsonMapper
+				.readPayload(minimalMessagesPayload(contacts).getBytes(StandardCharsets.UTF_8));
+
+		InboundMessage message = new MetaInboundMessageTranslator().translate(payload).orElseThrow();
+		assertThat(message.customerName()).isNull();
+	}
+
+	/** A profile without {@code name} also leaves the name NULL. */
+	@Test
+	void payloadWithoutProfileNameLeavesTheCustomerNameNull() {
+
+		String contacts = "\"contacts\": [ { \"profile\": {}, \"wa_id\": \"5491122334455\" } ],";
+		MetaWebhookPayload payload = metaWebhookJsonMapper
+				.readPayload(minimalMessagesPayload(contacts).getBytes(StandardCharsets.UTF_8));
+
+		InboundMessage message = new MetaInboundMessageTranslator().translate(payload).orElseThrow();
+		assertThat(message.customerName()).isNull();
+	}
+
+	/**
+	 * A BLANK profile name is treated as absent: an empty string is no draft
+	 * default, and "does this payload carry a name" stays a NULL check for
+	 * T7. Decision pinned here so it cannot drift silently.
+	 */
+	@Test
+	void payloadWithBlankProfileNameLeavesTheCustomerNameNull() {
+
+		String contacts = "\"contacts\": [ { \"profile\": { \"name\": \"   \" }, "
+				+ "\"wa_id\": \"5491122334455\" } ],";
+		MetaWebhookPayload payload = metaWebhookJsonMapper
+				.readPayload(minimalMessagesPayload(contacts).getBytes(StandardCharsets.UTF_8));
+
+		InboundMessage message = new MetaInboundMessageTranslator().translate(payload).orElseThrow();
+		assertThat(message.customerName()).isNull();
+	}
+
+	// ------------------------------------------------------------------
+
+	/**
+	 * Minimal well-formed "messages" notification with the given contacts
+	 * block spliced in (possibly empty), so the absence cases above differ
+	 * from the fixture in EXACTLY one dimension.
+	 */
+	private static String minimalMessagesPayload(String contactsBlock) {
+
+		return """
+				{
+				  "object": "whatsapp_business_account",
+				  "entry": [
+				    {
+				      "changes": [
+				        {
+				          "field": "messages",
+				          "value": {
+				            "messaging_product": "whatsapp",
+				            %s
+				            "messages": [
+				              {
+				                "from": "5491122334455",
+				                "id": "wamid.MIN",
+				                "type": "text",
+				                "text": { "body": "hola" }
+				              }
+				            ]
+				          }
+				        }
+				      ]
+				    }
+				  ]
+				}""".formatted(contactsBlock);
+	}
 
 	/**
 	 * Computes the expected signature in the test with the JDK directly, so

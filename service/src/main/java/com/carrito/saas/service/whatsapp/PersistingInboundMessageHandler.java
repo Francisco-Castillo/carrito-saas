@@ -203,6 +203,7 @@ public class PersistingInboundMessageHandler implements IInboundMessageHandler {
 		proposal.setChannel(message.channel());
 		proposal.setMessageId(messageId);
 		proposal.setFromPhone(message.fromPhone());
+		proposal.setCustomerName(message.customerName());
 		proposal.setRawText(message.text());
 		proposal.setReceivedAt(message.receivedAt());
 
@@ -247,7 +248,6 @@ public class PersistingInboundMessageHandler implements IInboundMessageHandler {
 
 		List<OrderProposalItem> items = new ArrayList<>();
 		boolean catalogAttributable = false;
-		boolean needsHumanInput = false;
 		for (NormalizationResult.Outcome outcome : result.outcomes()) {
 			OrderProposalItem item = new OrderProposalItem();
 			item.setProposal(proposal);
@@ -269,7 +269,6 @@ public class PersistingInboundMessageHandler implements IInboundMessageHandler {
 					item.setRawLine(line.rawPhrase());
 					item.setResolution(ItemResolution.SUGGESTED);
 					catalogAttributable = true;
-					needsHumanInput = true;
 				}
 				case NormalizationResult.Ambiguous ambiguous -> {
 					item.setQuantity(ambiguous.quantity());
@@ -277,7 +276,6 @@ public class PersistingInboundMessageHandler implements IInboundMessageHandler {
 					item.setCandidates(String.join("\n", ambiguous.candidateNames()));
 					item.setResolution(ItemResolution.AMBIGUOUS);
 					catalogAttributable = true;
-					needsHumanInput = true;
 				}
 				case NormalizationResult.Unresolved unresolved -> {
 					item.setRawLine(unresolved.rawPhrase());

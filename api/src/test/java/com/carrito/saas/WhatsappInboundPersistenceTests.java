@@ -161,6 +161,40 @@ class WhatsappInboundPersistenceTests {
 			  ]
 			}""";
 
+	/** Fixture payload without the contacts array: the T6c absence case at full-flow level. */
+	private static final String META_TEXT_MESSAGE_PAYLOAD_WITHOUT_CONTACTS = """
+			{
+			  "object": "whatsapp_business_account",
+			  "entry": [
+			    {
+			      "id": "1111111111",
+			      "changes": [
+			        {
+			          "field": "messages",
+			          "value": {
+			            "messaging_product": "whatsapp",
+			            "metadata": {
+			              "display_phone_number": "5491122334455",
+			              "phone_number_id": "2222222222"
+			            },
+			            "messages": [
+			              {
+			                "from": "5491122334455",
+			                "id": "wamid.HBg...",
+			                "timestamp": "1726000000",
+			                "type": "text",
+			                "text": {
+			                  "body": "hola quiero 2 milanesas con papas y una coca"
+			                }
+			              }
+			            ]
+			          }
+			        }
+			      ]
+			    }
+			  ]
+			}""";
+
 	@Autowired
 	private WebApplicationContext context;
 
@@ -414,7 +448,7 @@ class WhatsappInboundPersistenceTests {
 		when(alwaysValidVerifier.verifySignature(any(), any())).thenReturn(true);
 		MetaInboundMessageTranslator oneMessageTranslator = mock(MetaInboundMessageTranslator.class);
 		when(oneMessageTranslator.translate(any())).thenReturn(java.util.Optional.of(new InboundMessage(
-				"whatsapp", "wamid.X", META_SENDER, "text", Instant.now())));
+				"whatsapp", "wamid.X", META_SENDER, null, "text", Instant.now())));
 
 		WhatsappWebhookController controller = new WhatsappWebhookController(
 				alwaysValidVerifier,
@@ -459,7 +493,7 @@ class WhatsappInboundPersistenceTests {
 				menuService);
 
 		assertThatCode(() -> handler.handle(new InboundMessage(
-						"whatsapp", "wamid.X", META_SENDER, "text", Instant.now())))
+						"whatsapp", "wamid.X", META_SENDER, null, "text", Instant.now())))
 				.doesNotThrowAnyException();
 		// A phone that does not resolve never reaches the menu: normalization only
 		// happens for a resolved business.
@@ -491,7 +525,7 @@ class WhatsappInboundPersistenceTests {
 				menuService);
 
 		assertThatThrownBy(() -> handler.handle(new InboundMessage(
-						"whatsapp", "wamid.X", META_SENDER, "text", Instant.now())))
+						"whatsapp", "wamid.X", META_SENDER, null, "text", Instant.now())))
 				.isInstanceOf(DataIntegrityViolationException.class);
 		verifyNoInteractions(menuService);
 	}
@@ -760,6 +794,42 @@ class WhatsappInboundPersistenceTests {
 		assertThat(proposal.getItems())
 				.filteredOn(i -> i.getResolution() == ItemResolution.RESOLVED)
 				.hasSize(1);
+	}
+
+	// ------------------------------------------------------------- T6c: the customer name travels
+
+	/**
+	 * T6c: the customer display name from {@code contacts[].profile.name} is
+	 * stored on the proposal and read back. It is a pre-filled DRAFT the
+	 * operator confirms or corrects (T7) — never identity; nothing branches
+	 * on it.
+	 */
+	@Test
+	void customerNameFromTheMetaProfileIsPersistedAndReadBack() throws Exception {
+
+		seedBusinessWithMetaSenderPhone();
+
+		postSigned(META_TEXT_MESSAGE_PAYLOAD).andExpect(status().isOk());
+
+		OrderProposal proposal = proposalRepository.findByMessageId("wamid.HBg...").orElseThrow();
+		assertThat(proposal.getCustomerName()).isEqualTo("Juan");
+	}
+
+	/**
+	 * T6c: a payload with NO {@code contacts} must persist with a NULL
+	 * customer name and must NOT throw — not every notification carries the
+	 * profile, and losing the whole message to an NPE would be silent loss
+	 * with a 500-retry loop.
+	 */
+	@Test
+	void payloadWithoutContactsPersistsWithNullCustomerNameAndDoesNotThrow() throws Exception {
+
+		seedBusinessWithMetaSenderPhone();
+
+		postSigned(META_TEXT_MESSAGE_PAYLOAD_WITHOUT_CONTACTS).andExpect(status().isOk());
+
+		OrderProposal proposal = proposalRepository.findByMessageId("wamid.HBg...").orElseThrow();
+		assertThat(proposal.getCustomerName()).isNull();
 	}
 
 	// ------------------------------------------------------------- helpers (T6b fixtures)

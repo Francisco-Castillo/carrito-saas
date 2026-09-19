@@ -44,11 +44,17 @@ import lombok.Setter;
  *
  * <p><strong>Pre-existing databases (no Flyway, same precedent as
  * {@code Business.slug}/{@code Business.phone}).</strong> {@code ddl-auto:
- * update} ADDS the three new columns to an existing table, but on a table
- * that already has rows the NOT NULL on {@code resolution} needs the rows
- * backfilled first. Hand-applied SQL for such a database:</p>
+ * update} ADDS the column to an existing table, but WHICH FORM that takes on
+ * a table that already has rows is UNVERIFIED — nobody has measured it. What
+ * IS measured: a plain {@code ADD COLUMN resolution varchar(255) NOT NULL}
+ * FAILS on a table that has rows, so on a genuinely populated legacy table
+ * the column may be absent, and a backfill {@code UPDATE} written against it
+ * would fail with {@code column does not exist}. Hand-applied SQL for such a
+ * database, covering both branches (skip the first statement if the column
+ * already exists from {@code ddl-auto}):</p>
  *
  * <pre>{@code
+ * ALTER TABLE order_proposal_items ADD COLUMN resolution varchar(255);
  * UPDATE order_proposal_items SET resolution = 'UNRESOLVED' WHERE resolution IS NULL;
  * ALTER TABLE order_proposal_items ALTER COLUMN resolution SET NOT NULL;
  * }</pre>

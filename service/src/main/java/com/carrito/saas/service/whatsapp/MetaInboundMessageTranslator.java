@@ -48,6 +48,7 @@ public class MetaInboundMessageTranslator {
 								WHATSAPP_CHANNEL,
 								message.id(),
 								message.from(),
+								customerName(change.value(), message.from()),
 								message.text().body(),
 								Instant.now()));
 					}
@@ -55,6 +56,42 @@ public class MetaInboundMessageTranslator {
 			}
 		}
 		return Optional.empty();
+	}
+
+	/**
+	 * The customer display name from {@code contacts[].profile.name}, or
+	 * {@code null} when the payload does not carry one. The absence of the
+	 * name is an ORDINARY case, never an error: no {@code contacts}, a
+	 * contact without {@code profile}, or a profile without {@code name} all
+	 * yield {@code null} and none of them throws.
+	 *
+	 * <p>The contact whose {@code wa_id} matches the message's {@code from}
+	 * is preferred; otherwise the first contact is used. A BLANK name is
+	 * treated as absent: an empty string is no draft default.</p>
+	 */
+	private String customerName(MetaWebhookPayload.Value value, String from) {
+
+		if (value == null || value.contacts() == null) {
+			return null;
+		}
+		MetaWebhookPayload.Contact chosen = null;
+		for (MetaWebhookPayload.Contact contact : value.contacts()) {
+			if (contact == null) {
+				continue;
+			}
+			if (from != null && from.equals(contact.waId())) {
+				chosen = contact;
+				break;
+			}
+			if (chosen == null) {
+				chosen = contact;
+			}
+		}
+		if (chosen == null || chosen.profile() == null) {
+			return null;
+		}
+		String name = chosen.profile().name();
+		return name == null || name.isBlank() ? null : name;
 	}
 
 	private boolean isTextMessage(MetaWebhookPayload.Message message) {

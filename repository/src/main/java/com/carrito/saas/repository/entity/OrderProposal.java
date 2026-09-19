@@ -101,6 +101,24 @@ public class OrderProposal {
 	private Instant receivedAt;
 
 	/**
+	 * Customer display name as the provider reported it (Meta
+	 * {@code contacts[].profile.name}); NULL when the payload carried none.
+	 *
+	 * <p><strong>A DRAFT, never identity.</strong> WhatsApp profile names are
+	 * usually nicknames ("Juanpi", "la negra"): this field only pre-fills the
+	 * customer name the operator confirms or corrects before the proposal
+	 * becomes an order (T7). Nothing may branch on it, deduplicate with it,
+	 * match it, or treat it as authoritative data about who the customer is —
+	 * identity is the phone, which is what resolution (T3) and idempotency
+	 * (T4) already use.</p>
+	 *
+	 * <p>Nullable, so {@code ddl-auto} adds the column safely even to a
+	 * populated table (a nullable ADD COLUMN needs no backfill).</p>
+	 */
+	@Column(name = "customer_name")
+	private String customerName;
+
+	/**
 	 * The business the message was routed to, or NULL when the sender phone
 	 * resolved to nothing or to more than one business (then the proposal is
 	 * {@link ProposalStatus#FAILED} with a reason).

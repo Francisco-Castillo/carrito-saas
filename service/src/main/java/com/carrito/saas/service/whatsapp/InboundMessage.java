@@ -10,17 +10,26 @@ import java.time.Instant;
  * (phone resolution, idempotency, proposal persistence, normalization)
  * consume this record, never the provider payload.</p>
  *
- * @param channel    channel identifier, e.g. {@code whatsapp}
- * @param externalId provider message id (the Meta {@code wamid...}); the
- *                   natural idempotency key
- * @param fromPhone  sender phone as the provider sent it, without normalization
- * @param text       message text, intact as the customer typed it
- * @param receivedAt instant the message was accepted by this system
+ * @param channel     channel identifier, e.g. {@code whatsapp}
+ * @param externalId  provider message id (the Meta {@code wamid...}); the
+ *                    natural idempotency key
+ * @param fromPhone   sender phone as the provider sent it, without normalization
+ * @param customerName customer display name as the provider reported it (Meta
+ *                    {@code contacts[].profile.name}), or {@code null} when
+ *                    the payload carried none. A CORRECTABLE DRAFT, never
+ *                    identity: WhatsApp profile names are usually nicknames
+ *                    ("Juanpi", "la negra"), so it only pre-fills what the
+ *                    operator later confirms or corrects. Nothing may branch
+ *                    on it, deduplicate with it, or treat it as authoritative
+ *                    data about who the customer is
+ * @param text        message text, intact as the customer typed it
+ * @param receivedAt  instant the message was accepted by this system
  */
 public record InboundMessage(
 		String channel,
 		String externalId,
 		String fromPhone,
+		String customerName,
 		String text,
 		Instant receivedAt) {
 }
