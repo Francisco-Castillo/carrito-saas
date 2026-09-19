@@ -66,8 +66,12 @@ public class MetaInboundMessageTranslator {
 	 * yield {@code null} and none of them throws.
 	 *
 	 * <p>The contact whose {@code wa_id} matches the message's {@code from}
-	 * is preferred; otherwise the first contact is used. A BLANK name is
-	 * treated as absent: an empty string is no draft default.</p>
+	 * is preferred; otherwise the first contact is used. A matching contact
+	 * without a name does NOT borrow another contact's name. A non-blank
+	 * name is carried TRIMMED: leading and trailing whitespace is stripped
+	 * before the value reaches the port, because it is a pre-fill for a form
+	 * field the operator sees. A BLANK name is treated as absent: an empty
+	 * string is no draft default.</p>
 	 */
 	private String customerName(MetaWebhookPayload.Value value, String from) {
 
@@ -91,7 +95,10 @@ public class MetaInboundMessageTranslator {
 			return null;
 		}
 		String name = chosen.profile().name();
-		return name == null || name.isBlank() ? null : name;
+		if (name == null || name.isBlank()) {
+			return null;
+		}
+		return name.strip();
 	}
 
 	private boolean isTextMessage(MetaWebhookPayload.Message message) {

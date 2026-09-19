@@ -580,6 +580,79 @@ class WhatsappWebhookContractTests {
 		assertThat(message.customerName()).isNull();
 	}
 
+	/**
+	 * PINS the contact PREFERENCE with more than one contact: the contact
+	 * whose {@code wa_id} matches the message's {@code from} supplies the
+	 * name even when it is NOT the first contact. Measured first (see the
+	 * T6c closure notes): the current choice is "Bruno", and a mutant that
+	 * drops the preference in favour of the first contact fails here.
+	 */
+	@Test
+	void matchingContactIsPreferredEvenWhenItIsNotTheFirstContact() {
+
+		String contacts = "\"contacts\": [ { \"profile\": { \"name\": \"Ana\" }, \"wa_id\": \"5491188888888\" }, "
+				+ "{ \"profile\": { \"name\": \"Bruno\" }, \"wa_id\": \"5491122334455\" } ],";
+		assertThat(translatedCustomerName(contacts)).isEqualTo("Bruno");
+	}
+
+	/** Same preference with the matching contact in the MIDDLE of several. */
+	@Test
+	void matchingContactInTheMiddleOfSeveralIsPreferred() {
+
+		String contacts = "\"contacts\": [ { \"profile\": { \"name\": \"Ana\" }, \"wa_id\": \"5491188888888\" }, "
+				+ "{ \"profile\": { \"name\": \"Bruno\" }, \"wa_id\": \"5491122334455\" }, "
+				+ "{ \"profile\": { \"name\": \"Carla\" }, \"wa_id\": \"5491177777777\" } ],";
+		assertThat(translatedCustomerName(contacts)).isEqualTo("Bruno");
+	}
+
+	/**
+	 * PINS the FALLBACK: when NO contact matches the sender, the FIRST
+	 * contact supplies the name. Measured first: the current fallback is the
+	 * first contact ("Ana"), and a mutant that drops the fallback fails here.
+	 */
+	@Test
+	void whenNoContactMatchesTheFirstContactIsUsed() {
+
+		String contacts = "\"contacts\": [ { \"profile\": { \"name\": \"Ana\" }, \"wa_id\": \"5491188888888\" }, "
+				+ "{ \"profile\": { \"name\": \"Carla\" }, \"wa_id\": \"5491177777777\" } ],";
+		assertThat(translatedCustomerName(contacts)).isEqualTo("Ana");
+	}
+
+	/**
+	 * A matching contact WITHOUT a name does NOT borrow another contact's
+	 * name: the preference picks the matching contact, and its missing name
+	 * stays missing (the ordinary absence case, measured as NULL).
+	 */
+	@Test
+	void matchingContactWithoutNameDoesNotFallBackToAnotherContactsName() {
+
+		String contacts = "\"contacts\": [ { \"profile\": { \"name\": \"Ana\" }, \"wa_id\": \"5491188888888\" }, "
+				+ "{ \"wa_id\": \"5491122334455\" } ],";
+		assertThat(translatedCustomerName(contacts)).isNull();
+	}
+
+	/**
+	 * A non-blank profile name is carried TRIMMED: the value is a pre-fill
+	 * for a form field the operator sees, so surrounding whitespace is
+	 * noise. Whitespace INSIDE the name is kept — only the edges are
+	 * stripped. All-blank names stay NULL (pinned above).
+	 */
+	@Test
+	void nonBlankProfileNameIsTrimmedOfSurroundingWhitespace() {
+
+		String padded = "\"contacts\": [ { \"profile\": { \"name\": \"  Juan  \" }, \"wa_id\": \"5491122334455\" } ],";
+		String paddedInternal = "\"contacts\": [ { \"profile\": { \"name\": \"  Ana Perez  \" }, \"wa_id\": \"5491122334455\" } ],";
+		assertThat(translatedCustomerName(padded)).isEqualTo("Juan");
+		assertThat(translatedCustomerName(paddedInternal)).isEqualTo("Ana Perez");
+	}
+
+	private String translatedCustomerName(String contactsBlock) {
+
+		MetaWebhookPayload payload = metaWebhookJsonMapper
+				.readPayload(minimalMessagesPayload(contactsBlock).getBytes(StandardCharsets.UTF_8));
+		return new MetaInboundMessageTranslator().translate(payload).orElseThrow().customerName();
+	}
+
 	// ------------------------------------------------------------------
 
 	/**
