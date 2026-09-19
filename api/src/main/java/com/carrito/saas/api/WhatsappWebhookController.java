@@ -108,6 +108,17 @@ public class WhatsappWebhookController {
 	 * Inbound message entry point. Reads the body as raw bytes, verifies the
 	 * HMAC over those bytes, and only then parses. A payload that verifies but
 	 * is not a text message produces no message and still answers 200.
+	 *
+	 * <p><strong>HTTP semantics after the message is accepted (T4/T5).</strong>
+	 * The hand-off distinguishes two failure kinds: a BUSINESS outcome — the
+	 * handler could not resolve the phone or interpret the text — is persisted
+	 * by the handler as a {@code FAILED} proposal and answered with 200;
+	 * an INFRASTRUCTURE failure — no handler registered (a wiring defect, open
+	 * gap 9) or a handler that throws, e.g. the database being unreachable
+	 * (open gap 16) — propagates and is answered with 500 so the provider
+	 * retries. A 200 over an unpersisted message would lose it without a
+	 * trace; a 500 over a message the system can never accept would make the
+	 * provider retry forever.</p>
 	 */
 	@PostMapping("/webhook")
 	public ResponseEntity<String> receive(
@@ -132,18 +143,18 @@ public class WhatsappWebhookController {
 	private void handOff(InboundMessage message) {
 		List<IInboundMessageHandler> registered = handlers.orderedStream().toList();
 		if (registered.isEmpty()) {
-			log.info("WhatsApp message accepted with no handler registered: channel={}, externalId={}, from={}",
-					message.channel(), message.externalId(), message.fromPhone());
-			return;
+			// Open gap 9: accepting the message with a 200 and discarding it
+			// would be success with silent loss. No handler is a wiring defect
+			// and must be loud.
+			throw new IllegalStateException(
+					"No IInboundMessageHandler registered: the inbound message cannot be processed");
 		}
 		for (IInboundMessageHandler handler : registered) {
-			try {
-				handler.handle(message);
-			} catch (RuntimeException handlerFailure) {
-				// The provider already gets a 200; retries are governed by
-				// idempotency, not by handler errors surfacing as 500s.
-				log.error("Inbound message handler failed for externalId={}", message.externalId(), handlerFailure);
-			}
+			// Open gap 16: a handler failure must NOT be caught into a 200.
+			// Infrastructure failures (e.g. the database being unreachable)
+			// answer 500 so the provider retries; business outcomes are
+			// persisted by the handler and never reach this as an exception.
+			handler.handle(message);
 		}
 	}
 }

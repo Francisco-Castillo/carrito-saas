@@ -54,9 +54,10 @@ import com.carrito.saas.service.whatsapp.MetaWebhookPayload;
  *
  * <p>The recording {@link IInboundMessageHandler} is injected with
  * {@code @MockitoBean} (org.springframework.test.context.bean.override.mockito),
- * the bean-override annotation this Spring Boot version provides; it creates
- * the bean because no production implementation of the handler interface
- * exists yet, which is exactly the T1 hand-off boundary.</p>
+ * the bean-override annotation this Spring Boot version provides; it replaces
+ * the production {@code PersistingInboundMessageHandler} (T5) so these
+ * channel-contract tests observe the hand-off boundary in isolation,
+ * without touching the database.</p>
  *
  * <p>MockMvc is assembled manually with
  * {@link MockMvcBuilders#webAppContextSetup} plus the real security
