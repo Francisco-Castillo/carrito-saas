@@ -74,7 +74,10 @@ import java.util.Set;
  * is documented. Symmetry contains the damage: because both sides fold
  * identically, identical spellings still match; a fold collision can only
  * merge catalog names onto shared tokens, which the matcher reports as
- * ambiguity instead of guessing.
+ * ambiguity instead of guessing. Even the number words are only protected
+ * in their bare form: {@code treses} folds to {@code tres}, the quantity
+ * word, so a nonsense token can supply quantity 3 when it precedes a
+ * matched span — a quantity-only effect, never a wrong line.
  *
  * <p>Honest limit, stated where the guarantee now lives (T6, user decision
  * 2026-09-19): this rule CAN produce a wrong line when it is wrong — the

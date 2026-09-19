@@ -318,9 +318,6 @@ public final class TextOrderNormalizer {
 			if (candidates.size() == 1 && !spanCarriesContent(tokenTexts, start, spanEnd)) {
 				continue;
 			}
-			if (candidates.size() == 1 && !spanCarriesContent(tokenTexts, start, spanEnd)) {
-				continue;
-			}
 			int quantity = takeQuantity(consumed, messageTokens, start);
 			markConsumed(consumed, start, spanEnd);
 			String rawPhrase = message.substring(messageTokens.get(start).start(),
