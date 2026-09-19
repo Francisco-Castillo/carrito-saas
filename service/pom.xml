@@ -60,6 +60,18 @@
 		</dependency>
 
 		<!-- Para generar codigo QR-->
+		<!-- Phone number parsing to E.164 for the WhatsApp phone-to-business
+			resolver (T3b of odd/tasks/whatsapp-inbound.md). The ONLY dependency in
+			this project outside the base stack, approved by the user (2026-09-19):
+			E.164 reasoning (trunk prefixes, mobile prefixes, default region) cannot
+			be expressed in SQL nor reimplemented by hand reliably. Pinned version;
+			Google's libphonenumber is the reference implementation of the standard. -->
+		<dependency>
+			<groupId>com.googlecode.libphonenumber</groupId>
+			<artifactId>libphonenumber</artifactId>
+			<version>9.0.39</version>
+		</dependency>
+
 		<dependency>
 			<groupId>com.google.zxing</groupId>
 			<artifactId>core</artifactId>

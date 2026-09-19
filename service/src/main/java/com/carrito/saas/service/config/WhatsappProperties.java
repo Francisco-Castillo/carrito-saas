@@ -1,5 +1,6 @@
 package com.carrito.saas.service.config;
 
+import com.carrito.saas.service.whatsapp.PhoneNumbers;
 import jakarta.annotation.PostConstruct;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -23,15 +24,19 @@ import org.springframework.stereotype.Component;
  *       handshake.</li>
  * </ul>
  *
- * <p>Both values are validated at startup by {@link #validate()} (called
- * from {@code @PostConstruct}): a BLANK value must refuse to start the
- * application. The {@code ${ENV_VAR:default}} placeholder default only
+ * <p>All three values are validated at startup by {@link #validate()} (called
+ * from {@code @PostConstruct}): a BLANK {@code appSecret} or
+ * {@code verifyToken}, or a blank/unsupported {@code defaultRegion}, must
+ * refuse to start the application. The {@code ${ENV_VAR:default}} placeholder default only
  * applies when the property is ABSENT — an explicitly empty environment
  * variable resolves to {@code ""}, and with a blank app secret every signed
  * POST would die with a 500 ({@code SecretKeySpec} rejects an empty key),
  * the exact response that makes the provider retry forever; with a blank
  * verify token anyone could satisfy the handshake with an empty
- * {@code hub.verify_token}. Failing fast at boot turns both into a visible
+ * {@code hub.verify_token}. A region code libphonenumber does not know would
+ * silently fail to canonicalize every LOCALLY stored phone (the realistic
+ * Argentine admin format), turning every message into a {@code NotFound}.
+ * Failing fast at boot turns all three into a visible
  * deployment error instead of a silent production hole.</p>
  */
 @Component
@@ -51,6 +56,20 @@ public class WhatsappProperties {
 	 */
 	private String verifyToken = "local-dev-verify-token";
 
+	/**
+	 * ISO 3166-1 alpha-2 region used to interpret phone values whose spelling
+	 * carries no country code. Since T3c the stored value is always canonical
+	 * E.164 digits (the shape CHECK rejects local spellings such as
+	 * {@code 011 2233-4455}, and both compared sides carry a country code), so
+	 * the region's remaining effect is on the LOOKUP side: it decides how a
+	 * sender value lacking a country code is read. Defaulted to {@code AR}
+	 * because the pilot target is Argentina; change it per environment with
+	 * {@code WHATSAPP_DEFAULT_REGION}. Case- and whitespace-tolerant — the
+	 * normalized spelling is the single one computed by
+	 * {@link PhoneNumbers}, shared by validation and parsing.
+	 */
+	private String defaultRegion = "AR";
+
 	public String getAppSecret() {
 		return appSecret;
 	}
@@ -67,15 +86,31 @@ public class WhatsappProperties {
 		this.verifyToken = verifyToken;
 	}
 
+	public String getDefaultRegion() {
+		return defaultRegion;
+	}
+
+	public void setDefaultRegion(String defaultRegion) {
+		this.defaultRegion = defaultRegion;
+	}
+
 	/**
-	 * Startup guard: refuses a blank {@code appSecret} or {@code verifyToken}
-	 * with an exception naming the offending property. Public so the check is
-	 * directly unit-testable without booting a Spring context.
+	 * Startup guard: refuses a blank {@code appSecret} or {@code verifyToken},
+	 * or a blank/unsupported {@code defaultRegion}, with an exception naming
+	 * the offending property. Public so the check is directly unit-testable
+	 * without booting a Spring context.
 	 */
 	@PostConstruct
 	public void validate() {
 		requireNonBlank(appSecret, "whatsapp.app-secret");
 		requireNonBlank(verifyToken, "whatsapp.verify-token");
+		requireNonBlank(defaultRegion, "whatsapp.default-region");
+		if (!PhoneNumbers.isSupportedRegion(defaultRegion)) {
+			throw new IllegalStateException("whatsapp.default-region must be a supported ISO 3166-1 "
+					+ "alpha-2 region code (got \"" + defaultRegion + "\"): an unsupported region would "
+					+ "fail to canonicalize every locally stored phone, routing every message to "
+					+ "not-found");
+		}
 	}
 
 	private static void requireNonBlank(String value, String propertyName) {

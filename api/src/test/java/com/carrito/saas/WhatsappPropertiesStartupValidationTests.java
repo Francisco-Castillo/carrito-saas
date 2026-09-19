@@ -84,10 +84,45 @@ class WhatsappPropertiesStartupValidationTests {
 	}
 
 	@Test
+	void blankDefaultRegionRefusesToStartTheContextNamingTheProperty() {
+
+		runner.withPropertyValues("whatsapp.app-secret=valid-app-secret",
+				"whatsapp.verify-token=valid-verify-token", "whatsapp.default-region=")
+				.run(context -> {
+
+					assertThat(context).hasFailed();
+
+					assertThat(context.getStartupFailure())
+							.hasRootCauseInstanceOf(IllegalStateException.class)
+							.hasStackTraceContaining("whatsapp.default-region must not be blank");
+					});
+	}
+
+	/**
+	 * A region code libphonenumber does not know would silently fail to
+	 * canonicalize every LOCALLY stored phone, turning every message into a
+	 * NotFound — the app must refuse to start instead.
+	 */
+	@Test
+	void unsupportedDefaultRegionRefusesToStartTheContextNamingTheProperty() {
+
+		runner.withPropertyValues("whatsapp.app-secret=valid-app-secret",
+				"whatsapp.verify-token=valid-verify-token", "whatsapp.default-region=XX")
+				.run(context -> {
+
+					assertThat(context).hasFailed();
+
+					assertThat(context.getStartupFailure())
+							.hasRootCauseInstanceOf(IllegalStateException.class)
+							.hasStackTraceContaining("whatsapp.default-region must be a supported");
+					});
+	}
+
+	@Test
 	void populatedCredentialsStartTheContextWithTheBoundValues() {
 
 		runner.withPropertyValues("whatsapp.app-secret=valid-app-secret",
-				"whatsapp.verify-token=valid-verify-token").run(context -> {
+				"whatsapp.verify-token=valid-verify-token", "whatsapp.default-region=AR").run(context -> {
 
 					assertThat(context).hasNotFailed();
 
@@ -98,6 +133,7 @@ class WhatsappPropertiesStartupValidationTests {
 					WhatsappProperties properties = context.getBean(WhatsappProperties.class);
 					assertThat(properties.getAppSecret()).isEqualTo("valid-app-secret");
 					assertThat(properties.getVerifyToken()).isEqualTo("valid-verify-token");
+					assertThat(properties.getDefaultRegion()).isEqualTo("AR");
 				});
 	}
 }

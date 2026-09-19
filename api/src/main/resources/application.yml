@@ -39,9 +39,15 @@ qr:
 # Set WHATSAPP_APP_SECRET / WHATSAPP_VERIFY_TOKEN per environment; the
 # defaults only serve local development and match the simulator defaults in
 # odd/tasks/tools/whatsapp-simulator.mjs.
+#
+# default-region is the ISO 3166-1 alpha-2 region used to interpret stored
+# phone numbers that carry no country code (the realistic local format an
+# admin types, e.g. "011 2233-4455" for Argentina). A blank or unsupported
+# region refuses to start the application.
 whatsapp:
   app-secret: ${WHATSAPP_APP_SECRET:local-dev-secret}
   verify-token: ${WHATSAPP_VERIFY_TOKEN:local-dev-verify-token}
+  default-region: ${WHATSAPP_DEFAULT_REGION:AR}
 
 management:
   endpoints:
