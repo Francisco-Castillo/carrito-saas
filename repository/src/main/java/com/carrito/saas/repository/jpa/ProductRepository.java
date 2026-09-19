@@ -64,7 +64,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 			SET p.stock = p.stock - :quantity
 			WHERE p.id = :productId
 			AND p.category.business.id = :businessId
-			AND p.stock >= :quantity
+			AND (p.stock IS NULL OR p.stock >= :quantity)
 			""")
 	int decrementStock(@Param("productId") Long productId, @Param("quantity") Integer quantity,
 			@Param("businessId") Long businessId);
@@ -96,6 +96,19 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 		boolean existsByNameAndCategory(@Param("name") String name,
 		                                @Param("categoryId") Long categoryId);
 	
-	// Solo activos y con stock > X
-    List<Product> findByCategory_Business_IdAndActiveTrueAndStockGreaterThan(Long businessId, Integer stock);
+	/**
+	 * Public menu read path. Follows the documented {@code Product.stock}
+	 * convention: {@code null} is infinite stock and must be offered,
+	 * {@code 0} is no stock and must stay filtered out, {@code > 0} is
+	 * limited stock. In SQL {@code NULL > 0} is not true, so the null case
+	 * has to be spelled out explicitly.
+	 */
+	@Query("""
+			SELECT p
+			FROM Product p
+			WHERE p.category.business.id = :businessId
+			AND p.active = true
+			AND (p.stock IS NULL OR p.stock > 0)
+			""")
+    List<Product> findPublicMenuProducts(@Param("businessId") Long businessId);
 }

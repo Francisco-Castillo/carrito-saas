@@ -55,10 +55,9 @@ public class MenuServiceImpl implements IMenuService {
 
 		List<Category> categories = categoryRepository.findByBusinessId(business.getId());
 
-		// Buscamos los productos del negocio que esten activos cuyo stock sea mayor a
-		// cero.
-		List<Product> products = productRepository.findByCategory_Business_IdAndActiveTrueAndStockGreaterThan(business.getId(),
-				0);
+		// Buscamos los productos del negocio que esten activos y ofrecibles:
+		// stock null (infinito) o stock > 0; stock 0 no se ofrece.
+		List<Product> products = productRepository.findPublicMenuProducts(business.getId());
 
 		// NUEVO: traer combos
 		List<Combo> combos = comboRepository.findFullMenuCombos(business.getId());
