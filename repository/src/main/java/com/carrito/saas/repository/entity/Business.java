@@ -5,13 +5,36 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * The two UNIQUE constraints are declared here, on the table, with explicit
+ * names rather than as {@code @Column(unique = true)} on each field.
+ *
+ * <p><strong>Why the names matter.</strong> A generated name is
+ * environment-dependent: a database created by hand got
+ * {@code uq_businesses_phone}, while a database whose schema {@code ddl-auto}
+ * generates from this entity used to get something like
+ * {@code uk8140cl0n9nxy70j919keu3mmj}. The definitions were identical, so
+ * nothing was broken — but the SAME schema had different names per
+ * environment, and a future migration that says
+ * {@code DROP CONSTRAINT uq_businesses_phone} would have failed on any
+ * environment that had not been hand-altered. Declaring the name here makes
+ * fresh environments agree with existing ones, which is what makes the names
+ * referencable from a migration later (see open gap 31).</p>
+ *
+ * <p>Note that {@code unique = true} must NOT be kept on the fields as well:
+ * that would declare two unique constraints per column.</p>
+ */
 @Data
 @Entity
-@Table(name = "businesses")
+@Table(name = "businesses",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uq_businesses_slug", columnNames = "slug"),
+                @UniqueConstraint(name = "uq_businesses_phone", columnNames = "phone")})
 public class Business {
 
     @Id
@@ -31,7 +54,7 @@ public class Business {
      * Bean Validation provider is on the classpath, and this module has no
      * {@code jakarta.validation} dependency to declare {@code @NotNull}.</p>
      */
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false)
     private String slug;
 
     /**
@@ -91,9 +114,8 @@ public class Business {
      * error should name the reason. Write-time validation in code is
      * deliberately absent in this slice: the CHECK is the enforcement.</p>
      */
-    @Column(unique = true,
-            check = @CheckConstraint(name = "businesses_phone_shape",
-                    constraint = "phone IS NULL OR phone ~ '^[1-9][0-9]{7,14}$'"))
+    @Column(check = @CheckConstraint(name = "businesses_phone_shape",
+            constraint = "phone IS NULL OR phone ~ '^[1-9][0-9]{7,14}$'"))
     private String phone;
 
 }
