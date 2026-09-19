@@ -62,6 +62,17 @@ Y no hay **ningún** control de ingreso por secreto: `grep -E 'apiKey|api-key|hm
 
 `/ws/**` es `permitAll` (`SecurityConfig.java:74`) y el endpoint STOMP es `registry.addEndpoint("/ws/orders").setAllowedOriginPatterns("*").withSockJS()` (`WebSocketConfig.java:24`) con broker simple en `/topic`. No hay `ChannelInterceptor` ni `configureClientInboundChannel` ni `Principal` en ningún lado. **Cualquier anónimo se suscribe a `/topic/orders/{slug}`.**
 
+### Hecho 9 — hallado al implementar: Spring Boot 4 usa Jackson 3, y `service/` no tiene Jackson en compile scope
+
+Dos hechos que el diseño no anticipó y que forzaron una decisión:
+
+1. **Spring Boot 4 trae Jackson 3** (`tools.jackson.*`), no 2.x (`com.fasterxml.jackson.*`). Todo import nuevo tiene que ser de Jackson 3.
+2. **El módulo `service` no tiene Jackson en el classpath de compilación** (llega sólo en runtime, vía jjwt). Agregar dependencias está fuera de alcance.
+
+Consecuencia implementada: `MetaWebhookPayload` es un árbol de records **sin anotaciones Jackson**, y el mapeo de los nombres de wire (`messaging_product`, `phone_number_id`, `wa_id`, `display_phone_number`) lo hace un `JsonMapper` dedicado con `PropertyNamingStrategies.SNAKE_CASE` en el controller, donde Jackson sí está en compile scope.
+
+**Riesgo que eso introduce, y hay que decirlo**: renombrar un componente del record deja de ser un cambio de compilación y pasa a ser un **cambio silencioso del contrato de red**. Sin anotaciones, nada en el código declara el nombre de wire; lo declara el `SNAKE_CASE` derivado del nombre del componente. Está anotado en el javadoc, pero es fragilidad real de la solución, no un detalle.
+
 ## Why
 
 El valor del sistema hoy es el camino determinista: menú → pedido estructurado → KDS en vivo. Ese camino **no necesita un LLM** y hay que dejarlo quieto. Lo que no existe es el camino del cliente que ya está escribiendo por WhatsApp: hoy ese pedido no entra, y el comercio lo re-tipea. Ese es el diferencial real.
@@ -151,7 +162,7 @@ Respuesta: **200 con cuerpo `EVENT_RECEIVED`** (o `ignored`), siempre que el men
 - [ ] **T2 — Regla de seguridad explícita para la ruta.** Una regla propia en `SecurityConfig` para el webhook, con el test que cubre **las dos trampas**: (a) un `POST` anónimo sin firma no llega al controller y no crea nada; (b) un `GET` de handshake anónimo **sí** responde con el `challenge` cuando el token coincide. Motivo explícito: sin regla la ruta da 403; puesta bajo un prefijo ya permitido quedaría anónima sin que nadie lo note. El test fija cuál de las dos es la intención.
 - [ ] **T3 — Resolver teléfono → negocio.** Normalización del número a forma canónica de dígitos antes de comparar (Meta manda sin `+`, y lo guardado es lo que tipeó el admin). Regla explícita para el caso ambiguo: **si dos negocios comparten número, se rechaza y se registra**, nunca se elige el primero. Tests: número que resuelve a un negocio; número desconocido → propuesta `FAILED` con motivo, y **200**; número ambiguo → rechazo registrado, sin propuesta asociada a ningún negocio. Incluye la decisión de unicidad de `Business.phone` con su pre-chequeo de datos existentes (mismo tratamiento que se le dio a `businesses.slug`, que ya es `@Column(unique = true, nullable = false)`).
 - [ ] **T4 — Idempotencia por `messageId`.** El `id` de Meta (`wamid...`) es la clave natural. Un reintento del mismo mensaje no reprocesa ni crea una segunda propuesta. Test: el mismo payload firmado POSTeado dos veces produce **una** propuesta y **dos** respuestas 200. Sin este task, cada reintento del proveedor es una propuesta duplicada en la cara del encargado.
-- [ ] **T5 — `OrderProposal` + líneas + `ProposalStatus` + repositorio.** La entidad guarda el mensaje crudo (texto, teléfono, `messageId`), el negocio resuelto, el estado de la propuesta y sus líneas interpretadas; sirve a la vez como registro del ingreso y como la tabla de idempotencia de T4. `ProposalStatus` es **propio** (`PENDING, CONFIRMED, REJECTED, FAILED`), no una extensión de `OrderStatus`. La entidad y sus queries **no** participan de `findActiveOrders` ni del broadcast: la garantía de que una propuesta no llega a la cocina es estructural. Tests: se persiste y se relee con sus líneas; `PENDING` no aparece en ninguna query de pedidos activos.
+- [ ] **T5 — `OrderProposal` + líneas + `ProposalStatus` + repositorio.** La entidad guarda el mensaje crudo (texto, teléfono, `messageId`), el negocio resuelto, el estado de la propuesta y sus líneas interpretadas; sirve a la vez como registro del ingreso y como la tabla de idempotencia de T4. `ProposalStatus` es **propio** (`PENDING, CONFIRMED, REJECTED, FAILED`), no una extensión de `OrderStatus`. La entidad y sus queries **no** participan de `findActiveOrders` ni del broadcast: la garantía de que una propuesta no llega a la cocina es estructural. Tests: se persiste y se relee con sus líneas; `PENDING` no aparece en ninguna query de pedidos activos. **Obligación heredada de la verificación de T1/T2, en dos partes**: (a) la **ausencia** de handler tiene que ser un fallo ruidoso, no un descarte silencioso (pendiente 9); (b) un handler que **lanza** tampoco puede terminar en 200 (pendiente 16) — si la persistencia falla porque la base está caída, un 200 le dice a Meta que el mensaje se procesó y el pedido se pierde sin rastro. Con la base caída, la respuesta correcta es **500** para que Meta reintente.
 - [ ] **T6 — Normalizador determinista contra el catálogo.** Texto libre + `MenuDTO` del negocio → líneas candidatas. Cubre: cantidades en dígitos y en palabra ("2" y "dos"), separadores de lista, mayúsculas y acentos, y **reporte explícito de ambigüedad** en vez de adivinar (en el catálogo del ejemplo, "una coca" puede ser 500 ml o 2.25 L: se propone pedir precisión, no se elige). Test por tabla de casos: frase → líneas esperadas + conjunto de frases no resueltas. La ambigüedad es un resultado de primera clase, no un error.
 - [ ] **T7 — Confirmación: de propuesta a pedido.** Endpoint autenticado (JWT; `businessId` sale del token, nunca de un parámetro) que lista las propuestas `PENDING` del negocio y otro que confirma una. Confirmar **construye un `OrderRequestDTO` y llama a `createOrder(slug, dto)`**, reusando el escritor único: precios re-leídos, stock atómico bajo lock, `orderNumber`, broadcast al KDS y métrica `pedidos.creados`, todo sin reimplementar nada. El pedido confirmado nace `NEW` y **ahí sí** aparece en la cocina. Descartar marca `REJECTED` y no toca stock. Tests: confirmar produce un pedido idéntico al que produciría el menú para las mismas líneas; **confirmar no descuenta stock dos veces**; descartar no descuenta nada; un negocio no puede listar ni confirmar propuestas de otro; una propuesta ya decidida no se puede volver a confirmar.
 - [ ] **T8 — Sección de propuestas en el KDS.** Panel aparte (no una columna de pedidos) que muestra el texto original del cliente junto a las líneas interpretadas y las frases no resueltas, con confirmar y descartar. Refresco manual en este slice (Out #4). Tests JS en el patrón del repo (`node api/src/test/js/*.test.mjs`, sandbox `vm` con stubs de DOM y `fetch`, sin browser): una propuesta ambigua se muestra marcada y **no** ofrece confirmar como si estuviera completa; una propuesta sin negocio resuelto no aparece; el botón de confirmar llama al endpoint real y no reenvía dos veces ante doble clic.
@@ -178,22 +189,131 @@ Respuesta: **200 con cuerpo `EVENT_RECEIVED`** (o `ignored`), siempre que el men
 
 | Task | Estado | Evidencia |
 | --- | --- | --- |
-| T1 | pendiente | — |
-| T2 | pendiente | — |
+| T1 | hecho | RED: 8/9 en rojo con **403 de la filter chain** y cuerpo vacío. GREEN 9/9. Simulador ejecutable, 935 bytes, byte-idéntico al fixture del test |
+| T2 | hecho | Regla explícita `permitAll` para `/api/whatsapp/**`, con la **firma como única autorización**. Es la regla la que convierte el 403 en 200 — el RED lo prueba |
 | T3 | pendiente | — |
 | T4 | pendiente | — |
 | T5 | pendiente | — |
 | T6 | pendiente | — |
 | T7 | pendiente | — |
 | T8 | pendiente | — |
+| — | hecho | F1/F2/F4 cerrados con RED observado y sensibilidad probada por mutación (ver "Cierre de F1, F2 y F4"). `api: Tests run: 59`, 8 módulos SUCCESS. F3 sigue diferido a T5 por decisión |
+| — | hecho | Pendiente 21 cerrado: `WhatsappPropertiesStartupValidationTests` prueba el **ciclo de vida del contexto**, no el método. RED literal con el `@PostConstruct` quitado: `but context started successfully` (2 fallas). Suite final **`api: Tests run: 62`** + node **34/34** |
+| — | **PASS WITH FINDINGS** | Verificación independiente de T1+T2: **sin bloqueantes**. El HMAC sobre bytes crudos quedó **probado por mutación**; las dos capas de seguridad son load-bearing. `api: Tests run: 53`, 8 módulos SUCCESS. Cinco follow-ups, de los cuales dos se cierran en el acto |
 
 ## Evidence
 
-### RED (pendiente)
+### RED (literal)
 
-### GREEN (pendiente)
+**T1+T2 juntos — el 403 que prueba que la regla de seguridad es la que sostiene la ruta** (`-Dtest=WhatsappWebhookContractTests`, corrida **pre-regla**, sin tocar `SecurityConfig`):
 
-### Verificación independiente (pendiente)
+```text
+Tests run: 9, Failures: 8, Errors: 0, Skipped: 0
+anonymousGetHandshakeWithCorrectTokenEchoesExactChallenge:177   Status expected:<200> but was:<403>
+wellSignedMetaTextMessageProducesInboundMessageWithIntactText:206 Status expected:<200> but was:<403>
+payloadWithWrongObjectProducesNoMessageButResponds200:246       Status expected:<200> but was:<403>
+changeWithFieldOtherThanMessagesProducesNoMessageButResponds200:262 Status expected:<200> but was:<403>
+nonTextMessageTypeProducesNoMessageButResponds200:277           Status expected:<200> but was:<403>
+correctlySignedButMalformedJsonIsRejectedWith400...:295          Status expected:<400> but was:<403>
+badlySignedPayloadIsRejectedWithoutProducingMessage:231         Response content expected:<invalid signature> but was:<>
+anonymousPostWithoutSignatureIsRejected...:317                  Response content expected:<invalid signature> but was:<>
+```
+
+Ocho de nueve en rojo, todos **403 con cuerpo vacío**. El detalle importa más de lo que parece: los dos tests que *esperan* un rechazo (sin firma y mal firmado) **también** fallaban — pero por el **cuerpo vacío**, no por el status. Es decir: sin mirar el cuerpo, **una firma decorativa habría pasado en verde**, porque el 403 de la filter chain es indistinguible del 403 del controller si sólo se asserta el status. Por eso el test exige el cuerpo `invalid signature`: mientras el rechazo venga de la cadena de seguridad y no del verificador, falla.
+
+### GREEN
+
+`Tests run: 9, Failures: 0, Errors: 0, Skipped: 0` / `BUILD SUCCESS` tras agregar la regla de T2.
+
+Suite completa (la corrió el padre, por contrato): **`api: Tests run: 53`** (eran 44), los 8 módulos `SUCCESS`, reactor completo, `BUILD SUCCESS`.
+
+### Triangulación
+
+- **El HMAC sobre bytes crudos, probado en las dos direcciones.** El test de camino feliz firma con su propio `HmacSHA256` del JDK — no con el firmador de producción, que sólo probaría que el código es consistente consigo mismo — y un segundo test firma el **mismo cuerpo** con un secreto distinto (`attacker-secret`) y exige 403 + `verifyNoInteractions(handler)`. Una firma decorativa no puede pasar las dos.
+- Objeto raíz equivocado, `field` distinto de `messages`, tipo `image` y texto vacío → 200 y **ningún** mensaje.
+- JSON malformado **pero bien firmado** → **400**, nunca 500. Importa: `GlobalExceptionHandler` mapea todo a 500, y **un 500 le dice a Meta "reintentá"**, con lo que un payload roto se reintentaría para siempre.
+- Identidad de bytes simulador ↔ fixture: 935 bytes, `byte-identical: true`.
+
+### Verificación independiente — **PASS WITH FINDINGS** (agente distinto, read-only, todo en copias de `/tmp`)
+
+**1. El HMAC cubre los bytes crudos — probado, no leído.** Dos cuerpos **semánticamente iguales** (`semantic-equal=true`) pero byte-distintos (935 vs 450 bytes, uno compactado y con `object` al final):
+
+| Request | Status | Cuerpo |
+| --- | --- | --- |
+| A + `sig(A)` (byte-idéntico) | **200** | `EVENT_RECEIVED` |
+| B + `sig(A)` | **403** | `invalid signature` |
+| B + `sig(B)` | **200** | `EVENT_RECEIVED` |
+| A + `sig(B)` | **403** | `invalid signature` |
+
+B se rechaza **sólo** porque sus bytes difieren — con su propia firma pasa, así que no es "inparseable" ni inválido por otra razón. Si el cuerpo se bindeara a un DTO antes de verificar, la fila `B + sig(A)` daría 200. No la da. **La verificación es real, no decorativa.**
+
+**2. Las dos capas son load-bearing** (mutaciones en copias `/tmp`, cada mutante comprobado compilado):
+
+| Mutante | Resultado |
+| --- | --- |
+| `verifySignature` siempre `true` | **2 fallas**: los dos tests de rechazo pasan a `expected:<403> but was:<200>` |
+| Regla `permitAll` eliminada | **8 fallas, todas 403 con cuerpo vacío** — reproduce el RED del documento **verbatim**, con los mismos 8 nombres y los mismos números de línea |
+| `phoneNumberId` → `phoneNumberIdentifier` | **9/9 VERDE** — el campo deja de bindear en silencio (ver F4) |
+| Texto truncado a 10 chars | **1 falla** — la aserción de texto intacto realmente lo sostiene |
+
+El primer mutante es el que importa: los tests de rechazo **no** están verdes porque la cadena rechace; pasan a 200 en cuanto el verificador deja de verificar.
+
+**3. Superficie de ataque: ninguna bypass encontrada.** 16 sondas con el header manipulado: ausente, vacío, `sha256=` solo, prefijo `sha1=`, hex truncado, hex de largo impar, hex no-hexadecimal, valor incorrecto del largo correcto, firma de cuerpo vacío, cuerpo ausente. **Todas 403**, ninguna excepción escapando como 500 (`sha256=zzzz` y el hex de largo impar los atrapa el `catch (IllegalArgumentException)` y devuelven 403). Dos variantes aceptadas: **hex en mayúsculas** y **espacio al final** (efecto de `.trim().toLowerCase()`), ambas inofensivas porque el valor comparado siguen siendo los 32 bytes exactos del HMAC. Comparación constante confirmada (`MessageDigest.isEqual`), sin `String.equals` en la clase.
+
+**4. Trampa espejo: NO cometida.** Bajo `/api/whatsapp/**` hay exactamente dos mappings (`GET`/`POST /api/whatsapp/webhook`) y ningún estático; la ruta no está bajo `/api/restaurants/**` ni `/api/menu/**`. La mutación que quita la regla prueba que **es esa regla** la que autoriza la ruta.
+
+**5. Afirmaciones verificadas en vez de aceptadas.**
+- Simulador ≡ fixture: **reproducido independientemente** — 935 bytes los dos, `sha256: 70c66e43…6313`, byte-idénticos. **Pero sigue siendo una corrida manual, no un test** (pendiente 10).
+- JSON malformado bien firmado → **400, más amplio de lo afirmado**: también `[]`, `"hello"`, `12345`, `{"entry":5}`, JSON truncado y **UTF-8 inválido** dan 400. Nunca 500.
+- Texto intacto: `ArgumentCaptor` con la cadena completa, y el mutante de truncado lo hace fallar.
+- Sólo el primer mensaje de una notificación: confirmado (`times(1)`, el segundo `wamid` se descarta en silencio).
+- Sin anotaciones Jackson: confirmado, y **M3 prueba que renombrar un componente deja 9/9 en verde** mientras el campo deja de bindear (pendiente 11).
+
+**6. Hallazgos: ninguno BLOQUEANTE para T1/T2.**
+
+| ID | Severidad | Qué |
+| --- | --- | --- |
+| F1 | follow-up — **CERRADO** | Con `whatsapp.app-secret` **vacío**, un POST firmado da **500** — la respuesta que este mismo documento argumenta que nunca debe producirse, porque le dice a Meta "reintentá" para siempre. `SecretKeySpec` rechaza la clave vacía y el `catch` la re-lanza como `IllegalStateException`. El mismo probe muestra que un `verify-token` vacío deja que cualquiera pase el handshake. **Falta validación de arranque.** |
+| F2 | follow-up — **CERRADO** | La regla es `prefix-wide` (`/api/whatsapp/**`), que recrea la trampa espejo en miniatura: hoy no expone nada de más, pero cualquier endpoint futuro bajo ese prefijo queda **silenciosamente anónimo**. |
+| F3 | follow-up (**obligación de T5, ampliada**) | `handOff` atrapa `RuntimeException` por handler y **igual responde 200**: un handler que falla pierde el mensaje con sólo una línea de ERROR. El pendiente 9 cubría "sin handler", no "handler que lanza". |
+| F4 | follow-up — **CERRADO** | Los nombres de wire no están fijados por ningún test: M3 lo prueba. La fragilidad del Hecho 9 no es hipotética. |
+| F5 | observación | La distinción 403-controller vs 403-filter-chain descansa sólo en el cuerpo de la respuesta. El pendiente 13 es correcto y la mutación lo confirma. |
+
+### Cierre de F1, F2 y F4
+
+| Finding | Cómo se cerró | Prueba de sensibilidad |
+| --- | --- | --- |
+| F1 | `WhatsappProperties.validate()`, llamado desde `@PostConstruct`: con `app-secret` o `verify-token` en blanco o nulo la aplicación **se niega a arrancar**, nombrando la propiedad. Se testea el método directo, sin bootear un contexto | RED literal: error de compilación (`cannot find symbol: method validate()`) — el RED correcto para un método que no existía |
+| F2 | La regla se estrechó a `/api/whatsapp/webhook` exacto. Un `@RestController` de prueba bajo `/api/whatsapp/not-the-webhook` debe dar 403 anónimo | **RED observado y real**: con la regla todavía prefix-wide, la sonda dio `Status expected:<403> but was:<200>`. **La trampa espejo estaba viva**, no era hipotética. Y ensanchar la regla de vuelta en `/tmp` vuelve a romper la sonda |
+| F4 | El `JsonMapper` con `SNAKE_CASE` salió del controller a un `@Component` inyectable (`MetaWebhookJsonMapper`, en `api`, el único módulo con Jackson en compile scope); un test deserializa el fixture **con el mapper de producción** y fija cada nombre de wire | Mutación en `/tmp` renombrando `phoneNumberId` → `phoneNumberIdentifier` (también en el accesor del test, simulando a alguien que actualiza los sitios de compilación): `expected: "2222222222" but was: null` |
+
+**Lo que esto NO prueba**, y el test lo dice en su javadoc: fija **nuestros** errores de tipeo y renombres, **no** valida que la transcripción del contrato de Meta sea correcta (pendiente 19).
+
+Ningún test existente se modificó: los 9 originales quedaron intactos. Sin dependencias nuevas. Suite completa: **`api: Tests run: 59`** (eran 53), los 8 módulos `SUCCESS`.
+
+### Re-verificación tras el cierre de F1/F2/F4 — **PASS**
+
+Sin bloqueantes. La prueba que importa es que **la propiedad del HMAC sobrevive al refactor**: el parseo se movió a un componente inyectable, y eso podía matar la propiedad sin que fallara un solo test. Rehecha desde cero con dos cuerpos semánticamente iguales y byte-distintos (A = 935 bytes, `sha256 70c66e43…` — el mismo hash que la verificación anterior, así que el refactor no movió los bytes del fixture; B = 450 bytes compactado con claves reordenadas), con la igualdad semántica probada **a través del mapper de producción**:
+
+| Request | Status | Cuerpo |
+| --- | --- | --- |
+| A + `sig(A)` | **200** | `EVENT_RECEIVED` |
+| B + `sig(A)` | **403** | `invalid signature` |
+| B + `sig(B)` | **200** | `EVENT_RECEIVED` |
+| A + `sig(B)` | **403** | `invalid signature` |
+
+**Sin regresión.** Y el único sitio de parseo del repo es `MetaWebhookJsonMapper.java:42-43`: no se reintrodujo ningún binding a DTO.
+
+Resto del delta, todo confirmado:
+- **La regla estrechada sigue siendo load-bearing**: quitarla → 9 fallas con 403. **Ensancharla a `/api/whatsapp/**` → la sonda falla** (`expected:<403> but was:<200>`), que es la propiedad que buscábamos: el estrechamiento está pinneado contra un futuro ensanche. La sonda además prueba que el controller de prueba **está registrado** (una ruta inexistente no podría responder 200).
+- **`validate()` falla en el arranque de verdad**, probado a nivel de contexto: `BeanCreationException` → `IllegalStateException: [whatsapp.app-secret must not be blank]` dentro de `refresh()`, antes de servir nada. Esto **cierra un agujero del enfoque de test de F1**: los 4 tests del escritor llaman a `validate()` directo, así que un `@PostConstruct` que dejara de invocarse los dejaría verdes.
+- **El mapper es el único lugar con `SNAKE_CASE`** (los otros tres `ObjectMapper` del repo son Jackson 2 sin naming strategy y no tocan `MetaWebhookPayload`); la configuración quedó byte a byte igual a la que estaba inline.
+- **JSON malformado sigue dando 400, nunca 500**, ahora a través del mapper inyectado: `[]`, `"hello"`, `12345`, `{"entry":5}`, truncado, no-JSON y **UTF-8 inválido**.
+- **Los 9 tests originales sin debilitar**: `insertions: 139, deletions: 0`. Ninguna línea preexistente se cambió ni se borró.
+
+**Caveat honesto sobre la procedencia de esa evidencia**: el archivo de test es **untracked**, así que el diff 139/0 se apoya en la copia que el verificador anterior dejó en `/tmp`, no en un commit. Es la consecuencia concreta del pendiente del doc-first: sin commits, la precedencia y la integridad se sostienen con copias de terceros.
+
+**Tests de node**, que `mvn verify` **no** corre y AC12 exige: verificados aparte — `frontend-origin` 13/13, `menu-app` 4/4, `page-guard` 17/17, **34/34, exit 0**.
 
 ## Open gaps and decisions
 
@@ -205,3 +325,21 @@ Respuesta: **200 con cuerpo `EVENT_RECEIVED`** (o `ignored`), siempre que el men
 6. **Sin expiración de propuestas** (Out #7). Una propuesta vieja queda pendiente para siempre y el encargado ve basura acumulada. Necesita una decisión de producto: ¿caduca?, ¿se archiva?, ¿cuánto tiempo?
 7. **Sin realtime** (Out #4). El encargado tiene que refrescar para ver una propuesta nueva. Es aceptable para un primer slice, pero el valor real del KDS es el tiempo real, y la exposición anónima de `/ws/**` (Hecho 8) es lo que bloquea resolverlo bien. Ese es el próximo slice de seguridad evidente.
 8. **Sin edición de líneas** (Out #6). Si el normalizador entiende 2 de 3 líneas, el humano confirma o descarta todo. Editar es la salida natural y probablemente el primer refinamiento pedido en uso real.
+9. **Un mensaje recibido sin handler se descarta en silencio y responde 200.** El controller inyecta `ObjectProvider<IInboundMessageHandler>` y, si no hay ningún bean registrado, loguea y descarta. Es **la misma clase de defecto que aquel `wa.me/null` que perdía pedidos prometiendo confirmación**: éxito aparente con pérdida real. Hoy es correcto (T1 no tiene implementación de producción, a propósito), pero **T5 tiene la obligación de convertir la ausencia de handler en un fallo ruidoso**, no en un descarte silencioso. Un 200 con el mensaje tirado es peor que un 500.
+10. **La identidad de bytes simulador ↔ fixture hoy no es un test, es una corrida manual.** Se verificó una vez (935 bytes, idénticos) y quedó como afirmación en el reporte del escritor. Es exactamente el problema ya conocido en este proyecto: **evidencia sin domicilio durable**. Si los dos payloads derivan, el simulador pasa a ejercitar un contrato que nadie chequea. Debería ser un test automatizado **antes** de que el simulador se use para el ensayo manual (AC13).
+11. **Renombrar un componente de `MetaWebhookPayload` cambia el contrato de red en silencio** (Hecho 9). Sin anotaciones Jackson, el nombre de wire se deriva del nombre del componente, así que no hay nada que falle al compilar. Un test que fije los nombres de wire esperados contra el fixture lo haría explícito.
+12. **El traductor toma sólo el primer mensaje de texto de una notificación.** Meta puede agrupar varios en un `value.messages[]`. Está documentado en el javadoc y es aceptable para el primer slice, pero es pérdida silenciosa de mensajes si alguna vez ocurre.
+13. **El 403 del controller y el 403 de la filter chain coexisten** y son semánticamente distintos: uno significa "firma inválida", el otro "no autorizado, no llegaste al código". El test los distingue por el cuerpo, que es la única señal disponible. Vale la pena recordarlo cuando alguien depure un 403 en producción.
+14. **`app-secret` y `verify-token` vacíos no fallan al arrancar** (lo encontró la verificación). Con el secreto vacío, un POST firmado devuelve **500** — la respuesta que este diseño declara prohibida, porque hace que Meta reintente para siempre. Con el token vacío, **cualquiera pasa el handshake**. No es alcanzable con los defaults documentados, pero es un agujero de validación de configuración: la aplicación debería **negarse a arrancar** con cualquiera de los dos en blanco. Se cierra en el acto.
+15. **La regla `permitAll` es prefix-wide** (`/api/whatsapp/**`), lo que recrea la trampa espejo en miniatura: cualquier endpoint autenticado que se agregue bajo ese prefijo en T5/T7 (por ejemplo, un endpoint de administración) queda **anónimo sin que nadie lo note**. Se estrecha a la ruta exacta del webhook, manteniendo la propiedad de que la firma es la única autorización. Se cierra en el acto.
+16. **Un handler que lanza también pierde el mensaje con 200** (extiende el pendiente 9). `handOff` atrapa `RuntimeException` por handler y responde 200 igual. Con la base de datos caída, eso significa: el mensaje se acepta, no se persiste, y **nadie se entera** salvo una línea de ERROR. Queda como obligación explícita de T5.
+17. **Ningún test fija los nombres de wire del payload de Meta.** La mutación `phoneNumberId` → `phoneNumberIdentifier` deja **9/9 en verde** mientras el campo deja de bindear. Es la fragilidad del Hecho 9 materializada: sin anotaciones, renombrar un componente cambia el contrato de red sin que falle nada. Se agregan aserciones que fijan los nombres contra el fixture. Se cierra en el acto.
+18. **El `timestamp` del proveedor se parsea pero no viaja en `InboundMessage`.** T5 va a persistir sólo el `receivedAt` del servidor, no el momento en que Meta recibió el mensaje. Es información que se pierde en la frontera del puerto: si el webhook se reintenta con retraso, el timestamp de Meta es el único dato del momento real del pedido. Decidir en T5 si se agrega al puerto.
+19. **El contrato real de Meta sigue sin contrastar** (pendiente 1). La verificación **no pudo** consultarlo (sin acceso a la documentación de Cloud API). Convertir el contrato transcripto en un test que fije los nombres de wire es una red contra *nuestros* errores de tipeo, **no** contra un contrato mal transcripto: si el payload real difiere, el test va a estar consistentemente equivocado con el código. Un renamer que edite el payload, el accesor **y** el valor esperado también escapa; lo que sí atrapa el compilador es renombrar sólo el payload.
+20. **La validación de configuración es global, no de WhatsApp** (lo encontró la re-verificación). `WhatsappProperties` es un `@Component` escaneado por `com.carrito`, así que **cualquier** contexto de la aplicación se niega a arrancar con credenciales de WhatsApp en blanco, incluso uno que nunca habilita el webhook. Es defendible (fallar rápido) y hoy no rompe nada, pero es acoplamiento real y merece una línea de decisión explícita antes de que alguien lo descubra en un entorno que no usa WhatsApp.
+21. **CERRADO — el cierre de F1 ya no se apoya en una sonda desechable.** Los 4 tests originales llaman a `validate()` directo, así que **si se quita el `@PostConstruct` siguen verdes**: el mismo modo de fallo que ya nos costó caro dos veces (T2 en `cross-tenant-stock`, y la firma decorativa en T1), un test verde que no prueba lo que dice probar. Ahora hay un test **del repo** (`WhatsappPropertiesStartupValidationTests`) que afirma que **el contexto se niega a arrancar**, con la sensibilidad probada: con el `@PostConstruct` quitado en una copia, los dos casos en blanco fallan con `but context started successfully`. Los 4 tests directos se conservan (cubren el contrato del método).
+    - **Un detalle que evitó un falso verde**: `withUserConfiguration(WhatsappProperties.class)` a secas registra el bean **sin** el post-procesador de binding, así que con los defaults no vacíos el test habría pasado vacuo. Se usa una configuración anidada con `@EnableConfigurationProperties`, que sí instala el binding antes del `@PostConstruct`. Y el caso válido no se conforma con `hasNotFailed()`: exige que el bean tenga los **valores de la propiedad**, no los defaults del campo, que es lo que prueba que el binding ocurrió de verdad.
+    - **Límite declarado de este test**: el runner no hace component scan y el bean se registra explícito, así que pinnea el ciclo de vida **del bean**, no la compuerta global del `@Component` escaneado (pendiente 20). Si el bean se hiciera condicional, el binding respeta la condición y los tests en blanco fallarían ruidosamente en vez de pasar en silencio.
+22. **Un cuerpo vacío bien firmado da 403 `invalid signature`, no 400 `invalid payload`.** El atajo `rawBody.length == 0` está antes del parseo. Preexistente, defendible (sin bytes no hay firma que verificar) y anotado sólo por completitud.
+23. **La regla estrechada habilita todos los métodos HTTP sobre la ruta exacta.** Hoy sólo hay mappings `GET`/`POST`, así que el resto da 405 y no hay exposición. Scope por método sería marginalmente más ajustado; no vale el cambio.
+24. **Los tests de node no son parte de `mvn verify`.** El reactor corre **59 tests, todos Java**: no hay plugin de exec ni de frontend. AC12 pide "`mvn verify` verde **más** los tests de node", así que la evidencia válida son dos comandos, no uno. Los 34 de node se verificaron aparte. Vale la pena saberlo antes de declarar AC12 cumplido leyendo sólo el reactor.
