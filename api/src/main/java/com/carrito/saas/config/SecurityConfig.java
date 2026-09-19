@@ -76,6 +76,20 @@ public class SecurityConfig {
 	            // Crear pedidos público
 	            .requestMatchers(HttpMethod.POST, "/api/orders", "/api/orders/menu/{slug}").permitAll()
 
+	            // WhatsApp Cloud API webhook (T2 de odd/tasks/whatsapp-inbound.md).
+	            // Regla EXPLÍCITA y deliberada: la autorización de esta ruta es la
+	            // firma X-Hub-Signature-256 que WhatsappWebhookController verifica
+	            // sobre los bytes crudos del cuerpo, no una sesión. Por eso la
+	            // cadena la deja pasar (permitAll) y el controller rechaza con 403
+	            // lo mal firmado. NO va bajo /api/restaurants/** ni /api/menu/**:
+	            // quedaría silenciosamente anónima sin firma alguna.
+	            // La regla cubre SOLO el path exacto del webhook (F2 de la
+	            // verificación de T1/T2): con /api/whatsapp/** cualquier endpoint
+	            // futuro bajo ese prefijo quedaría anónimo sin que nadie lo note.
+	            // El probe nonWebhookEndpointUnderThePrefixStaysAnonymousRejected
+	            // en WhatsappWebhookContractTests fija este estrechamiento.
+	            .requestMatchers("/api/whatsapp/webhook").permitAll()
+
 	            .anyRequest().authenticated()
 	        )
 
