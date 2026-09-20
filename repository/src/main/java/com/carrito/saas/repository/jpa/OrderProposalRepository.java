@@ -11,7 +11,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.carrito.saas.repository.entity.OrderProposal;
-import com.carrito.saas.repository.enums.ProposalStatus;
 
 /**
  * Persistence for inbound message proposals (T4 + T5 of
@@ -83,4 +82,43 @@ public interface OrderProposalRepository extends JpaRepository<OrderProposal, Lo
 			  and p.status = com.carrito.saas.repository.enums.ProposalStatus.PENDING
 			""")
 	int rejectIfPending(@Param("id") Long id, @Param("businessId") Long businessId, @Param("now") LocalDateTime now);
+
+	/**
+	 * The T7a.2 CONFIRM compare-and-set — the mechanism that makes "at most
+	 * one order per proposal" true: flips a proposal to CONFIRMED only if it
+	 * is still PENDING and belongs to the given business. Returns 1 when the
+	 * caller won the claim and 0 otherwise (the loser of a race must create
+	 * nothing). Runs in the SAME transaction as {@code createOrder}, so a
+	 * writer failure rolls the claim back and the proposal is PENDING again.
+	 *
+	 * <p>{@code updatedAt} is set EXPLICITLY ({@code @UpdateTimestamp} does
+	 * not fire for bulk JPQL) and {@code clearAutomatically} detaches the
+	 * stale managed entity — a bulk update bypasses the persistence context,
+	 * so nothing may be read from the detached entity afterwards: everything
+	 * the confirmation needs is resolved BEFORE this call.</p>
+	 */
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("""
+			update OrderProposal p
+			set p.status = com.carrito.saas.repository.enums.ProposalStatus.CONFIRMED, p.updatedAt = :now
+			where p.id = :id
+			  and p.business.id = :businessId
+			  and p.status = com.carrito.saas.repository.enums.ProposalStatus.PENDING
+			""")
+	int confirmIfPending(@Param("id") Long id, @Param("businessId") Long businessId, @Param("now") LocalDateTime now);
+
+	/**
+	 * Attributes the created order to the claimed proposal. The
+	 * {@code order_id IS NULL} guard makes the write idempotent; 0 rows means
+	 * the claim was lost or already attributed — the caller must fail the
+	 * transaction. Bulk JPQL again: the {@code order_id} is written HERE,
+	 * never by mutating the (detached) entity.
+	 */
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("""
+			update OrderProposal p
+			set p.status = com.carrito.saas.repository.enums.ProposalStatus.CONFIRMED, p.orderId = :orderId, p.updatedAt = :now
+			where p.id = :id and p.orderId is null
+			""")
+	int recordOrderId(@Param("id") Long id, @Param("orderId") Long orderId, @Param("now") LocalDateTime now);
 }
