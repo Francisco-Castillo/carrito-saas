@@ -68,9 +68,13 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "order_proposals",
-		uniqueConstraints = @UniqueConstraint(
-				name = "uq_order_proposals_message_id",
-				columnNames = "message_id"))
+		uniqueConstraints = {
+				@UniqueConstraint(
+						name = "uq_order_proposals_message_id",
+						columnNames = "message_id"),
+				@UniqueConstraint(
+						name = "uq_order_proposals_order_id",
+						columnNames = "order_id")})
 public class OrderProposal {
 
 	@Id
@@ -126,6 +130,38 @@ public class OrderProposal {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "business_id")
 	private Business business;
+
+	/**
+	 * The order created when the proposal is CONFIRMED (T7a.2); NULL until then,
+	 * and permanently NULL for REJECTED and FAILED proposals.
+	 *
+	 * <p><strong>What proves what.</strong> The property "a proposal produces AT
+	 * MOST ONE order" is carried by the conditional update (the CAS that flips
+	 * {@code status} PENDING → CONFIRMED in the same transaction as
+	 * {@code createOrder}), NOT by this constraint. This UNIQUE constraint proves
+	 * a different property: an order is not attributed to two proposals. It is
+	 * the structural backstop, declared as a NAMED constraint on the table —
+	 * never as {@code @Column(unique = true)}, which would yield TWO constraints
+	 * with one generated name (open gap 31).</p>
+	 *
+	 * <p><strong>Existing databases need the manual SQL — the annotation alone
+	 * is not the migration.</strong> There is no Flyway/Liquibase and
+	 * {@code ddl-auto: update} does not reliably add constraints to an existing
+	 * table, so — exactly as for {@code Business.slug} and
+	 * {@code Business.phone} — an already-populated database needs this SQL
+	 * applied by hand (an empty table gets the constraint from
+	 * {@code ddl-auto} at creation time):
+	 *
+	 * <pre>
+	 * ALTER TABLE order_proposals DROP CONSTRAINT IF EXISTS uq_order_proposals_order_id;
+	 * ALTER TABLE order_proposals ADD CONSTRAINT uq_order_proposals_order_id UNIQUE (order_id);
+	 * </pre></p>
+	 *
+	 * <p>No FK to {@code orders}: that would add deletion semantics nobody has
+	 * decided (see the feature document, eje 4).</p>
+	 */
+	@Column(name = "order_id")
+	private Long orderId;
 
 	@Enumerated(EnumType.STRING)
 	private ProposalStatus status;
