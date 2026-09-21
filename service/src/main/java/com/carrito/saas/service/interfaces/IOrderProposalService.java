@@ -3,6 +3,7 @@ package com.carrito.saas.service.interfaces;
 import java.util.List;
 
 import com.carrito.saas.dto.ConfirmProposalRequestDTO;
+import com.carrito.saas.dto.LineDecisionRequestDTO;
 import com.carrito.saas.dto.OrderDTO;
 import com.carrito.saas.dto.OrderProposalDTO;
 
@@ -54,5 +55,20 @@ public interface IOrderProposalService {
 	 * @return the created order as produced by {@code createOrder}
 	 */
 	OrderDTO confirmProposal(Long proposalId, Long businessId, ConfirmProposalRequestDTO request);
+
+	/**
+	 * Records the operator's decision on ONE line of a PENDING proposal
+	 * (T7b.1). Returns the updated proposal, freshly re-read after the write
+	 * (never a stale managed entity).
+	 *
+	 * <p>Status contract: 400 for a malformed REQUEST (missing
+	 * {@code action}, or {@code chosenName} present in the wrong direction);
+	 * 404 for a proposal (or line) that is missing or belongs to ANOTHER
+	 * business, never 403, so a foreign id is indistinguishable from a missing
+	 * one; 409 for every STATE conflict — a decided proposal, an illegal
+	 * action×resolution pair, or a chosen name that is not one of the stored
+	 * candidates or no longer resolves to exactly one live catalog item.</p>
+	 */
+	OrderProposalDTO decideLine(Long proposalId, Long itemId, Long businessId, LineDecisionRequestDTO request);
 
 }

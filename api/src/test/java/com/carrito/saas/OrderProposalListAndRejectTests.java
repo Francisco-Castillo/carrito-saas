@@ -64,8 +64,9 @@ import jakarta.persistence.PersistenceContext;
  *   <li>{@code confirmable} is false unless EVERY line is RESOLVED carrying
  *     exactly one of productId/comboId — each non-RESOLVED value is
  *     independently load-bearing;</li>
- *   <li>{@code candidates} is exposed VERBATIM (newline-joined candidate
- *     names, never parsed or reformatted).</li>
+ *   <li>{@code candidates} reaches the operator as {@code candidateNames}, a
+ *     LIST of names decoded by the single codec (T7b.1 contract change from
+ *     the T7a verbatim string — gap 55 closed).</li>
  * </ul>
  *
  * <p>MockMvc is assembled manually with
@@ -409,9 +410,11 @@ class OrderProposalListAndRejectTests {
 
 		mockMvc.perform(get("/api/business/proposals").header("Authorization", ownerA.authorizationHeader()))
 				.andExpect(status().isOk())
-				// VERBATIM: byte-identical, newline-joined, never parsed or
-				// reformatted.
-				.andExpect(jsonPath("$[0].items[0].candidates").value(candidates));
+				// T7b.1: the DTO field is now candidateNames, a decoded LIST of
+				// two names — the raw newline-joined text is no longer served.
+				.andExpect(jsonPath("$[0].items[0].candidateNames", hasSize(2)))
+				.andExpect(jsonPath("$[0].items[0].candidateNames[0]").value("Coca-Cola 500 ml"))
+				.andExpect(jsonPath("$[0].items[0].candidateNames[1]").value("Coca-Cola 2.25 L"));
 	}
 
 	// --- fixtures -------------------------------------------------------------

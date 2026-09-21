@@ -3,6 +3,7 @@ package com.carrito.saas.api;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.carrito.saas.dto.ConfirmProposalRequestDTO;
+import com.carrito.saas.dto.LineDecisionRequestDTO;
 import com.carrito.saas.dto.OrderDTO;
 import com.carrito.saas.dto.OrderProposalDTO;
 import com.carrito.saas.security.ISecurityService;
@@ -70,5 +72,18 @@ public class OrderProposalController {
 		OrderDTO order = orderProposalService.confirmProposal(id, securityService.getCurrentBusinessId(), request);
 		announcer.orderCreated(order);
 		return order;
+	}
+
+	/**
+	 * Records the operator's decision on ONE line (T7b.1). Same authorization
+	 * discipline as every method here: {@code businessId} comes ONLY from the
+	 * JWT, and the write is a CAS scoped by item, proposal, business and
+	 * PENDING status.
+	 */
+	@PatchMapping("/{id}/items/{itemId}")
+	public OrderProposalDTO decideLine(@PathVariable Long id, @PathVariable Long itemId,
+			@Valid @RequestBody LineDecisionRequestDTO request) {
+
+		return orderProposalService.decideLine(id, itemId, securityService.getCurrentBusinessId(), request);
 	}
 }

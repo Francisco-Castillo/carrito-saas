@@ -1,6 +1,7 @@
 package com.carrito.saas.repository.entity;
 
 import com.carrito.saas.repository.enums.ItemResolution;
+import com.carrito.saas.repository.enums.OperatorAction;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -120,4 +121,35 @@ public class OrderProposalItem {
 	 */
 	@Column(name = "candidates", columnDefinition = "text")
 	private String candidates;
+
+	/**
+	 * The action the operator took on this line (T7b.1); NULL until the
+	 * operator acts. Nullable so {@code ddl-auto} can ADD the column to an
+	 * already populated table without a backfill — every pre-existing line is
+	 * legitimately "no action yet".
+	 *
+	 * <p>Legality of the pairing action×resolution is enforced in ONE place
+	 * (the service's {@code isLegalAction}); see {@link OperatorAction}.</p>
+	 */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "operator_action")
+	private OperatorAction operatorAction;
+
+	/**
+	 * The candidate NAME the operator picked for an ambiguous line; NULL for
+	 * every other state. A NAME, never an id: the system never had the ids of
+	 * the stored candidates ({@code Ambiguous} carries names only), so there
+	 * is nothing else the choice could travel as.
+	 *
+	 * <p><strong>What {@code product_id}/{@code combo_id} mean once an action
+	 * exists</strong>: they already mean "the id this line would place" — the
+	 * normalizer fills them for {@code RESOLVED}/{@code SUGGESTED}, and the
+	 * OPERATOR'S CHOICE fills them for {@code AMBIGUOUS}: choosing IS the
+	 * resolution of the ambiguity, so a chosen line carries the id it resolved
+	 * to (re-resolved against the LIVE catalog by the service, never trusted
+	 * from the request). {@code chosen_name} is the audit of WHAT was chosen,
+	 * verifiable against {@code candidates}.</p>
+	 */
+	@Column(name = "chosen_name")
+	private String chosenName;
 }

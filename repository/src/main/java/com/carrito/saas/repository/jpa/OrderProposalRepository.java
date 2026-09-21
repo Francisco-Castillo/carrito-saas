@@ -11,6 +11,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.carrito.saas.repository.entity.OrderProposal;
+import com.carrito.saas.repository.entity.OrderProposalItem;
+import com.carrito.saas.repository.enums.OperatorAction;
 
 /**
  * Persistence for inbound message proposals (T4 + T5 of
@@ -126,4 +128,49 @@ public interface OrderProposalRepository extends JpaRepository<OrderProposal, Lo
 			""")
 	int recordOrderId(@Param("id") Long id, @Param("businessId") Long businessId, @Param("orderId") Long orderId,
 			@Param("now") LocalDateTime now);
+
+	/**
+	 * The T7b.1 per-line decision compare-and-set: records the operator's
+	 * action on ONE line only while the proposal is still PENDING and belongs
+	 * to the given business. The predicate is scoped by FOUR things, and each
+	 * one is load-bearing:
+	 *
+	 * <ul>
+	 *   <li>{@code i.id = :itemId} AND {@code i.proposal.id = :proposalId} — an
+	 *     item id alone is not enough: the same business may have several
+	 *     proposals and the item may belong to another one (tested:
+	 *     {@code OrderProposalLineDecisionTests
+	 *     #decidingAnItemOfTheSameBusinessButAnotherProposalIsNotFound});</li>
+	 *   <li>{@code proposal.business.id = :businessId} — the tenant scope; a
+	 *     foreign line is 404, never writable (tested cross-tenant);</li>
+	 *   <li>{@code proposal.status = PENDING} — a decided proposal is 409
+	 *     (tested with CONFIRMED and REJECTED).</li>
+	 * </ul>
+	 *
+	 * <p>0 rows means one of the four predicates failed; the caller distinguishes
+	 * foreign-or-missing (404) from decided (409) with a scoped read — never a
+	 * second CAS. The chosen line's ids are SET here (the CHOSEN resolution)
+	 * and passed through unchanged otherwise, so acceptance can never erase
+	 * the id a SUGGESTED line already carries. No timestamp column is written:
+	 * the line has none, and {@code @UpdateTimestamp} would not fire for bulk
+	 * JPQL anyway (same rule as the proposal CAS above).
+	 *
+	 * <p>{@code clearAutomatically} detaches the stale managed entities — a
+	 * bulk update bypasses the persistence context, so the caller re-reads
+	 * before serving a DTO.</p>
+	 */
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("""
+			update OrderProposalItem i
+			set i.operatorAction = :action, i.chosenName = :chosenName,
+				i.productId = :productId, i.comboId = :comboId
+			where i.id = :itemId
+			  and i.proposal.id = :proposalId
+			  and i.proposal.business.id = :businessId
+			  and i.proposal.status = com.carrito.saas.repository.enums.ProposalStatus.PENDING
+			""")
+	int decideLineIfPending(@Param("itemId") Long itemId, @Param("proposalId") Long proposalId,
+			@Param("businessId") Long businessId, @Param("action") OperatorAction action,
+			@Param("chosenName") String chosenName, @Param("productId") Long productId,
+			@Param("comboId") Long comboId);
 }

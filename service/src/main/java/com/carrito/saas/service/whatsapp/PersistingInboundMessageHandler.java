@@ -273,7 +273,8 @@ public class PersistingInboundMessageHandler implements IInboundMessageHandler {
 				case NormalizationResult.Ambiguous ambiguous -> {
 					item.setQuantity(ambiguous.quantity());
 					item.setRawLine(ambiguous.rawPhrase());
-					item.setCandidates(String.join("\n", ambiguous.candidateNames()));
+					// THE one encode point of the stored format (open gap 55).
+					item.setCandidates(ProposalCandidates.join(ambiguous.candidateNames()));
 					item.setResolution(ItemResolution.AMBIGUOUS);
 					catalogAttributable = true;
 				}
