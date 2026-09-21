@@ -108,17 +108,22 @@ public interface OrderProposalRepository extends JpaRepository<OrderProposal, Lo
 	int confirmIfPending(@Param("id") Long id, @Param("businessId") Long businessId, @Param("now") LocalDateTime now);
 
 	/**
-	 * Attributes the created order to the claimed proposal. The
-	 * {@code order_id IS NULL} guard makes the write idempotent; 0 rows means
-	 * the claim was lost or already attributed — the caller must fail the
-	 * transaction. Bulk JPQL again: the {@code order_id} is written HERE,
-	 * never by mutating the (detached) entity.
+	 * Attributes the created order to the claimed proposal OF THIS BUSINESS:
+	 * scoped by the proposal id, the business id, and the {@code order_id IS
+	 * NULL} guard, which makes the write idempotent. 0 rows means the claim
+	 * was lost, the proposal belongs to another business, or the order was
+	 * already attributed — the caller must fail the transaction. Bulk JPQL
+	 * again: the {@code order_id} is written HERE, never by mutating the
+	 * (detached) entity.
 	 */
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query("""
 			update OrderProposal p
 			set p.status = com.carrito.saas.repository.enums.ProposalStatus.CONFIRMED, p.orderId = :orderId, p.updatedAt = :now
-			where p.id = :id and p.orderId is null
+			where p.id = :id
+			  and p.business.id = :businessId
+			  and p.orderId is null
 			""")
-	int recordOrderId(@Param("id") Long id, @Param("orderId") Long orderId, @Param("now") LocalDateTime now);
+	int recordOrderId(@Param("id") Long id, @Param("businessId") Long businessId, @Param("orderId") Long orderId,
+			@Param("now") LocalDateTime now);
 }

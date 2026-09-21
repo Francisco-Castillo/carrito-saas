@@ -800,11 +800,18 @@ class OrderProposalConfirmationTests {
 	 * line→{@code OrderItemDTO} switch unreachable THROUGH the endpoint —
 	 * which also means the endpoint tests above cannot kill the "someone adds
 	 * a {@code default ->} that places the line" mutation by themselves. This
-	 * test reaches the mapping directly and pins its contract: every
-	 * non-RESOLVED line throws {@code IllegalStateException} instead of
-	 * producing an order line. Adding {@code default ->} that places the line
-	 * makes THIS test fail — the review obligation written on the switch has a
-	 * red net.
+	 * test reaches the mapping directly and pins its contract: EVERY value of
+	 * {@code ItemResolution} other than {@code RESOLVED} throws
+	 * {@code IllegalStateException} instead of producing an order line.
+	 *
+	 * <p>The truth about what this net does and does not catch, stated
+	 * honestly: iterating all values means that the day a NEW constant is
+	 * added to {@code ItemResolution} and a placing {@code default ->} arm
+	 * silently swallows it, THIS test goes red. It does NOT kill a dead
+	 * {@code default} arm added ALONGSIDE the exhaustive arms today — such an
+	 * arm is dead code today, so no behaviour test can reach it; that remains
+	 * an EXPLICIT REVIEW OBLIGATION written on the switch. (A source-text/AST
+	 * guard was considered and rejected as brittle.)</p>
 	 */
 	@Test
 	void theLineMappingRefusesToPlaceNonResolvedLinesEvenWithoutTheGate() throws Exception {
@@ -812,8 +819,10 @@ class OrderProposalConfirmationTests {
 		Method mapping = OrderProposalServiceImpl.class.getDeclaredMethod("toOrderItemDTO", OrderProposalItem.class);
 		mapping.setAccessible(true);
 
-		for (ItemResolution resolution : List.of(ItemResolution.SUGGESTED, ItemResolution.AMBIGUOUS,
-				ItemResolution.UNRESOLVED)) {
+		for (ItemResolution resolution : ItemResolution.values()) {
+			if (resolution == ItemResolution.RESOLVED) {
+				continue;
+			}
 
 			OrderProposalItem line = new OrderProposalItem();
 			line.setResolution(resolution);
@@ -828,5 +837,46 @@ class OrderProposalConfirmationTests {
 					.isInstanceOf(InvocationTargetException.class)
 					.hasRootCauseInstanceOf(IllegalStateException.class);
 		}
+	}
+
+	// --- structural: recordOrderId is scoped to the proposal's business -------
+
+	/**
+	 * The T7a.2 attribution write is tenant-scoped: it may only attribute an
+	 * order to a proposal OF the given business. This is pinned as a DIRECT
+	 * REPOSITORY probe, and that level is the point, not a shortcut: the
+	 * endpoint cannot reach this state — its only caller passes the proposal
+	 * id it just claimed under the caller's own tenant and takes no order-id
+	 * parameter from anywhere — so no HTTP test can exercise the missing
+	 * predicate. The hole lives in the repository signature, so the probe
+	 * lives there too, against the same query the service runs.
+	 *
+	 * <p>Positive control: attributing with A's OWN business id claims 1 row
+	 * and writes {@code order_id}. Negative control: B's business id on A's
+	 * proposal must claim 0 rows and write NOTHING — without the
+	 * {@code business_id} predicate the negative control claims 1 row and
+	 * attributes another business's proposal, and this test fails.</p>
+	 */
+	@Test
+	void recordOrderIdIsScopedToTheProposalsBusiness() {
+
+		Business businessA = businessRepository.findById(BUSINESS_A_ID).orElseThrow();
+
+		OrderProposal claimedA = save(seedProposal(businessA, ProposalStatus.CONFIRMED, PHONE, "Cliente Propio"));
+		OrderProposal foreignTargetA = save(seedProposal(businessA, ProposalStatus.CONFIRMED, PHONE, "Cliente Ajeno"));
+
+		// Positive control: the caller's own tenant claims exactly 1 row.
+		int positive = orderProposalRepository.recordOrderId(claimedA.getId(), BUSINESS_A_ID, 777_001L,
+				LocalDateTime.now());
+		assertThat(positive).isEqualTo(1);
+		assertThat(orderProposalRepository.findById(claimedA.getId()).orElseThrow().getOrderId())
+				.isEqualTo(777_001L);
+
+		// Negative control: a DIFFERENT business id on the SAME business's
+		// proposal must claim 0 rows and leave order_id untouched.
+		int negative = orderProposalRepository.recordOrderId(foreignTargetA.getId(), BUSINESS_B_ID, 777_002L,
+				LocalDateTime.now());
+		assertThat(negative).isZero();
+		assertThat(orderProposalRepository.findById(foreignTargetA.getId()).orElseThrow().getOrderId()).isNull();
 	}
 }

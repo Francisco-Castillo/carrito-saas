@@ -5,6 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,7 +75,6 @@ class OrderProposalConfirmationRollbackTests {
 	private static final Long BUSINESS_ID = 987_700_911L;
 	private static final String SLUG = "confirm-rollback";
 	private static final String USERNAME = "rollback-owner";
-	private static final String ROLE_NAME = "ROLLBACK-OWNER";
 
 	/**
 	 * Sender phone UNIQUE to this suite (open gap 39): fixtures, assertions
@@ -119,6 +120,18 @@ class OrderProposalConfirmationRollbackTests {
 
 	private MockMvc mockMvc;
 
+	/**
+	 * Ids of the role rows THIS run created (the seed's {@code OWNER} role
+	 * minus the {@code OWNER} ids that already existed before seeding),
+	 * captured in {@code setUp}. Cleanup deletes exactly these ids and
+	 * nothing else: other suites and demo data share the name {@code OWNER},
+	 * so deletion by bare name would remove rows this suite does not own
+	 * (the exact residue bug classes of gaps 39/40). Null until seeding has
+	 * run, so the pre-seed invocation of {@code cleanOwnRows} is a no-op for
+	 * roles.
+	 */
+	private Set<Long> ownRoleIds;
+
 	@Autowired
 	void setUpTransactionTemplate(PlatformTransactionManager transactionManager) {
 
@@ -134,8 +147,19 @@ class OrderProposalConfirmationRollbackTests {
 				.addFilters(springSecurityFilterChain)
 				.build();
 
+		// Capture BEFORE seeding so only the ids created by THIS run are
+		// deletable afterwards (open gap 39: delete only what you own).
+		Set<Long> preExisting = new HashSet<>(entityManager.createQuery(
+					"select r.id from Role r where r.name = 'OWNER'", Long.class)
+				.getResultList());
+
 		BusinessAuthSeed.seedOwner(businessRepository, userRepository, roleRepository,
 				businessUserRepository, jwtUtil, BUSINESS_ID, SLUG, USERNAME);
+
+		ownRoleIds = new HashSet<>(entityManager.createQuery(
+					"select r.id from Role r where r.name = 'OWNER'", Long.class)
+				.getResultList());
+		ownRoleIds.removeAll(preExisting);
 	}
 
 	@AfterEach
@@ -173,7 +197,17 @@ class OrderProposalConfirmationRollbackTests {
 					.setParameter("bid", BUSINESS_ID)
 					.executeUpdate();
 			userRepository.findByUsername(USERNAME).ifPresent(userRepository::delete);
-			roleRepository.findByName(ROLE_NAME).ifPresent(roleRepository::delete);
+			// Entity-based deletes (user + its user_roles join rows) execute at
+			// flush; the bulk role delete below would not trigger that flush by
+			// itself (query-space AUTO flush does not overlap), so flush NOW or
+			// the FK from user_roles makes the role delete fail.
+			entityManager.flush();
+			if (ownRoleIds != null && !ownRoleIds.isEmpty()) {
+				entityManager.createQuery(
+						"DELETE FROM Role r WHERE r.id in :ids")
+					.setParameter("ids", ownRoleIds)
+					.executeUpdate();
+			}
 			entityManager.createQuery(
 					"DELETE FROM Business b WHERE b.id = :bid")
 					.setParameter("bid", BUSINESS_ID)

@@ -172,9 +172,11 @@ public class OrderProposalServiceImpl implements IOrderProposalService {
 		// 6. The single writer.
 		OrderDTO order = orderService.createOrder(slug, orderRequest);
 
-		// 7. Attribute the order; 0 rows means the claim was lost or already
-		// attributed — fail the whole transaction.
-		int recorded = orderProposalRepository.recordOrderId(proposalId, order.getOrderId(), LocalDateTime.now());
+		// 7. Attribute the order, scoped to THIS business; 0 rows means the
+		// claim was lost, the proposal is not this business's, or the order
+		// was already attributed — fail the whole transaction.
+		int recorded = orderProposalRepository.recordOrderId(proposalId, businessId, order.getOrderId(),
+				LocalDateTime.now());
 		if (recorded == 0) {
 			throw new IllegalStateException(
 					"Proposal %d lost its claim before order attribution".formatted(proposalId));
