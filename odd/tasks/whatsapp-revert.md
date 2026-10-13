@@ -96,10 +96,13 @@ A reviewer must be able to tell these survivors from an incomplete removal:
 
 ## Follow-ups (out of scope for this revert)
 
-1. Existing databases keep the orphan `order_proposals` / `order_proposal_items` tables
-   created by `ddl-auto: update`. Nothing maps them any more, so `ddl-auto` will never
-   recreate them, and no code reads them. Dropping them is a separate DB decision; the
-   exact statement, in dependency order, is:
+1. **Closed (2026-10-13) — nothing to drop.** The feature never reached production, and the
+   only database that ever held these tables was a development database that no longer exists
+   or lives on a different machine. A fresh database cannot recreate them either: no entity
+   maps `order_proposals` / `order_proposal_items` any more, so `ddl-auto` never emits them
+   and no code reads them. The statement below is kept as a **rescue note** in case that old
+   database ever reappears, not as pending work. Dropping `order_proposals` also drops its
+   UNIQUE `uq_order_proposals_message_id`. In dependency order:
 
    ```sql
    -- 0. Confirm these are the orphans and see what is inside them before touching anything.
@@ -116,9 +119,10 @@ A reviewer must be able to tell these survivors from an incomplete removal:
    COMMIT;
    ```
 
-   Dropping `order_proposals` also drops its UNIQUE `uq_order_proposals_message_id`. This
-   was never run by the agent: the host has no PostgreSQL client and nothing listening on
-   port 5432, and the development database lives outside this environment.
+   Never run by the agent, and no longer required: this host has no PostgreSQL client and
+   nothing listening on port 5432, and the development database lives outside this
+   environment. Kept only so that whoever meets that old schema has the exact statement,
+   without having to rediscover the FK order.
 2. The `businesses.phone` CHECK/UNIQUE constraints stay, and their missing tests were
    closed separately: `BusinessPhoneIntegrityTests` pins both, with sensitivity proven by
    mutation (see `odd/tasks/phone-constraint-tests.md`, PR #3). Revisit the constraints
