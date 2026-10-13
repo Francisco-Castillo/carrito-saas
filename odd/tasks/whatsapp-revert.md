@@ -97,10 +97,32 @@ A reviewer must be able to tell these survivors from an incomplete removal:
 ## Follow-ups (out of scope for this revert)
 
 1. Existing databases keep the orphan `order_proposals` / `order_proposal_items` tables
-   created by `ddl-auto: update`. Dropping them needs an explicit DB decision.
-2. The `businesses.phone` CHECK/UNIQUE constraints stay; the reviewer noted they have no
-   test in the surviving suite (`R3-untested-schema-constraints`, advisory). Revisit only
-   if the phone field itself is repurposed away from WhatsApp.
+   created by `ddl-auto: update`. Nothing maps them any more, so `ddl-auto` will never
+   recreate them, and no code reads them. Dropping them is a separate DB decision; the
+   exact statement, in dependency order, is:
+
+   ```sql
+   -- 0. Confirm these are the orphans and see what is inside them before touching anything.
+   SELECT 'order_proposals' AS tabla, count(*) FROM order_proposals
+   UNION ALL
+   SELECT 'order_proposal_items', count(*) FROM order_proposal_items;
+
+   -- 1. order_proposal_items holds the FK (proposal_id) into order_proposals(id),
+   --    so it goes first. Deliberately no CASCADE: if anything else depends on them,
+   --    you want to hear about it rather than lose it silently.
+   BEGIN;
+   DROP TABLE order_proposal_items;
+   DROP TABLE order_proposals;
+   COMMIT;
+   ```
+
+   Dropping `order_proposals` also drops its UNIQUE `uq_order_proposals_message_id`. This
+   was never run by the agent: the host has no PostgreSQL client and nothing listening on
+   port 5432, and the development database lives outside this environment.
+2. The `businesses.phone` CHECK/UNIQUE constraints stay, and their missing tests were
+   closed separately: `BusinessPhoneIntegrityTests` pins both, with sensitivity proven by
+   mutation (see `odd/tasks/phone-constraint-tests.md`, PR #3). Revisit the constraints
+   only if the phone field itself is repurposed away from WhatsApp.
 3. Module `service` has **zero** tests in CI (`No tests to run`), so the surviving pipeline
    is exercised only through the API layer.
 4. Advisory non-blocking findings raised along the chain: coverage lost by deleting the
