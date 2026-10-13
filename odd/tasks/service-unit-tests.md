@@ -62,7 +62,7 @@ pinning:
 | T2 | Write `ProductInsightServiceTest` | done |
 | T3 | CI green on the feature branch | done |
 | T4 | Sensitivity: a mutation on a branch condition must fail its test | done |
-| T5 | Native review and PR decision | pending |
+| T5 | Native review and PR decision | review approved + burned; PR pending |
 
 ## Evidence
 
@@ -113,3 +113,11 @@ strictly positive" convention are genuinely pinned rather than incidentally asse
   `repository`, `dto`, `security` and `jobs` still report `No tests to run`.
 - No local execution: all evidence is CI logs. The mutation runs abort at the `service` module,
   so the 57 `api` tests were skipped in those two runs and carry no signal there.
+
+### T5 — native review
+
+- Candidate: the test class plus this plan (`d0f74fa`), 2 files, 236 changed lines, tier `medium`,
+  one `review-reliability` lens. Outcome: **approved**, receipt confirmed (`authority: burned`).
+- One non-blocking SUGGESTION, `R3-nan-boundary-unpinned`, which independently matches the gap this
+  plan records as deliberate: `NaN` inputs are unhandled and the method returns `NEUTRAL` by
+  accident rather than by decision. Left as a documented gap, deliberately not pinned.
