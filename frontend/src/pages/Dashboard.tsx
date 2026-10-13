@@ -1,13 +1,7 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import "./Dashboard.css";
-import { api } from "./dashboard/api";
-import { checkAuth, enforceSession, hasUsableSession, logout } from "./dashboard/auth";
-import type {
-  DashboardToday,
-  OrderStatusSummary,
-  SalesByHour,
-  TopProduct,
-} from "./dashboard/api";
+import { hasUsableSession, enforceSession, logout } from "./dashboard/auth";
+import { useDashboardData } from "./dashboard/useDashboardData";
 import KpiCards from "./dashboard/KpiCards";
 import OrderStatusCards from "./dashboard/OrderStatusCards";
 import SalesChart from "./dashboard/SalesChart";
@@ -24,42 +18,10 @@ export default function Dashboard() {
     }
   }, [sessionUsable]);
 
-  const [today, setToday] = useState<DashboardToday | null>(null);
-  const [status, setStatus] = useState<OrderStatusSummary | null>(null);
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
-  const [salesByHour, setSalesByHour] = useState<SalesByHour[] | null>(null);
-  const [date, setDate] = useState("");
-
-  useEffect(() => {
-    if (!sessionUsable) return;
-
-    // initDashboard() del legacy: checkAuth primero, luego loads en paralelo.
-    // Los catch reproducen los console.error del legacy: sin datos, la UI
-    // conserva los valores iniciales en vez de romper la página.
-    checkAuth();
-
-    setDate(new Date().toLocaleDateString("es-ES"));
-
-    api
-      .getDashboardToday()
-      .then(setToday)
-      .catch((e) => console.error("Error cargando dashboard", e));
-
-    api
-      .getOrderStatusSummary()
-      .then(setStatus)
-      .catch((e) => console.error("Error cargando estados", e));
-
-    api
-      .getTopProducts()
-      .then(setTopProducts)
-      .catch((e) => console.error("Error cargando top productos", e));
-
-    api
-      .getSalesByHour()
-      .then(setSalesByHour)
-      .catch((e) => console.error("Error cargando grafico", e));
-  }, [sessionUsable]);
+  // initDashboard() del legacy: checkAuth primero, luego loads en paralelo
+  // (hook compartido con la sección embebida del admin).
+  const { today, status, topProducts, salesByHour, date } =
+    useDashboardData(sessionUsable);
 
   if (!sessionUsable) {
     // Redirect en curso: no renderizamos la página sin sesión.
