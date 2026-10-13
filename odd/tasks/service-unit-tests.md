@@ -59,9 +59,9 @@ pinning:
 | id | task | status |
 |----|------|--------|
 | T1 | Choose the target and prove it is pure and uncovered | done |
-| T2 | Write `ProductInsightServiceTest` | pending |
-| T3 | CI green on the feature branch | pending |
-| T4 | Sensitivity: a mutation on a branch condition must fail its test | pending |
+| T2 | Write `ProductInsightServiceTest` | done |
+| T3 | CI green on the feature branch | done |
+| T4 | Sensitivity: a mutation on a branch condition must fail its test | done |
 | T5 | Native review and PR decision | pending |
 
 ## Evidence
@@ -79,3 +79,37 @@ pinning:
   (a test cannot stop that drift); `ProductSpecification.hasStock()` needs Mockito mocks of
   the JPA criteria API, so it is not a first unit test; `MenuUrlBuilder.buildMenuUrl` is
   already unit-tested from `api`.
+
+### T2–T3 — the test and the module finally reporting tests (`d0f7e7f`)
+
+- CI run `38439471621` on `test-service-insight`: **success**, all 8 reactor modules SUCCESS.
+- The `service` module stopped reporting `No tests to run`:
+  `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0 ... -- in com.carrito.saas.service.impl.ProductInsightServiceTest`.
+- Totals: **63 tests / 19 classes** (6 service + 57 api). Maven prints per-module totals only,
+  so 63 is a derived sum, not a printed global total.
+
+### T4 — sensitivity by mutation (observed, not argued)
+
+Two throwaway branches, each changing exactly one comparison in `ProductInsightService`:
+
+| mutation branch | change | CI run | result | attribution |
+|---|---|---|---|---|
+| `mutation-flat-trend` | CRITICAL branch `trend < 0` → `trend <= 0` | `38439543704` | failure | **only** `flatTrendIsNeutralWhateverThePrediction` fails: `expected: NEUTRAL but was: CRITICAL` |
+| `mutation-growth-convention` | BOOST branch `prediction > 0` → `prediction >= 0` | `38440374941` | failure | **only** `risingTrendExpectedToFallIsUnstable` fails: `expected: UNSTABLE but was: BOOST` |
+
+Both mutations were confined to their single expected test (the other 5 service tests passed),
+and both branches were deleted after use. So the flat-trend boundary and the "growth means
+strictly positive" convention are genuinely pinned rather than incidentally asserted.
+
+### Deliberately not proven
+
+- **`NaN` / infinite inputs are not pinned.** Today every comparison against `NaN` is false,
+  so the method returns `NEUTRAL` by accident. Locking that in would convert an undiscovered
+  gap into a requirement.
+- **A trend of exactly `0` swallows the prediction** and returns `NEUTRAL` even with a strongly
+  negative prediction. Pinned as today's contract, flagged as a product question in the test
+  javadoc; changing it belongs in its own change.
+- Only this one class is covered now: the rest of `service` still has no tests, and `common`,
+  `repository`, `dto`, `security` and `jobs` still report `No tests to run`.
+- No local execution: all evidence is CI logs. The mutation runs abort at the `service` module,
+  so the 57 `api` tests were skipped in those two runs and carry no signal there.
