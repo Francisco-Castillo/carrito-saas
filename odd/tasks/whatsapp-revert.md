@@ -48,7 +48,13 @@ switch. Line counts are the candidate's deletion count.
 | S2 | `4b3a519` | signature verifier, Meta translator + payload, handler contract, `PersistingInboundMessageHandler` | 667 | run 38412548109 success | `review-f0f0b2db768940a8` approved + burned |
 | S3 | `c401d25` | text normalizer (`TextOrderNormalizer`, `TextNormalization`, `NormalizedLine`, `NormalizationResult`) + its suite | 1629 | run 38418499893 success (76 tests / 20 classes) | `review-97e851467fc6dc5a` approved + burned |
 | S4 | `3698882` | phone resolution, `WhatsappProperties`, `application.yml` block, `libphonenumber`, `BusinessRepository` finder, three suites, plus the `Business.java` javadoc cleanup | 1197 | run 38418507375 success (53 tests / 17 classes) | `review-ee65ac40f4a8cf9a` approved + burned |
-| S5 | this commit | proposal model (`OrderProposal`, `OrderProposalItem`, `ProposalStatus`, `ItemResolution`, `OrderProposalRepository`), the feature's task doc and simulator, and this plan update | 1030 | pending | pending |
+| S5 | `d16d37a` | proposal model (`OrderProposal`, `OrderProposalItem`, `ProposalStatus`, `ItemResolution`, `OrderProposalRepository`), the feature's task doc and simulator, and this plan update | 1208 | runs 38423746484 and 38423751665 success (53 tests / 17 classes) | `review-d8d6b43ee956c427` approved + burned |
+
+All five candidates were approved and their receipts confirmed (`authority: burned` for each).
+The first version of S5 (`f119747`, lineage `review-638941ae97871071`) escalated with
+`R3-partial-feature-removal`; it was superseded by the version above, which carries the scope
+boundary inside the diff. The reviewer then read that boundary and raised only advisory
+suggestions, so the intent is legible from the candidate alone.
 
 Per-stage CI is a real gate, not a formality: the host has no JDK and no Maven, so each
 stage was pushed to a temporary branch and built with
