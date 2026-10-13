@@ -54,9 +54,9 @@ failing: nothing pins them.
 | id | task | status |
 |----|------|--------|
 | T1 | Pin the contract and its evidence (exploration) | done |
-| T2 | Write `BusinessPhoneIntegrityTests` | pending |
-| T3 | CI green on the feature branch | pending |
-| T4 | Mutation runs: dropping each constraint must fail its test | pending |
+| T2 | Write `BusinessPhoneIntegrityTests` | done |
+| T3 | CI green on the feature branch | done |
+| T4 | Mutation runs: dropping each constraint must fail its test | done |
 | T5 | Report, then decide about a PR | pending |
 
 ## Evidence
@@ -74,3 +74,37 @@ failing: nothing pins them.
   (106 lines) pins the analogous `slug` contract, and its log evidence in CI shows
   `duplicate key value violates unique constraint "uq_businesses_slug"`, proving the named
   UNIQUE constraints do exist in the CI database.
+
+### T2–T3 — the test and its green run (`f04998f`)
+
+- One new class, `BusinessPhoneIntegrityTests`, four tests: duplicate phone rejected with
+  SQLState 23505, decorated local form rejected with 23514, two NULL phones both persist,
+  and a canonical phone accepted and read back unchanged.
+- CI run `38427730278` on `test-phone-constraints`: **success**. `Tests run: 57, Failures: 0,
+  Errors: 0, Skipped: 0` — 53 + 4 tests, 18 classes — with the two constraints observed
+  firing in the log: `violates check constraint "businesses_phone_shape"` (SQLState 23514)
+  and `duplicate key value violates unique constraint "uq_businesses_phone"` (SQLState 23505).
+- Useful side effect: the green run **proves the CHECK is emitted by `ddl-auto` when the
+  table is created**, which previously rested on the hand-applied SQL of an existing
+  database. So a fresh environment does start with the constraint in place.
+
+### T4 — sensitivity by mutation (observed, not argued)
+
+Two throwaway branches, each with exactly one constraint removed, were pushed and built:
+
+| mutation branch | removed from `Business.java` | CI run | result | attribution |
+|---|---|---|---|---|
+| `mutation-no-check` | `@Column(check = @CheckConstraint("businesses_phone_shape" ...))` | `38427803997` | failure | **only** `databaseRejectsNonCanonicalPhoneShape` fails (1 of 57); no 23514 observed, the insert succeeded |
+| `mutation-no-unique-phone` | `@UniqueConstraint(name = "uq_businesses_phone" ...)` | `38431999375` | failure | **only** `databaseRejectsDuplicateBusinessPhone` fails (1 of 57); no `uq_businesses_phone` violation observed |
+
+So each constraint is pinned by its own test, with no collateral damage: the two mutations
+left `nullPhonesDoNotCollide`, `canonicalPhoneIsAccepted` and the other 17 classes green.
+Both mutation branches are throwaway and were deleted.
+
+### Not proven
+
+- The CHECK regex is pinned for the decorated-local-form case and the canonical case, not
+  against an exhaustive phone-format corpus: a value that satisfies
+  `^[1-9][0-9]{7,14}$` but is not a real subscriber number still passes.
+- The constraints' presence in an **existing** production database still depends on the
+  hand-applied SQL documented in `Business.phone`; the repository has no migrations.
