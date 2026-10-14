@@ -594,27 +594,59 @@
 }
 
 .admin-profile-day {
-  display: grid;
-  grid-template-columns: 88px 1fr 1fr auto;
-  align-items: center;
-  gap: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.admin-profile-day:last-child {
+  border-bottom: none;
 }
 
 .admin-profile-day--closed {
   opacity: 0.6;
 }
 
+.admin-profile-day-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .admin-profile-day-name {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
+  min-width: 88px;
+}
+
+.admin-profile-day-add {
+  margin-left: auto;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
 }
 
 .admin-profile-day-closed {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
   font-size: var(--font-size-sm);
-  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.admin-profile-shift {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.admin-profile-shift-remove {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--error);
+}
+
+.admin-profile-shift-remove:hover {
+  background: rgba(248, 113, 113, 0.12);
 }
 
 .admin-profile-error {
@@ -646,12 +678,17 @@
 }
 
 @media (max-width: 560px) {
-  .admin-profile-day {
+  .admin-profile-shift {
     grid-template-columns: 1fr 1fr;
   }
 
   .admin-profile-day-name,
-  .admin-profile-day-closed {
-    grid-column: 1 / -1;
+  .admin-profile-shift-remove,
+  .admin-profile-day-add {
+    grid-column: auto;
+  }
+
+  .admin-profile-day-name {
+    min-width: 0;
   }
 }

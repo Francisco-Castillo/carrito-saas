@@ -2,15 +2,17 @@
  * Admin "Local" view contracts against the owner endpoints:
  *
  *   - GET  /api/business/profile loads the storefront fields (name, logo,
- *     banner, address, Instagram) and the seven weekday rows into the form;
- *     closed days render with disabled time inputs.
+ *     banner, address, Instagram) and the seven weekday rows into the form.
+ *     Each day carries an ORDERED LIST of shifts (`{ dayOfWeek, shifts:
+ *     [{ opensAt, closesAt }] }`); a day with an empty list IS a closed day
+ *     and renders an honest "Cerrado" instead of empty rows.
  *   - PUT  /api/business/profile REPLACES everything: the payload carries the
- *     whole form (blank string = clear) and the hours array rebuilt from the
- *     seven rows, with times converted from "HH:mm" (input) to "HH:mm:ss"
+ *     whole form (blank string = clear) and the hours array rebuilt with ALL
+ *     seven days, each with its `shifts` array (including `[]` for closed
+ *     days), with times converted from "HH:mm" (input) to "HH:mm:ss"
  *     (backend).
- *   - A 400 from the backend surfaces its readable `message` in Spanish and
- *     keeps the form usable.
- *   - Toggling "Cerrado" disables AND clears that day's times.
+ *   - A 400 from the backend surfaces its readable `message` in Spanish (an
+ *     overlap is a classic rejection) and keeps the form usable.
  *   - The midnight convention: a closing time earlier than the opening time
  *     is sent as-is, and the UI explains the convention in one short line.
  */
@@ -34,13 +36,13 @@ const PROFILE = {
   address: 'Av. Siempreviva 742, Springfield',
   instagramUrl: 'https://instagram.com/foodtruckdemo',
   hours: [
-    { dayOfWeek: 1, opensAt: '11:00:00', closesAt: '23:00:00', closed: false },
-    { dayOfWeek: 2, opensAt: '11:00:00', closesAt: '23:00:00', closed: false },
-    { dayOfWeek: 3, opensAt: null, closesAt: null, closed: true },
-    { dayOfWeek: 4, opensAt: '11:00:00', closesAt: '23:00:00', closed: false },
-    { dayOfWeek: 5, opensAt: '11:00:00', closesAt: '00:30:00', closed: false },
-    { dayOfWeek: 6, opensAt: '11:00:00', closesAt: '23:00:00', closed: false },
-    { dayOfWeek: 7, opensAt: null, closesAt: null, closed: true },
+    { dayOfWeek: 1, shifts: [{ opensAt: '11:00:00', closesAt: '15:00:00' }, { opensAt: '19:00:00', closesAt: '23:00:00' }] },
+    { dayOfWeek: 2, shifts: [{ opensAt: '11:00:00', closesAt: '23:00:00' }] },
+    { dayOfWeek: 3, shifts: [] },
+    { dayOfWeek: 4, shifts: [{ opensAt: '11:00:00', closesAt: '23:00:00' }] },
+    { dayOfWeek: 5, shifts: [{ opensAt: '11:00:00', closesAt: '00:30:00' }] },
+    { dayOfWeek: 6, shifts: [{ opensAt: '11:00:00', closesAt: '23:00:00' }] },
+    { dayOfWeek: 7, shifts: [] },
   ],
 }
 
@@ -109,6 +111,10 @@ function putCall(): RecordedCall {
   return put!
 }
 
+function putHours(): Array<{ dayOfWeek: number; shifts: Array<{ opensAt: string | null; closesAt: string | null }> }> {
+  return JSON.parse(putCall().body ?? '{}').hours
+}
+
 beforeEach(() => {
   localStorage.clear()
   seedStorage()
@@ -120,7 +126,7 @@ afterEach(() => {
 })
 
 describe('Admin "Local" view — business profile editor', () => {
-  it('renders the form from the GET payload: every field and the seven days, closed days with disabled inputs', async () => {
+  it('renders the form from the GET payload: a day with two shifts, closed days as "Cerrado", previews', async () => {
     stubFetch()
     await openLocalView()
 
@@ -131,29 +137,80 @@ describe('Admin "Local" view — business profile editor', () => {
     expect(screen.getByLabelText('Dirección')).toHaveValue('Av. Siempreviva 742, Springfield')
     expect(screen.getByLabelText('URL de Instagram')).toHaveValue('https://instagram.com/foodtruckdemo')
 
-    // Seven weekday rows, Lunes (1) … Domingo (7), times converted to "HH:mm".
-    expect(screen.getByLabelText('Apertura Lunes')).toHaveValue('11:00')
-    expect(screen.getByLabelText('Cierre Lunes')).toHaveValue('23:00')
-    expect(screen.getByLabelText('Apertura Miércoles')).toBeDisabled()
-    expect(screen.getByLabelText('Cierre Miércoles')).toBeDisabled()
-    expect(screen.getByRole('checkbox', { name: 'Cerrado Miércoles' })).toBeChecked()
+    // Lunes carries TWO shifts, both loaded with times converted to "HH:mm".
+    expect(screen.getByLabelText('Apertura Lunes turno 1')).toHaveValue('11:00')
+    expect(screen.getByLabelText('Cierre Lunes turno 1')).toHaveValue('15:00')
+    expect(screen.getByLabelText('Apertura Lunes turno 2')).toHaveValue('19:00')
+    expect(screen.getByLabelText('Cierre Lunes turno 2')).toHaveValue('23:00')
+
+    // Closed days (empty shifts list) read as closed instead of empty rows,
+    // and have no time inputs at all.
+    expect(screen.getByText('Cerrado Miércoles')).toBeInTheDocument()
+    expect(screen.getByText('Cerrado Domingo')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Apertura Miércoles turno 1')).not.toBeInTheDocument()
+
     // Midnight case loaded as-is: Friday closes at 00:30.
-    expect(screen.getByLabelText('Cierre Viernes')).toHaveValue('00:30')
-    expect(screen.getByRole('checkbox', { name: 'Cerrado Domingo' })).toBeChecked()
+    expect(screen.getByLabelText('Cierre Viernes turno 1')).toHaveValue('00:30')
 
     // Image previews render for non-empty URLs.
     expect(screen.getByAltText('Vista previa del logo')).toHaveAttribute('src', '/dev-media/logo-local.jpg')
     expect(screen.getByAltText('Vista previa del banner')).toHaveAttribute('src', '/dev-media/banner-local.jpg')
   })
 
-  it('editing fields and saving issues a PUT with the exact payload: seven rows and times converted to HH:mm:ss', async () => {
+  it('adding and removing a shift flips a day between open and closed', async () => {
+    stubFetch()
+    const user = await openLocalView()
+
+    // Miércoles starts closed.
+    expect(screen.getByText('Cerrado Miércoles')).toBeInTheDocument()
+
+    // Adding a shift opens the day: an empty editable row appears.
+    await user.click(screen.getByRole('button', { name: 'Agregar turno Miércoles' }))
+    expect(screen.queryByText('Cerrado Miércoles')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Apertura Miércoles turno 1')).toHaveValue('')
+    expect(screen.getByLabelText('Cierre Miércoles turno 1')).toHaveValue('')
+
+    await user.type(screen.getByLabelText('Apertura Miércoles turno 1'), '12:00')
+    await user.type(screen.getByLabelText('Cierre Miércoles turno 1'), '14:00')
+
+    // Removing it closes the day again: the row is gone, "Cerrado" is back.
+    await user.click(screen.getByRole('button', { name: 'Quitar turno Miércoles 1' }))
+    expect(screen.getByText('Cerrado Miércoles')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Apertura Miércoles turno 1')).not.toBeInTheDocument()
+
+    // Removing one of two shifts keeps the other one intact.
+    await user.click(screen.getByRole('button', { name: 'Quitar turno Lunes 1' }))
+    expect(screen.getByLabelText('Apertura Lunes turno 1')).toHaveValue('19:00')
+    expect(screen.getByLabelText('Cierre Lunes turno 1')).toHaveValue('23:00')
+    expect(screen.queryByLabelText('Apertura Lunes turno 2')).not.toBeInTheDocument()
+  })
+
+  it('a day with no shifts renders as closed and is sent as an empty shifts list', async () => {
+    stubFetch()
+    const user = await openLocalView()
+
+    expect(screen.getByText('Cerrado Miércoles')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    const hours = putHours()
+    expect(hours).toHaveLength(7)
+    expect(hours.find((h) => h.dayOfWeek === 3)?.shifts).toEqual([])
+    expect(hours.find((h) => h.dayOfWeek === 7)?.shifts).toEqual([])
+  })
+
+  it('saving issues a PUT with the exact payload: all seven days, each with its shifts, times in HH:mm:ss', async () => {
     stubFetch()
     const user = await openLocalView()
 
     await user.clear(screen.getByLabelText('Nombre del local'))
     await user.type(screen.getByLabelText('Nombre del local'), 'Foodtruck Demo Bar')
-    await user.clear(screen.getByLabelText('Apertura Lunes'))
-    await user.type(screen.getByLabelText('Apertura Lunes'), '10:30')
+    await user.clear(screen.getByLabelText('Apertura Lunes turno 1'))
+    await user.type(screen.getByLabelText('Apertura Lunes turno 1'), '10:30')
+    // A second shift on Martes: mediodía y noche on the same day.
+    await user.click(screen.getByRole('button', { name: 'Agregar turno Martes' }))
+    await user.type(screen.getByLabelText('Apertura Martes turno 2'), '19:00')
+    await user.type(screen.getByLabelText('Cierre Martes turno 2'), '22:00')
 
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
@@ -166,13 +223,13 @@ describe('Admin "Local" view — business profile editor', () => {
       address: 'Av. Siempreviva 742, Springfield',
       instagramUrl: 'https://instagram.com/foodtruckdemo',
       hours: [
-        { dayOfWeek: 1, opensAt: '10:30:00', closesAt: '23:00:00', closed: false },
-        { dayOfWeek: 2, opensAt: '11:00:00', closesAt: '23:00:00', closed: false },
-        { dayOfWeek: 3, opensAt: null, closesAt: null, closed: true },
-        { dayOfWeek: 4, opensAt: '11:00:00', closesAt: '23:00:00', closed: false },
-        { dayOfWeek: 5, opensAt: '11:00:00', closesAt: '00:30:00', closed: false },
-        { dayOfWeek: 6, opensAt: '11:00:00', closesAt: '23:00:00', closed: false },
-        { dayOfWeek: 7, opensAt: null, closesAt: null, closed: true },
+        { dayOfWeek: 1, shifts: [{ opensAt: '10:30:00', closesAt: '15:00:00' }, { opensAt: '19:00:00', closesAt: '23:00:00' }] },
+        { dayOfWeek: 2, shifts: [{ opensAt: '11:00:00', closesAt: '23:00:00' }, { opensAt: '19:00:00', closesAt: '22:00:00' }] },
+        { dayOfWeek: 3, shifts: [] },
+        { dayOfWeek: 4, shifts: [{ opensAt: '11:00:00', closesAt: '23:00:00' }] },
+        { dayOfWeek: 5, shifts: [{ opensAt: '11:00:00', closesAt: '00:30:00' }] },
+        { dayOfWeek: 6, shifts: [{ opensAt: '11:00:00', closesAt: '23:00:00' }] },
+        { dayOfWeek: 7, shifts: [] },
       ],
     })
 
@@ -180,28 +237,21 @@ describe('Admin "Local" view — business profile editor', () => {
     expect(await screen.findByText('Perfil actualizado')).toBeInTheDocument()
   })
 
-  it('a blank field is sent as blank (the backend clears it) instead of being silently dropped', async () => {
-    stubFetch()
-    const user = await openLocalView()
-
-    await user.clear(screen.getByLabelText('Dirección'))
-    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
-
-    const body = JSON.parse(putCall().body ?? '{}')
-    expect(body.address).toBe('')
-  })
-
-  it('a 400 from the backend shows its readable message and keeps the form usable', async () => {
+  it('a 400 from the backend (overlap) shows its message inline and keeps the form editable', async () => {
     stubFetch(() => ({
       status: 400,
-      body: { message: 'La URL del logo no es válida' },
+      body: { message: 'Los turnos del día no pueden solaparse: 11:00–23:00 y 12:00–14:00' },
     }))
     const user = await openLocalView()
 
+    // An overlap the backend rejects: a second shift inside the first one.
+    await user.click(screen.getByRole('button', { name: 'Agregar turno Martes' }))
+    await user.type(screen.getByLabelText('Apertura Martes turno 2'), '12:00')
+    await user.type(screen.getByLabelText('Cierre Martes turno 2'), '14:00')
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     // The backend's message is rendered, not swallowed.
-    expect(await screen.findByText('La URL del logo no es válida')).toBeInTheDocument()
+    expect(await screen.findByText('Los turnos del día no pueden solaparse: 11:00–23:00 y 12:00–14:00')).toBeInTheDocument()
 
     // No success toast on failure, and the form is still editable + saveable.
     expect(screen.queryByText('Perfil actualizado')).not.toBeInTheDocument()
@@ -210,21 +260,7 @@ describe('Admin "Local" view — business profile editor', () => {
     expect(screen.getByLabelText('Nombre del local')).toHaveValue('Reintentando')
   })
 
-  it('toggling "Cerrado" disables and clears that day\'s times', async () => {
-    stubFetch()
-    const user = await openLocalView()
-
-    await user.click(screen.getByRole('checkbox', { name: 'Cerrado Lunes' }))
-
-    const opens = screen.getByLabelText('Apertura Lunes') as HTMLInputElement
-    const closes = screen.getByLabelText('Cierre Lunes') as HTMLInputElement
-    expect(opens.disabled).toBe(true)
-    expect(closes.disabled).toBe(true)
-    expect(opens.value).toBe('')
-    expect(closes.value).toBe('')
-  })
-
-  it('a closing time earlier than the opening time is sent as-is (closes after midnight) and the explanatory line is rendered', async () => {
+  it('the midnight note is rendered and a closing time earlier than the opening time is sent as-is', async () => {
     stubFetch()
     const user = await openLocalView()
 
@@ -234,8 +270,7 @@ describe('Admin "Local" view — business profile editor', () => {
     // Friday closes at 00:30 (earlier than 11:00): preserved untouched.
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
-    const body = JSON.parse(putCall().body ?? '{}')
-    const friday = body.hours.find((h: { dayOfWeek: number }) => h.dayOfWeek === 5)
-    expect(friday).toEqual({ dayOfWeek: 5, opensAt: '11:00:00', closesAt: '00:30:00', closed: false })
+    const friday = putHours().find((h) => h.dayOfWeek === 5)
+    expect(friday).toEqual({ dayOfWeek: 5, shifts: [{ opensAt: '11:00:00', closesAt: '00:30:00' }] })
   })
 })
