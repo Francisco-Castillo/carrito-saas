@@ -73,3 +73,7 @@ El estado se calcula al renderizar: si la carta queda abierta cruzando la hora d
 El usuario marcó que el banner quedaba muy grande. Medido: con `aspect-ratio: 16/6` medía **~576px** en una pantalla de 1600 (más de media pantalla antes del primer producto) y en teléfono el 4:3 daba **268px**, que sumado a la tarjeta y los chips empujaba la carta casi fuera de la primera pantalla.
 
 Commit `c2d2310`: el banner pasa a altura acotada (`clamp(170px, 17vw, 260px)` en escritorio; `clamp(140px, 36vw, 190px)` en teléfono) con `object-fit: cover`, y el fundido inferior se ajustó (62%→100%) porque el gradiente anterior lavaba la foto en un banner corto. Resultado medido: banner de **576 → 260px** y de **268 → 140px**, y **el primer producto pasó a aparecer al 62% de la pantalla** (antes quedaba bajo el pliegue). Re-verificado el e2e de portada: 7/7.
+
+## La barra sticky queda sólo con las píldoras (pedido del usuario)
+
+El usuario marcó que la barra era redundante: repetía el eyebrow y el nombre del local que la portada ya muestra unos centímetros más arriba, y lo pagaba en altura (118px de barra mientras se scrollea). Commit `fix(frontend): keep only the category pills in the sticky bar`: la barra lleva **sólo las píldoras**, medida en **61px** en desktop y teléfono (el menú gana 57px de pantalla). El `scroll-margin-top` de las secciones bajó de los 140px estimados a los **80px medidos**, y las reglas CSS del header eliminado se fueron con él. Tests 81/81 y e2e 8/8 (menú), 7/7 (portada) y 5/5 (pantallas).
