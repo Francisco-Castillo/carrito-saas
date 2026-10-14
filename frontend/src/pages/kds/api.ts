@@ -13,6 +13,7 @@ export interface KdsOrder {
   orderId: number;
   orderNumber: number;
   customerName: string;
+  customerPhone: string | null;
   orderType: string; // legacy kds.js:184: solo "DELIVERY" cambia el tipo; resto → Retiro
   status: string; // NEW | PREPARING | READY | DELIVERED | CANCELLED
   notes: string | null;

@@ -223,6 +223,21 @@ export default function OrderCard({
           <span aria-hidden="true">{typeIcon}</span> {typeLabel}
         </div>
 
+        {/* CELULAR — tap-to-call: el cocinero puede llamar al cliente desde la
+            tablet. Mismo lenguaje de chip que las notas; sin teléfono no se
+            renderiza nada (ni chip vacío ni "null"). */}
+        {order.customerPhone && order.customerPhone.trim() !== "" && (
+          <a
+            className="order-notes order-phone"
+            href={`tel:${order.customerPhone.replace(/\D/g, "")}`}
+          >
+            <span className="order-notes-icon" aria-hidden="true">
+              📞
+            </span>
+            {order.customerPhone}
+          </a>
+        )}
+
         {/* ITEMS — kds.js:167-171 */}
         <div className="order-items">
           {order.items.map((i, idx) => (
