@@ -36,10 +36,11 @@
 - [x] 12. Actualizar `.github/workflows/ci.yml`: suite Vitest + guard de bundle no obsoleto.
 - [x] 13. Limpieza del legacy HTML/CSS/JS y de los runners Node reemplazados, con re-verificación e2e posterior.
 
-## Pendiente de decisión del usuario
+## Decisiones del usuario (cierre)
 
-- Review nativo (RDD on) sobre este candidato: el preflight ofrece el diff completo del workspace (150+ paths, incluye trabajo ajeno a este feature). Propuesta: revisar un slice acotado o dejarlo explícitamente sin revisar.
-- Seed de desarrollo: `/tmp/seed.sql` es temporal; se puede commitear como fixture (`odd/` o `docs/dev-seed.sql`).
+- Review nativo: revisar un **slice acotado** (integración + CI + limpieza), no el diff completo del workspace.
+- Seed de desarrollo: **versionado** en `docs/dev-seed.sql` (con advertencia de no correrlo en producción; los ids fijos chocan con los fixtures de los tests Java sobre schema limpio).
+- UX del menú: **la primera categoría arranca abierta** (antes todas colapsadas), con test propio `frontend/tests/menu-categories.test.tsx` (RED observado antes de implementar) y el happy path portado actualizado al nuevo flujo sin perder aserciones.
 
 ## Restricción de entorno (resuelta)
 
