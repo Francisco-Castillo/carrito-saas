@@ -77,11 +77,13 @@ public class SecurityConfig {
 	            .requestMatchers("/api/menu/**").permitAll()
 	            .requestMatchers("/menu/**").permitAll()
 
-	            // Restaurante público
+	            // Restaurante público (slug lookup del menú público y login;
+	            // el slug es público porque va impreso en el QR)
 	            .requestMatchers("/api/restaurants/slug/**").permitAll()
 
-	            // Crear restaurantes
-	            .requestMatchers("/api/restaurants/**").permitAll()
+	            // Todo lo demás bajo /api/restaurants/** (dashboard, analytics,
+	            // users, QR, tables) exige token: los KPIs del negocio no pueden
+	            // ser públicos solo porque el slug lo sea.
 
 	            // Websocket
 	            .requestMatchers("/ws/**").permitAll()
