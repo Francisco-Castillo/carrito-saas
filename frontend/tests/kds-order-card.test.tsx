@@ -38,12 +38,20 @@ function renderCard(order: KdsOrder) {
 describe("KDS order card — customer phone", () => {
   afterEach(cleanup);
 
-  it("renders the phone as a tel: link when the payload has it", () => {
-    renderCard(buildOrder({ customerPhone: "11 5555 1234" }));
+  it("renders the phone as a formatted tel: link when the payload has it", () => {
+    // El menú manda los dígitos normalizados (1155551234).
+    renderCard(buildOrder({ customerPhone: "1155551234" }));
 
-    const link = screen.getByRole("link", { name: /11 5555 1234/ });
-    // Digits only in the href: tap-to-call must work from a tablet dialer.
+    const link = screen.getByRole("link", { name: /11 5555-1234/ });
+    // En el href van sólo los dígitos: el dialer de la tablet tiene que marcar.
     expect(link).toHaveAttribute("href", "tel:1155551234");
+  });
+
+  it("keeps an unknown-length number readable instead of mangling it", () => {
+    renderCard(buildOrder({ customerPhone: "123456789012" }));
+
+    const link = screen.getByRole("link", { name: /123456789012/ });
+    expect(link).toHaveAttribute("href", "tel:123456789012");
   });
 
   it("renders no phone element when the phone is null", () => {

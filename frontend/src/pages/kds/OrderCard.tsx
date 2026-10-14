@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { KdsOrder } from "./api";
+import { formatPhone } from "./format";
 
 /** kds.js:11 — MAX_TIME = 900 (15 min para la barra de progreso). */
 const MAX_TIME = 900;
@@ -224,8 +225,10 @@ export default function OrderCard({
         </div>
 
         {/* CELULAR — tap-to-call: el cocinero puede llamar al cliente desde la
-            tablet. Mismo lenguaje de chip que las notas; sin teléfono no se
-            renderiza nada (ni chip vacío ni "null"). */}
+            tablet. El texto va formateado para leerlo de un vistazo, pero el
+            href lleva sólo dígitos (`tel:`) para que el dialer funcione. Mismo
+            lenguaje de chip que las notas; sin teléfono no se renderiza nada
+            (ni chip vacío ni "null"). */}
         {order.customerPhone && order.customerPhone.trim() !== "" && (
           <a
             className="order-notes order-phone"
@@ -234,7 +237,7 @@ export default function OrderCard({
             <span className="order-notes-icon" aria-hidden="true">
               📞
             </span>
-            {order.customerPhone}
+            {formatPhone(order.customerPhone)}
           </a>
         )}
 
