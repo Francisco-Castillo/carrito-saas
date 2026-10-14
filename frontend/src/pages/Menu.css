@@ -5,11 +5,15 @@
    1024px (3-col grid + cart sidebar).
    ============================================================ */
 
+/* El ancho manda: la carta ocupa la pantalla en vez de apretarse en el centro.
+   El gutter vive en una variable porque la barra sticky lo usa para sangrar
+   hasta los bordes del contenedor. */
 .menu-screen {
+  --menu-gutter: clamp(var(--space-4), 2vw, var(--space-8));
   min-height: 100vh;
-  max-width: 1280px;
+  max-width: 1720px;
   margin: 0 auto;
-  padding: var(--space-3) var(--space-4) var(--space-8);
+  padding: var(--space-3) var(--menu-gutter) var(--space-8);
 }
 
 /* Espacio para la barra de carrito fija en móvil */
@@ -43,8 +47,8 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  margin: calc(var(--space-3) * -1) calc(var(--space-4) * -1) var(--space-1);
-  padding: var(--space-3) var(--space-4) var(--space-2);
+  margin: calc(var(--space-3) * -1) calc(var(--menu-gutter) * -1) var(--space-1);
+  padding: var(--space-3) var(--menu-gutter) var(--space-2);
   background: rgba(2, 6, 23, 0.62);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
@@ -103,9 +107,11 @@
   padding: 0 var(--space-4);
   border-radius: var(--radius-full);
   border: 1px solid var(--glass-border);
-  background: rgba(2, 6, 23, 0.6);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  /* Sin backdrop-filter a propósito: la píldora ya vive sobre la barra
+     desenfocada, y Chromium desenfoca el fondo en el RECTÁNGULO del border-box
+     sin respetar el border-radius, lo que dibujaba un halo cuadrado alrededor
+     de la cápsula. */
+  background: rgba(2, 6, 23, 0.72);
   color: var(--color-text);
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
@@ -190,6 +196,14 @@
 @media (min-width: 1024px) {
   .menu-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Pantallas anchas: 4 columnas para aprovechar el ancho (tarjetas parecidas en
+   tamaño a las de 3 columnas en un viewport chico). */
+@media (min-width: 1440px) {
+  .menu-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -522,6 +536,7 @@
   padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
   border-radius: var(--radius-lg);
   background: rgba(2, 6, 23, 0.78);
+  box-shadow: var(--glass-shadow);
   animation: fade-up var(--duration-fast) var(--ease-out-soft) both;
 }
 
