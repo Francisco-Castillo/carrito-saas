@@ -40,6 +40,17 @@
 
 ## Evidencia / commits
 
+### Descubrimiento tardío: los contratos JS del CI ejecutan el legacy
+
+`api/src/test/js/` tiene 3 contratos Node que corren en CI y ejecutan los archivos legacy:
+- `menu-app.test.mjs` (259 líneas) → contrato de fallo de la carta digital sobre `menu/app.js` (sin slug → mensaje y STOP, sin fetch de `/api/menu/undefined`; fetch fallido/malformado → mensaje sin lista ni panel de pedido; happy path con carrito y submit).
+- `frontend-origin.test.mjs` (102) → ningún asset en `static/` puede hardcodear el origen de la app (`localhost`/`127.0.0.1`); la API va relativa.
+- `page-guard.test.mjs` (297) → guards inline de `kds/index.html` y `dashboard/index.html` + cadena de redirect de `login.js` (AC10–AC13: token nulo/dead, storage bloqueado, sin URLSearchParams, sin claim de roles).
+
+Estado medido (2026-10-13): `menu-app` PASS, `frontend-origin` PASS, `page-guard` **FAIL — 7 fallos**: el build pisó los `index.html` de kds y dashboard, así que los guards inline que el contrato busca ya no existen. Es decir: el CI queda rojo hasta portar esos contratos a la implementación React.
+
+Plan ajustado: (a) portar los 3 contratos al frontend React con Vitest + jsdom (testing-library), (b) adaptar el guard de origen a las fuentes nuevas, (c) recién entonces borrar el legacy y actualizar `.github/workflows/ci.yml`.
+
 Branch: `feature/ui-liquid-glass` (desde `develop`).
 
 - Tareas 1–2 — commit `c2a617c` *feat(frontend): bootstrap Vite + React + TS app with liquid glass login*: `frontend/` Vite + React + TS. `npm run build` → ✓ 18 modules, 0 errores TS (CSS 9.83 kB, JS 224.87 kB). Paridad funcional verificada: redirect por rol (OWNER/KITCHEN/ADMIN), claves `restaurantName_{slug}`, `savedUser`, `expiresAt`. Archivos clave: `frontend/src/styles/tokens.css`, `frontend/src/pages/Login.tsx`, `frontend/src/pages/Login.css`.
