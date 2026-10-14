@@ -161,6 +161,10 @@ public class ProductServiceImpl implements IProductService {
 	@Transactional
 	public ProductDTO actualizarProducto(Long id, ProductDTO dto) {
 
+		// name/price/cost son NOT NULL: validarlos ANTES de tocar la entidad
+		// convierte un NPE o una violación de constraint (ambos 500) en un 400
+		// honesto que nombra el campo faltante.
+		validarProductoRequerido(dto);
 		// El tenant ancla en el JWT: un id de producto ajeno al negocio resuelve
 		// como 404, nunca como un éxito silencioso, y la fila ajena queda
 		// exactamente igual.
@@ -175,7 +179,7 @@ public class ProductServiceImpl implements IProductService {
 				.orElseThrow(() -> new BusinessException("Categoria no encontrada", ErrorType.NOT_FOUND));
 
 		p.setCategory(categoria);
-		p.setName(dto.getName().toString());
+		p.setName(dto.getName().trim());
 
 		p.setDescription(dto.getDescription());
 		p.setPrice(dto.getPrice());
@@ -231,6 +235,17 @@ public class ProductServiceImpl implements IProductService {
 		p.setActive(activo);
 
 		return iProductMapper.toDTO(productRepository.save(p));
+	}
+
+	private void validarProductoRequerido(ProductDTO dto) {
+		if (dto.getName() == null || dto.getName().isBlank())
+			throw new BusinessException("El nombre es obligatorio", ErrorType.VALIDATION);
+
+		if (dto.getPrice() == null)
+			throw new BusinessException("El precio es obligatorio", ErrorType.VALIDATION);
+
+		if (dto.getCost() == null)
+			throw new BusinessException("El costo es obligatorio", ErrorType.VALIDATION);
 	}
 
 	private void validarProducto(String nombre, String descripcion, BigDecimal precio, BigDecimal cost,
