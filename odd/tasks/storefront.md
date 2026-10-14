@@ -77,3 +77,22 @@ Commit `c2d2310`: el banner pasa a altura acotada (`clamp(170px, 17vw, 260px)` e
 ## La barra sticky queda sólo con las píldoras (pedido del usuario)
 
 El usuario marcó que la barra era redundante: repetía el eyebrow y el nombre del local que la portada ya muestra unos centímetros más arriba, y lo pagaba en altura (118px de barra mientras se scrollea). Commit `fix(frontend): keep only the category pills in the sticky bar`: la barra lleva **sólo las píldoras**, medida en **61px** en desktop y teléfono (el menú gana 57px de pantalla). El `scroll-margin-top` de las secciones bajó de los 140px estimados a los **80px medidos**, y las reglas CSS del header eliminado se fueron con él. Tests 81/81 y e2e 8/8 (menú), 7/7 (portada) y 5/5 (pantallas).
+
+## La composición: cada cosa en su bloque (pedido del usuario, commit `27355c2`)
+
+El usuario marcó que los chips de contacto y la barra de filtros "quedaban ahí porque sí, sin relación a lo demás". Medido antes del cambio: los chips **no** estaban dentro de la tarjeta, no existía un bloque de menú, y la barra de píldoras **siempre** tenía la franja de vidrio (parecía una barra de app ajena).
+
+Ahora:
+- **Los chips de contacto viven dentro de la tarjeta del local** (tercera columna en escritorio, fila envuelta en teléfono): logo + nombre + estado + horarios + WhatsApp/Instagram/dirección se leen como un solo encabezado. En escritorio la tarjeta sigue midiendo **108px** (las píldoras entran en su fila); en 390px crece una fila (**220px**).
+- **Las píldoras son parte del menú**: van bajo un título real **"Menú"** que abre la carta, y la franja de vidrio aparece **sólo mientras la barra está pegada**. Se detecta con un centinela de 1px antes de la barra + `IntersectionObserver` (patrón que ya usaba el scroll-spy), sin trucos de scroll; en reposo las píldoras son simplemente parte del bloque de menú.
+- El `scroll-margin-top` de 80px medido se mantiene, así que navegar con una píldora nunca tapa el título.
+
+Verificación en el navegador (medida, no mirada): `contactoDentroDeLaTarjeta: true`, `bloqueMenu: true`, barra transparente en reposo y con `blur(24px) saturate(1.6)` + opacidad 1 al pegarse. Capturas: `/tmp/e2e-menu/21-antes-*` vs `21-despues-*` (composición) y `22-despues-*-pegado.png` (estado pegado). E2E: menú **8/8** (3 corridas), portada/medianoche **7/7**, 5 pantallas **5/5**, admin **6/6**; frontend **84/84**.
+
+### Nota de verificación
+
+El e2e del menú falló de forma intermitente al agregar un producto: el click resolvía el botón pero no lo alcanzaba, porque mi script scrolleaba a una posición arbitraria y **la barra sticky tapaba el botón**. Centrar el objetivo antes de clickear (`scrollIntoView({block:'center'})`) lo resolvió: 3 corridas limpias. No era un problema del producto, pero vale como límite conocido: con la barra pegada, un elemento que quede justo debajo de ella puede requerir un scroll mínimo.
+
+### Ajuste de un test (ambigüedad resuelta)
+
+`storefront.test.tsx` afirmaba `sticky.previousElementSibling === .storefront`, que con el nuevo orden (portada → bloque de menú → barra) ya no puede cumplirse. Se adaptó a la intención real: la portada es el hermano anterior **del bloque de menú** que contiene la barra.
