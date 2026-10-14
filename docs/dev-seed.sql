@@ -118,17 +118,20 @@ SET logo_url      = '/dev-media/logo-local.jpg',
     instagram_url = 'https://instagram.com/foodtruckdemo'
 WHERE id = 990000001;
 
--- Viernes y sábado cierran 00:30: cierre menor que apertura = madrugada del
--- día siguiente (convención documentada en IBusinessProfileService).
--- Un turno por día por ahora (position = 0); los turnos múltiples llegan
--- con el paso 6 del plan.
+-- El local atiende mediodía y noche: viernes y sábado tienen DOS turnos
+-- (position 0 y 1), que es el caso que este modelo vino a resolver.
+-- Cierre menor que apertura = madrugada del día siguiente (convención
+-- documentada en IBusinessProfileService), y sólo puede ser el ÚLTIMO turno
+-- del día: por eso el viernes cierra 00:30 y no el mediodía.
 INSERT INTO business_hours (business_id, day_of_week, position, opens_at, closes_at) VALUES
   (990000001, 1, 0, '11:00', '23:00'),
   (990000001, 2, 0, '11:00', '23:00'),
   (990000001, 3, 0, '11:00', '23:00'),
   (990000001, 4, 0, '11:00', '23:00'),
-  (990000001, 5, 0, '11:00', '00:30'),
-  (990000001, 6, 0, '12:00', '00:30')
+  (990000001, 5, 0, '11:00', '15:00'),
+  (990000001, 5, 1, '19:00', '00:30'),
+  (990000001, 6, 0, '12:00', '15:30'),
+  (990000001, 6, 1, '19:00', '00:30')
 ON CONFLICT (business_id, day_of_week, position) DO UPDATE
 SET opens_at = EXCLUDED.opens_at, closes_at = EXCLUDED.closes_at;
 
