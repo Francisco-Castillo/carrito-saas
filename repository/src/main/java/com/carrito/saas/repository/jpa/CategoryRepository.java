@@ -1,6 +1,7 @@
 package com.carrito.saas.repository.jpa;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -13,7 +14,14 @@ import com.carrito.saas.repository.entity.Category;
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     List<Category> findByBusinessId(Long businessId);
-    
+
+    /**
+     * Una sola categoría propia: los canales de escritura anclan el tenant
+     * en el JWT, así que un id ajeno al negocio debe resolver como no
+     * encontrado y jamás como un éxito silencioso.
+     */
+    Optional<Category> findByIdAndBusinessId(Long id, Long businessId);
+
     @Query("""
             SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END
             FROM Category c
