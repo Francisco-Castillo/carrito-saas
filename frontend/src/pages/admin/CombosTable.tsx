@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
-import { API, type AdminCombo } from "./api";
+import { API, authHeader, type AdminCombo } from "./api";
 
 /**
- * Puerto 1:1 de loadCombos del legacy admin/admin.js: GET /api/combos (sin
- * header de auth, como el legacy) y tabla de solo lectura Nombre/Precio.
+ * Puerto del loadCombos del legacy admin/admin.js: tabla de solo lectura
+ * Nombre/Precio. GET /api/combos ahora pide el Bearer token (endpoint owner
+ * de cdaa4d0, scoped por el JWT del negocio).
  */
 export default function CombosTable() {
   const [combos, setCombos] = useState<AdminCombo[] | null>(null);
 
   async function loadCombos() {
-    const res = await fetch(`${API}/combos`);
+    const res = await fetch(`${API}/combos`, { headers: authHeader() });
     const data = (await res.json()) as AdminCombo[];
     setCombos(data);
   }
