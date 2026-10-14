@@ -1,0 +1,40 @@
+# Portada del local (etapa 2)
+
+**Estado:** activo
+**Fecha inicio:** 2026-10-14
+**Objetivo:** Que la carta digital tenga una portada de local como la referencia QueResto: logo, banner, estado **abierto/cerrado** calculado, ubicación con mapa, WhatsApp y redes.
+
+## Decisiones del usuario
+
+1. **Logo y banner por URL** (el dueño pega el link): cero infraestructura de archivos y cero superficie de subida.
+2. **Horarios estructurados por día** (una fila por día: abre, cierra, cerrado), para poder calcular "Abierto ahora / Cerrado" automáticamente. El texto libre no lo permite.
+3. **Ubicación**: dirección en texto y el link de Maps se arma solo con la búsqueda de esa dirección.
+
+## Estado del modelo (verificado)
+
+- `businesses`: sólo `id, name, slug, phone`. El WhatsApp del menú sale del teléfono.
+- `business_settings`: exclusivamente configuración del PDF de QR (`default_template`, `show_logo`, `show_url`), uno por negocio.
+- `GET /api/menu/{slug}` devuelve `business: { id, name, slug, whatsappNumber }` — nada de portada.
+- El admin tiene vistas dashboard / productos / categorías / combos.
+
+## Diseño acordado
+
+- **Negocio** (`businesses`): `logo_url`, `banner_url`, `address`, `instagram_url` — todos nullable (un negocio sin portada sigue funcionando).
+- **Horarios**: nueva entidad `business_hours` (business_id, day_of_week 1..7, opens_at, closes_at, closed) con unique `(business_id, day_of_week)`.
+- **Público**: el payload de `GET /api/menu/{slug}` incluye esos campos + el arreglo de horarios, para que la carta no necesite otra llamada.
+- **Dueño**: `GET`/`PUT /api/business/profile` autenticado y acotado al negocio del JWT (mismo criterio que el resto: negocio del token, nunca del request).
+- **Estado abierto/cerrado**: lo calcula la carta a partir de los horarios en la hora local del cliente (misma ciudad que el local); no se persiste un estado.
+- **Admin**: nueva vista "Local" con los campos y un editor de 7 días.
+- **Validaciones**: URLs http(s) absolutas o rutas relativas; `opens_at`/`closes_at` obligatorios si el día no está cerrado y `opens_at < closes_at`; `day_of_week` entre 1 y 7 sin repetidos.
+
+## Tareas
+
+- [ ] 1. Backend: campos del negocio + entidad/repositorio de horarios + DTOs + payload público + `GET/PUT /api/business/profile` con tests (incluido el aislamiento por negocio).
+- [ ] 2. Portada en la carta: banner, logo, nombre, estado abierto/cerrado, ubicación con link a Maps, WhatsApp y redes, con tests del cálculo de estado.
+- [ ] 3. Admin: vista "Local" para editar el perfil y los horarios, con tests.
+- [ ] 4. Datos y assets del negocio demo: logo + banner (reusar el banner generado) y seed actualizado.
+- [ ] 5. Verificación: suites + e2e en navegador de la portada (desktop y mobile) y del guardado desde el admin.
+
+## Evidencia / commits
+
+- (se completa al avanzar cada tarea)
