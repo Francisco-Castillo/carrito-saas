@@ -114,4 +114,27 @@ public class Business {
             constraint = "phone IS NULL OR phone ~ '^[1-9][0-9]{7,14}$'"))
     private String phone;
 
+    /**
+     * Storefront profile, shown on the public menu alongside the structured
+     * opening hours ({@link BusinessHours}). All four fields are optional: a
+     * business without a storefront keeps working — the columns stay NULL and
+     * the menu simply renders no logo/banner/address/Instagram.
+     *
+     * <p>Editable only through {@code PUT /api/business/profile} (JWT-scoped
+     * owner endpoint); the URL-shaped fields are validated in
+     * {@code BusinessProfileServiceImpl}, not here — the lengths below are the
+     * only schema-level policy.
+     */
+    @Column(length = 500)
+    private String logoUrl;
+
+    @Column(length = 500)
+    private String bannerUrl;
+
+    @Column(length = 300)
+    private String address;
+
+    @Column(length = 500)
+    private String instagramUrl;
+
 }

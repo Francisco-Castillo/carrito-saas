@@ -8,15 +8,19 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.carrito.saas.dto.BusinessDTO;
+import com.carrito.saas.dto.BusinessProfileDTO;
 import com.carrito.saas.dto.OrderKitchenDTO;
 import com.carrito.saas.exception.ErrorResponse;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.security.ISecurityService;
+import com.carrito.saas.service.interfaces.IBusinessProfileService;
 import com.carrito.saas.service.interfaces.IBusinessService;
 import com.carrito.saas.service.interfaces.IMenuUrlBuilder;
 import com.carrito.saas.service.interfaces.IOrderService;
@@ -35,16 +39,20 @@ public class BusinessController {
 
 	private final ISecurityService securityService;
 
+	private final IBusinessProfileService businessProfileService;
+
 	private final IQrCodeService qrCodeService;
 
 	private final IMenuUrlBuilder menuUrlBuilder;
 
 	public BusinessController(IOrderService orderService, BusinessRepository businessRepository,
-			ISecurityService securityService, IQrCodeService qrCodeService, IMenuUrlBuilder menuUrlBuilder) {
+			ISecurityService securityService, IBusinessProfileService businessProfileService,
+			IQrCodeService qrCodeService, IMenuUrlBuilder menuUrlBuilder) {
 		super();
 		this.orderService = orderService;
 		this.businessRepository = businessRepository;
 		this.securityService = securityService;
+		this.businessProfileService = businessProfileService;
 		this.qrCodeService = qrCodeService;
 		this.menuUrlBuilder = menuUrlBuilder;
 	}
@@ -57,6 +65,29 @@ public class BusinessController {
 	@GetMapping("/slug/{slug}")
 	public BusinessDTO getBySlug(@PathVariable String slug) {
 		return iBusinessService.getBusinessBySlug(slug);
+	}
+
+	/**
+	 * Storefront profile del negocio del JWT (logo, banner, dirección,
+	 * Instagram y horas de apertura estructuradas, ordenadas lunes a
+	 * domingo). El business sale de {@link ISecurityService#getCurrentBusinessId()};
+	 * no hay id ni slug del request, así un negocio nunca lee el perfil de
+	 * otro. 404 cuando el JWT no corresponde a una fila de negocio.
+	 */
+	@GetMapping("/profile")
+	public BusinessProfileDTO getProfile() {
+		return businessProfileService.getProfile();
+	}
+
+	/**
+	 * Edición del storefront profile del negocio del JWT. La lista de horas
+	 * se reemplaza en bloque (un día ausente del payload se borra); los
+	 * campos de URL se validan (http(s) absoluto o ruta relativa) y los
+	 * errores de validación salen como 400 con mensaje en español.
+	 */
+	@PutMapping("/profile")
+	public BusinessProfileDTO updateProfile(@RequestBody BusinessProfileDTO profile) {
+		return businessProfileService.updateProfile(profile);
 	}
 
 	/**
