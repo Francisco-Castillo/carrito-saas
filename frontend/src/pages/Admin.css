@@ -25,8 +25,8 @@
   padding: var(--space-3) var(--space-4);
   background: var(--glass-bg-strong);
   border-bottom: 1px solid var(--glass-border);
-  backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -394,8 +394,8 @@
   align-items: center;
   padding: var(--space-4);
   background: rgba(2, 6, 23, 0.5);
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 .toast-modal {
@@ -406,8 +406,8 @@
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   box-shadow: var(--glass-shadow), var(--glass-inset-highlight);
-  backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   text-align: center;
   transform: translateY(-20px);
   opacity: 0;

@@ -46,6 +46,29 @@ for (const item of present) {
   console.log(`removed stale static/assets/${item.name}`);
 }
 
+// Guard del efecto vidrio: el minificador de CSS conserva la ÚLTIMA de dos
+// declaraciones equivalentes, así que cuando cada regla traía
+// `backdrop-filter` y después `-webkit-backdrop-filter`, el bundle salía sólo
+// con la prefijada — que Chrome y Firefox ignoran — y TODA la app quedaba sin
+// blur sin que nada fallara. El orden ya está corregido en las fuentes; esto
+// convierte una regresión silenciosa en un build roto.
+const cssFile = [...referenced].find((name) => name.endsWith(".css"));
+if (!cssFile) {
+  throw new Error("no se encontró el CSS construido en el shell");
+}
+const builtCss = await readFile(join(assetsDir, cssFile), "utf8");
+const pairs = [...builtCss.matchAll(/(-?)(-webkit-)?backdrop-filter:/g)];
+const prefixed = pairs.filter(([, , webkit]) => Boolean(webkit)).length;
+const unprefixed = pairs.length - prefixed;
+if (unprefixed < prefixed || unprefixed === 0) {
+  throw new Error(
+    `el CSS construido tiene ${unprefixed} declaraciones 'backdrop-filter' sin prefijo y ` +
+      `${prefixed} con prefijo: el navegador ignora las prefijadas, así que ese vidrio no se ` +
+      "verá. Revisá el orden de las declaraciones -webkit-* en las fuentes (la estándar debe quedar última).",
+  );
+}
+console.log(`glass guard ok: ${unprefixed} backdrop-filter sin prefijo, ${prefixed} prefijadas`);
+
 for (const entry of LEGACY_ENTRIES) {
   const target = join(staticDir, entry);
   await mkdir(dirname(target), { recursive: true });
