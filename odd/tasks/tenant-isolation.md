@@ -1,6 +1,6 @@
 # Aislamiento por negocio: cerrar los agujeros detectados
 
-**Estado:** activo
+**Estado:** cerrado (2026-10-14)
 **Fecha inicio:** 2026-10-14
 **Objetivo:** Cerrar los cuatro agujeros de aislamiento/aislamiento de superficie detectados al implementar los endpoints del admin, sin romper los flujos públicos (carta digital y QR) ni el panel.
 
@@ -35,9 +35,9 @@
 
 - [x] 1. (Prioridad 2) `PUT /api/{id}`: scope del producto al negocio del token y validación de dueño de la categoría destino. Tests: producto ajeno → 404, categoría ajena → 404/400, edición propia sigue funcionando.
 - [x] 2. (Prioridad 2) `POST /api/productos`: validar que la categoría destino sea del negocio del token. Tests: categoría ajena → 404/400, creación propia sigue funcionando.
-- [ ] 3. (Prioridad 3) `crearCombo` — EN CURSO: resolver y setear la categoría (del negocio) y scopear la búsqueda de productos. Tests: combo propio se crea con su categoría, producto ajeno → falla, categoría ajena → falla.
+- [x] 3. (Prioridad 3) `crearCombo`: resolver y setear la categoría (del negocio) y scopear la búsqueda de productos. Tests: combo propio se crea con su categoría, producto ajeno → falla, categoría ajena → falla.
 - [x] 4. **Prioridad 1** — `SecurityConfig`: reemplazar el `permitAll` amplio de `/api/restaurants/**` por los matchers exactos que la carta pública y el QR necesitan; decidir qué hacer con el stub `GET /restaurants/{id}/products` (borrarlo o devolver 404 en vez de 200/null) y con el 500 de la variante por slug. Verificar que la carta digital sigue funcionando sin token.
-- [ ] 5. Verificación: `mvn verify` en base aislada + e2e de navegador (menú público, login, dashboard, admin con productos/combos, KDS) + websocket.
+- [x] 5. Verificación: suite backend en base aislada, e2e de navegador de las 5 pantallas + admin + websocket, y comprobaciones en vivo por curl.
 
 ## Evidencia / commits
 
@@ -47,3 +47,26 @@
 
 - **Tareas 1 y 2 — commit `33ebc56` *fix(api): scope product writes to the caller's business***: `actualizarProducto` resuelve producto y categoría destino con finders scopeados por JWT (404 si son ajenos, fila ajena intacta) y `crearProducto` valida la categoría destino. Se agregó `CategoryRepository.findByIdAndBusinessId` siguiendo el precedente de `TableRepository`. Tests: `CrossTenantProductWriteIsolationTests` (5), RED con 3 fallos `expected:<404> but was:<200>` → GREEN. Suite completa **74/74** en base aislada (verificada por el orquestador). No queda ningún `findById` crudo en `ProductServiceImpl`.
   - Hallazgo no corregido (preexistente, fuera de alcance): `actualizarProducto` hace `dto.getName().toString()`, así que un body con `name: null` produce un 500 por NPE.
+
+- **Tarea 3 — commit `2a65bdd` *fix(api): make combo creation work and scope it to the caller's business***: `crearCombo` no seteaba `Combo.category` (nullable=false) → toda llamada moría con `PropertyValueException` en el flush (confirmado en el RED: los 4 tests fallaban con 500); y resolvía los productos con `findById` crudo. Ahora el negocio sale del JWT, la categoría se resuelve con `CategoryRepository.findByIdAndBusinessId` y los productos con el nuevo `ProductRepository.findAllByIdInAndCategory_Business_Id` (404 nombrando el id ofensor); faltantes de forma (`categoryId` ausente, lista vacía) → 400. `ComboCreateDTO` gana `categoryId` — sin llamadores, así que no rompe clientes. Tests: `ComboCreateEndpointTests` (4), RED 4/4 en 500 → GREEN. Suite **78/78**.
+  - Verificación en vivo con token del negocio `demo-e2e`: combo propio → 200 con su categoría e items; categoría ajena (id 11, la del usuario) → **404 "Categoria no encontrada: 11"** sin crear nada; producto ajeno (id 54) → **404 "Producto no encontrado para este negocio: 54"**; sin `categoryId` → 400; sin token → 403. El combo de prueba se borró después.
+
+## Cierre y verificación final (2026-10-14)
+
+| Verificación | Resultado |
+| --- | --- |
+| Suite backend (base descartable `carrito_ci`) | **78/78**, BUILD SUCCESS |
+| Frontend (Vitest) | **30/30** |
+| E2E navegador — 5 pantallas | **5/5 PASS**, sin ningún 4xx/5xx |
+| E2E navegador — productos/combos del admin | **6/6 PASS** (incluye el 409 del producto en combo) |
+| Websocket STOMP | pedido publicado → recibido en `/topic/orders/demo-e2e` |
+| Comprobaciones en vivo por curl | fuga cerrada (403 anónimo / 200 con token), escrituras cross-tenant en 404, combo propio 200 |
+
+Herramientas de e2e persistentes en `~/.local/opt/e2e/` (`screens.mjs`, `admin-products.mjs`, `ws-orders.mjs`, `dash-check.mjs`).
+
+### Hallazgos menores NO corregidos (documentados)
+
+- `IComboMapperImpl.toListDTO` sigue siendo un TODO que devuelve null (`findAllByBusinessId` lo esquiva mapeando ítem por ítem).
+- `ProductServiceImpl.actualizarProducto` hace `dto.getName().toString()`: un body con `name: null` da 500 por NPE.
+- `GET /api/restaurants/{restaurantId}/products` es un stub que devuelve `null` (200 vacío) y la variante por slug da 500.
+- Un request de combo con el mismo producto repetido crea dos filas `ComboProduct` (semántica preexistente).
