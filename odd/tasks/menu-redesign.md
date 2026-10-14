@@ -71,3 +71,23 @@ Causa: **el minificador de CSS conserva la última de dos declaraciones equivale
 Con el blur restaurado quedaba el problema estructural del pedido original: header y píldoras eran **dos** elementos sticky con una ranura de 13px entre ellos, y el texto y los precios de los productos pasaban por esa ranura y por los huecos entre píldoras (visible en `review-desktop-antes.png`). Ahora son **una sola barra** pegada al borde superior, sangrada a los bordes del contenedor, con fondo, blur, línea y sombra propios: no queda ranura. El `scroll-margin-top` de las secciones se corrigió al alto medido de la barra (118px en todos los breakpoints) en lugar de valores estimados.
 
 Capturas comparativas: `/tmp/e2e-menu/review-desktop-{antes,final}.png` y `review-mobile-{antes,final}.png`; pantallas completas en `/tmp/e2e-menu/` y `/tmp/e2e-glass/`.
+
+## Segunda ronda de feedback del usuario (2026-10-14)
+
+Tres pedidos concretos, cada uno con su commit y su medición:
+
+1. **El carrito no debe abrirse al costado ni cambiar el tamaño de las tarjetas** (`bada328`). Al agregar un producto se montaba un sidebar sticky que pasaba la grilla a dos columnas y encogía cada tarjeta. Ahora agregar sólo actualiza la **barra flotante** (la misma en mobile y desktop, centrada, tope 560px) y abrir el pedido es una acción explícita que muestra un **panel superpuesto** desde el borde derecho (≥1024px) o la hoja inferior en mobile. Medido: tarjetas de 372px idénticas antes y después de agregar, grilla de 4 columnas intacta, panel de 440px a la derecha con el menú intacto detrás. Se eliminaron el sidebar, la regla de dos columnas, el `display: none` que ocultaba la barra en desktop y el hook `useMediaQuery` (quedó sin uso).
+2. **Que el menú ocupe la pantalla y no quede apretado en el medio** (`881e341`). La causa era doble: el contenedor tenía `max-width: 1280px` **y** una regla pelada `main { max-width: 1100px }` de `Dashboard.css` que se filtraba (ver abajo). Ahora el contenedor llega a 1720px con gutter fluido y la grilla pasa a **4 columnas desde 1440px**: en un viewport de 1600px las tarjetas pasaron de **263px a 372px**.
+3. **Halo cuadrado en las píldoras** (`881e341`). El usuario mandó una captura; la amplié 3× y confirmé el artefacto: la píldora tenía `backdrop-filter` y Chromium desenfoca el fondo en el **rectángulo** del border-box sin respetar el `border-radius`, dejando un halo cuadrado alrededor de la cápsula. Como las píldoras ya viven sobre la barra desenfocada, se quitó la propiedad y se subió un poco la opacidad del fondo.
+
+### Fuga de CSS entre pantallas (encontrada midiendo)
+
+El `max-width: 1100px` no estaba en `Menu.css`: venía de `Dashboard.css`, que declaraba selectores **pelados** (`main { … }`, `main section { … }`) que aplican a *cualquier* `<main>`/`<section>` del bundle compartido — el mismo tipo de fuga que ya había marcado el primer worker con `.topbar` y `.restaurant-name`. Arreglado scopando ambas reglas a `.dashboard-screen` (`fa66405`) y **blindado con un test nuevo**: `frontend/tests/css-scoping.test.ts` falla si alguna hoja de página declara un selector de elemento sin scope, nombrando archivo y selector. Verificado por mutación: agregar `section { … }` a `Menu.css` lo hace fallar con “Menu.css → section”.
+
+### Calidad de la verificación (no del producto)
+
+El script de e2e empezó a fallar de forma intermitente (2 de 4 corridas) en pasos distintos: el scroll-spy y los clicks del carrito. No era el producto: eran **sleeps fijos** contra animaciones y scroll suave asíncronos. Se reemplazaron por *polling* (`waitFor`/`clickReady`) y quedó **5 corridas seguidas limpias**. Vale registrarlo porque es el mismo patrón que ya nos mordió dos veces: cuando algo falla "a veces", hay que medirlo, no anotarlo como flaky.
+
+### Nota de higiene
+
+El borrado de `frontend/src/pages/menu/useMediaQuery.ts` (que quedó sin uso con el cambio del carrito) quedó incluido en `fa66405`, el commit de la fuga de CSS, en vez de en el del carrito: se había hecho `git rm` antes y el primer `git add` de la serie lo arrastró. No se reescribió la historia por un archivo; el estado del código es el correcto.
