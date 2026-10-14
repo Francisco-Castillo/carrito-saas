@@ -1,67 +1,91 @@
 -- Dev seed for local end-to-end verification (docs/dev-seed.sql).
+--
+-- Design notes:
+--  * Insert-only and idempotent: safe to run against a database that already
+--    holds someone else's data (every statement either uses ON CONFLICT DO
+--    NOTHING or is guarded by NOT EXISTS). Nothing is dropped or truncated.
+--  * Collision-free: it uses ids in the 99xxxx range, well above the ids the
+--    project's own tests and demo rows use, so it cannot clash with them.
+--  * Roles are reused by name when they exist (the roles table is seeded by
+--    other flows and may already contain duplicates); KITCHEN is added only if
+--    the name is missing.
+--
 -- NEVER run this against production: it creates a demo business and three
--- users whose password is the literal string admin123, and it fixes ids
--- that collide with the fixtures the backend tests seed on a clean schema.
--- Usage: psql -U admin -h 127.0.0.1 -d carrito_db -v ON_ERROR_STOP=1 -f docs/dev-seed.sql
-
--- Dev seed for local end-to-end verification (NOT for production).
--- Password for owner/kitchen/admin is admin123 (bcrypt, cost 10).
+-- users whose password is the literal string admin123.
+--
+-- Usage:
+--   psql -U admin -h 127.0.0.1 -d carrito_db -v ON_ERROR_STOP=1 -f docs/dev-seed.sql
 
 BEGIN;
 
+-- Roles (reuse by name, never duplicate)
+INSERT INTO roles (id, name)
+SELECT v.id, v.name
+FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN')) AS v(id, name)
+WHERE NOT EXISTS (SELECT 1 FROM roles r WHERE r.name = v.name);
+
 -- Business
 INSERT INTO businesses (id, name, phone, slug)
-VALUES (1, 'Foodtruck Demo', '1123456789', 'demo');
+VALUES (990000001, 'Foodtruck Demo', '1123456789', 'demo-e2e')
+ON CONFLICT (slug) DO NOTHING;
 
--- Roles
-INSERT INTO roles (id, name) VALUES (1, 'OWNER'), (2, 'KITCHEN'), (3, 'ADMIN');
-
--- Users (same bcrypt hash for admin123)
+-- Users: password is admin123 (bcrypt, cost 10)
 INSERT INTO users (id, username, email, password) VALUES
-  (1, 'owner',   'owner@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
-  (2, 'kitchen', 'kitchen@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
-  (3, 'admin',   'admin@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2');
+  (990001, 'e2e-owner',   'e2e-owner@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
+  (990002, 'e2e-kitchen', 'e2e-kitchen@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
+  (990003, 'e2e-admin',   'e2e-admin@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2')
+ON CONFLICT (id) DO NOTHING;
 
--- User -> role (authorities are ROLE_ + roles.name)
-INSERT INTO user_roles (user_id, role_id) VALUES (1, 1), (2, 2), (3, 3);
+-- Authorities (ROLE_ + roles.name) and business membership.
+-- Roles are looked up by name with MIN(id): the table may already hold many
+-- duplicate rows for the same name, and joining on the name alone would insert
+-- one row per duplicate.
+INSERT INTO user_roles (user_id, role_id)
+SELECT v.user_id, (SELECT MIN(r.id) FROM roles r WHERE r.name = v.role)
+FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN')) AS v(user_id, role)
+WHERE EXISTS (SELECT 1 FROM roles r WHERE r.name = v.role)
+ON CONFLICT (user_id, role_id) DO NOTHING;
 
--- User -> business + role used by /api/auth/login
-INSERT INTO business_users (id, business_id, role_id, user_id) VALUES
-  (1, 1, 1, 1),
-  (2, 1, 2, 2),
-  (3, 1, 3, 3);
+INSERT INTO business_users (id, business_id, role_id, user_id)
+SELECT v.id, 990000001, (SELECT MIN(r.id) FROM roles r WHERE r.name = v.role), v.user_id
+FROM (VALUES (990001, 'OWNER', 990001), (990002, 'KITCHEN', 990002), (990003, 'ADMIN', 990003)) AS v(id, role, user_id)
+WHERE EXISTS (SELECT 1 FROM roles r WHERE r.name = v.role)
+ON CONFLICT (id) DO NOTHING;
 
 -- Menu categories
 INSERT INTO categories (id, name, orden, active, business_id) VALUES
-  (1, 'Hamburguesas', 1, true, 1),
-  (2, 'Bebidas',      2, true, 1),
-  (3, 'Postres',      3, true, 1);
+  (990011, 'Hamburguesas', 1, true, 990000001),
+  (990012, 'Bebidas',      2, true, 990000001),
+  (990013, 'Postres',      3, true, 990000001)
+ON CONFLICT (id) DO NOTHING;
 
--- Products
+-- Products (one inactive, one out of stock)
 INSERT INTO products (id, name, description, image_url, price, cost, stock, unit_measure, active, category_id) VALUES
-  (1, 'Doble cheddar',   'Doble medallon, cheddar y bacon', NULL, 9500.00, 4200.00, 30, 'UNIDAD', true, 1),
-  (2, 'Clasica',         'Medallon, lechuga, tomate y cheddar', NULL, 7500.00, 3300.00, 40, 'UNIDAD', true, 1),
-  (3, 'Veggie',          'Medallon de lentejas y palta', NULL, 8000.00, 3500.00, 15, 'UNIDAD', true, 1),
-  (4, 'Coca-Cola 500ml', 'Botella de vidrio', NULL, 2500.00, 1100.00, 60, 'UNIDAD', true, 2),
-  (5, 'Agua mineral',    '500ml sin gas', NULL, 1800.00, 700.00, 80, 'UNIDAD', true, 2),
-  (6, 'Flan casero',     'Con dulce de leche', NULL, 3200.00, 1200.00, 12, 'PORCION', true, 3),
-  (7, 'Brownie',         'Con helado de crema', NULL, 3800.00, 1500.00, 0, 'PORCION', false, 3);
+  (990051, 'Doble cheddar',   'Doble medallon, cheddar y bacon',              NULL, 9500.00, 4200.00, 30, 'UNIDAD',  true,  990011),
+  (990052, 'Clasica',         'Medallon, lechuga, tomate y cheddar',         NULL, 7500.00, 3300.00, 40, 'UNIDAD',  true,  990011),
+  (990053, 'Veggie',          'Medallon de lentejas y palta',                NULL, 8000.00, 3500.00, 15, 'UNIDAD',  true,  990011),
+  (990054, 'Coca-Cola 500ml', 'Botella de vidrio',                           NULL, 2500.00, 1100.00, 60, 'UNIDAD',  true,  990012),
+  (990055, 'Agua mineral',    '500ml sin gas',                               NULL, 1800.00,  700.00, 80, 'UNIDAD',  true,  990012),
+  (990056, 'Flan casero',     'Con dulce de leche',                          NULL, 3200.00, 1200.00, 12, 'PORCION', true,  990013),
+  (990057, 'Brownie',         'Con helado de crema (inactivo a proposito)',  NULL, 3800.00, 1500.00,  0, 'PORCION', false, 990013)
+ON CONFLICT (id) DO NOTHING;
 
--- Combo: burger + drink
-INSERT INTO combos (id, name, price, active, category_id) VALUES (1, 'Combo Clasica + Bebida', 9000.00, true, 1);
-INSERT INTO combo_products (combo_id, producto_id, quantity) VALUES (1, 2, 1), (1, 4, 1);
+-- Combo: Clasica + Coca-Cola. Products 990052 and 990054 are the ones the
+-- delete-safety check must refuse to remove.
+INSERT INTO combos (id, name, price, active, category_id)
+VALUES (990091, 'Combo Clasica + Bebida', 9000.00, true, 990011)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO combo_products (combo_id, producto_id, quantity) VALUES
+  (990091, 990052, 1),
+  (990091, 990054, 1)
+ON CONFLICT DO NOTHING;
 
 -- Cancellation reasons used by the KDS cancel modal
 INSERT INTO cancellation_reasons (id, code, description, active, created_at) VALUES
-  (1, 'NO_STOCK',    'Sin stock de ingredientes', true, now()),
-  (2, 'CUSTOMER',    'El cliente cancelo',        true, now()),
-  (3, 'ERROR_PEDIDO','Error en el pedido',        true, now());
-
-SELECT setval(pg_get_serial_sequence('businesses', 'id'), 1, true);
-SELECT setval(pg_get_serial_sequence('roles', 'id'), 3, true);
-SELECT setval(pg_get_serial_sequence('users', 'id'), 3, true);
-SELECT setval(pg_get_serial_sequence('business_users', 'id'), 3, true);
-SELECT setval(pg_get_serial_sequence('categories', 'id'), 3, true);
-SELECT setval(pg_get_serial_sequence('products', 'id'), 7, true);
+  (990101, 'NO_STOCK',     'Sin stock de ingredientes', true, now()),
+  (990102, 'CUSTOMER',     'El cliente cancelo',        true, now()),
+  (990103, 'ERROR_PEDIDO', 'Error en el pedido',        true, now())
+ON CONFLICT (code) DO NOTHING;
 
 COMMIT;

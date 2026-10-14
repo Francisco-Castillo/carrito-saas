@@ -48,13 +48,21 @@ Reproducir el entorno: `pg_ctl -D /home/linuxbrew/.linuxbrew/var/postgresql@17 -
 - Seed de desarrollo: **versionado** en `docs/dev-seed.sql` (con advertencia de no correrlo en producción; los ids fijos chocan con los fixtures de los tests Java sobre schema limpio).
 - UX del menú: **la primera categoría arranca abierta** (antes todas colapsadas), con test propio `frontend/tests/menu-categories.test.tsx` (RED observado antes de implementar) y el happy path portado actualizado al nuevo flujo sin perder aserciones.
 
-## Restricción de entorno (resuelta)
+## Entorno (corregido)
 
-- Este entorno no tenía Java, Maven ni Postgres. Se instalaron **sin sudo** por Linuxbrew: OpenJDK 21, Maven 3.10, PostgreSQL 17.
-  - Cluster: `initdb -D /home/linuxbrew/.linuxbrew/var/postgresql@17 -E UTF-8 --locale=C.UTF-8` — ojo: `en_US.UTF-8` **no existe** en esta máquina y `initdb` falla con ese locale.
-  - Arranque: `pg_ctl -D /home/linuxbrew/.linuxbrew/var/postgresql@17 -l /tmp/pg.log start`.
-  - Base `carrito_db`, rol `admin/admin`; backend en `:9090` (`java -jar api/target/api-0.0.1-SNAPSHOT.jar`).
-- Contrato de URLs impreso: el QR del backend se construye con `qr.public-menu-url` + `/menu/index.html?restaurant=<slug>` (`BusinessController.getCurrentBusinessQr` → `menuUrlBuilder`), y los redirects legacy usan `/login/login.html`, `/dashboard/index.html`, `/kds/index.html`, `/admin/admin.html`. Esas rutas siguen funcionando tras la migración (el build copia el shell de la SPA a cada una).
+- **La máquina ya tenía el toolchain del usuario**, instalado el 2026-09-15 en `~/.local/opt`: JDK 21 Temurin (`jdk21`), Maven 3.9.12 (`maven`), PostgreSQL 17.11 (`pgsql17`, binarios zonky) y los scripts `jvm-env.sh` / `pg-env.sh`. Mi diagnóstico inicial ("no hay Java/Maven/Postgres") fue **erróneo**: usé un `find -maxdepth 6` que no llegaba a `~/.local/opt` y no estaban en mi `PATH`.
+- Durante la sesión instalé por brew `openjdk@21`, `maven` (que arrastró `openjdk 27`), `postgresql@17` y creé un cluster propio; **todo eso se revirtió** el 2026-10-13 (paquetes desinstalados y cluster eliminado). Efecto colateral detectado: brew traía el **único cliente `psql`** de la máquina; los binarios del usuario traen `postgres`/`pg_ctl`/`initdb` pero **no `psql`**, así que ahora no hay cliente SQL (queda pendiente de decisión del usuario).
+- Cómo correrlo hoy con el toolchain del usuario:
+  ```
+  source ~/.local/opt/jvm-env.sh          # JAVA_HOME=jdk21 + maven en PATH
+  source ~/.local/opt/pg-env.sh           # PGBIN/PGDATA (~/.local/share/carrito-pg/data), puerto 5432
+  pg_ctl -D "$PGDATA" -l /tmp/pg.log start
+  mvn -Pfrontend package                  # buildea la SPA y el jar
+  java -jar api/target/api-0.0.1-SNAPSHOT.jar   # backend en :9090
+  ```
+- Semilla: `docs/dev-seed.sql` reescrito para ser **idempotente y sin colisiones** (ids en el rango 99xxxx, roles reusados por nombre con `MIN(id)` porque la base del usuario tiene 93 filas duplicadas de OWNER, `ON CONFLICT DO NOTHING` en todo). Crea el negocio `demo-e2e` con `e2e-owner` / `e2e-kitchen` / `e2e-admin` (password `admin123`) y deja intactos los datos propios del usuario (`demo-pizzeria`, 3 productos, 5 pedidos).
+- La base `carrito_db` del usuario no se dropeó nunca; la suite Java se corrió contra una base descartable (`carrito_ci`, creada y eliminada).
+- Contrato de URLs impreso: el QR del backend se construye con `qr.public-menu-url` + `/menu/index.html?restaurant=<slug>` (`BusinessController.getCurrentBusinessQr` → `menuUrlBuilder`), y los redirects usan `/login/login.html`, `/dashboard/index.html`, `/kds/index.html`, `/admin/admin.html`. Esas rutas siguen funcionando (el build copia el shell de la SPA a cada una).
 
 ## Evidencia / commits
 

@@ -42,8 +42,8 @@ Nota de seguridad relacionada: el legacy (y el port fiel) llama a `/api/products
 
 ## Notas de entorno para los tests del backend
 
-- Los tests corren contra la base **viva** `carrito_db`, no una aislada: con datos semilla cargados chocan con fixtures de ids fijos (p. ej. `TenantScopedQueryContractTests` contra `combos_pkey`). Conviene correrlos sobre schema limpio.
-- El JDK por defecto de la máquina es 27 y **rompe Lombok**; la suite necesita `JAVA_HOME` apuntando a JDK 21.
+- Los tests corren contra la base configurada, no una aislada. Verificado: `SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/carrito_ci mvn -B test` sobre una base descartable → 66 + 6 tests verdes, sin tocar `carrito_db`.
+- La suite necesita un JDK 21 (Lombok se rompe con 27). Usar `source ~/.local/opt/jvm-env.sh` (Temurin 21 del usuario); el `openjdk 27` que brew había traído como dependencia de Maven ya fue desinstalado.
 - El worker observó un drift de `combos_id_seq` (secuencia por debajo de las filas existentes) que se resolvió solo en la corrida siguiente.
 
 ## Evidencia / commits
