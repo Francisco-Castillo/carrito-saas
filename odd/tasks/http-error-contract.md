@@ -41,7 +41,7 @@ Mismo defecto, rutas del dueño: `UserServiceImpl` (6), `TableServiceImpl` (3), 
 ## Tareas
 
 - [x] 1. Handler de las excepciones de Spring MVC + logging real (commit `9a95b4a`)
-- [ ] 2. Camino público: slug del local (x2, x3) y validación del pedido (x4-x7)
+- [x] 2. Camino público: slug del local (x2, x3) y validación del pedido (x4-x7) — commit `01292ad`
 - [ ] 3. Clúster del panel: convertir los "not found" y las validaciones restantes
 - [ ] 4. Revisar el `// TEST ERROR LOG` que quedó en `ProductController.crear` (log de prueba en producción)
 
@@ -49,3 +49,19 @@ Mismo defecto, rutas del dueño: `UserServiceImpl` (6), `TableServiceImpl` (3), 
 
 - Las rutas de error del dueño que hoy devuelven 500 pueden tener tests que fijen ese 500: hay que actualizarlos al estado correcto, no al revés.
 - Fijar un 404 en `Pedido no encontrado o no autorizado` es deliberado: responder 403 revelaría que el pedido existe.
+
+## Verificación del camino público (commit `01292ad`)
+
+Contra el **backend corriendo**, no sólo MockMvc:
+
+| Camino | Antes | Ahora |
+| --- | --- | --- |
+| `GET /api/restaurants/slug/no-existe` | 500 | **404** `Local no encontrado` |
+| `GET /api/restaurants/slug/no-existe/products` | 500 | **404** `Local no encontrado` |
+| `GET /api/menu/no-existe` | 500 | **404** `Local no encontrado` |
+| `POST` con `{}` | 500 | **400** `El nombre del cliente es obligatorio` |
+| `POST` DELIVERY sin dirección | 500 | **400** `Debe indicar dirección para delivery` |
+
+Backend **131/131**. Carta y pedido real en el navegador **8/8**, así que el frontend no dependía de esos 500. Dos mensajes que ahora viajan al cliente estaban en inglés y pasaron a español.
+
+Dos tests viejos fijaban el 500 accidental: `AnonymousMenuOrderSecurityTests` probaba que un anónimo puede postear un pedido afirmando **"no es 404"** (que en realidad era el 500). Ahora siembra negocio y producto reales y espera 200: prueba la intención, no el accidente.
