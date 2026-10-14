@@ -114,11 +114,9 @@ public class ComboServiceImpl implements IComboService {
 		Long businessId = securityService.getCurrentBusinessId();
 
 		// findFullMenuCombos ya acota por cat.business.id y trae items y
-		// productos en una sola consulta. IComboMapperImpl.toListDTO sigue siendo
-		// un TODO que devuelve null, así que mapeamos con toDTO por item.
-		return comboRepository.findFullMenuCombos(businessId).stream()
-				.map(iComboMapper::toDTO)
-				.toList();
+		// productos en una sola consulta. El mapeo completo vive en
+		// IComboMapperImpl.toListDTO, con la misma lógica que toDTO por item.
+		return iComboMapper.toListDTO(comboRepository.findFullMenuCombos(businessId));
 	}
 
 }
