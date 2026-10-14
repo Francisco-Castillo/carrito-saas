@@ -35,6 +35,14 @@
 			<artifactId>service</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
+		<!-- Los schedulers del módulo jobs son los únicos disparadores de la
+			cadena de analítica (métricas → tendencias → predicciones); sin esta
+			dependencia sus clases no llegan al fat jar y quedan como dead code. -->
+		<dependency>
+			<groupId>com.carrito</groupId>
+			<artifactId>jobs</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
 		<dependency>
 			<groupId>com.carrito</groupId>
 			<artifactId>security</artifactId>
