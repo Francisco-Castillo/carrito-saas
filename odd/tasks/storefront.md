@@ -1,6 +1,6 @@
 # Portada del local (etapa 2)
 
-**Estado:** backend y datos listos; falta la carta y el admin
+**Estado:** backend, datos y carta listos; falta la pantalla del admin
 **Fecha inicio:** 2026-10-14
 **Objetivo:** Que la carta digital tenga una portada de local como la referencia QueResto: logo, banner, estado **abierto/cerrado** calculado, ubicación con mapa, WhatsApp y redes.
 
@@ -30,7 +30,7 @@
 ## Tareas
 
 - [x] 1. Backend: campos del negocio + entidad/repositorio de horarios + DTOs + payload público + `GET/PUT /api/business/profile` con tests (incluido el aislamiento por negocio).
-- [ ] 2. Portada en la carta: banner, logo, nombre, estado abierto/cerrado, ubicación con link a Maps, WhatsApp y redes, con tests del cálculo de estado.
+- [x] 2. Portada en la carta: banner, logo, nombre, estado abierto/cerrado, ubicación con link a Maps, WhatsApp y redes, con tests del cálculo de estado.
 - [ ] 3. Admin: vista "Local" para editar el perfil y los horarios, con tests.
 - [x] 4. Datos y assets del negocio demo: logo + banner (reusar el banner generado) y seed actualizado.
 - [ ] 5. Verificación: suites + e2e en navegador de la portada (desktop y mobile) y del guardado desde el admin.
@@ -49,3 +49,22 @@ La primera validación exigía `opensAt < closesAt`, así que **un local que cie
 - **Dos franjas por día** (mediodía y noche, típico en locales de almuerzo): imposible con una fila por día y la unique actual; requiere lista de rangos por día.
 - **Horario de verano/invierno o feriados**: el modelo no tiene vigencia temporal.
 - **Día de 24 h / cierre exacto a medianoche**: `00:00 → 00:00` se rechaza por ambigüedad; hoy habría que cargar `23:59`.
+
+## Evidencia de la portada (2026-10-14)
+
+- **Commit `31e4324`** *feat(frontend): add the storefront to the public menu*: `openStatus.ts` (lógica pura de abierto/cerrado), `Storefront.tsx` (banner, logo, nombre, badge, línea de hoy, WhatsApp, Instagram y dirección con link a Maps armado desde el texto), estilos y tipos. Tests: `storefront-open-status.test.ts` (15) + `storefront.test.tsx` (15); frontend **81/81**.
+- **Verificación en navegador** (`~/.local/opt/e2e/storefront-check.mjs`), **7/7 PASS**, con el reloj simulado de Playwright para los casos difíciles:
+  - banner, logo circular, nombre y contacto (WhatsApp, Instagram y Maps con la dirección codificada) visibles en desktop y en 390px;
+  - miércoles con horario 11:00-23:00 → **"Abierto"** + "Cierra a las 23:00" + "Hoy: 11:00–23:00";
+  - **viernes 23:30** → abierto y avisa **"Cierra mañana a las 00:30"** (cierre que cruza la medianoche);
+  - **sábado 00:15** → sigue abierto por el rango del viernes (la cola de madrugada pertenece al día anterior);
+  - **sábado 10:00** → "Cerrado" con **"Abre hoy a las 12:00"**.
+- Capturas: `/tmp/e2e-menu/17-portada-desktop.png` y `18-portada-mobile.png`.
+
+### Decisión de copy
+
+El badge dice **"Abierto"** (no "Abierto ahora") con la hora de cierre al lado y la línea de hoy debajo: en una pantalla chica el texto largo compite con el banner, y la información útil es *cuándo cierra*, no el adverbio.
+
+### Pendiente menor anotado
+
+El estado se calcula al renderizar: si la carta queda abierta cruzando la hora de cierre, el badge no se actualiza solo. No se pidió; si molesta, se resuelve con un re-render cada minuto (o al recuperar foco la pestaña).
