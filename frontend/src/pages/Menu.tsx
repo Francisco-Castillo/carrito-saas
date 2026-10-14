@@ -428,19 +428,13 @@ export default function Menu() {
       </div>
 
       {restaurant && (
-        <header className="menu-topbar glass-panel">
-          <p className="menu-eyebrow">Carta digital</p>
-          <h1 className="restaurant-name">{restaurant.name}</h1>
-        </header>
-      )}
+        <div className="menu-sticky">
+          <header className="menu-topbar">
+            <p className="menu-eyebrow">Carta digital</p>
+            <h1 className="restaurant-name">{restaurant.name}</h1>
+          </header>
 
-      {loadError ? (
-        <div className="menu-load-error glass-panel fade-up" role="alert">
-          {loadError}
-        </div>
-      ) : (
-        <>
-          {!loading && categories.length > 0 && (
+          {!loadError && !loading && categories.length > 0 && (
             <nav className="menu-nav" aria-label="Categorías">
               <div className="menu-nav-track">
                 {categories.map((cat, index) => (
@@ -457,7 +451,15 @@ export default function Menu() {
               </div>
             </nav>
           )}
+        </div>
+      )}
 
+      {loadError ? (
+        <div className="menu-load-error glass-panel fade-up" role="alert">
+          {loadError}
+        </div>
+      ) : (
+        <>
           <main className="menu-layout">
             <section className="menu-main" aria-busy={loading || undefined}>
               {loading ? (
