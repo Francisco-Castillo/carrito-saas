@@ -57,6 +57,19 @@ public class SecurityConfig {
 	                "/dashboard/**"
 	            ).permitAll()
 
+	            // Shell de la SPA (Vite) y assets publicos que referencia:
+	            // sin esto el bundle en /assets/** responde 403 y ninguna
+	            // pantalla carga, porque cualquier ruta no listada exige token.
+	            .requestMatchers(
+	                "/",
+	                "/index.html",
+	                "/assets/**",
+	                "/favicon.svg",
+	                "/favicon.ico",
+	                "/ding.mp3",
+	                "/ready.mp3"
+	            ).permitAll()
+
 	            // Actuator (incluye Prometheus)
 	            .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
 
