@@ -114,7 +114,8 @@ Capturas: `/tmp/e2e-menu/23-admin-local.png` (el panel) y `24-carta-con-cambio.p
 
 ## Pendientes que quedan anotados
 
-- **Dos franjas por día** y **horario de verano/feriados**: el modelo no los representa (ver arriba).
+- ~~Dos franjas por día~~: **resuelto** en `odd/tasks/opening-hours-shifts.md` (varios turnos por día, con derrame de medianoche).
+- **Horario de verano y feriados**: el modelo sigue sin representarlos.
 - El estado abierto/cerrado se calcula al renderizar: si la carta queda abierta cruzando el cierre, el badge no se actualiza solo.
 - Los días se envían siempre los siete (el contrato borra un día omitido): hoy no hay forma de "quitar" un día, sólo marcarlo cerrado.
 - El PUT es de reemplazo total: una pantalla que quiera ediciones parciales necesita otro contrato.

@@ -1,6 +1,6 @@
 # Horarios: varios turnos por día
 
-**Estado:** en curso
+**Estado:** cerrado (2026-10-14)
 **Rama:** `feature/ui-liquid-glass`
 **Origen:** el modelo actual guarda **un solo rango por día** (`business_hours` con `UNIQUE (business_id, day_of_week)`), así que "mediodía y noche" es imposible de representar. Un restaurante real abre, cierra y vuelve a abrir el mismo día.
 
@@ -79,13 +79,13 @@ Los mensajes de error se muestran tal cual en el panel del dueño, así que est�
 
 ## Tareas
 
-- [ ] 1. Feature doc y plan (este documento)
+- [x] 1. Feature doc y plan (este documento)
 - [x] 2. Migración idempotente + entidad `BusinessHours` con `position` — commit `d1179a8` (`closed` se va en el paso 3, junto con el DTO)
-- [ ] 3. DTO de turnos por día, validación nueva (reglas 1-9) y endpoints
-- [ ] 4. Editor de turnos en el admin Local (agregar/quitar turno por día)
-- [ ] 5. `openStatus.ts` con varios turnos y derrame; badge en la carta
-- [ ] 6. Seed con dos turnos y verificación en el navegador (admin + carta)
-- [ ] 7. Actualizar `storefront.md` y cerrar
+- [x] 3. DTO de turnos por día, validación nueva (reglas 1-9) y endpoints — commit `e9094fa`
+- [x] 4. Editor de turnos en el admin Local (agregar/quitar turno por día) — commit `90af933`
+- [x] 5. `openStatus.ts` con varios turnos y derrame; badge en la carta — commit `80a038a`
+- [x] 6. Seed con dos turnos y verificación en el navegador — commit `0c4baea`
+- [x] 7. Cerrar y dejar anotados los pendientes
 
 ## Riesgos anotados
 
@@ -113,3 +113,32 @@ La primera versión borraba los días cerrados con `DELETE ... WHERE closed IS T
 ### Dato del ensayo que cambia prioridades
 
 **`demo-pizzeria`, el negocio del usuario, tiene cero filas de horarios.** No hay nada que migrar del lado del negocio real: los 7 registros son del demo del seed. O sea que la migración no pone en riesgo ningún horario cargado a mano, y también que hoy su carta no muestra ningún horario — la pantalla "Local" del panel es la que va a permitir cargarlos.
+
+## Cierre: cómo se verificó (commits `d1179a8` … `0c4baea`)
+
+**Backend 140/140, frontend 95/95.** Y contra el servlet real, no sólo en tests:
+
+| Regla | Respuesta |
+| --- | --- |
+| Solape dentro del día | 400 *Los turnos de un día no pueden superponerse* |
+| Medianoche y no es el último | 400 *Un turno que pasa la medianoche tiene que ser el último del día* |
+| Derrame choca con la mañana siguiente | 400 *…se superpone con la apertura del día siguiente* |
+| Cinco turnos / horas iguales / día 8 / día repetido | 400 con su mensaje |
+| Derrame que termina justo cuando el otro abre | **aceptado** (el borde exacto es válido) |
+| Derrame domingo→lunes | 400 (el chequeo es cíclico) |
+
+Y el **ida y vuelta completo en el navegador** (`~/.local/opt/e2e/shifts-roundtrip.mjs`, 5/5): el editor carga el viernes con dos turnos, la carta describe el día entero y está abierto a las 00:15 por el derrame, adelantar el cierre a las 23:30 **borra el derrame**, quitar el turno de la noche deja la noche cerrada y anuncia que abre mañana, y volver a agregarlo devuelve el demo a su estado. La portada y la medianoche: **7/7**.
+
+## Lo que dejó este cambio (para no repetirlo)
+
+- **La migración que "era idempotente" no lo era.** El `DELETE` de los días cerrados referenciaba la columna que el mismo script borraba: la primera corrida andaba y la segunda fallaba, porque Postgres resuelve columnas al planificar. Apareció **porque el ensayo la corrió dos veces**, no razonando. Cualquier migración va con ensayo de doble corrida.
+- **Un tipo canónico que queda viejo es una mina.** `BusinessHours` en el frontend describía el payload anterior mientras el backend ya mandaba turnos: el worker se detuvo dos veces pidiendo la superficie correcta en vez de taparlo con casts, y tenía razón.
+- **Un campo que falta no puede borrar datos.** Un cliente con la forma vieja mandaba `shifts: null` y el servidor lo leía como "día cerrado", así que guardaba un 200 y **borraba los horarios en silencio**. Ahora da 400 con un mensaje, y hay un test que comprueba que lo guardado sobrevive al rechazo (commit `261750e`).
+- **Un test que depende del reloj real no es un test**: la comprobación del badge en la portada cambió a reloj fijo (miércoles 13:00).
+
+## Pendientes que quedan anotados
+
+- **Horario de verano y feriados**: el modelo no los representa.
+- El estado se calcula al renderizar: si la carta queda abierta cruzando un cambio de turno, el badge no se actualiza solo.
+- El `PUT` sigue siendo de reemplazo total: una pantalla con ediciones parciales necesita otro contrato.
+- **`demo-pizzeria` (el negocio del usuario) no tiene horarios cargados**: la carta responde los 7 días cerrados, y se cargan desde la pantalla "Local".
