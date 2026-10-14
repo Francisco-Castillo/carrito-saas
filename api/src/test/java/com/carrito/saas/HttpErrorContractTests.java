@@ -17,7 +17,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.http.ResponseEntity;
 
+import com.carrito.saas.exception.ErrorResponse;
+import com.carrito.saas.exception.GlobalExceptionHandler;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.BusinessUserRepository;
 import com.carrito.saas.repository.jpa.RoleRepository;
@@ -40,8 +44,9 @@ import com.carrito.saas.security.JwtUtil;
  * still answers 400 with the {@code <field> <message>} text,
  * {@code BusinessException} still maps through {@code ErrorMapper}, and the
  * catch-all still answers 500 with the generic message for a genuinely
- * unexpected failure (an existing endpoint that throws a plain
- * {@code RuntimeException} for an unknown slug).</p>
+ * unexpected failure (exercised by invoking {@code handleGeneral} directly:
+ * the plain-{@code RuntimeException} slug endpoint that used to be the
+ * trigger now answers an honest 404).</p>
  *
  * <p>MockMvc is assembled manually with
  * {@link MockMvcBuilders#webAppContextSetup} plus the real security
@@ -81,6 +86,9 @@ class HttpErrorContractTests {
 
 	@Autowired
 	private JwtUtil jwtUtil;
+
+	@Autowired
+	private GlobalExceptionHandler globalExceptionHandler;
 
 	private MockMvc mockMvc;
 
@@ -153,16 +161,29 @@ class HttpErrorContractTests {
 
 	/**
 	 * The catch-all keeps its purpose: a genuinely unexpected
-	 * {@code RuntimeException} (an existing public endpoint that fails for an
-	 * unknown slug) still answers 500 with the generic message.
+	 * {@code RuntimeException} still answers 500 with the generic message.
+	 *
+	 * <p>The old trigger (an endpoint that threw a plain
+	 * {@code RuntimeException} for an unknown slug) is gone: those public
+	 * paths now answer honest 4xx via {@code BusinessException} (see
+	 * {@code PublicPathErrorStatusHttpTests}), so the catch-all is exercised
+	 * by invoking {@link GlobalExceptionHandler#handleGeneral} directly with a
+	 * real unexpected failure — the stable way to pin its contract.</p>
 	 */
 	@Test
-	void unexpectedRuntimeFailureStillReturns500WithGenericMessage() throws Exception {
+	void unexpectedRuntimeFailureStillReturns500WithGenericMessage() {
 
-		mockMvc.perform(get("/api/restaurants/slug/no-such-business-http-error-contract")
-						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader()))
-				.andExpect(status().isInternalServerError())
-				.andExpect(jsonPath("$.message").value("Ocurrió un error inesperado"));
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/some-endpoint");
+
+		ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleGeneral(
+				new RuntimeException("fallo genuinamente inesperado"), request);
+
+		org.assertj.core.api.Assertions.assertThat(response.getStatusCode())
+				.isEqualTo(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
+		org.assertj.core.api.Assertions.assertThat(response.getBody()).isNotNull();
+		org.assertj.core.api.Assertions.assertThat(response.getBody().getMessage())
+				.isEqualTo("Ocurrió un error inesperado");
+		org.assertj.core.api.Assertions.assertThat(response.getBody().getPath()).isEqualTo("/api/some-endpoint");
 	}
 
 	/**

@@ -11,6 +11,8 @@ import com.carrito.saas.dto.CategoryDTO;
 import com.carrito.saas.dto.ComboDTO;
 import com.carrito.saas.dto.MenuDTO;
 import com.carrito.saas.dto.ProductDTO;
+import com.carrito.saas.exception.BusinessException;
+import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.BusinessHours;
 import com.carrito.saas.repository.entity.Category;
@@ -58,7 +60,7 @@ public class MenuServiceImpl implements IMenuService {
 	@Override
 	public MenuDTO getMenu(String slug) {
 		Business business = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new RuntimeException("Business not found"));
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 		List<Category> categories = categoryRepository.findByBusinessId(business.getId());
 

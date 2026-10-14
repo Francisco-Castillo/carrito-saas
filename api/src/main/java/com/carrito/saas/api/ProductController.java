@@ -82,7 +82,7 @@ public class ProductController {
 	) {
 
 	    Business restaurant = businessRepository.findBySlug(slug)
-	            .orElseThrow(() -> new RuntimeException("Restaurant not found"));
+	            .orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 	    ProductFilterDTO filter = ProductFilterDTO.builder()
 	            .search(search)
@@ -101,14 +101,13 @@ public class ProductController {
 	public BusinessDTO getRestaurantBySlug(@PathVariable String slug) {
 
 		Business restaurant = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new RuntimeException("Restaurant not found"));
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 		return iBusinessMapper.toDTO(restaurant);
 	}
 
 	@PostMapping("/productos")
 	public ResponseEntity<ProductDTO> crear(@RequestBody ProductCreateDTO dto) {
-		log.error("TEST ERROR LOG");
 		ProductDTO creado = productService.crearProducto(dto);
 
 		return ResponseEntity.ok(creado);
