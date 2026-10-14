@@ -87,6 +87,9 @@
 .storefront-head {
   display: flex;
   align-items: center;
+  /* Los pills de contacto viven acá dentro: en pantallas anchas se apoyan a
+     la derecha de la columna de info; en teléfonos bajan debajo (wrap). */
+  flex-wrap: wrap;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-5);
 }
@@ -162,8 +165,20 @@
 .storefront-contact {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
-  margin-top: var(--space-3);
+  /* Anchas: tercera columna de la tarjeta, pegada al borde derecho. */
+  margin-left: auto;
+}
+
+@media (max-width: 639px) {
+  .storefront-contact {
+    /* Teléfonos: los pills bajan como fila propia debajo de la info. La
+       tarjeta crece una fila de pills (~52px), no más: la info y el logo
+       mantienen su altura (72px de logo > 44px de pills, no suman en ancho). */
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
 }
 
 .storefront-link {
@@ -200,27 +215,65 @@
 }
 
 /* ------------------------------------------------------------
-   Barra sticky de vidrio — nombre del local + píldoras de categorías
+   Bloque de menú — encabezado + píldoras + secciones
 
-   Van juntas en UN solo bloque sticky a propósito: cuando eran dos elementos
-   sticky separados quedaba una ranura entre el header y la fila de píldoras por
-   donde el contenido pasaba sin desenfocar (el cliente veía la foto y el texto
-   mezclados con el header). Una sola barra, pegada al borde superior y sangrada
-   hasta los bordes del contenedor, no deja hueco por donde mirar.
+   Los filtros pertenecen al menú: el encabezado real y las píldoras viven
+   dentro del bloque, arriba de la primera sección. Nada de barra flotante.
+   ------------------------------------------------------------ */
+
+.menu-block-heading {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+/* ------------------------------------------------------------
+   Barra sticky de píldoras — vidrio SOLO mientras está pegada
+
+   En su lugar natural las píldoras son parte del bloque de menú: fondo
+   transparente, alineadas con el contenido. Cuando el sentinel (un elemento
+   de 1px justo antes de la barra, vigilado por IntersectionObserver) deja de
+   verse, la barra quedó pegada arriba y la pseudo-capa ::before enciende el
+   tratamiento de vidrio sangrado a los bordes del contenedor. El vidrio va en
+   ::before y no en la barra para que encenderlo/apagarlo no cambie ninguna
+   métrica de layout (cero salto al cruzar el umbral) y la opacidad haga la
+   transición suave.
    ------------------------------------------------------------ */
 
 .menu-sticky {
   position: sticky;
   top: 0;
   z-index: 40;
-  margin: calc(var(--space-3) * -1) calc(var(--menu-gutter) * -1) var(--space-1);
-  padding: var(--space-2) var(--menu-gutter) var(--space-1);
+  margin: 0 0 var(--space-1);
+  padding: var(--space-1) 0;
+}
+
+.menu-sticky::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(var(--menu-gutter) * -1);
+  z-index: -1;
+  pointer-events: none;
   background: rgba(2, 6, 23, 0.62);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border-bottom: 1px solid var(--glass-border-subtle);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out-soft);
+}
+
+.menu-sticky.is-stuck::before {
+  opacity: 1;
+}
+
+/* Sentinel del sticky: invisible (1px) y sin interacción; sólo marca el punto
+   donde la barra alcanza el borde superior. */
+.menu-sticky-sentinel {
+  height: 1px;
+  pointer-events: none;
 }
 
 /* ------------------------------------------------------------
@@ -1165,6 +1218,9 @@
    ------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
+  .menu-sticky::before {
+    transition: none;
+  }
   .product-card,
   .product-card:hover,
   .product-card:active,

@@ -135,8 +135,12 @@ export default function Menu() {
 
   // Navegación de categorías: píldora activa por scroll-spy.
   const [activeCategory, setActiveCategory] = useState(0);
+  // Vidrio de la barra de píldoras: sólo cuando está realmente pegada arriba.
+  const [stuck, setStuck] = useState(false);
   const sectionEls = useRef<HTMLElement[]>([]);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const stickyObserverRef = useRef<IntersectionObserver | null>(null);
 
   useEffect(() => {
     document.title = "Carta Digital";
@@ -257,6 +261,34 @@ export default function Menu() {
     return () => {
       observer.disconnect();
       observerRef.current = null;
+    };
+  }, []);
+
+  // Sentinel de la barra sticky: un elemento diminuto justo ANTES de la barra.
+  // Existe para saber si la barra está realmente pegada al borde superior sin
+  // escuchar scroll: mientras el sentinel se ve en el viewport, la barra está
+  // en su lugar natural (parte del bloque de menú, sin vidrio); cuando deja
+  // de verse es porque la barra quedó pegada arriba (is-stuck → vidrio).
+  // Mismo patrón IntersectionObserver del scroll-spy de secciones; en entornos
+  // sin IntersectionObserver no hay vidrio dinámico y no falla nada.
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => setStuck(!entry.isIntersecting));
+      },
+      { threshold: 0 },
+    );
+
+    stickyObserverRef.current = observer;
+    // Sentinel ya montado (montaje posterior a la carga de datos): se observa
+    // acá; si monta después lo hace su ref callback.
+    if (sentinelRef.current) observer.observe(sentinelRef.current);
+
+    return () => {
+      observer.disconnect();
+      stickyObserverRef.current = null;
     };
   }, []);
 
@@ -461,33 +493,10 @@ export default function Menu() {
         <div className="aurora-blob aurora-blob--cyan" />
       </div>
 
-      {/* La portada vive ARRIBA de la barra sticky: al hacer scroll, la barra
-          (identidad + píldoras) queda pegada arriba y la portada se va. */}
+      {/* La portada vive ARRIBA del bloque de menú: al hacer scroll, la
+          barra de píldoras (dentro del bloque) queda pegada arriba y la
+          portada se va. */}
       {business && <Storefront business={business} />}
-
-      {/* La barra sticky lleva SÓLO las píldoras: el nombre del local ya está en
-          la portada y repetirlo acá era redundante (y más alto al scrollear). */}
-      {!loadError && !loading && categories.length > 0 && (
-        <div className="menu-sticky">
-          {(
-            <nav className="menu-nav" aria-label="Categorías">
-              <div className="menu-nav-track">
-                {categories.map((cat, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    className={`nav-pill${index === activeCategory ? " active" : ""}`}
-                    aria-current={index === activeCategory ? "true" : undefined}
-                    onClick={() => scrollToCategory(index)}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
-              </div>
-            </nav>
-          )}
-        </div>
-      )}
 
       {loadError ? (
         <div className="menu-load-error glass-panel fade-up" role="alert">
@@ -495,7 +504,54 @@ export default function Menu() {
         </div>
       ) : (
         <>
-          <main className="menu-layout">
+          {/* El bloque de menú agrupa SU encabezado, las píldoras de categorías
+              y las secciones: los filtros pertenecen al menú, no flotan sobre
+              la página. */}
+          <section className="menu-block" aria-labelledby="menu-block-heading">
+            <h1 className="menu-block-heading" id="menu-block-heading">
+              Menú
+            </h1>
+
+            {/* La barra sticky lleva SÓLO las píldoras: el nombre del local ya
+                está en la portada y el encabezado "Menú" es el del bloque. El
+                vidrio aparece sólo mientras la barra está pegada (is-stuck). */}
+            {!loading && categories.length > 0 && (
+              <>
+                <div
+                  className="menu-sticky-sentinel"
+                  aria-hidden="true"
+                  ref={(el) => {
+                    const previous = sentinelRef.current;
+                    if (el) {
+                      sentinelRef.current = el;
+                      if (previous !== el) stickyObserverRef.current?.observe(el);
+                    } else {
+                      if (previous) stickyObserverRef.current?.unobserve(previous);
+                      sentinelRef.current = null;
+                    }
+                  }}
+                />
+                <div className={`menu-sticky${stuck ? " is-stuck" : ""}`}>
+                  <nav className="menu-nav" aria-label="Categorías">
+                    <div className="menu-nav-track">
+                      {categories.map((cat, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          className={`nav-pill${index === activeCategory ? " active" : ""}`}
+                          aria-current={index === activeCategory ? "true" : undefined}
+                          onClick={() => scrollToCategory(index)}
+                        >
+                          {cat.name}
+                        </button>
+                      ))}
+                    </div>
+                  </nav>
+                </div>
+              </>
+            )}
+
+            <main className="menu-layout">
             <section className="menu-main" aria-busy={loading || undefined}>
               {loading ? (
                 <div className="menu-skeleton" role="status">
@@ -552,6 +608,7 @@ export default function Menu() {
             </section>
 
           </main>
+          </section>
 
           {/* El carrito NO aparece al costado ni reacomoda la grilla: agregar un
               producto sólo actualiza esta barra, y abrir el pedido es una acción

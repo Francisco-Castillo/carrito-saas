@@ -8,6 +8,10 @@ import type { StorefrontBusiness } from "./types";
  * (WhatsApp, Instagram y la dirección como enlace a Maps — no hay coordenadas
  * guardadas, se busca por la dirección codificada).
  *
+ * El contacto vive DENTRO de la tarjeta (`.storefront-head`): logo, nombre,
+ * insignia y pills forman UN bloque — en pantallas anchas los pills se apoyan
+ * a la derecha de la columna de info y en teléfonos bajan debajo (CSS).
+ *
  * Todo es opcional: cada elemento desaparece cuando su dato falta, y un local
  * sin portada no renderiza nada (la carta queda exactamente como era).
  */
@@ -77,42 +81,42 @@ export default function Storefront({
             <p className="storefront-hours">Hoy: {status.todayLine}</p>
           )}
         </div>
-      </div>
 
-      {hasContact && (
-        <div className="storefront-contact">
-          {whatsappDigits && (
-            <a
-              className="storefront-link"
-              href={`https://wa.me/${whatsappDigits}`}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              WhatsApp
-            </a>
-          )}
-          {instagramUrl && (
-            <a
-              className="storefront-link"
-              href={instagramUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              Instagram
-            </a>
-          )}
-          {address && (
-            <a
-              className="storefront-link storefront-link--address"
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              {address}
-            </a>
-          )}
-        </div>
-      )}
+        {hasContact && (
+          <div className="storefront-contact">
+            {whatsappDigits && (
+              <a
+                className="storefront-link"
+                href={`https://wa.me/${whatsappDigits}`}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                WhatsApp
+              </a>
+            )}
+            {instagramUrl && (
+              <a
+                className="storefront-link"
+                href={instagramUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Instagram
+              </a>
+            )}
+            {address && (
+              <a
+                className="storefront-link storefront-link--address"
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                {address}
+              </a>
+            )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

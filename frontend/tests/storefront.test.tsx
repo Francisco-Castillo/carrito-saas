@@ -4,7 +4,7 @@
  * Instagram y dirección como enlace a Maps). Cada dato es opcional: cuando
  * falta, su elemento desaparece sin dejar huecos.
  */
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Menu from "../src/pages/Menu";
 import Storefront from "../src/pages/menu/Storefront";
@@ -83,6 +83,29 @@ describe("Storefront — portada completa", () => {
       "https://www.google.com/maps/search/?api=1&query=" +
         encodeURIComponent("Av. Siempreviva 742, Springfield"),
     );
+    expect(maps).toHaveAttribute("rel", "noreferrer noopener");
+  });
+
+  it("la fila de contacto vive DENTRO de la tarjeta del local (storefront-head)", () => {
+    renderStorefront(BUSINESS);
+
+    // Afirmación estructural: los pills de contacto son DESCENDIENTES de la
+    // tarjeta (mismo bloque que logo, nombre e insignia), no una banda suelta.
+    const head = document.querySelector(".storefront-head") as HTMLElement;
+    expect(head).not.toBeNull();
+    expect(head.querySelector(".storefront-contact")).not.toBeNull();
+
+    // Y siguen apuntando adonde deben.
+    expect(
+      within(head).getByRole("link", { name: "WhatsApp" }),
+    ).toHaveAttribute("href", "https://wa.me/1123456789");
+    expect(
+      within(head).getByRole("link", { name: "Instagram" }),
+    ).toHaveAttribute("href", "https://instagram.com/foodtruckdemo");
+    const maps = within(head).getByRole("link", {
+      name: "Av. Siempreviva 742, Springfield",
+    });
+    expect(maps).toHaveAttribute("target", "_blank");
     expect(maps).toHaveAttribute("rel", "noreferrer noopener");
   });
 
@@ -194,10 +217,14 @@ describe("Storefront dentro de la carta (Menu)", () => {
     await screen.findByText("Milanesa");
     expect(screen.getByAltText("Portada de Foodtruck Demo")).toBeInTheDocument();
 
-    // Orden: la portada va antes que la barra sticky (identidad + píldoras).
-    const sticky = document.querySelector(".menu-sticky")!;
+    // Orden: la portada va antes del bloque de menú que contiene la barra
+    // sticky de píldoras (la barra ya no es hermana directa de la portada:
+    // vive dentro del bloque de menú, bajo su encabezado).
+    const block = document.querySelector(".menu-block") as HTMLElement;
+    expect(block).not.toBeNull();
+    expect(block.previousElementSibling?.className).toContain("storefront");
+    const sticky = block.querySelector(".menu-sticky");
     expect(sticky).not.toBeNull();
-    expect(sticky.previousElementSibling?.className).toContain("storefront");
   });
 
   it("menú sin business: sin portada y el resto de la carta intacto", async () => {
