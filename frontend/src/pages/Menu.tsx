@@ -465,14 +465,11 @@ export default function Menu() {
           (identidad + píldoras) queda pegada arriba y la portada se va. */}
       {business && <Storefront business={business} />}
 
-      {restaurant && (
+      {/* La barra sticky lleva SÓLO las píldoras: el nombre del local ya está en
+          la portada y repetirlo acá era redundante (y más alto al scrollear). */}
+      {!loadError && !loading && categories.length > 0 && (
         <div className="menu-sticky">
-          <header className="menu-topbar">
-            <p className="menu-eyebrow">Carta digital</p>
-            <h1 className="restaurant-name">{restaurant.name}</h1>
-          </header>
-
-          {!loadError && !loading && categories.length > 0 && (
+          {(
             <nav className="menu-nav" aria-label="Categorías">
               <div className="menu-nav-track">
                 {categories.map((cat, index) => (
