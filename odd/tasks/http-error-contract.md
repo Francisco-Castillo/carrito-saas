@@ -1,6 +1,6 @@
 # Contrato de errores HTTP
 
-**Estado:** mecanismo cerrado; camino público en curso; clúster del panel pendiente
+**Estado:** cerrado (2026-10-14)
 **Rama:** `feature/ui-liquid-glass`
 
 ## El problema
@@ -42,8 +42,8 @@ Mismo defecto, rutas del dueño: `UserServiceImpl` (6), `TableServiceImpl` (3), 
 
 - [x] 1. Handler de las excepciones de Spring MVC + logging real (commit `9a95b4a`)
 - [x] 2. Camino público: slug del local (x2, x3) y validación del pedido (x4-x7) — commit `01292ad`
-- [ ] 3. Clúster del panel: convertir los "not found" y las validaciones restantes
-- [ ] 4. Revisar el `// TEST ERROR LOG` que quedó en `ProductController.crear` (log de prueba en producción)
+- [x] 3. Clúster del panel: login honesto y "not found" del dueño — commit `fe3f8eb`
+- [x] 4. `// TEST ERROR LOG` quitado de `ProductController.crear` (en el commit `01292ad`)
 
 ## Riesgos
 
@@ -65,3 +65,33 @@ Contra el **backend corriendo**, no sólo MockMvc:
 Backend **131/131**. Carta y pedido real en el navegador **8/8**, así que el frontend no dependía de esos 500. Dos mensajes que ahora viajan al cliente estaban en inglés y pasaron a español.
 
 Dos tests viejos fijaban el 500 accidental: `AnonymousMenuOrderSecurityTests` probaba que un anónimo puede postear un pedido afirmando **"no es 404"** (que en realidad era el 500). Ahora siembra negocio y producto reales y espera 200: prueba la intención, no el accidente.
+
+## El clúster del panel (commit `fe3f8eb`)
+
+El login era la mitad visible: `Login.tsx` muestra el `message` del backend tal cual, así que una contraseña mal tipeada le decía al usuario **"Ocurrió un error inesperado"**, y cada intento fallido dejaba un stack trace en nivel ERROR. Medido antes y después contra el backend corriendo:
+
+| Caso | Antes | Ahora |
+| --- | --- | --- |
+| Contraseña equivocada | 500 | **401** `Usuario o contraseña incorrectos` |
+| Usuario inexistente | 500 | **401**, **el mismo mensaje** |
+| Credenciales válidas, negocio ajeno | 500 | **403** `El usuario no pertenece a este negocio` |
+| Sin `restaurantSlug` | 500 | **400** `Debe indicar el negocio` |
+| `GET /api/categorias/{id}` inexistente | 500 | **404** `Categoría no encontrada` |
+| Usuario duplicado | 500 | **409** |
+
+`ErrorType` sumó `UNAUTHORIZED` y `FORBIDDEN`: con 400/404/409 no se puede decir "no estás autenticado" contra "estás autenticado pero no podés", y esa es justo la distinción del login.
+
+Un test fija la propiedad que importa: **contraseña equivocada y usuario inexistente responden lo mismo**, para que el login no se convierta en un oráculo de qué usuarios existen.
+
+Verificado además **en el navegador** (`~/.local/opt/e2e/login-error.mjs`): el formulario dice `Usuario o contraseña incorrectos` en los dos casos y el pedido responde 401.
+
+### El endpoint que no era un status: `GET /api/business/slug/{slug}`
+
+Declaraba `iBusinessService` y **nunca lo inyectaba**, así que tiraba NPE en **cualquier** slug, válido o no: no era un estado equivocado, era un endpoint que no funcionaba. Corregida la inyección, responde **200** con el negocio y **404** con un slug inexistente. El test de nivel servicio que existía sólo porque la ruta no se podía alcanzar fue reemplazado por dos de nivel HTTP.
+
+### Notas que conviene conservar
+
+- Sitios **sólo defensivos** (convertidos por honestidad, pero no alcanzables por HTTP): `UserServiceImpl.getLoginInfo` (ningún controller lo llama), los lookups de negocio derivados del JWT en `TableServiceImpl` y `CategoryServiceImpl`.
+- Llamados opinables, resueltos con criterio: `Role not found` → **400** (el rol viene en el body, es entrada inválida; 404 también sería defendible); `getLoginInfo` sin pertenencia → **403** (coherente con el login).
+- `TableController.update/delete/findAll/generateBulk` son **stubs muertos** (devuelven null, sin mapeo): el 404 de `findOwnedTable` sólo se alcanza por los endpoints de QR.
+- El `403` de `GET /api/categorias` sin token es correcto (la sesión vencida del dueño se ve así).
