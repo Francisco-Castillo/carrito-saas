@@ -49,3 +49,25 @@ La página de `queresto.com/Guling` renderiza **vacía**; el lenguaje se extrae 
 - **Tests**: 38/38 (9 archivos) con el contrato de pedido intacto (payload, validación, WhatsApp, fallback). Nuevos: `menu-redesign.test.tsx` (8) para píldoras/scroll-spy, hoja de detalle, barra y hoja del carrito, placeholders.
 - **Verificación en navegador** (`~/.local/opt/e2e/menu-design.mjs`), 8/8 PASS: 7 tarjetas con 7 fotos reales, píldora activa que sigue la sección al scrollear, hoja de detalle que agrega, sidebar de carrito con total, **pedido real enviado y confirmado**, y en mobile (390×844) la barra flotante, la hoja del carrito y el detalle. Capturas en `/tmp/e2e-menu/`.
 - **Mejora posterior al ver**: la foto del combo salía del primer componente, así que "Combo Clasica + Bebida" mostraba una gaseosa suelta. Ahora usa el componente más caro con imagen (el plato principal), con test que lo pincha.
+
+## El bug de fondo: el vidrio no existía en ningún navegador (2026-10-14)
+
+Al revisar el pedido del usuario ("agregar blur a las píldoras y el header para que no se mezclen con el fondo") medí los estilos computados con Playwright en vez de suponer, y apareció algo mucho más grande que el menú:
+
+```
+.topbar  backdropFilter: "none"
+.nav-pill backdropFilter: "none"
+--glass-blur → "blur(24px) saturate(160%)"   (la variable resolvía bien)
+elemento sintético con backdrop-filter → "blur(8px)"  (el navegador lo soporta)
+```
+
+Causa: **el minificador de CSS conserva la última de dos declaraciones equivalentes**. En todo el proyecto cada regla declaraba `backdrop-filter` y después `-webkit-backdrop-filter`, así que el bundle salía **sólo con la prefijada**, que Chrome y Firefox ignoran. Es decir: **el efecto vidrio nunca se aplicó**, en el menú, el login, el dashboard, el admin y el KDS; nada fallaba y nada lo avisaba.
+
+- Arreglo (`a97dd22`): la declaración prefijada pasa a ir **primero** y la estándar última, en los 10 pares de las 5 hojas (Safari viejo sigue encontrando su prefijo). Verificado en el navegador: `blur(24px) saturate(1.6)` computado en los 5 pantallas (login 2/2 elementos, dashboard 7/7, admin 7/7, kds 5/5).
+- **Guard en el build**: el paso post-build compara declaraciones con y sin prefijo en el CSS emitido y rompe el build si hay menos sin prefijo que con prefijo (`glass guard ok: 12 sin prefijo, 12 prefijadas`). Probado por mutación: reintroducir el orden viejo en **una sola** regla hace fallar el build nombrándola.
+
+## La barra unificada (`3e56fda`)
+
+Con el blur restaurado quedaba el problema estructural del pedido original: header y píldoras eran **dos** elementos sticky con una ranura de 13px entre ellos, y el texto y los precios de los productos pasaban por esa ranura y por los huecos entre píldoras (visible en `review-desktop-antes.png`). Ahora son **una sola barra** pegada al borde superior, sangrada a los bordes del contenedor, con fondo, blur, línea y sombra propios: no queda ranura. El `scroll-margin-top` de las secciones se corrigió al alto medido de la barra (118px en todos los breakpoints) en lugar de valores estimados.
+
+Capturas comparativas: `/tmp/e2e-menu/review-desktop-{antes,final}.png` y `review-mobile-{antes,final}.png`; pantallas completas en `/tmp/e2e-menu/` y `/tmp/e2e-glass/`.
