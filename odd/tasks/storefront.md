@@ -68,3 +68,8 @@ El badge dice **"Abierto"** (no "Abierto ahora") con la hora de cierre al lado y
 ### Pendiente menor anotado
 
 El estado se calcula al renderizar: si la carta queda abierta cruzando la hora de cierre, el badge no se actualiza solo. No se pidió; si molesta, se resuelve con un re-render cada minuto (o al recuperar foco la pestaña).
+## Ajuste del banner (pedido del usuario)
+
+El usuario marcó que el banner quedaba muy grande. Medido: con `aspect-ratio: 16/6` medía **~576px** en una pantalla de 1600 (más de media pantalla antes del primer producto) y en teléfono el 4:3 daba **268px**, que sumado a la tarjeta y los chips empujaba la carta casi fuera de la primera pantalla.
+
+Commit `c2d2310`: el banner pasa a altura acotada (`clamp(170px, 17vw, 260px)` en escritorio; `clamp(140px, 36vw, 190px)` en teléfono) con `object-fit: cover`, y el fundido inferior se ajustó (62%→100%) porque el gradiente anterior lavaba la foto en un banner corto. Resultado medido: banner de **576 → 260px** y de **268 → 140px**, y **el primer producto pasó a aparecer al 62% de la pantalla** (antes quedaba bajo el pliegue). Re-verificado el e2e de portada: 7/7.
