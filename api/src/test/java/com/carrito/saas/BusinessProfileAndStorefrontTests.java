@@ -785,6 +785,78 @@ class BusinessProfileAndStorefrontTests {
 				.andExpect(jsonPath("$.message", containsString("día siguiente")));
 	}
 
+	/**
+	 * Un payload con la forma vieja del contrato (turnos al nivel del día y el
+	 * campo closed, ya inexistente) se deserializa con {@code shifts == null}:
+	 * se rechaza con 400 y los turnos ya guardados quedan intactos. Ese es el
+	 * punto del guard: un error de campo no borra el horario del negocio.
+	 */
+	@Test
+	void putRejectsOldContractDayWithoutShiftsAndLeavesStoredHoursIntact() throws Exception {
+
+		hour(businessA(), 5, 0, "11:00:00", "15:00:00");
+		hour(businessA(), 5, 1, "19:00:00", "00:30:00");
+
+		String oldShapePayload = """
+				{"name":"Negocio Storefront",
+				 "logoUrl":"https://cdn.ejemplo.com/l.png",
+				 "bannerUrl":"https://cdn.ejemplo.com/b.jpg",
+				 "address":"Dirección",
+				 "instagramUrl":"https://instagram.com/negocio",
+				 "hours":[{"dayOfWeek":5,"opensAt":"11:00","closesAt":"15:00","closed":false}]}
+				""";
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(oldShapePayload))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message")
+						.value("shifts es obligatorio en cada día (una lista vacía significa cerrado)"));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		List<BusinessHours> savedHours =
+				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID);
+		assertThat(savedHours).as("el rechazo del guard no borra los turnos ya guardados").hasSize(2);
+		assertThat(savedHours).extracting(BusinessHours::getOpensAt)
+				.containsExactly(LocalTime.parse("11:00:00"), LocalTime.parse("19:00:00"));
+	}
+
+	/** Igual que la forma vieja, pero con el día nombrado sin la clave shifts. */
+	@Test
+	void putRejectsDayNamedWithoutShiftsKeyAndLeavesStoredHoursIntact() throws Exception {
+
+		hour(businessA(), 1, 0, "09:00:00", "13:00:00");
+
+		String noShiftsKeyPayload = """
+				{"name":"Negocio Storefront",
+				 "logoUrl":"https://cdn.ejemplo.com/l.png",
+				 "bannerUrl":"https://cdn.ejemplo.com/b.jpg",
+				 "address":"Dirección",
+				 "instagramUrl":"https://instagram.com/negocio",
+				 "hours":[{"dayOfWeek":5}]}
+				""";
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(noShiftsKeyPayload))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message")
+						.value("shifts es obligatorio en cada día (una lista vacía significa cerrado)"));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		List<BusinessHours> savedHours =
+				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID);
+		assertThat(savedHours).as("el rechazo del guard no borra los turnos ya guardados").hasSize(1);
+		assertThat(savedHours.get(0).getDayOfWeek()).isEqualTo(1);
+		assertThat(savedHours.get(0).getOpensAt()).isEqualTo(LocalTime.parse("09:00:00"));
+	}
+
 	// ------------------------------------------------------------------
 	// Security
 	// ------------------------------------------------------------------

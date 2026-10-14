@@ -191,7 +191,10 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 	 * Valida los horarios y devuelve la lista normalizada (nunca null, con los
 	 * turnos de cada día ordenados por apertura). {@code hours} nulo o vacío
 	 * significa "todos los días cerrados" y es válido; un día con la lista de
-	 * turnos vacía (o ausente) también es un día cerrado.
+	 * turnos vacía significa cerrado). Lo que sí se rechaza es un día nombrado
+	 * en el payload sin la clave {@code shifts} (por ejemplo un cliente con la
+	 * forma vieja del contrato): deserializaría a {@code null} y, tratado como
+	 * lista vacía, borraría el horario en silencio.
 	 */
 	private List<BusinessHoursDTO> validateHours(List<BusinessHoursDTO> hours) {
 
@@ -219,7 +222,15 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 				throw new BusinessException("dayOfWeek duplicado: " + day, ErrorType.VALIDATION);
 			}
 
-			List<BusinessShiftDTO> shifts = hoursDTO.getShifts() == null ? List.of() : hoursDTO.getShifts();
+			List<BusinessShiftDTO> shifts = hoursDTO.getShifts();
+
+			if (shifts == null) {
+				// El día fue nombrado en el payload, así que no se permite el
+				// default silencioso: una forma vieja o una clave olvidada no
+				// pueden borrar el horario ya guardado.
+				throw new BusinessException("shifts es obligatorio en cada día (una lista vacía significa cerrado)",
+						ErrorType.VALIDATION);
+			}
 
 			if (shifts.isEmpty()) {
 				continue; // día cerrado: no hay nada que validar
