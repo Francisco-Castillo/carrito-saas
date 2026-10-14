@@ -33,9 +33,9 @@
 
 ## Tareas
 
-- [ ] 1. (Prioridad 2) `PUT /api/{id}`: scope del producto al negocio del token y validación de dueño de la categoría destino. Tests: producto ajeno → 404, categoría ajena → 404/400, edición propia sigue funcionando.
-- [ ] 2. (Prioridad 2) `POST /api/productos`: validar que la categoría destino sea del negocio del token. Tests: categoría ajena → 404/400, creación propia sigue funcionando.
-- [ ] 3. (Prioridad 3) `crearCombo`: resolver y setear la categoría (del negocio) y scopear la búsqueda de productos. Tests: combo propio se crea con su categoría, producto ajeno → falla, categoría ajena → falla.
+- [x] 1. (Prioridad 2) `PUT /api/{id}`: scope del producto al negocio del token y validación de dueño de la categoría destino. Tests: producto ajeno → 404, categoría ajena → 404/400, edición propia sigue funcionando.
+- [x] 2. (Prioridad 2) `POST /api/productos`: validar que la categoría destino sea del negocio del token. Tests: categoría ajena → 404/400, creación propia sigue funcionando.
+- [ ] 3. (Prioridad 3) `crearCombo` — EN CURSO: resolver y setear la categoría (del negocio) y scopear la búsqueda de productos. Tests: combo propio se crea con su categoría, producto ajeno → falla, categoría ajena → falla.
 - [x] 4. **Prioridad 1** — `SecurityConfig`: reemplazar el `permitAll` amplio de `/api/restaurants/**` por los matchers exactos que la carta pública y el QR necesitan; decidir qué hacer con el stub `GET /restaurants/{id}/products` (borrarlo o devolver 404 en vez de 200/null) y con el 500 de la variante por slug. Verificar que la carta digital sigue funcionando sin token.
 - [ ] 5. Verificación: `mvn verify` en base aislada + e2e de navegador (menú público, login, dashboard, admin con productos/combos, KDS) + websocket.
 
@@ -44,3 +44,6 @@
 - **Tarea 4 — commit `fa51a37` *fix(api): require authentication for the business dashboard endpoints***: matcher `/api/restaurants/**` eliminado (queda sólo `/api/restaurants/slug/**`), y `frontend/src/pages/dashboard/api.ts` ahora manda `Authorization: Bearer`. Tests nuevos: `DashboardAnonymousAccessTests` (3: anónimo 403 en los cuatro GET + POST users; con token del owner 200; slug y menú siguen públicos) y `frontend/tests/dashboard-api-auth.test.ts` (2: header presente, URLs intactas). RED observado antes del fix (200 anónimos en vivo y header ausente).
   - Verificación independiente del orquestador, **en vivo y en navegador** (`~/.local/opt/e2e/`): sin token → 403 en los cuatro endpoints y en `POST /users`, 200 en `/api/restaurants/slug/demo-e2e` y `/api/menu/demo-e2e`; con token → 200. E2E de las 5 pantallas **5/5 PASS** (sin ningún 4xx/5xx), y con un pedido creado a propósito el dashboard mostró `Pedidos hoy = 2` con las cuatro llamadas autenticadas en 200 — o sea, el header nuevo trae datos reales, no ceros silenciosos. E2E de admin **6/6 PASS** y websocket STOMP OK.
 - Herramientas de verificación persistentes: `~/.local/opt/e2e/{screens.mjs,admin-products.mjs,ws-orders.mjs,dash-check.mjs}` (Playwright + Chromium instalados ahí, fuera de `/tmp`, que se limpió con el reinicio).
+
+- **Tareas 1 y 2 — commit `33ebc56` *fix(api): scope product writes to the caller's business***: `actualizarProducto` resuelve producto y categoría destino con finders scopeados por JWT (404 si son ajenos, fila ajena intacta) y `crearProducto` valida la categoría destino. Se agregó `CategoryRepository.findByIdAndBusinessId` siguiendo el precedente de `TableRepository`. Tests: `CrossTenantProductWriteIsolationTests` (5), RED con 3 fallos `expected:<404> but was:<200>` → GREEN. Suite completa **74/74** en base aislada (verificada por el orquestador). No queda ningún `findById` crudo en `ProductServiceImpl`.
+  - Hallazgo no corregido (preexistente, fuera de alcance): `actualizarProducto` hace `dto.getName().toString()`, así que un body con `name: null` produce un 500 por NPE.
