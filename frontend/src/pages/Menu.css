@@ -46,9 +46,10 @@
 
 .storefront-banner {
   position: relative;
-  /* 16:6 en escritorio; en teléfonos es más alto (ver media query) para que
-     la portada se vea y no se adivine. */
-  aspect-ratio: 16 / 6;
+  /* Altura acotada a propósito: con 16:6 el banner medía ~576px en una pantalla
+     de 1600 y se comía más de media pantalla antes del primer producto. Un
+     ancho completo con `object-fit: cover` deja ver el local sin tapar la carta. */
+  height: clamp(170px, 17vw, 260px);
   overflow: hidden;
   border-radius: var(--radius-lg);
   border: 1px solid var(--glass-border-subtle);
@@ -58,7 +59,8 @@
 
 @media (max-width: 639px) {
   .storefront-banner {
-    aspect-ratio: 4 / 3;
+    /* En un teléfono el ancho disponible es chico: la misma idea, más baja. */
+    height: clamp(140px, 36vw, 190px);
   }
 }
 
@@ -76,8 +78,8 @@
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(2, 6, 23, 0) 55%,
-    rgba(2, 6, 23, 0.55) 100%
+    rgba(2, 6, 23, 0) 62%,
+    rgba(2, 6, 23, 0.6) 100%
   );
   pointer-events: none;
 }
