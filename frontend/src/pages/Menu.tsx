@@ -4,6 +4,7 @@ import CartPanel from "./menu/CartPanel";
 import ProductCard from "./menu/ProductCard";
 import ProductDetailSheet from "./menu/ProductDetailSheet";
 import Sheet from "./menu/Sheet";
+import Storefront from "./menu/Storefront";
 import type {
   Cart,
   CategoryGroup,
@@ -13,6 +14,7 @@ import type {
   PaymentMethod,
   Product,
   Restaurant,
+  StorefrontBusiness,
 } from "./menu/types";
 
 const ERROR_NO_SLUG =
@@ -110,6 +112,8 @@ export default function Menu() {
   );
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  // Portada del local: llega en el payload del menú (`data.business`).
+  const [business, setBusiness] = useState<StorefrontBusiness | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -159,6 +163,7 @@ export default function Menu() {
       setOrderType("RETIRO");
       setProducts([]);
       setRestaurant(null);
+      setBusiness(null);
       setLoadError(null);
       setLoading(true);
 
@@ -189,6 +194,10 @@ export default function Menu() {
         }
         const data: MenuResponse = await res.json();
         if (cancelled) return;
+
+        // La portada viaja en el payload del menú; si el local no tiene datos
+        // de storefront, `business` queda null y no se renderiza nada nuevo.
+        setBusiness(data.business ?? null);
 
         // 🔥 SAFE ASSIGN (evita errores)
         const baseProducts: Product[] = (data.products || []).map((p) => ({
@@ -451,6 +460,10 @@ export default function Menu() {
         <div className="aurora-blob aurora-blob--fuchsia" />
         <div className="aurora-blob aurora-blob--cyan" />
       </div>
+
+      {/* La portada vive ARRIBA de la barra sticky: al hacer scroll, la barra
+          (identidad + píldoras) queda pegada arriba y la portada se va. */}
+      {business && <Storefront business={business} />}
 
       {restaurant && (
         <div className="menu-sticky">
