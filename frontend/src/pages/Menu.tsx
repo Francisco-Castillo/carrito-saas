@@ -4,7 +4,6 @@ import CartPanel from "./menu/CartPanel";
 import ProductCard from "./menu/ProductCard";
 import ProductDetailSheet from "./menu/ProductDetailSheet";
 import Sheet from "./menu/Sheet";
-import { useMediaQuery } from "./menu/useMediaQuery";
 import type {
   Cart,
   CategoryGroup,
@@ -121,9 +120,6 @@ export default function Menu() {
   const [activeCategory, setActiveCategory] = useState(0);
   const sectionEls = useRef<HTMLElement[]>([]);
   const observerRef = useRef<IntersectionObserver | null>(null);
-
-  // Presentación del carrito: sidebar sticky en desktop, barra + hoja en móvil.
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
     document.title = "Carta Digital";
@@ -516,38 +512,12 @@ export default function Menu() {
               )}
             </section>
 
-            {cartVisible && isDesktop && (
-              <aside
-                className="cart cart--sidebar glass-panel fade-up"
-                role="complementary"
-                aria-label="Tu pedido"
-              >
-                <CartPanel
-                  cart={cart}
-                  total={total}
-                  customerName={customerName}
-                  orderType={orderType}
-                  address={address}
-                  notes={notes}
-                  paymentMethod={paymentMethod}
-                  sending={sending}
-                  onCustomerNameChange={setCustomerName}
-                  onOrderTypeChange={setOrderType}
-                  onAddressChange={setAddress}
-                  onNotesChange={setNotes}
-                  onPaymentMethodChange={setPaymentMethod}
-                  onAddItem={(id) => {
-                    const entry = cart[id];
-                    if (entry) addItem(entry.product);
-                  }}
-                  onRemoveItem={removeItem}
-                  onSubmit={handleSubmit}
-                />
-              </aside>
-            )}
           </main>
 
-          {cartVisible && !isDesktop && (
+          {/* El carrito NO aparece al costado ni reacomoda la grilla: agregar un
+              producto sólo actualiza esta barra, y abrir el pedido es una acción
+              explícita. Así la carta nunca cambia de tamaño mientras se elige. */}
+          {cartVisible && (
             <div className="cart-bar glass-panel">
               <div className="cart-bar-info">
                 <span className="cart-bar-count">
@@ -565,12 +535,13 @@ export default function Menu() {
             </div>
           )}
 
-          {cartVisible && !isDesktop && cartSheetOpen && (
+          {cartVisible && cartSheetOpen && (
             <Sheet
               label="Tu pedido"
               closeLabel="Cerrar el pedido"
               onClose={() => setCartSheetOpen(false)}
               className="cart-sheet"
+              drawer
             >
               <aside
                 className="cart cart--sheet"

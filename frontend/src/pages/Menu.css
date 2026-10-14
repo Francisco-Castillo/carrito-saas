@@ -493,30 +493,27 @@
 }
 
 @media (min-width: 1024px) {
-  .menu-layout:has(.cart--sidebar) {
-    grid-template-columns: minmax(0, 1fr) 360px;
-  }
-
-  .cart--sidebar {
-    position: sticky;
-    top: 96px;
-    max-height: calc(100vh - 120px);
-    overflow-y: auto;
-  }
-
   .menu-screen[data-cart-visible] {
     padding-bottom: var(--space-8);
   }
 }
 
 /* ------------------------------------------------------------
-   Barra de carrito flotante (móvil) — safe-area aware
+   Barra de carrito flotante — siempre visible cuando hay ítems
+
+   El carrito ya no se muestra al costado: agregar un producto sólo actualiza
+   esta barra y abrir el pedido es una acción explícita. La carta nunca cambia
+   de tamaño mientras el cliente elige (que era exactamente lo que molestaba).
    ------------------------------------------------------------ */
 
 .cart-bar {
   position: fixed;
-  left: var(--space-3);
-  right: var(--space-3);
+  left: 0;
+  right: 0;
+  /* Centrada por márgenes automáticos y no por transform: la animación de
+     entrada usa transform y lo pisaría. */
+  margin-inline: auto;
+  width: min(560px, calc(100% - var(--space-4) * 2));
   bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
   z-index: 50;
   display: flex;
@@ -576,12 +573,6 @@
   box-shadow: var(--focus-ring), var(--button-glow);
 }
 
-@media (min-width: 1024px) {
-  .cart-bar {
-    display: none;
-  }
-}
-
 /* ------------------------------------------------------------
    Hojas (sheets) — bottom sheet en móvil, diálogo centrado ≥768px
    ------------------------------------------------------------ */
@@ -631,6 +622,37 @@
     min-width: min(560px, 100%);
     border-radius: var(--radius-lg);
     animation: fade-up var(--duration-slow) var(--ease-out-soft) both;
+  }
+}
+
+/* El carrito en pantallas grandes es un panel lateral superpuesto: no reacomoda
+   la grilla ni cambia el tamaño de las tarjetas. El detalle del plato sigue
+   centrado (768px+) porque no comparte este modificador. */
+@media (min-width: 1024px) {
+  .sheet-backdrop--drawer {
+    justify-content: flex-end;
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .sheet-backdrop--drawer .sheet {
+    width: min(440px, 100%);
+    min-width: 0;
+    max-height: none;
+    height: 100%;
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    animation: drawer-in var(--duration-slow) var(--ease-out-soft) both;
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
