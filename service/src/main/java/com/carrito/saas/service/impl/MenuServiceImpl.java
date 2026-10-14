@@ -1,12 +1,16 @@
 package com.carrito.saas.service.impl;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.carrito.saas.dto.BusinessDTO;
 import com.carrito.saas.dto.BusinessHoursDTO;
+import com.carrito.saas.dto.BusinessShiftDTO;
 import com.carrito.saas.dto.CategoryDTO;
 import com.carrito.saas.dto.ComboDTO;
 import com.carrito.saas.dto.MenuDTO;
@@ -77,15 +81,11 @@ public class MenuServiceImpl implements IMenuService {
 
 		// Storefront: las horas se traen acá (la entidad Business no las
 		// colecciona) para que el menú no necesite una segunda llamada. La
-		// consulta ya ordena lunes→domingo (1..7); sin horas, lista vacía —
-		// nunca null.
-		List<BusinessHoursDTO> hoursDTOs = businessHoursRepository
-				.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(business.getId())
-				.stream()
-				.map(MenuServiceImpl::toHoursDTO)
-				.collect(Collectors.toList());
-
-		menu.getBusiness().setHours(hoursDTOs);
+		// respuesta lleva siempre los siete días (1..7) con su lista de
+		// turnos — vacía cuando el día está cerrado—, así la carta no tiene
+		// que inferir "el día que falta es un día cerrado".
+		menu.getBusiness().setHours(toSevenDayDTOs(businessHoursRepository
+				.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(business.getId())));
 
 		List<CategoryDTO> categoryDTOs = categories.stream().map(iCategoryMapper::toDTO).collect(Collectors.toList());
 
@@ -103,13 +103,25 @@ public class MenuServiceImpl implements IMenuService {
 		return menu;
 	}
 
-	private static BusinessHoursDTO toHoursDTO(BusinessHours hours) {
-		BusinessHoursDTO dto = new BusinessHoursDTO();
-		dto.setDayOfWeek(hours.getDayOfWeek());
-		dto.setOpensAt(hours.getOpensAt());
-		dto.setClosesAt(hours.getClosesAt());
-		dto.setClosed(hours.isClosed());
-		return dto;
+	/** Igual que en {@code BusinessProfileServiceImpl}: los siete días, con la lista vacía en los cerrados. */
+	private static List<BusinessHoursDTO> toSevenDayDTOs(List<BusinessHours> rows) {
+
+		Map<Integer, List<BusinessShiftDTO>> shiftsByDay = new HashMap<>();
+		for (BusinessHours row : rows) {
+			BusinessShiftDTO shift = new BusinessShiftDTO();
+			shift.setOpensAt(row.getOpensAt());
+			shift.setClosesAt(row.getClosesAt());
+			shiftsByDay.computeIfAbsent(row.getDayOfWeek(), day -> new ArrayList<>()).add(shift);
+		}
+
+		List<BusinessHoursDTO> days = new ArrayList<>(7);
+		for (int day = 1; day <= 7; day++) {
+			BusinessHoursDTO dto = new BusinessHoursDTO();
+			dto.setDayOfWeek(day);
+			dto.setShifts(shiftsByDay.getOrDefault(day, List.of()));
+			days.add(dto);
+		}
+		return days;
 	}
 
 }

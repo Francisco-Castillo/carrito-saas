@@ -29,6 +29,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import com.carrito.saas.dto.BusinessHoursDTO;
 import com.carrito.saas.dto.BusinessProfileDTO;
+import com.carrito.saas.dto.BusinessShiftDTO;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.BusinessHours;
 import com.carrito.saas.repository.jpa.BusinessHoursRepository;
@@ -48,10 +49,13 @@ import jakarta.persistence.PersistenceContext;
  * writes the same profile through {@code /api/business/profile}, always scoped
  * to the JWT's business.
  *
- * <p>Hours follow the ISO convention (1 = Monday … 7 = Sunday) and are always
- * returned ordered Monday→Sunday, whatever order the rows live in. The PUT
- * replaces the list wholesale: a day missing from the payload is deleted, and
- * {@code closed: true} stores no times.</p>
+ * <p>Hours are shifts per weekday following the ISO convention
+ * (1 = Monday … 7 = Sunday). The response always carries all seven days,
+ * ordered, each with its shifts list — empty when the day is closed. The PUT
+ * replaces the list wholesale: a day missing from the payload, or present
+ * with an empty shifts list, is a closed day and stores no rows. The server
+ * sorts each day's shifts by opening time, so the client may send them in
+ * any order.</p>
  *
  * <p>MockMvc is assembled manually with
  * {@link MockMvcBuilders#webAppContextSetup} plus the real security
@@ -138,23 +142,27 @@ class BusinessProfileAndStorefrontTests {
 		businessRepository.saveAndFlush(business);
 	}
 
-	private BusinessHours hour(Business business, int dayOfWeek, String opens, String closes) {
+	private BusinessHours hour(Business business, int dayOfWeek, int position, String opens, String closes) {
 		BusinessHours h = new BusinessHours();
 		h.setBusiness(business);
 		h.setDayOfWeek(dayOfWeek);
-		h.setPosition(0);
+		h.setPosition(position);
 		h.setOpensAt(opens == null ? null : LocalTime.parse(opens));
 		h.setClosesAt(closes == null ? null : LocalTime.parse(closes));
-		h.setClosed(opens == null);
 		return businessHoursRepository.saveAndFlush(h);
 	}
 
-	private BusinessHoursDTO hoursDTO(int dayOfWeek, String opens, String closes, boolean closed) {
+	private BusinessShiftDTO shiftDTO(String opens, String closes) {
+		BusinessShiftDTO shift = new BusinessShiftDTO();
+		shift.setOpensAt(opens == null ? null : LocalTime.parse(opens));
+		shift.setClosesAt(closes == null ? null : LocalTime.parse(closes));
+		return shift;
+	}
+
+	private BusinessHoursDTO hoursDTO(int dayOfWeek, BusinessShiftDTO... shifts) {
 		BusinessHoursDTO dto = new BusinessHoursDTO();
 		dto.setDayOfWeek(dayOfWeek);
-		dto.setOpensAt(opens == null ? null : LocalTime.parse(opens));
-		dto.setClosesAt(closes == null ? null : LocalTime.parse(closes));
-		dto.setClosed(closed);
+		dto.setShifts(new ArrayList<>(List.of(shifts)));
 		return dto;
 	}
 
@@ -180,8 +188,9 @@ class BusinessProfileAndStorefrontTests {
 
 	/**
 	 * The menu payload must carry the storefront so the menu needs no second
-	 * call, and the hours must come out ordered Monday→Sunday even though the
-	 * rows were seeded out of order (6, 1, 3).
+	 * call, and the hours must come out as the seven ISO days in order —
+	 * each with its shifts sorted by opening time — even though the rows were
+	 * seeded out of order (5, 6, 1, 3).
 	 */
 	@Test
 	void publicMenuCarriesStorefrontAndHoursOrderedMondayToSunday() throws Exception {
@@ -193,9 +202,12 @@ class BusinessProfileAndStorefrontTests {
 				"https://instagram.com/_negocio");
 
 		Business a = businessA();
-		hour(a, 6, "10:00:00", "23:00:00");
-		hour(a, 1, "09:00:00", "13:00:00");
-		hour(a, 3, "09:30:00", "22:00:00");
+		hour(a, 6, 0, "10:00:00", "23:00:00");
+		hour(a, 1, 0, "09:00:00", "13:00:00");
+		hour(a, 3, 0, "09:30:00", "22:00:00");
+		// Viernes con dos turnos: mediodía y noche (la noche cruza la medianoche).
+		hour(a, 5, 0, "11:00:00", "15:00:00");
+		hour(a, 5, 1, "19:00:00", "00:30:00");
 
 		mockMvc.perform(get("/api/menu/" + SLUG_A))
 				.andExpect(status().isOk())
@@ -203,18 +215,32 @@ class BusinessProfileAndStorefrontTests {
 				.andExpect(jsonPath("$.business.bannerUrl").value("https://cdn.ejemplo.com/banner.jpg"))
 				.andExpect(jsonPath("$.business.address").value("Av. Siempre Viva 742"))
 				.andExpect(jsonPath("$.business.instagramUrl").value("https://instagram.com/_negocio"))
-				.andExpect(jsonPath("$.business.hours", hasSize(3)))
+				.andExpect(jsonPath("$.business.hours", hasSize(7)))
 				.andExpect(jsonPath("$.business.hours[0].dayOfWeek").value(1))
-				.andExpect(jsonPath("$.business.hours[0].opensAt").value("09:00:00"))
-				.andExpect(jsonPath("$.business.hours[0].closesAt").value("13:00:00"))
-				.andExpect(jsonPath("$.business.hours[0].closed").value(false))
-				.andExpect(jsonPath("$.business.hours[1].dayOfWeek").value(3))
-				.andExpect(jsonPath("$.business.hours[1].opensAt").value("09:30:00"))
-				.andExpect(jsonPath("$.business.hours[2].dayOfWeek").value(6))
-				.andExpect(jsonPath("$.business.hours[2].closesAt").value("23:00:00"));
+				.andExpect(jsonPath("$.business.hours[0].shifts", hasSize(1)))
+				.andExpect(jsonPath("$.business.hours[0].shifts[0].opensAt").value("09:00:00"))
+				.andExpect(jsonPath("$.business.hours[0].shifts[0].closesAt").value("13:00:00"))
+				.andExpect(jsonPath("$.business.hours[1].dayOfWeek").value(2))
+				.andExpect(jsonPath("$.business.hours[1].shifts", hasSize(0)))
+				.andExpect(jsonPath("$.business.hours[2].dayOfWeek").value(3))
+				.andExpect(jsonPath("$.business.hours[2].shifts[0].opensAt").value("09:30:00"))
+				.andExpect(jsonPath("$.business.hours[4].dayOfWeek").value(5))
+				.andExpect(jsonPath("$.business.hours[4].shifts", hasSize(2)))
+				.andExpect(jsonPath("$.business.hours[4].shifts[0].opensAt").value("11:00:00"))
+				.andExpect(jsonPath("$.business.hours[4].shifts[0].closesAt").value("15:00:00"))
+				.andExpect(jsonPath("$.business.hours[4].shifts[1].opensAt").value("19:00:00"))
+				.andExpect(jsonPath("$.business.hours[4].shifts[1].closesAt").value("00:30:00"))
+				.andExpect(jsonPath("$.business.hours[5].dayOfWeek").value(6))
+				.andExpect(jsonPath("$.business.hours[5].shifts[0].closesAt").value("23:00:00"))
+				.andExpect(jsonPath("$.business.hours[6].dayOfWeek").value(7))
+				.andExpect(jsonPath("$.business.hours[6].shifts", hasSize(0)));
 	}
 
-	/** A business without a storefront keeps working: nulls and an EMPTY hours list. */
+	/**
+	 * A business without a storefront keeps working: nulls and a COMPLETE
+	 * seven-day hours list, all days closed (empty shifts). No client ever
+	 * has to infer "missing day means closed".
+	 */
 	@Test
 	void publicMenuWithoutStorefrontHasNullFieldsAndEmptyHours() throws Exception {
 
@@ -224,7 +250,12 @@ class BusinessProfileAndStorefrontTests {
 				.andExpect(jsonPath("$.business.bannerUrl").value(equalTo(null)))
 				.andExpect(jsonPath("$.business.address").value(equalTo(null)))
 				.andExpect(jsonPath("$.business.instagramUrl").value(equalTo(null)))
-				.andExpect(jsonPath("$.business.hours", hasSize(0)));
+				.andExpect(jsonPath("$.business.hours", hasSize(7)))
+				.andExpect(jsonPath("$.business.hours[0].dayOfWeek").value(1))
+				.andExpect(jsonPath("$.business.hours[0].shifts", hasSize(0)))
+				.andExpect(jsonPath("$.business.hours[3].shifts", hasSize(0)))
+				.andExpect(jsonPath("$.business.hours[6].dayOfWeek").value(7))
+				.andExpect(jsonPath("$.business.hours[6].shifts", hasSize(0)));
 	}
 
 	// ------------------------------------------------------------------
@@ -246,8 +277,8 @@ class BusinessProfileAndStorefrontTests {
 				"Av. del Vecino 222",
 				"https://instagram.com/negocio.b");
 
-		hour(businessA(), 2, "11:00:00", "20:00:00");
-		hour(businessB(), 5, "12:00:00", "21:00:00");
+		hour(businessA(), 2, 0, "11:00:00", "20:00:00");
+		hour(businessB(), 5, 0, "12:00:00", "21:00:00");
 
 		mockMvc.perform(get("/api/business/profile")
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader()))
@@ -257,18 +288,19 @@ class BusinessProfileAndStorefrontTests {
 				.andExpect(jsonPath("$.bannerUrl").value("https://cdn.ejemplo.com/banner-a.jpg"))
 				.andExpect(jsonPath("$.address").value("Av. del Propietario 111"))
 				.andExpect(jsonPath("$.instagramUrl").value("https://instagram.com/negocio.a"))
-				.andExpect(jsonPath("$.hours", hasSize(1)))
-				.andExpect(jsonPath("$.hours[0].dayOfWeek").value(2))
-				.andExpect(jsonPath("$.hours[0].opensAt").value("11:00:00"))
-				.andExpect(jsonPath("$.hours[0].closesAt").value("20:00:00"))
-				.andExpect(jsonPath("$.hours[0].closed").value(false));
+				.andExpect(jsonPath("$.hours", hasSize(7)))
+				.andExpect(jsonPath("$.hours[1].dayOfWeek").value(2))
+				.andExpect(jsonPath("$.hours[1].shifts", hasSize(1)))
+				.andExpect(jsonPath("$.hours[1].shifts[0].opensAt").value("11:00:00"))
+				.andExpect(jsonPath("$.hours[1].shifts[0].closesAt").value("20:00:00"))
+				.andExpect(jsonPath("$.hours[4].shifts", hasSize(0)));
 	}
 
 	// ------------------------------------------------------------------
 	// Owner profile: PUT
 	// ------------------------------------------------------------------
 
-	/** PUT saves the fields and the hours; a closed day stores no times; name is editable. */
+	/** PUT saves the fields and the hours; a day with an empty list is closed; name is editable. */
 	@Test
 	void putProfileSavesFieldsAndHours() throws Exception {
 
@@ -278,8 +310,8 @@ class BusinessProfileAndStorefrontTests {
 				"Calle Nueva 456",
 				"https://instagram.com/negocio.actual",
 				List.of(
-						hoursDTO(1, "09:00:00", "13:00:00", false),
-						hoursDTO(7, null, null, true)));
+						hoursDTO(1, shiftDTO("09:00:00", "13:00:00")),
+						hoursDTO(7)));
 
 		mockMvc.perform(put("/api/business/profile")
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
@@ -290,11 +322,14 @@ class BusinessProfileAndStorefrontTests {
 				.andExpect(jsonPath("$.logoUrl").value("https://cdn.ejemplo.com/nuevo-logo.png"))
 				.andExpect(jsonPath("$.address").value("Calle Nueva 456"))
 				.andExpect(jsonPath("$.instagramUrl").value("https://instagram.com/negocio.actual"))
-				.andExpect(jsonPath("$.hours", hasSize(2)))
+				.andExpect(jsonPath("$.hours", hasSize(7)))
 				.andExpect(jsonPath("$.hours[0].dayOfWeek").value(1))
-				.andExpect(jsonPath("$.hours[1].dayOfWeek").value(7))
-				.andExpect(jsonPath("$.hours[1].closed").value(true))
-				.andExpect(jsonPath("$.hours[1].opensAt").value(equalTo(null)));
+				.andExpect(jsonPath("$.hours[0].shifts", hasSize(1)))
+				.andExpect(jsonPath("$.hours[0].shifts[0].opensAt").value("09:00:00"))
+				.andExpect(jsonPath("$.hours[6].dayOfWeek").value(7))
+				.andExpect(jsonPath("$.hours[6].shifts", hasSize(0)))
+				// El viejo campo closed ya no existe en el contrato.
+				.andExpect(jsonPath("$.hours[0].closed").doesNotExist());
 
 		entityManager.flush();
 		entityManager.clear();
@@ -308,14 +343,11 @@ class BusinessProfileAndStorefrontTests {
 
 		List<BusinessHours> savedHours =
 				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID);
-		assertThat(savedHours).hasSize(2);
+		assertThat(savedHours).as("un día con la lista vacía no guarda filas").hasSize(1);
 		assertThat(savedHours.get(0).getDayOfWeek()).isEqualTo(1);
+		assertThat(savedHours.get(0).getPosition()).isEqualTo(0);
 		assertThat(savedHours.get(0).getOpensAt()).isEqualTo(LocalTime.parse("09:00:00"));
-		assertThat(savedHours.get(0).isClosed()).isFalse();
-		assertThat(savedHours.get(1).getDayOfWeek()).isEqualTo(7);
-		assertThat(savedHours.get(1).isClosed()).isTrue();
-		assertThat(savedHours.get(1).getOpensAt()).as("un día cerrado no guarda horarios").isNull();
-		assertThat(savedHours.get(1).getClosesAt()).isNull();
+		assertThat(savedHours.get(0).getClosesAt()).isEqualTo(LocalTime.parse("13:00:00"));
 	}
 
 	/** The hours list is replaced wholesale: a day missing from the payload is deleted. */
@@ -326,9 +358,9 @@ class BusinessProfileAndStorefrontTests {
 				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección 1",
 				"https://instagram.com/negocio",
 				List.of(
-						hoursDTO(1, "09:00:00", "13:00:00", false),
-						hoursDTO(2, "09:00:00", "13:00:00", false),
-						hoursDTO(3, "09:00:00", "13:00:00", false)));
+						hoursDTO(1, shiftDTO("09:00:00", "13:00:00")),
+						hoursDTO(2, shiftDTO("09:00:00", "13:00:00")),
+						hoursDTO(3, shiftDTO("09:00:00", "13:00:00"))));
 
 		mockMvc.perform(put("/api/business/profile")
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
@@ -343,8 +375,8 @@ class BusinessProfileAndStorefrontTests {
 				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección 1",
 				"https://instagram.com/negocio",
 				List.of(
-						hoursDTO(1, "08:00:00", "12:00:00", false),
-						hoursDTO(2, "09:00:00", "13:00:00", false)));
+						hoursDTO(1, shiftDTO("08:00:00", "12:00:00")),
+						hoursDTO(2, shiftDTO("09:00:00", "13:00:00"))));
 
 		mockMvc.perform(put("/api/business/profile")
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
@@ -369,6 +401,96 @@ class BusinessProfileAndStorefrontTests {
 				.isEqualTo(LocalTime.parse("08:00:00"));
 	}
 
+	/** A day sent with an EMPTY shifts list is closed: same as omitting the day entirely. */
+	@Test
+	void putDayWithEmptyShiftsListIsClosedLikeOmittedDay() throws Exception {
+
+		BusinessProfileDTO first = profileWithHours(
+				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección 1",
+				"https://instagram.com/negocio",
+				List.of(
+						hoursDTO(1, shiftDTO("09:00:00", "13:00:00")),
+						hoursDTO(3, shiftDTO("09:00:00", "13:00:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(first)))
+				.andExpect(status().isOk());
+
+		entityManager.flush();
+		entityManager.clear();
+
+		BusinessProfileDTO second = profileWithHours(
+				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección 1",
+				"https://instagram.com/negocio",
+				List.of(
+						hoursDTO(1, shiftDTO("09:00:00", "13:00:00")),
+						hoursDTO(3)));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(second)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.hours", hasSize(7)))
+				.andExpect(jsonPath("$.hours[2].dayOfWeek").value(3))
+				.andExpect(jsonPath("$.hours[2].shifts", hasSize(0)));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		List<BusinessHours> savedHours =
+				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID);
+		assertThat(savedHours).as("un día con la lista vacía no guarda filas").hasSize(1);
+		assertThat(savedHours.get(0).getDayOfWeek()).isEqualTo(1);
+	}
+
+	/**
+	 * The server sorts each day's shifts by opening time: the client may send
+	 * them in any order and the round trip returns them in order, with
+	 * {@code position} as the index after sorting.
+	 */
+	@Test
+	void putRoundTripsTwoShiftsOfOneDayInOrder() throws Exception {
+
+		// Enviados al revés: primero la noche, después el mediodía.
+		BusinessProfileDTO payload = profileWithHours(
+				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección 1",
+				"https://instagram.com/negocio",
+				List.of(hoursDTO(5,
+						shiftDTO("19:00:00", "00:30:00"),
+						shiftDTO("11:00:00", "15:00:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(payload)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.hours[4].dayOfWeek").value(5))
+				.andExpect(jsonPath("$.hours[4].shifts", hasSize(2)))
+				.andExpect(jsonPath("$.hours[4].shifts[0].opensAt").value("11:00:00"))
+				.andExpect(jsonPath("$.hours[4].shifts[0].closesAt").value("15:00:00"))
+				.andExpect(jsonPath("$.hours[4].shifts[1].opensAt").value("19:00:00"))
+				.andExpect(jsonPath("$.hours[4].shifts[1].closesAt").value("00:30:00"));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		List<BusinessHours> savedHours =
+				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID);
+		assertThat(savedHours).hasSize(2);
+		assertThat(savedHours.get(0).getDayOfWeek()).isEqualTo(5);
+		assertThat(savedHours.get(0).getPosition()).isEqualTo(0);
+		assertThat(savedHours.get(0).getOpensAt()).isEqualTo(LocalTime.parse("11:00:00"));
+		assertThat(savedHours.get(1).getDayOfWeek()).isEqualTo(5);
+		assertThat(savedHours.get(1).getPosition()).isEqualTo(1);
+		assertThat(savedHours.get(1).getOpensAt()).isEqualTo(LocalTime.parse("19:00:00"));
+		assertThat(savedHours.get(1).getClosesAt())
+				.as("el turno nocturno se guarda tal cual: cierra en la madrugada del día siguiente")
+				.isEqualTo(LocalTime.parse("00:30:00"));
+	}
+
 	// ------------------------------------------------------------------
 	// Data layer: several ordered shifts per weekday (multi-shift change)
 	// ------------------------------------------------------------------
@@ -391,7 +513,6 @@ class BusinessProfileAndStorefrontTests {
 		night.setPosition(1);
 		night.setOpensAt(LocalTime.parse("19:00:00"));
 		night.setClosesAt(LocalTime.parse("00:30:00"));
-		night.setClosed(false);
 		businessHoursRepository.saveAndFlush(night);
 
 		BusinessHours midday = new BusinessHours();
@@ -400,7 +521,6 @@ class BusinessProfileAndStorefrontTests {
 		midday.setPosition(0);
 		midday.setOpensAt(LocalTime.parse("11:00:00"));
 		midday.setClosesAt(LocalTime.parse("15:00:00"));
-		midday.setClosed(false);
 		businessHoursRepository.saveAndFlush(midday);
 
 		// Persisted out of order (1 first, then 0): the query must sort them.
@@ -420,7 +540,6 @@ class BusinessProfileAndStorefrontTests {
 		duplicate.setPosition(0);
 		duplicate.setOpensAt(LocalTime.parse("16:00:00"));
 		duplicate.setClosesAt(LocalTime.parse("18:00:00"));
-		duplicate.setClosed(false);
 
 		assertThatThrownBy(() -> businessHoursRepository.saveAndFlush(duplicate))
 				.as("(business_id, day_of_week, position) es único")
@@ -455,8 +574,8 @@ class BusinessProfileAndStorefrontTests {
 				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección",
 				"https://instagram.com/negocio",
 				List.of(
-						hoursDTO(4, "09:00:00", "13:00:00", false),
-						hoursDTO(4, "15:00:00", "20:00:00", false)));
+						hoursDTO(4, shiftDTO("09:00:00", "13:00:00")),
+						hoursDTO(4, shiftDTO("15:00:00", "20:00:00"))));
 
 		mockMvc.perform(put("/api/business/profile")
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
@@ -478,18 +597,18 @@ class BusinessProfileAndStorefrontTests {
 		BusinessProfileDTO payload = profileWithHours(
 				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección",
 				"https://instagram.com/negocio",
-				List.of(hoursDTO(5, "11:00:00", "00:30:00", false)));
+				List.of(hoursDTO(5, shiftDTO("11:00:00", "00:30:00"))));
 
 		mockMvc.perform(put("/api/business/profile")
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body(payload)))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.hours", hasSize(1)))
-				.andExpect(jsonPath("$.hours[0].dayOfWeek").value(5))
-				.andExpect(jsonPath("$.hours[0].opensAt").value("11:00:00"))
-				.andExpect(jsonPath("$.hours[0].closesAt").value("00:30:00"))
-				.andExpect(jsonPath("$.hours[0].closed").value(false));
+				.andExpect(jsonPath("$.hours", hasSize(7)))
+				.andExpect(jsonPath("$.hours[4].dayOfWeek").value(5))
+				.andExpect(jsonPath("$.hours[4].shifts", hasSize(1)))
+				.andExpect(jsonPath("$.hours[4].shifts[0].opensAt").value("11:00:00"))
+				.andExpect(jsonPath("$.hours[4].shifts[0].closesAt").value("00:30:00"));
 
 		entityManager.flush();
 		entityManager.clear();
@@ -516,7 +635,7 @@ class BusinessProfileAndStorefrontTests {
 		BusinessProfileDTO payload = profileWithHours(
 				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección",
 				"https://instagram.com/negocio",
-				List.of(hoursDTO(1, "09:00:00", "09:00:00", false)));
+				List.of(hoursDTO(1, shiftDTO("09:00:00", "09:00:00"))));
 
 		mockMvc.perform(put("/api/business/profile")
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
@@ -534,7 +653,7 @@ class BusinessProfileAndStorefrontTests {
 		BusinessProfileDTO payload = profileWithHours(
 				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección",
 				"https://instagram.com/negocio",
-				List.of(hoursDTO(1, null, null, false)));
+				List.of(hoursDTO(1, shiftDTO(null, null))));
 
 		mockMvc.perform(put("/api/business/profile")
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
@@ -543,6 +662,127 @@ class BusinessProfileAndStorefrontTests {
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.message", containsString("opensAt")))
 				.andExpect(jsonPath("$.message", containsString("obligatorio")));
+	}
+
+	/** More than four shifts in one day is rejected (rule 6). */
+	@Test
+	void putRejectsMoreThanFourShiftsInOneDay() throws Exception {
+
+		BusinessProfileDTO payload = profileWithHours(
+				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección",
+				"https://instagram.com/negocio",
+				List.of(hoursDTO(3,
+						shiftDTO("06:00:00", "08:00:00"),
+						shiftDTO("08:00:00", "10:00:00"),
+						shiftDTO("10:00:00", "12:00:00"),
+						shiftDTO("12:00:00", "14:00:00"),
+						shiftDTO("14:00:00", "16:00:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(payload)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message", containsString("más de 4 turnos")));
+	}
+
+	/** Overlapping shifts inside one day are rejected (rule 7). */
+	@Test
+	void putRejectsOverlappingShiftsInOneDay() throws Exception {
+
+		BusinessProfileDTO payload = profileWithHours(
+				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección",
+				"https://instagram.com/negocio",
+				List.of(hoursDTO(5,
+						shiftDTO("11:00:00", "16:00:00"),
+						shiftDTO("15:00:00", "20:00:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(payload)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message", containsString("superponerse")));
+	}
+
+	/**
+	 * Sólo el último turno del día puede pasar la medianoche (regla 8). El
+	 * turno nocturno 22:00 → 02:00 termina "pasado el día", así que con otro
+	 * turno después es imposible que no se superponga: el mensaje específico
+	 * de medianoche es el que le habla claro al dueño.
+	 */
+	@Test
+	void putRejectsMidnightCrossingShiftThatIsNotLast() throws Exception {
+
+		BusinessProfileDTO payload = profileWithHours(
+				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección",
+				"https://instagram.com/negocio",
+				List.of(hoursDTO(5,
+						shiftDTO("22:00:00", "02:00:00"),
+						shiftDTO("23:00:00", "23:30:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(payload)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message", containsString("medianoche")))
+				.andExpect(jsonPath("$.message", containsString("último")));
+	}
+
+	/**
+	 * El derrame del último turno de un día no puede pisar la apertura del
+	 * día siguiente (regla 9): viernes 19:00 → 00:30 derrama 30 minutos, así
+	 * que un sábado que abre 00:15 se rechaza; uno que abre 00:30 exacto
+	 * pasa. Se chequea de forma cíclica: el derrame del domingo se compara
+	 * contra el lunes.
+	 */
+	@Test
+	void putRejectsSpillCollidingWithNextDayOpening() throws Exception {
+
+		BusinessProfileDTO colliding = profileWithHours(
+				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección",
+				"https://instagram.com/negocio",
+				List.of(
+						hoursDTO(5, shiftDTO("19:00:00", "00:30:00")),
+						hoursDTO(6, shiftDTO("00:15:00", "08:00:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(colliding)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message", containsString("medianoche")))
+				.andExpect(jsonPath("$.message", containsString("día siguiente")));
+
+		// Borde exacto: abrir cuando el derrame recién termina es válido.
+		BusinessProfileDTO touching = profileWithHours(
+				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección",
+				"https://instagram.com/negocio",
+				List.of(
+						hoursDTO(5, shiftDTO("19:00:00", "00:30:00")),
+						hoursDTO(6, shiftDTO("00:30:00", "08:00:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(touching)))
+				.andExpect(status().isOk());
+
+		// Cíclico: domingo → lunes.
+		BusinessProfileDTO sundayToMonday = profileWithHours(
+				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección",
+				"https://instagram.com/negocio",
+				List.of(
+						hoursDTO(7, shiftDTO("20:00:00", "01:00:00")),
+						hoursDTO(1, shiftDTO("00:30:00", "08:00:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(sundayToMonday)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message", containsString("día siguiente")));
 	}
 
 	// ------------------------------------------------------------------
@@ -578,14 +818,14 @@ class BusinessProfileAndStorefrontTests {
 				"https://cdn.ejemplo.com/banner-b.jpg",
 				"Av. del Vecino 222",
 				"https://instagram.com/negocio.b");
-		hour(businessB(), 2, "11:00:00", "20:00:00");
+		hour(businessB(), 2, 0, "11:00:00", "20:00:00");
 
 		BusinessProfileDTO payload = profileWithHours(
 				"https://cdn.ejemplo.com/atacante.png",
 				"https://cdn.ejemplo.com/atacante.jpg",
 				"Intento de escribir en el vecino",
 				"https://instagram.com/atacante",
-				List.of(hoursDTO(6, "10:00:00", "23:00:00", false)));
+				List.of(hoursDTO(6, shiftDTO("10:00:00", "23:00:00"))));
 
 		mockMvc.perform(put("/api/business/profile")
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())

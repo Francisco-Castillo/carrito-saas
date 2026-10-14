@@ -26,16 +26,13 @@ import lombok.Setter;
  *
  * <p>This is the target shape of the multi-shift change
  * (docs/migrations/2026-10-15-business-hours-shifts.sql): a day holds one or
- * more ordered shifts, and a day with no rows is a closed day. Until that
- * migration is applied together with the DTO change (step 2), every day
- * carries exactly one shift at {@code position = 0}.</p>
- *
- * <p>When {@code closed} is {@code true} the times are NULL (the day is not
- * open, there is nothing to show); when it is {@code false} both
- * {@code opensAt} and {@code closesAt} are present and ordered
- * ({@code opensAt < closesAt}) — that shape is enforced in
- * {@code BusinessProfileServiceImpl} before save, not by the schema.
- * {@code closed} is transitional: it is removed by the migration above.</p>
+ * more ordered shifts, and a day with no rows is a closed day — the removed
+ * {@code closed} column can no longer contradict the hours.
+ * A shift whose {@code closesAt} is earlier than its {@code opensAt} is legal:
+ * it crosses midnight and ends in the early hours of the next day (a Friday
+ * 11:00 → 00:30 closes at 00:30 the following Saturday); the equality is
+ * rejected in {@code BusinessProfileServiceImpl} before save, not by the
+ * schema.</p>
  */
 @Getter
 @Setter
@@ -61,12 +58,10 @@ public class BusinessHours {
     @Column(name = "position", nullable = false)
     private Integer position;
 
-    /** Present only when {@link #closed} is {@code false}. */
+    /** Present together with {@link #closesAt}; a day with no rows is closed. */
     private LocalTime opensAt;
 
+    /** Earlier than {@link #opensAt} means the shift crosses midnight. */
     private LocalTime closesAt;
-
-    @Column(nullable = false)
-    private boolean closed;
 
 }
