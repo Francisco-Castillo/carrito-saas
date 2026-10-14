@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./Menu.css";
 import CartPanel from "./menu/CartPanel";
 import ProductCard from "./menu/ProductCard";
+import ProductDetailSheet from "./menu/ProductDetailSheet";
+import Sheet from "./menu/Sheet";
+import { useMediaQuery } from "./menu/useMediaQuery";
 import type {
   Cart,
   CategoryGroup,
@@ -12,9 +15,6 @@ import type {
   Product,
   Restaurant,
 } from "./menu/types";
-
-const COMBO_FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1600891964599-f61ba0e24092";
 
 const ERROR_NO_SLUG =
   "No pudimos abrir la carta: el enlace del QR está incompleto o no es válido. " +
@@ -28,22 +28,51 @@ const ERROR_PRODUCTS =
   "No pudimos cargar los productos de la carta. Revisá tu conexión y probá de nuevo en unos minutos; " +
   "si sigue fallando, avisale al local o hacé tu pedido directamente en el mostrador.";
 
-/** Convierte combos en productos visuales (paridad con legacy app.js). */
-function mapCombosToProducts(combos: Combo[]): Product[] {
+function normalizeName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Heurística de foto para combos: el payload de la API solo trae los
+ * componentes como `productName` (sin id ni imagen propia), así que reusamos
+ * la foto del PRIMER componente buscándolo por nombre contra la lista de
+ * productos reales (comparación insensible a mayúsculas, espacios y acentos).
+ * Sin match → `imageUrl` queda undefined y la tarjeta muestra el placeholder
+ * intencional en lugar de una foto rota o externa.
+ */
+function mapCombosToProducts(combos: Combo[], baseProducts: Product[]): Product[] {
   if (!combos || combos.length === 0) return [];
 
-  return combos.map((c) => ({
-    id: `combo-${c.id}`,
-    name: c.name,
-    description: (c.items || [])
-      .map((i) => `${i.quantity} x ${i.productName}`)
-      .join(", "),
-    price: c.price,
-    categoryId: String(c.categoryId),
-    categoryName: "Combos",
-    imageUrl: COMBO_FALLBACK_IMAGE,
-    isCombo: true,
-  }));
+  const photosByName = new Map<string, string>();
+  baseProducts.forEach((p) => {
+    if (p.imageUrl && !photosByName.has(normalizeName(p.name))) {
+      photosByName.set(normalizeName(p.name), p.imageUrl);
+    }
+  });
+
+  return combos.map((c) => {
+    const firstComponent = (c.items || [])[0];
+    const photo = firstComponent
+      ? photosByName.get(normalizeName(firstComponent.productName))
+      : undefined;
+
+    return {
+      id: `combo-${c.id}`,
+      name: c.name,
+      description: (c.items || [])
+        .map((i) => `${i.quantity} x ${i.productName}`)
+        .join(", "),
+      price: c.price,
+      categoryId: String(c.categoryId),
+      categoryName: "Combos",
+      imageUrl: photo,
+      isCombo: true,
+    };
+  });
 }
 
 /** Agrupación por categoryId en orden de aparición (paridad con legacy). */
@@ -70,6 +99,7 @@ export default function Menu() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Paridad con legacy: `cart` se resetea en cada carga de la página
   // (resetApp en init) y se persiste en localStorage con la clave "cart".
@@ -82,7 +112,16 @@ export default function Menu() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO");
 
   const [sending, setSending] = useState(false);
-  const [cartExpanded, setCartExpanded] = useState(false);
+  const [cartSheetOpen, setCartSheetOpen] = useState(false);
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+
+  // Navegación de categorías: píldora activa por scroll-spy.
+  const [activeCategory, setActiveCategory] = useState(0);
+  const sectionEls = useRef<HTMLElement[]>([]);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // Presentación del carrito: sidebar sticky en desktop, barra + hoja en móvil.
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
     document.title = "Carta Digital";
@@ -93,6 +132,7 @@ export default function Menu() {
       // Enlace QR truncado: mensaje legible y fin, sin pedidos rotos.
       setLoadError(ERROR_NO_SLUG);
       setCart({});
+      setLoading(false);
       return;
     }
 
@@ -108,6 +148,7 @@ export default function Menu() {
       setProducts([]);
       setRestaurant(null);
       setLoadError(null);
+      setLoading(true);
 
       try {
         const res = await fetch(`/api/restaurants/slug/${slug}`);
@@ -146,9 +187,14 @@ export default function Menu() {
           isCombo: false,
         }));
 
-        setProducts([...baseProducts, ...mapCombosToProducts(data.combos || [])]);
+        setProducts([
+          ...baseProducts,
+          ...mapCombosToProducts(data.combos || [], baseProducts),
+        ]);
       } catch {
         if (!cancelled) setLoadError(ERROR_PRODUCTS);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
 
@@ -157,6 +203,41 @@ export default function Menu() {
       cancelled = true;
     };
   }, [slug]);
+
+  // Scroll-spy: la píldora activa sigue la sección visible. En entornos sin
+  // IntersectionObserver (jsdom, navegadores viejos) simplemente no se activa.
+  //
+  // El observer se crea UNA vez y cada sección se observa desde su propio ref
+  // callback. Antes se creaba dentro de un efecto y leía los refs en ese
+  // instante: si el efecto corría en un commit donde las secciones todavía no
+  // habían montado, el observer quedaba observando nada y no se recreaba
+  // (sus dependencias no volvían a cambiar), así que el scroll-spy moría sin
+  // aviso y el fallo era intermitente.
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const index = sectionEls.current.indexOf(entry.target as HTMLElement);
+          if (index >= 0) setActiveCategory(index);
+        });
+      },
+      // Franja central del viewport: la sección que la cruza es "la actual".
+      { rootMargin: "-40% 0px -55% 0px", threshold: 0 }
+    );
+
+    observerRef.current = observer;
+    // Secciones ya montadas antes de crear el observer (montaje posterior a la
+    // carga de datos): se observan acá y las nuevas lo hacen en su ref.
+    sectionEls.current.forEach((el) => el && observer.observe(el));
+
+    return () => {
+      observer.disconnect();
+      observerRef.current = null;
+    };
+  }, []);
 
   const whatsapp = useMemo(() => {
     const value = restaurant?.whatsappNumber;
@@ -172,13 +253,13 @@ export default function Menu() {
     localStorage.setItem("cart", JSON.stringify(next));
   }
 
-  function addItem(product: Product) {
+  function addItem(product: Product, qty = 1) {
     const id = product.id;
     const next: Cart = { ...cart };
     if (!next[id]) {
       next[id] = { product, qty: 0, isCombo: product.isCombo || false };
     }
-    next[id] = { ...next[id], qty: next[id].qty + 1 };
+    next[id] = { ...next[id], qty: next[id].qty + qty };
     saveCart(next);
   }
 
@@ -203,7 +284,7 @@ export default function Menu() {
     setAddress("");
     setNotes("");
     setOrderType("RETIRO");
-    setCartExpanded(false);
+    setCartSheetOpen(false);
   }
 
   function sendOrderByWhatsApp() {
@@ -317,12 +398,15 @@ export default function Menu() {
   }
 
   const categories = useMemo(() => groupByCategory(products), [products]);
-  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
-  function toggleCategory(key: string, currentlyOpen: boolean) {
-    // Se pasa el estado EFECTIVO: la primera categoria esta abierta por defecto
-    // sin entrada en el mapa, asi que !prev[key] la dejaria siempre abierta.
-    setOpenCategories((prev) => ({ ...prev, [key]: !currentlyOpen }));
+  function scrollToCategory(index: number) {
+    setActiveCategory(index);
+    const el = sectionEls.current[index];
+    if (!el || typeof el.scrollIntoView !== "function") return;
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
   }
 
   const cartVisible = Object.keys(cart).length > 0;
@@ -330,6 +414,7 @@ export default function Menu() {
     (sum, item) => sum + item.qty * item.product.price,
     0
   );
+  const totalUnits = Object.values(cart).reduce((sum, item) => sum + item.qty, 0);
 
   return (
     <div className="menu-screen" data-cart-visible={cartVisible || undefined}>
@@ -341,10 +426,8 @@ export default function Menu() {
       </div>
 
       {restaurant && (
-        <header className="restaurant-header glass-panel fade-up">
-          {restaurant.logoUrl && (
-            <img className="restaurant-logo" src={restaurant.logoUrl} alt="" />
-          )}
+        <header className="menu-topbar glass-panel">
+          <p className="menu-eyebrow">Carta digital</p>
           <h1 className="restaurant-name">{restaurant.name}</h1>
         </header>
       )}
@@ -354,78 +437,178 @@ export default function Menu() {
           {loadError}
         </div>
       ) : (
-        <main className="menu-layout">
-          <section className="menu-main">
-            <h2 className="menu-title">Menú</h2>
-
-            <div className="menu-categories stagger">
-              {categories.map((cat, index) => {
-                const key = String(index);
-                // La primera categoria arranca abierta: con todas colapsadas la
-                // carta se ve vacia en la primera pantalla. El resto sigue
-                // colapsado y cualquier header togglea (paridad con el legacy).
-                const open = key in openCategories ? Boolean(openCategories[key]) : index === 0;
-                return (
-                  <section
-                    key={key}
-                    className={`category glass-panel${open ? " open" : ""}`}
+        <>
+          {!loading && categories.length > 0 && (
+            <nav className="menu-nav" aria-label="Categorías">
+              <div className="menu-nav-track">
+                {categories.map((cat, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className={`nav-pill${index === activeCategory ? " active" : ""}`}
+                    aria-current={index === activeCategory ? "true" : undefined}
+                    onClick={() => scrollToCategory(index)}
                   >
-                    <button
-                      type="button"
-                      className="category-header"
-                      onClick={() => toggleCategory(key, open)}
-                      aria-expanded={open}
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </nav>
+          )}
+
+          <main className="menu-layout">
+            <section className="menu-main" aria-busy={loading || undefined}>
+              {loading ? (
+                <div className="menu-skeleton" role="status">
+                  <span className="visually-hidden">Cargando la carta…</span>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="skeleton-card glass-panel" aria-hidden="true">
+                      <div className="skeleton-media shimmer" />
+                      <div className="skeleton-line shimmer" />
+                      <div className="skeleton-line skeleton-line--short shimmer" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="menu-sections stagger">
+                  {categories.map((cat, index) => (
+                    <section
+                      key={index}
+                      id={`categoria-${index}`}
+                      ref={(el) => {
+                        const previous = sectionEls.current[index];
+                        if (el) {
+                          sectionEls.current[index] = el;
+                          if (previous !== el) observerRef.current?.observe(el);
+                        } else {
+                          if (previous) observerRef.current?.unobserve(previous);
+                          delete sectionEls.current[index];
+                        }
+                      }}
+                      className="menu-section"
+                      aria-labelledby={`categoria-heading-${index}`}
                     >
-                      <span>{cat.name}</span>
-                      <span className="category-chevron" aria-hidden="true">
-                        ▼
-                      </span>
-                    </button>
-
-                    {open && (
-                      <div className="category-content">
-                        <div className="menu-grid stagger">
-                          {cat.products.map((p) => (
-                            <ProductCard
-                              key={p.id}
-                              product={p}
-                              qty={cart[p.id]?.qty || 0}
-                              onAdd={() => addItem(p)}
-                              onRemove={() => removeItem(p.id)}
-                            />
-                          ))}
-                        </div>
+                      <div className="section-heading">
+                        <h2 id={`categoria-heading-${index}`}>{cat.name}</h2>
+                        <span className="section-count">
+                          {cat.products.length} {cat.products.length === 1 ? "ítem" : "ítems"}
+                        </span>
                       </div>
-                    )}
-                  </section>
-                );
-              })}
-            </div>
-          </section>
+                      <div className="menu-grid">
+                        {cat.products.map((p) => (
+                          <ProductCard
+                            key={p.id}
+                            product={p}
+                            qty={cart[p.id]?.qty || 0}
+                            onAdd={() => addItem(p)}
+                            onRemove={() => removeItem(p.id)}
+                            onOpen={() => setDetailProduct(p)}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </section>
 
-          {cartVisible && (
-            <div className="menu-cart-wrap fade-up">
-              <CartPanel
-                cart={cart}
-                total={total}
-                customerName={customerName}
-                orderType={orderType}
-                address={address}
-                notes={notes}
-                paymentMethod={paymentMethod}
-                sending={sending}
-                expanded={cartExpanded}
-                onCustomerNameChange={setCustomerName}
-                onOrderTypeChange={setOrderType}
-                onAddressChange={setAddress}
-                onNotesChange={setNotes}
-                onPaymentMethodChange={setPaymentMethod}
-                onToggleExpanded={() => setCartExpanded((v) => !v)}
-                onSubmit={handleSubmit}
-              />
+            {cartVisible && isDesktop && (
+              <aside
+                className="cart cart--sidebar glass-panel fade-up"
+                role="complementary"
+                aria-label="Tu pedido"
+              >
+                <CartPanel
+                  cart={cart}
+                  total={total}
+                  customerName={customerName}
+                  orderType={orderType}
+                  address={address}
+                  notes={notes}
+                  paymentMethod={paymentMethod}
+                  sending={sending}
+                  onCustomerNameChange={setCustomerName}
+                  onOrderTypeChange={setOrderType}
+                  onAddressChange={setAddress}
+                  onNotesChange={setNotes}
+                  onPaymentMethodChange={setPaymentMethod}
+                  onAddItem={(id) => {
+                    const entry = cart[id];
+                    if (entry) addItem(entry.product);
+                  }}
+                  onRemoveItem={removeItem}
+                  onSubmit={handleSubmit}
+                />
+              </aside>
+            )}
+          </main>
+
+          {cartVisible && !isDesktop && (
+            <div className="cart-bar glass-panel">
+              <div className="cart-bar-info">
+                <span className="cart-bar-count">
+                  {totalUnits} {totalUnits === 1 ? "ítem" : "ítems"}
+                </span>
+                <span className="cart-bar-total">${total}</span>
+              </div>
+              <button
+                type="button"
+                className="cart-bar-open"
+                onClick={() => setCartSheetOpen(true)}
+              >
+                Ver pedido
+              </button>
             </div>
           )}
-        </main>
+
+          {cartVisible && !isDesktop && cartSheetOpen && (
+            <Sheet
+              label="Tu pedido"
+              closeLabel="Cerrar el pedido"
+              onClose={() => setCartSheetOpen(false)}
+              className="cart-sheet"
+            >
+              <aside
+                className="cart cart--sheet"
+                role="complementary"
+                aria-label="Tu pedido"
+              >
+                <CartPanel
+                  cart={cart}
+                  total={total}
+                  customerName={customerName}
+                  orderType={orderType}
+                  address={address}
+                  notes={notes}
+                  paymentMethod={paymentMethod}
+                  sending={sending}
+                  onCustomerNameChange={setCustomerName}
+                  onOrderTypeChange={setOrderType}
+                  onAddressChange={setAddress}
+                  onNotesChange={setNotes}
+                  onPaymentMethodChange={setPaymentMethod}
+                  onAddItem={(id) => {
+                    const entry = cart[id];
+                    if (entry) addItem(entry.product);
+                  }}
+                  onRemoveItem={removeItem}
+                  onSubmit={handleSubmit}
+                />
+              </aside>
+            </Sheet>
+          )}
+        </>
+      )}
+
+      {detailProduct && (
+        <ProductDetailSheet
+          product={detailProduct}
+          onClose={() => setDetailProduct(null)}
+          onAdd={(qty) => {
+            addItem(detailProduct, qty);
+            setDetailProduct(null);
+          }}
+        />
       )}
     </div>
   );
