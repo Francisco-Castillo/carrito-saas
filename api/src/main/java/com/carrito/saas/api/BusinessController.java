@@ -33,7 +33,7 @@ import jakarta.servlet.http.HttpServletRequest;
 public class BusinessController {
 
 	private IOrderService orderService;
-	private IBusinessService iBusinessService;
+	private final IBusinessService iBusinessService;
 
 	private final BusinessRepository businessRepository;
 
@@ -47,7 +47,7 @@ public class BusinessController {
 
 	public BusinessController(IOrderService orderService, BusinessRepository businessRepository,
 			ISecurityService securityService, IBusinessProfileService businessProfileService,
-			IQrCodeService qrCodeService, IMenuUrlBuilder menuUrlBuilder) {
+			IQrCodeService qrCodeService, IMenuUrlBuilder menuUrlBuilder, IBusinessService iBusinessService) {
 		super();
 		this.orderService = orderService;
 		this.businessRepository = businessRepository;
@@ -55,6 +55,7 @@ public class BusinessController {
 		this.businessProfileService = businessProfileService;
 		this.qrCodeService = qrCodeService;
 		this.menuUrlBuilder = menuUrlBuilder;
+		this.iBusinessService = iBusinessService;
 	}
 
 	@GetMapping("/orders/active")
