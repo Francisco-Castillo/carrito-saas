@@ -48,6 +48,16 @@ const MENU_PAYLOAD = {
       items: [{ quantity: 1, productName: "Milanesa" }],
     },
     {
+      id: 11,
+      name: "Combo Bebida Cara",
+      price: 300,
+      categoryId: 4,
+      items: [
+        { quantity: 1, productName: "Agua" },
+        { quantity: 1, productName: "Milanesa" },
+      ],
+    },
+    {
       id: 10,
       name: "Combo Sorpresa",
       price: 200,
@@ -309,12 +319,17 @@ describe("photo placeholders", () => {
     expect(placeholder).toHaveTextContent("🍰"); // category-tinted glyph (Postres)
   });
 
-  it("combos reuse the first component's photo by name and fall back to the placeholder", async () => {
+  it("combos show their most expensive component's photo and fall back to the placeholder", async () => {
     await renderMenu();
 
     const comboCard = screen.getByText("Combo Milanesa").closest("article")!;
     expect(comboCard.querySelector("img")).toHaveAttribute("src", "img-milanesa.jpg");
     expect(within(comboCard).getByText("Combo")).toBeInTheDocument(); // badge
+
+    // El componente caro manda aunque venga segundo: "Agua" ($30) antes que
+    // "Milanesa" ($100) no debe mostrar la foto de la bebida.
+    const mainCourseCard = screen.getByText("Combo Bebida Cara").closest("article")!;
+    expect(mainCourseCard.querySelector("img")).toHaveAttribute("src", "img-milanesa.jpg");
 
     const fallbackCard = screen.getByText("Combo Sorpresa").closest("article")!;
     expect(fallbackCard.querySelector("img")).toBeNull();

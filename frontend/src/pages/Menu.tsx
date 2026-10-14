@@ -47,18 +47,20 @@ function normalizeName(value: string): string {
 function mapCombosToProducts(combos: Combo[], baseProducts: Product[]): Product[] {
   if (!combos || combos.length === 0) return [];
 
-  const photosByName = new Map<string, string>();
+  const productsByName = new Map<string, Product>();
   baseProducts.forEach((p) => {
-    if (p.imageUrl && !photosByName.has(normalizeName(p.name))) {
-      photosByName.set(normalizeName(p.name), p.imageUrl);
-    }
+    if (!productsByName.has(normalizeName(p.name))) productsByName.set(normalizeName(p.name), p);
   });
 
   return combos.map((c) => {
-    const firstComponent = (c.items || [])[0];
-    const photo = firstComponent
-      ? photosByName.get(normalizeName(firstComponent.productName))
-      : undefined;
+    // La foto del combo es la del componente MÁS CARO con imagen disponible, no
+    // la del primero: el payload lista los componentes en el orden en que se
+    // cargaron, así que tomar el primero mostraba una gaseosa suelta en el
+    // "Combo Clasica + Bebida" en vez del plato principal.
+    const resolved = (c.items || [])
+      .map((i) => productsByName.get(normalizeName(i.productName)))
+      .filter((p): p is Product => Boolean(p?.imageUrl));
+    const main = [...resolved].sort((a, b) => b.price - a.price)[0];
 
     return {
       id: `combo-${c.id}`,
@@ -69,7 +71,7 @@ function mapCombosToProducts(combos: Combo[], baseProducts: Product[]): Product[
       price: c.price,
       categoryId: String(c.categoryId),
       categoryName: "Combos",
-      imageUrl: photo,
+      imageUrl: main?.imageUrl,
       isCombo: true,
     };
   });
