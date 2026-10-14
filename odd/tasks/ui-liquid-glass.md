@@ -89,3 +89,15 @@ Branch: `feature/ui-liquid-glass` (desde `develop`).
 ### Commits (branch `feature/ui-liquid-glass`, 12 en total)
 
 `c2a617c` scaffold+login · `3813d68` menú · `95e3e27` dashboard · `51cc885` admin · `58f84df` kds · `c6bc61d` build→static+rutas · `c81e24e` permitAll de assets · `7693484` assets buildados · `7d62448` docs · `f3dc280` contratos a Vitest · `c7faee6` CI · `959c8ac` limpieza legacy · `4c015ea` docs finales.
+
+### Review nativo (RDD on): stop por budget
+
+Preflight acotado al slice elegido (integración + CI + limpieza, `baseRef=58f84df`): el lineage se creó (`review-57124a42342c772e`, 47 paths) pero el START devolvió:
+
+```
+code: lens_context_budget_exceeded  (phase: preflight, mutation_outcome: not_started)
+```
+
+Sin autoridad creada: nada que abandonar ni reparar. Causa medible: los **assets generados commiteados** (`api/src/main/resources/static/assets/*.js`, ~470 KB minificados ≈ 150k tokens) entran en cualquier rango que termine en HEAD, así que el candidato no entra en el budget de las 4 lenses.
+
+Continuación documentada por el propio stop: reducir el alcance del candidato (una secuencia encadenada de commits más chicos) o deshabilitar el switch (`D`). Con el bundle versionado, un candidato source-only no es contiguo: la única forma real de restaurar la revisabilidad es sacar los artefactos generados de Git y buildearlos al empaquetar (decisión de entrega, del usuario).
