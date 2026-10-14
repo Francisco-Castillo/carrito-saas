@@ -61,3 +61,7 @@ O sea: el schema ya no miente (no hay 500), pero para que las features tengan da
 ### Nota de rigor
 
 El worker detectó por su cuenta un defecto de su propio test de idempotencia (el primer diseño dejaba un `CREATE TABLE` real filtrado en la base compartida, y por eso dos tests "pasaban" en RED) y lo corrigió antes de dar el verde. Vale registrarlo: es la misma clase de trampa que la aserción flaky de la sesión anterior.
+
+## Resuelto después
+
+El pipeline que quedó inerte en este trabajo ya funciona: ver `odd/tasks/analytics-pipeline.md` (commits `687731f` y `0abc623`). Los dos bloqueos eran independientes del schema: el módulo `jobs` no llegaba al runtime y no existía `@EnableScheduling`.
