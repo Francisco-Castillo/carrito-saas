@@ -1,6 +1,7 @@
 package com.carrito.saas.repository.jpa;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -21,6 +22,27 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
 	// Todos los productos de un negocio
     List<Product> findByCategory_Business_Id(Long businessId);
+
+	/**
+	 * Un solo producto propio: el canal de administración ancla el tenant en
+	 * el JWT, así que un id ajeno debe resolver como no encontrado y jamás
+	 * como un éxito silencioso. {@link Product} no tiene business propio: el
+	 * ancla es {@code category.business.id}.
+	 */
+	Optional<Product> findByIdAndCategory_Business_Id(Long id, Long businessId);
+
+	/**
+	 * {@code combo_products.producto_id} lleva una FK real (RESTRICT), así
+	 * que un producto usado por cualquier combo no puede borrarse: esta
+	 * consulta permite fallar de forma explícita (409) antes de chocar con la
+	 * FK y terminar en un 500 genérico.
+	 */
+	@Query("""
+			SELECT CASE WHEN COUNT(cp) > 0 THEN true ELSE false END
+			FROM ComboProduct cp
+			WHERE cp.product.id = :productId
+			""")
+	boolean existsInAnyCombo(@Param("productId") Long productId);
 	
 	List<Product> findByCategoryId(Long categoryId);
 

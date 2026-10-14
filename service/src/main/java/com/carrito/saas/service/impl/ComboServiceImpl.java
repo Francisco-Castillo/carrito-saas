@@ -16,6 +16,7 @@ import com.carrito.saas.repository.jpa.ComboRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
 import com.carrito.saas.service.interfaces.IComboService;
 import com.carrito.saas.service.mapper.interfaces.IComboMapper;
+import com.carrito.saas.security.SecurityService;
 
 @Service
 public class ComboServiceImpl implements IComboService {
@@ -24,13 +25,16 @@ public class ComboServiceImpl implements IComboService {
 	private final ProductRepository productRepository;
 	private final ComboProductRepository comboProductRepository;
 	private final IComboMapper iComboMapper;
+	private final SecurityService securityService;
 
 	public ComboServiceImpl(ComboRepository comboRepository, ProductRepository productRepository,
-			ComboProductRepository comboProductRepository, IComboMapper iComboMapper) {
+			ComboProductRepository comboProductRepository, IComboMapper iComboMapper,
+			SecurityService securityService) {
 		this.comboRepository = comboRepository;
 		this.productRepository = productRepository;
 		this.comboProductRepository = comboProductRepository;
 		this.iComboMapper = iComboMapper;
+		this.securityService = securityService;
 	}
 
 	@Transactional
@@ -56,6 +60,20 @@ public class ComboServiceImpl implements IComboService {
 		comboSaved.setItems(productos);
 
 		return iComboMapper.toDTO(comboSaved);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<ComboDTO> findAllByBusinessId() {
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		// findFullMenuCombos ya acota por cat.business.id y trae items y
+		// productos en una sola consulta. IComboMapperImpl.toListDTO sigue siendo
+		// un TODO que devuelve null, así que mapeamos con toDTO por item.
+		return comboRepository.findFullMenuCombos(businessId).stream()
+				.map(iComboMapper::toDTO)
+				.toList();
 	}
 
 }
