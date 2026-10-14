@@ -1,6 +1,6 @@
 # Portada del local (etapa 2)
 
-**Estado:** backend, datos y carta listos; falta la pantalla del admin
+**Estado:** cerrado (2026-10-14)
 **Fecha inicio:** 2026-10-14
 **Objetivo:** Que la carta digital tenga una portada de local como la referencia QueResto: logo, banner, estado **abierto/cerrado** calculado, ubicación con mapa, WhatsApp y redes.
 
@@ -31,9 +31,9 @@
 
 - [x] 1. Backend: campos del negocio + entidad/repositorio de horarios + DTOs + payload público + `GET/PUT /api/business/profile` con tests (incluido el aislamiento por negocio).
 - [x] 2. Portada en la carta: banner, logo, nombre, estado abierto/cerrado, ubicación con link a Maps, WhatsApp y redes, con tests del cálculo de estado.
-- [ ] 3. Admin: vista "Local" para editar el perfil y los horarios, con tests.
+- [x] 3. Admin: vista "Local" para editar el perfil y los horarios, con tests.
 - [x] 4. Datos y assets del negocio demo: logo + banner (reusar el banner generado) y seed actualizado.
-- [ ] 5. Verificación: suites + e2e en navegador de la portada (desktop y mobile) y del guardado desde el admin.
+- [x] 5. Verificación: suites + e2e en navegador de la portada (desktop y mobile) y del guardado desde el admin.
 
 ## Evidencia / commits
 
@@ -96,3 +96,25 @@ El e2e del menú falló de forma intermitente al agregar un producto: el click r
 ### Ajuste de un test (ambigüedad resuelta)
 
 `storefront.test.tsx` afirmaba `sticky.previousElementSibling === .storefront`, que con el nuevo orden (portada → bloque de menú → barra) ya no puede cumplirse. Se adaptó a la intención real: la portada es el hermano anterior **del bloque de menú** que contiene la barra.
+
+## Pantalla "Local" del admin y cierre (commit `3c9a29b`)
+
+- **Vista nueva "Local"** en el admin: nombre, URL de logo y banner **con previsualización** (el dueño pega URLs: ver la imagen es su única confirmación), dirección, Instagram y **editor de los 7 días** donde un día cerrado deshabilita y limpia sus horarios. Carga desde `GET /api/business/profile` y guarda con `PUT`, convirtiendo los tiempos del `<input type="time">` (que habla `HH:mm`) a lo que espera el backend, y mostrando **el mensaje de validación del backend tal cual** si rechaza. La aclaración sobre la medianoche es deliberada: "cierra después de medianoche" no se adivina desde un formulario.
+- Tests: `admin-business-profile.test.tsx` (6) con RED observado (la vista no existía). Frontend **90/90**.
+
+### Verificación de cierre: el ida y vuelta completo
+
+`~/.local/opt/e2e/profile-roundtrip.mjs`, **4/4 PASS** contra el backend real:
+1. el admin carga el perfil sembrado (dirección, los 7 días, domingo cerrado);
+2. guardar desde el panel muestra «Perfil actualizado»;
+3. **la carta pública refleja el cambio** de inmediato, en el texto de la dirección y en el link a Maps;
+4. restaurar el valor deja el demo como lo dejó el seed (verificado en el payload público).
+
+Capturas: `/tmp/e2e-menu/23-admin-local.png` (el panel) y `24-carta-con-cambio.png` (la carta mostrando lo editado).
+
+## Pendientes que quedan anotados
+
+- **Dos franjas por día** y **horario de verano/feriados**: el modelo no los representa (ver arriba).
+- El estado abierto/cerrado se calcula al renderizar: si la carta queda abierta cruzando el cierre, el badge no se actualiza solo.
+- Los días se envían siempre los siete (el contrato borra un día omitido): hoy no hay forma de "quitar" un día, sólo marcarlo cerrado.
+- El PUT es de reemplazo total: una pantalla que quiera ediciones parciales necesita otro contrato.
