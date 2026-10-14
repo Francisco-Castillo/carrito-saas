@@ -36,6 +36,12 @@
 - [x] 12. Actualizar `.github/workflows/ci.yml`: suite Vitest + guard de bundle no obsoleto.
 - [x] 13. Limpieza del legacy HTML/CSS/JS y de los runners Node reemplazados, con re-verificación e2e posterior.
 
+## Cierre
+
+**Decisión final del usuario:** aceptar el cierre **sin review nativo**. El candidato (y su versión sin bundle) excede el budget del reviewer acotado: ~7.2k líneas cambiadas en 43 paths. No se creó autoridad en ninguno de los dos intentos, así que no queda estado de review pendiente ni autoridad que abandonar. La verificación real se sostiene en `mvn -Pfrontend verify` (57/57), Vitest (20/20), el e2e de navegador (5/5, sin errores de consola ni HTTP≥400) y la prueba de mutación de los contratos portados.
+
+Reproducir el entorno: `pg_ctl -D /home/linuxbrew/.linuxbrew/var/postgresql@17 -l /tmp/pg.log start`, `psql -U admin -h 127.0.0.1 -d carrito_db -f docs/dev-seed.sql`, `mvn -Pfrontend package`, `java -jar api/target/api-0.0.1-SNAPSHOT.jar`.
+
 ## Decisiones del usuario (cierre)
 
 - Review nativo: revisar un **slice acotado** (integración + CI + limpieza), no el diff completo del workspace.
