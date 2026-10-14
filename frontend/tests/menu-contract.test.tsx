@@ -196,6 +196,9 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
     expect(within(cart).getByText('Total: $100')).toBeInTheDocument()
 
     await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Test')
+    // The customer's phone is now part of the pinned contract: it must reach
+    // the order payload so the kitchen can call the customer.
+    await user.type(screen.getByPlaceholderText('Celular (ej. 11 5555 1234)'), '11 5555 1234')
     await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
 
     await waitFor(() => {
@@ -208,6 +211,8 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
       const payload = JSON.parse(orderCall!.body!)
       expect(payload.items).toEqual([{ productId: 101, quantity: 1 }])
       expect(payload.customerName).toBe('Cliente Test')
+      // Separators are stripped before sending: the kitchen gets digits only.
+      expect(payload.customerPhone).toBe('1155551234')
     })
 
     // The customer must still get the order confirmation.
@@ -217,5 +222,46 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
     expect(screen.queryByRole('complementary', { name: 'Tu pedido' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ver pedido' })).not.toBeInTheDocument()
     expect(localStorage.getItem('cart')).toBeNull()
+  })
+
+  it('empty phone: shows the Spanish message and never issues the POST', async () => {
+    const user = userEvent.setup()
+    const { calls, fetchMock } = makeFetch()
+    setSearch(`?restaurant=${SLUG}`)
+    const { alertMock } = renderMenu(fetchMock)
+
+    await screen.findByText('Milanesa')
+    await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+    await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
+
+    await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Test')
+    // No phone at all.
+    await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
+
+    expect(alertMock).toHaveBeenCalledWith('El celular es obligatorio')
+    // Validation failed: no order may reach the API.
+    expect(calls.some((call) => call.url.startsWith('/api/orders/menu/'))).toBe(false)
+    // The cart sheet stays open with the form intact.
+    expect(screen.getByRole('complementary', { name: 'Tu pedido' })).toBeInTheDocument()
+  })
+
+  it('invalid phone (123): shows the Spanish message and never issues the POST', async () => {
+    const user = userEvent.setup()
+    const { calls, fetchMock } = makeFetch()
+    setSearch(`?restaurant=${SLUG}`)
+    const { alertMock } = renderMenu(fetchMock)
+
+    await screen.findByText('Milanesa')
+    await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+    await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
+
+    await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Test')
+    // 3 digits: fails the 8-to-15-digit house rule.
+    await user.type(screen.getByPlaceholderText('Celular (ej. 11 5555 1234)'), '123')
+    await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
+
+    expect(alertMock).toHaveBeenCalledWith('Ingresá un número de celular válido')
+    expect(calls.some((call) => call.url.startsWith('/api/orders/menu/'))).toBe(false)
+    expect(screen.getByRole('complementary', { name: 'Tu pedido' })).toBeInTheDocument()
   })
 })

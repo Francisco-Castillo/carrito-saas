@@ -91,6 +91,18 @@ function groupByCategory(products: Product[]): CategoryGroup[] {
   return [...categories.values()];
 }
 
+/**
+ * Regla de la casa para teléfonos (misma forma que la de los teléfonos de los
+ * negocios, `businesses_phone_shape`): 8 a 15 dígitos y que no empiece en
+ * cero. Se valida contra el número normalizado (sin separadores), no contra
+ * lo que tipeó el cliente.
+ */
+const PHONE_SHAPE = /^[1-9][0-9]{7,14}$/;
+
+function normalizePhone(value: string): string {
+  return value.replace(/[\s+().-]/g, "");
+}
+
 export default function Menu() {
   const slug = useMemo(
     () => new URLSearchParams(window.location.search).get("restaurant"),
@@ -107,6 +119,7 @@ export default function Menu() {
   const [cart, setCart] = useState<Cart>({});
 
   const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [orderType, setOrderType] = useState<OrderType>("RETIRO");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
@@ -140,6 +153,7 @@ export default function Menu() {
       // resetApp(): estado limpio antes de cargar
       setCart({});
       setCustomerName("");
+      setCustomerPhone("");
       setAddress("");
       setNotes("");
       setOrderType("RETIRO");
@@ -279,6 +293,7 @@ export default function Menu() {
     setCart({});
     localStorage.removeItem("cart");
     setCustomerName("");
+    setCustomerPhone("");
     setAddress("");
     setNotes("");
     setOrderType("RETIRO");
@@ -335,6 +350,19 @@ export default function Menu() {
       return;
     }
 
+    // El celular es obligatorio (RETIRO y DELIVERY): la cocina necesita poder
+    // llamar al cliente. Se valida la forma normalizada, misma regla que los
+    // teléfonos de los negocios.
+    const normalizedPhone = normalizePhone(customerPhone);
+    if (normalizedPhone === "") {
+      alert("El celular es obligatorio");
+      return;
+    }
+    if (!PHONE_SHAPE.test(normalizedPhone)) {
+      alert("Ingresá un número de celular válido");
+      return;
+    }
+
     if (orderType === "DELIVERY" && address.trim() === "") {
       alert("Por favor ingresa la dirección para el delivery");
       return;
@@ -350,6 +378,7 @@ export default function Menu() {
 
     const payload: Record<string, unknown> = {
       customerName,
+      customerPhone: normalizedPhone,
       orderType,
       paymentMethod,
       notes,
@@ -552,12 +581,14 @@ export default function Menu() {
                   cart={cart}
                   total={total}
                   customerName={customerName}
+                  customerPhone={customerPhone}
                   orderType={orderType}
                   address={address}
                   notes={notes}
                   paymentMethod={paymentMethod}
                   sending={sending}
                   onCustomerNameChange={setCustomerName}
+                  onCustomerPhoneChange={setCustomerPhone}
                   onOrderTypeChange={setOrderType}
                   onAddressChange={setAddress}
                   onNotesChange={setNotes}
