@@ -104,6 +104,29 @@ WHERE NOT EXISTS (
   WHERE cp.combo_id = v.combo_id AND cp.producto_id = v.producto_id
 );
 
+-- Storefront (etapa 2): perfil del local + horarios estructurados.
+-- Requiere el schema actual (columnas nuevas de businesses y business_hours):
+-- el negocio demo se carga DESPUÉS de que la app creó las tablas con ddl-auto.
+UPDATE businesses
+SET logo_url      = '/dev-media/logo-local.jpg',
+    banner_url    = '/dev-media/banner-local.jpg',
+    address       = 'Av. Siempreviva 742, Springfield',
+    instagram_url = 'https://instagram.com/foodtruckdemo'
+WHERE id = 990000001;
+
+-- Viernes y sábado cierran 00:30: cierre menor que apertura = madrugada del
+-- día siguiente (convención documentada en IBusinessProfileService).
+INSERT INTO business_hours (business_id, day_of_week, opens_at, closes_at, closed) VALUES
+  (990000001, 1, '11:00', '23:00', false),
+  (990000001, 2, '11:00', '23:00', false),
+  (990000001, 3, '11:00', '23:00', false),
+  (990000001, 4, '11:00', '23:00', false),
+  (990000001, 5, '11:00', '00:30', false),
+  (990000001, 6, '12:00', '00:30', false),
+  (990000001, 7, NULL,    NULL,    true)
+ON CONFLICT (business_id, day_of_week) DO UPDATE
+SET opens_at = EXCLUDED.opens_at, closes_at = EXCLUDED.closes_at, closed = EXCLUDED.closed;
+
 -- Cancellation reasons used by the KDS cancel modal
 INSERT INTO cancellation_reasons (id, code, description, active, created_at) VALUES
   (990101, 'NO_STOCK',     'Sin stock de ingredientes', true, now()),

@@ -1,6 +1,6 @@
 # Portada del local (etapa 2)
 
-**Estado:** activo
+**Estado:** backend y datos listos; falta la carta y el admin
 **Fecha inicio:** 2026-10-14
 **Objetivo:** Que la carta digital tenga una portada de local como la referencia QueResto: logo, banner, estado **abierto/cerrado** calculado, ubicación con mapa, WhatsApp y redes.
 
@@ -29,12 +29,23 @@
 
 ## Tareas
 
-- [ ] 1. Backend: campos del negocio + entidad/repositorio de horarios + DTOs + payload público + `GET/PUT /api/business/profile` con tests (incluido el aislamiento por negocio).
+- [x] 1. Backend: campos del negocio + entidad/repositorio de horarios + DTOs + payload público + `GET/PUT /api/business/profile` con tests (incluido el aislamiento por negocio).
 - [ ] 2. Portada en la carta: banner, logo, nombre, estado abierto/cerrado, ubicación con link a Maps, WhatsApp y redes, con tests del cálculo de estado.
 - [ ] 3. Admin: vista "Local" para editar el perfil y los horarios, con tests.
-- [ ] 4. Datos y assets del negocio demo: logo + banner (reusar el banner generado) y seed actualizado.
+- [x] 4. Datos y assets del negocio demo: logo + banner (reusar el banner generado) y seed actualizado.
 - [ ] 5. Verificación: suites + e2e en navegador de la portada (desktop y mobile) y del guardado desde el admin.
 
 ## Evidencia / commits
 
-- (se completa al avanzar cada tarea)
+- **Tarea 1 — commit `9051241`** *feat(api): give the business a storefront profile and opening hours*: `businesses` con `logo_url`/`banner_url`/`address`/`instagram_url` (nullable) y la tabla `business_hours` (una fila por día, unique `(business_id, day_of_week)`); `BusinessDTO` del menú público con los campos + `hours` ordenado lunes→domingo (lista vacía si no hay); `GET`/`PUT /api/business/profile` autenticados y anclados al negocio del JWT. `BusinessProfileAndStorefrontTests` (11 tests) con RED observado, incluidos aislamiento entre negocios y validaciones. Suite **114/114** (verificada por el orquestador).
+- **Assets y datos — commits `576d5f4` y el seed**: logo circular y banner 16:6 generados en `dev-media/`, y `docs/dev-seed.sql` carga el perfil del negocio demo con horarios realistas.
+
+### Hallazgo que apareció probando en vivo (no en los tests)
+
+La primera validación exigía `opensAt < closesAt`, así que **un local que cierra pasada la medianoche no podía guardar sus horarios**: probar un viernes `11:00 → 00:30` devolvió 400. Todos los tests del worker usaban horarios que no cruzan el día, por eso el hueco no apareció en la suite. Se corrigió: `closesAt < opensAt` significa **cierre en la madrugada del día siguiente** y sólo se rechaza la igualdad (ambigua). Tests nuevos con el caso de madrugada y el de igualdad, RED observado. **La lógica de "abierto ahora" de la carta debe cruzar la medianoche con esta convención.**
+
+### Casos de horarios que el modelo todavía no representa (anotados, no resueltos)
+
+- **Dos franjas por día** (mediodía y noche, típico en locales de almuerzo): imposible con una fila por día y la unique actual; requiere lista de rangos por día.
+- **Horario de verano/invierno o feriados**: el modelo no tiene vigencia temporal.
+- **Día de 24 h / cierre exacto a medianoche**: `00:00 → 00:00` se rechaza por ambigüedad; hoy habría que cargar `23:59`.
