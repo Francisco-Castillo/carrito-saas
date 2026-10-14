@@ -8,6 +8,14 @@ spring:
     username: admin
     password: admin
 
+  sql:
+    init:
+      # "always" porque el default ("embedded") se salta PostgreSQL: sin esto
+      # schema.sql nunca corre y las tablas JDBC de analítica no existen.
+      # El script es idempotente (IF NOT EXISTS) y cubre SOLO las tablas de
+      # analítica; las tablas de entidades siguen siendo de Hibernate.
+      mode: always
+
   jpa:
     hibernate:
       ddl-auto: update

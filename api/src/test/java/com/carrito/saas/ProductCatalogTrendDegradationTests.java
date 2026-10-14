@@ -11,8 +11,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.web.FilterChainProxy;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,19 +30,28 @@ import com.carrito.saas.repository.jpa.ProductRepository;
 import com.carrito.saas.repository.jpa.RoleRepository;
 import com.carrito.saas.repository.jpa.UserRepository;
 import com.carrito.saas.security.JwtUtil;
+import com.carrito.saas.service.interfaces.IProductTrendService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.when;
 
 /**
  * Degradation contract for {@code GET /api/restaurants/slug/{slug}/products}
- * when the analytics schema is missing.
+ * when trend enrichment fails.
  *
- * <p>The trend enrichment queries the JDBC table {@code product_trends},
- * which has no JPA entity and no migration, so a database created from the
- * entity model (the normal state of a freshly created test database, and the
- * documented state of any deployment without the analytics schema) makes the
- * lookup fail. The product catalog is core functionality and trends are
- * optional enrichment, so the route must degrade: 200 with the products and
- * all their real fields, without trend data — never a 500.</p>
+ * <p>WHY THE FAILURE IS INJECTED: the trend enrichment queries the JDBC table
+ * {@code product_trends}, which is now provisioned by {@code schema.sql} on
+ * every startup — so the table exists in every test database and the original
+ * premise of this test ("the table is missing") can no longer be observed
+ * naturally. To keep proving that the catalog survives an enrichment failure
+ * — instead of silently passing because nothing fails — the trend service is
+ * replaced with a {@code @MockitoBean} that throws {@link DataAccessResourceFailureException}
+ * (the pattern {@code QrPdfTemplateUrlTests} uses for its QR encoder mock).
+ * The catalog is core functionality and trends are optional enrichment, so
+ * the route must degrade: 200 with the products and all their real fields,
+ * without trend data — never a 500.</p>
  */
 @SpringBootTest
 @Transactional
@@ -80,6 +91,13 @@ class ProductCatalogTrendDegradationTests {
 	@Autowired
 	private ProductRepository productRepository;
 
+	/**
+	 * The enrichment failure is injected because {@code schema.sql} now
+	 * guarantees {@code product_trends} exists — see the class header comment.
+	 */
+	@MockitoBean
+	private IProductTrendService productTrendService;
+
 	private MockMvc mockMvc;
 
 	private BusinessAuthSeed.AuthenticatedBusiness owner;
@@ -90,6 +108,9 @@ class ProductCatalogTrendDegradationTests {
 		mockMvc = MockMvcBuilders.webAppContextSetup(context)
 				.addFilters(springSecurityFilterChain)
 				.build();
+
+		when(productTrendService.getTrends(anyLong(), anyList()))
+				.thenThrow(new DataAccessResourceFailureException("injected: trend lookup failed"));
 
 		owner = BusinessAuthSeed.seedOwner(businessRepository, userRepository, roleRepository,
 				businessUserRepository, jwtUtil, BUSINESS_A_ID, SLUG_A, OWNER_USERNAME);
@@ -122,12 +143,13 @@ class ProductCatalogTrendDegradationTests {
 	}
 
 	/**
-	 * With the analytics table absent the public slug catalog must answer 200
-	 * with the products and the rest of their fields intact, degrading the
-	 * trend enrichment instead of failing the whole route.
+	 * With trend enrichment failing (injected — see class header), the public
+	 * slug catalog must answer 200 with the products and the rest of their
+	 * fields intact, degrading the trend enrichment instead of failing the
+	 * whole route.
 	 */
 	@Test
-	void slugCatalogReturnsProductsWithoutTrendDataWhenAnalyticsSchemaIsMissing() throws Exception {
+	void slugCatalogReturnsProductsWithoutTrendDataWhenTrendEnrichmentFails() throws Exception {
 
 		mockMvc.perform(get("/api/restaurants/slug/" + SLUG_A + "/products"))
 				.andExpect(status().isOk())
