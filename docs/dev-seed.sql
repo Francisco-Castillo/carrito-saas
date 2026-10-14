@@ -1,5 +1,9 @@
 -- Dev seed for local end-to-end verification (docs/dev-seed.sql).
 --
+-- Expects the MIGRATED business_hours shape (docs/migrations/
+-- 2026-10-15-business-hours-shifts.sql): position column, no closed column,
+-- UNIQUE (business_id, day_of_week, position).
+--
 -- Design notes:
 --  * Insert-only and idempotent: safe to run against a database that already
 --    holds someone else's data (every statement either uses ON CONFLICT DO
@@ -116,16 +120,17 @@ WHERE id = 990000001;
 
 -- Viernes y sábado cierran 00:30: cierre menor que apertura = madrugada del
 -- día siguiente (convención documentada en IBusinessProfileService).
-INSERT INTO business_hours (business_id, day_of_week, opens_at, closes_at, closed) VALUES
-  (990000001, 1, '11:00', '23:00', false),
-  (990000001, 2, '11:00', '23:00', false),
-  (990000001, 3, '11:00', '23:00', false),
-  (990000001, 4, '11:00', '23:00', false),
-  (990000001, 5, '11:00', '00:30', false),
-  (990000001, 6, '12:00', '00:30', false),
-  (990000001, 7, NULL,    NULL,    true)
-ON CONFLICT (business_id, day_of_week) DO UPDATE
-SET opens_at = EXCLUDED.opens_at, closes_at = EXCLUDED.closes_at, closed = EXCLUDED.closed;
+-- Un turno por día por ahora (position = 0); los turnos múltiples llegan
+-- con el paso 6 del plan.
+INSERT INTO business_hours (business_id, day_of_week, position, opens_at, closes_at) VALUES
+  (990000001, 1, 0, '11:00', '23:00'),
+  (990000001, 2, 0, '11:00', '23:00'),
+  (990000001, 3, 0, '11:00', '23:00'),
+  (990000001, 4, 0, '11:00', '23:00'),
+  (990000001, 5, 0, '11:00', '00:30'),
+  (990000001, 6, 0, '12:00', '00:30')
+ON CONFLICT (business_id, day_of_week, position) DO UPDATE
+SET opens_at = EXCLUDED.opens_at, closes_at = EXCLUDED.closes_at;
 
 -- Cancellation reasons used by the KDS cancel modal
 INSERT INTO cancellation_reasons (id, code, description, active, created_at) VALUES

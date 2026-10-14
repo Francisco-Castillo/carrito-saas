@@ -107,6 +107,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 			BusinessHours entity = new BusinessHours();
 			entity.setBusiness(business);
 			entity.setDayOfWeek(hoursDTO.getDayOfWeek());
+			entity.setPosition(0);
 			if (Boolean.TRUE.equals(hoursDTO.getClosed())) {
 				entity.setClosed(true);
 			} else {
@@ -235,7 +236,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 
 	private List<BusinessHoursDTO> toHoursDTOs(Long businessId) {
 
-		return businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAsc(businessId)
+		return businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(businessId)
 				.stream()
 				.map(BusinessProfileServiceImpl::toHoursDTO)
 				.toList();

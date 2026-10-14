@@ -80,7 +80,7 @@ public class MenuServiceImpl implements IMenuService {
 		// consulta ya ordena lunes→domingo (1..7); sin horas, lista vacía —
 		// nunca null.
 		List<BusinessHoursDTO> hoursDTOs = businessHoursRepository
-				.findByBusiness_IdOrderByDayOfWeekAsc(business.getId())
+				.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(business.getId())
 				.stream()
 				.map(MenuServiceImpl::toHoursDTO)
 				.collect(Collectors.toList());

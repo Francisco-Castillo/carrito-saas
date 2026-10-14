@@ -1,6 +1,7 @@
 package com.carrito.saas;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -140,6 +142,7 @@ class BusinessProfileAndStorefrontTests {
 		BusinessHours h = new BusinessHours();
 		h.setBusiness(business);
 		h.setDayOfWeek(dayOfWeek);
+		h.setPosition(0);
 		h.setOpensAt(opens == null ? null : LocalTime.parse(opens));
 		h.setClosesAt(closes == null ? null : LocalTime.parse(closes));
 		h.setClosed(opens == null);
@@ -304,7 +307,7 @@ class BusinessProfileAndStorefrontTests {
 		assertThat(saved.getInstagramUrl()).isEqualTo("https://instagram.com/negocio.actual");
 
 		List<BusinessHours> savedHours =
-				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAsc(BUSINESS_A_ID);
+				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID);
 		assertThat(savedHours).hasSize(2);
 		assertThat(savedHours.get(0).getDayOfWeek()).isEqualTo(1);
 		assertThat(savedHours.get(0).getOpensAt()).isEqualTo(LocalTime.parse("09:00:00"));
@@ -353,7 +356,7 @@ class BusinessProfileAndStorefrontTests {
 		entityManager.clear();
 
 		List<BusinessHours> savedHours =
-				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAsc(BUSINESS_A_ID);
+				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID);
 
 		List<Integer> days = new ArrayList<>();
 		savedHours.forEach(h -> days.add(h.getDayOfWeek()));
@@ -364,6 +367,64 @@ class BusinessProfileAndStorefrontTests {
 		assertThat(savedHours.get(0).getOpensAt())
 				.as("el día que sigue presente toma los nuevos horarios")
 				.isEqualTo(LocalTime.parse("08:00:00"));
+	}
+
+	// ------------------------------------------------------------------
+	// Data layer: several ordered shifts per weekday (multi-shift change)
+	// ------------------------------------------------------------------
+
+	/**
+	 * Data-layer capability behind the multi-shift change: a weekday can hold
+	 * several shifts ordered by {@code position}. The repository returns them
+	 * in (dayOfWeek, position) order, and a duplicate
+	 * (business_id, day_of_week, position) is rejected by
+	 * {@code uq_business_hours_business_day_position}.
+	 */
+	@Test
+	void repositoryStoresTwoShiftsPerDayOrderedByPositionAndRejectsDuplicates() {
+
+		Business a = businessA();
+
+		BusinessHours night = new BusinessHours();
+		night.setBusiness(a);
+		night.setDayOfWeek(5);
+		night.setPosition(1);
+		night.setOpensAt(LocalTime.parse("19:00:00"));
+		night.setClosesAt(LocalTime.parse("00:30:00"));
+		night.setClosed(false);
+		businessHoursRepository.saveAndFlush(night);
+
+		BusinessHours midday = new BusinessHours();
+		midday.setBusiness(a);
+		midday.setDayOfWeek(5);
+		midday.setPosition(0);
+		midday.setOpensAt(LocalTime.parse("11:00:00"));
+		midday.setClosesAt(LocalTime.parse("15:00:00"));
+		midday.setClosed(false);
+		businessHoursRepository.saveAndFlush(midday);
+
+		// Persisted out of order (1 first, then 0): the query must sort them.
+		List<BusinessHours> shifts =
+				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID);
+		assertThat(shifts).hasSize(2);
+		assertThat(shifts.get(0).getDayOfWeek()).isEqualTo(5);
+		assertThat(shifts.get(0).getPosition()).isEqualTo(0);
+		assertThat(shifts.get(0).getOpensAt()).isEqualTo(LocalTime.parse("11:00:00"));
+		assertThat(shifts.get(1).getDayOfWeek()).isEqualTo(5);
+		assertThat(shifts.get(1).getPosition()).isEqualTo(1);
+		assertThat(shifts.get(1).getOpensAt()).isEqualTo(LocalTime.parse("19:00:00"));
+
+		BusinessHours duplicate = new BusinessHours();
+		duplicate.setBusiness(a);
+		duplicate.setDayOfWeek(5);
+		duplicate.setPosition(0);
+		duplicate.setOpensAt(LocalTime.parse("16:00:00"));
+		duplicate.setClosesAt(LocalTime.parse("18:00:00"));
+		duplicate.setClosed(false);
+
+		assertThatThrownBy(() -> businessHoursRepository.saveAndFlush(duplicate))
+				.as("(business_id, day_of_week, position) es único")
+				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	// ------------------------------------------------------------------
@@ -434,7 +495,7 @@ class BusinessProfileAndStorefrontTests {
 		entityManager.clear();
 
 		List<BusinessHours> savedHours =
-				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAsc(BUSINESS_A_ID);
+				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID);
 		assertThat(savedHours).hasSize(1);
 		assertThat(savedHours.get(0).getOpensAt())
 				.as("la apertura del viernes se guarda tal cual")
@@ -542,7 +603,7 @@ class BusinessProfileAndStorefrontTests {
 		assertThat(foreign.getName()).isEqualTo("Business " + SLUG_B);
 
 		List<BusinessHours> foreignHours =
-				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAsc(BUSINESS_B_ID);
+				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_B_ID);
 		assertThat(foreignHours).hasSize(1);
 		assertThat(foreignHours.get(0).getDayOfWeek()).isEqualTo(2);
 	}
