@@ -101,3 +101,15 @@ code: lens_context_budget_exceeded  (phase: preflight, mutation_outcome: not_sta
 Sin autoridad creada: nada que abandonar ni reparar. Causa medible: los **assets generados commiteados** (`api/src/main/resources/static/assets/*.js`, ~470 KB minificados ≈ 150k tokens) entran en cualquier rango que termine en HEAD, así que el candidato no entra en el budget de las 4 lenses.
 
 Continuación documentada por el propio stop: reducir el alcance del candidato (una secuencia encadenada de commits más chicos) o deshabilitar el switch (`D`). Con el bundle versionado, un candidato source-only no es contiguo: la única forma real de restaurar la revisabilidad es sacar los artefactos generados de Git y buildearlos al empaquetar (decisión de entrega, del usuario).
+
+### Segundo intento de review: tampoco entra (y la lección es otra)
+
+Tras desversionar el bundle (commit `613072c`), el candidato quedó **source-only** (43 paths) y el START volvió a frenar igual:
+
+```
+code: lens_context_budget_exceeded  (mutation_outcome: not_started, lineage review-80897a67b13caf11)
+```
+
+Es decir: **el bundle no era la causa principal**. El slice source-only tiene ~2.161 líneas agregadas + ~5.044 borradas (≈7.2k líneas) y no entra en el budget de la política acotada del reviewer. También probé seleccionar lenses por el input del START (`lenses: "risk"`) y el facade lo rechaza limpio: `native-start-input-invalid / unknown-field / lineage_created: false`.
+
+Consecuencia estructural: como el candidato es siempre `[baseRef, HEAD]`, con HEAD fijo sólo se puede revisar la **cola** de la rama; el trabajo grande no puede partirse retroactivamente. La continuación documentada por el propio stop es entregar esto como una **secuencia encadenada de commits/PRs chicos, cada uno bajo el budget** — es un cambio de modelo de entrega, no un retoque.
