@@ -29,6 +29,28 @@ const BUSINESS: StorefrontBusiness = {
 const monday = (hh: number, mm: number, ss = 0) => new Date(2024, 0, 1, hh, mm, ss);
 const friday = (hh: number, mm: number) => new Date(2024, 0, 5, hh, mm, 0);
 
+/** Viernes 5/1 con horario especial 11:00–18:00; la plantilla del viernes cierra a las 17:00. */
+const HOLIDAY_BUSINESS: StorefrontBusiness = {
+  id: 990000002,
+  name: "Foodtruck Demo",
+  slug: "demo-e2e",
+  hours: [{ dayOfWeek: 5, shifts: [{ opensAt: "11:00:00", closesAt: "17:00:00" }] }],
+  dateExceptions: [
+    { date: "2024-01-05", shifts: [{ opensAt: "11:00:00", closesAt: "18:00:00" }] },
+  ],
+};
+
+/** Viernes 5/1 que abre MÁS TARDE que su plantilla: la excepción abre a las 14:00. */
+const LATE_OPEN_HOLIDAY: StorefrontBusiness = {
+  id: 990000003,
+  name: "Foodtruck Demo",
+  slug: "demo-e2e",
+  hours: [{ dayOfWeek: 5, shifts: [{ opensAt: "11:00:00", closesAt: "23:00:00" }] }],
+  dateExceptions: [
+    { date: "2024-01-05", shifts: [{ opensAt: "14:00:00", closesAt: "20:00:00" }] },
+  ],
+};
+
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
@@ -127,5 +149,57 @@ describe("badge de la portada — se refresca solo al cruzar un borde", () => {
       ([type]) => type === "visibilitychange",
     );
     expect(registrations).toHaveLength(1);
+  });
+
+  it("un feriado con horario propio dispara el refresco en SU cierre, no en el de la plantilla", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(friday(16, 58));
+    renderBadge(HOLIDAY_BUSINESS);
+
+    expect(screen.getByText("Abierto")).toBeInTheDocument();
+    expect(screen.getByText("Cierra a las 18:00")).toBeInTheDocument();
+
+    // 17:00:00 — el cierre de la PLANTILLA venció: el badge NO puede voltear
+    // acá, aunque el timeout mal agendado diga lo contrario.
+    act(() => {
+      vi.advanceTimersByTime(2 * 60_000);
+    });
+    expect(screen.getByText("Abierto")).toBeInTheDocument();
+
+    // 18:00:00 — el cierre de la EXCEPCIÓN: acá sí se refresca.
+    act(() => {
+      vi.advanceTimersByTime(60 * 60_000);
+    });
+    expect(screen.getByText("Cerrado")).toHaveClass("is-closed");
+  });
+
+  it("un feriado que abre más tarde agenda el refresco en SU apertura, no en la de la plantilla", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(friday(13, 58, 0));
+    renderBadge(LATE_OPEN_HOLIDAY);
+
+    expect(screen.getByText("Cerrado")).toHaveClass("is-closed");
+    expect(screen.getByText("Abre hoy a las 14:00")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(2 * 60_000); // 14:00:00
+    });
+    expect(screen.getByText("Abierto")).toBeInTheDocument();
+    expect(screen.getByText("Cierra a las 20:00")).toBeInTheDocument();
+  });
+
+  it("un feriado cerrado de hoy muestra Cerrado aunque la plantilla diga lo contrario", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(friday(13, 0));
+    renderBadge({
+      id: 990000004,
+      name: "Foodtruck Demo",
+      slug: "demo-e2e",
+      hours: [{ dayOfWeek: 5, shifts: [{ opensAt: "11:00:00", closesAt: "23:00:00" }] }],
+      dateExceptions: [{ date: "2024-01-05", shifts: [] }],
+    });
+
+    expect(screen.getByText("Cerrado")).toHaveClass("is-closed");
+    expect(screen.getByText("Hoy: Cerrado")).toBeInTheDocument();
   });
 });
