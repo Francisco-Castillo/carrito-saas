@@ -56,21 +56,27 @@ import com.carrito.saas.service.interfaces.IBusinessProfileService;
  * normal. Reglas propias de la lista: fecha obligatoria, sin duplicados
  * ({@code Ya hay una excepción para esa fecha}) y hasta 100 fechas por
  * negocio ({@code No se pueden cargar más de 100 fechas especiales}).
- * {@code dateExceptions} es obligatorio en el PUT (400 cuando falta): un
- * cliente que olvide el campo no puede borrar los feriados ya guardados en
- * silencio, igual que el guard de {@code shifts} en un día. Un feriado
+ * Actualización parcial: {@code dateExceptions} ausente del payload conserva
+ * las fechas ya guardadas (un campo que no viaja no borra datos); la lista
+ * vacía es el "ninguna" explícito y reemplaza en bloque. El derrame de una
+ * fecha se valida contra las horas efectivas, resueltas una sola vez: las del
+ * payload si {@code hours} viaja, las almacenadas si no. Un feriado
  * cerrado se guarda como una fila marcadora sin horarios, porque acá la
  * ausencia de la fecha significa "día normal" y el cerrado tiene que estar
  * representado.</p>
  *
- * <p>La lista de horas se reemplaza en bloque: un día ausente del payload —
- * o presente con la lista de turnos vacía— queda cerrado (delete-then-insert
- * dentro de la misma transacción). El servidor ordena los turnos de cada día
+ * <p>La lista de horas, si viaja, se reemplaza en bloque: un día ausente del
+ * payload — o presente con la lista de turnos vacía— queda cerrado
+ * (delete-then-insert dentro de la misma transacción); si no viaja, los
+ * turnos almacenados quedan intactos. El servidor ordena los turnos de cada día
  * por hora de apertura, así que el cliente puede mandarlos en cualquier
  * orden; {@code position} es el índice después de ordenar y no se expone.
  * La respuesta devuelve siempre los siete días, con la lista de turnos vacía
- * en los cerrados. Los campos de texto nulos o vacíos limpian el campo; el
- * nombre, si viene, debe ser no vacío (es editable).</p>
+ * en los cerrados. Los campos de texto siguen la actualización parcial: un
+ * campo ausente conserva lo guardado; vacío (blancos) lo limpia (null en la
+ * base); presente se valida como siempre. {@code name} es la excepción por
+ * derecha: vacío se rechaza con 400 (un negocio necesita nombre) y ausente
+ * conserva el guardado.</p>
  */
 @Service
 public class BusinessProfileServiceImpl implements IBusinessProfileService {
@@ -123,33 +129,63 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 			throw new BusinessException("El perfil no puede estar vacío", ErrorType.VALIDATION);
 		}
 
+		Business business = currentBusiness();
+
 		validateName(dto.getName());
 		validateUrl("logoUrl", dto.getLogoUrl(), MAX_URL_LENGTH);
 		validateUrl("bannerUrl", dto.getBannerUrl(), MAX_URL_LENGTH);
 		validateUrl("instagramUrl", dto.getInstagramUrl(), MAX_URL_LENGTH);
 		validateAddress(dto.getAddress());
-		List<BusinessHoursDTO> hours = validateHours(dto.getHours());
-		List<DateExceptionDTO> dateExceptions = validateDateExceptions(dto.getDateExceptions(),
-				toOpenDaysMap(hours));
 
-		Business business = currentBusiness();
+		// Horas efectivas, resueltas UNA sola vez: las del payload cuando
+		// viaja, las almacenadas cuando no. La validación de derrame de las
+		// fechas especiales se hace contra estas, nunca contra una lista vacía
+		// — si no, un PUT parcial de sólo fechas saltaría el chequeo o
+		// falso-rechazaría un feriado que en realidad está bien.
+		List<BusinessHoursDTO> hoursToStore = null;
+		List<BusinessHoursDTO> effectiveHours;
+		if (dto.getHours() != null) {
+			hoursToStore = validateHours(dto.getHours());
+			effectiveHours = hoursToStore;
+		} else {
+			effectiveHours = toHoursDTOs(business.getId());
+		}
 
+		// null significa "no tocar": la lista vacía sigue siendo el "ninguna"
+		// explícito que reemplaza en bloque.
+		List<DateExceptionDTO> exceptionsToStore = dto.getDateExceptions() == null ? null
+				: validateDateExceptions(dto.getDateExceptions(), toOpenDaysMap(effectiveHours));
+
+		// Actualización parcial de los campos de texto: ausente conserva lo
+		// guardado, "" (blancos) limpia (normalize → null), presente se guarda
+		// ya validado. El nombre blank es 400 (validateName): un negocio
+		// necesita nombre.
 		if (dto.getName() != null) {
 			business.setName(dto.getName().trim());
 		}
-		business.setLogoUrl(normalize(dto.getLogoUrl()));
-		business.setBannerUrl(normalize(dto.getBannerUrl()));
-		business.setAddress(normalize(dto.getAddress()));
-		business.setInstagramUrl(normalize(dto.getInstagramUrl()));
+		if (dto.getLogoUrl() != null) {
+			business.setLogoUrl(normalize(dto.getLogoUrl()));
+		}
+		if (dto.getBannerUrl() != null) {
+			business.setBannerUrl(normalize(dto.getBannerUrl()));
+		}
+		if (dto.getAddress() != null) {
+			business.setAddress(normalize(dto.getAddress()));
+		}
+		if (dto.getInstagramUrl() != null) {
+			business.setInstagramUrl(normalize(dto.getInstagramUrl()));
+		}
 		businessRepository.save(business);
 
-		// Reemplazo en bloque: se borran los turnos actuales y se insertan
-		// los del payload. Un día ausente — o presente sin turnos— queda
-		// cerrado; position es el índice dentro del día ya ordenado.
-		businessHoursRepository.deleteByBusiness_Id(business.getId());
-		businessHoursRepository.flush();
+		if (hoursToStore != null) {
+			// Reemplazo en bloque: se borran los turnos actuales y se insertan
+			// los del payload (la lista vacía cierra todos los días). Un día
+			// ausente — o presente sin turnos— queda cerrado; position es el
+			// índice dentro del día ya ordenado.
+			businessHoursRepository.deleteByBusiness_Id(business.getId());
+			businessHoursRepository.flush();
 
-		for (BusinessHoursDTO hoursDTO : hours) {
+		for (BusinessHoursDTO hoursDTO : hoursToStore) {
 			List<BusinessShiftDTO> shifts = hoursDTO.getShifts();
 			for (int position = 0; position < shifts.size(); position++) {
 				BusinessHours entity = new BusinessHours();
@@ -161,16 +197,18 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 				businessHoursRepository.save(entity);
 			}
 		}
+		}
 
-		// Reemplazo en bloque de las fechas especiales, igual que las horas:
-		// una fecha ausente del payload vuelve a ser un día normal. Una fecha
-		// con la lista de turnos vacía (feriado cerrado) se guarda como UNA fila
-		// marcadora sin horarios: acá la ausencia de la fecha significa "día
-		// normal", así que el cerrado tiene que estar representado.
-		businessDateExceptionRepository.deleteByBusiness_Id(business.getId());
-		businessDateExceptionRepository.flush();
+		if (exceptionsToStore != null) {
+			// Reemplazo en bloque de las fechas especiales, igual que las horas:
+			// la lista vacía explícita vuelve a "sin fechas". Una fecha con la
+			// lista de turnos vacía (feriado cerrado) se guarda como UNA fila
+			// marcadora sin horarios: acá la ausencia de la fecha significa "día
+			// normal", así que el cerrado tiene que estar representado.
+			businessDateExceptionRepository.deleteByBusiness_Id(business.getId());
+			businessDateExceptionRepository.flush();
 
-		for (DateExceptionDTO exceptionDTO : dateExceptions) {
+			for (DateExceptionDTO exceptionDTO : exceptionsToStore) {
 			if (exceptionDTO.getShifts().isEmpty()) {
 				BusinessDateException marker = new BusinessDateException();
 				marker.setBusiness(business);
@@ -188,6 +226,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 				entity.setClosesAt(exceptionDTO.getShifts().get(position).getClosesAt());
 				businessDateExceptionRepository.save(entity);
 			}
+		}
 		}
 
 		BusinessProfileDTO result = new BusinessProfileDTO();
@@ -389,19 +428,17 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 	/**
 	 * Valida las fechas especiales y devuelve la lista normalizada, ordenada
 	 * por fecha (TreeMap) y con los turnos de cada fecha ya ordenados.
-	 * {@code openDays} son los días de la semana ya validados del mismo PUT:
-	 * es el fallback del chequeo de derrame cuando el día siguiente no tiene
-	 * excepción propia.
+	 * {@code openDays} son los días de la semana con turnos de las horas
+	 * <em>efectivas</em> (payload si viaja, almacenadas si no): es el fallback
+	 * del chequeo de derrame cuando el día siguiente no tiene excepción propia.
 	 */
 	private List<DateExceptionDTO> validateDateExceptions(List<DateExceptionDTO> exceptions,
 			Map<Integer, List<BusinessShiftDTO>> openDays) {
 
 		if (exceptions == null) {
-			// El campo viaja en el perfil completo; que no viaje no puede
-			// significar "sin fechas": borraría los feriados del dueño en
-			// silencio, igual que un día nombrado sin la clave shifts.
-			throw new BusinessException("dateExceptions es obligatorio (una lista vacía significa que no hay fechas especiales)",
-					ErrorType.VALIDATION);
+			// Ausente significa "no tocar" y se resuelve en updateProfile antes
+			// de llegar acá; el guard es defensivo.
+			return List.of();
 		}
 
 		if (exceptions.size() > MAX_DATE_EXCEPTIONS) {
