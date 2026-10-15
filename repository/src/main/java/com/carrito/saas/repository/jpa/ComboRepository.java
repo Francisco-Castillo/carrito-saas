@@ -10,6 +10,11 @@ import org.springframework.data.repository.query.Param;
 import com.carrito.saas.repository.entity.Combo;
 
 public interface ComboRepository extends JpaRepository<Combo, Long> {
+	/**
+	 * Lectura del panel administrativo (GET /api/combos): devuelve TODOS los
+	 * combos del negocio, activos e inactivos — el panel necesita ver los
+	 * apagados para poder volver a encenderlos.
+	 */
 	@Query("""
 			    SELECT DISTINCT c
 			    FROM Combo c
@@ -19,6 +24,24 @@ public interface ComboRepository extends JpaRepository<Combo, Long> {
 			    WHERE cat.business.id = :businessId
 			""")
 	List<Combo> findFullMenuCombos(Long businessId);
+
+	/**
+	 * Lectura de la carta pública (GET /api/menu/{slug}): igual que
+	 * {@code findFullMenuCombos} pero sólo combos ACTIVOS — el switch
+	 * on/off del panel debe poder sacar un combo de la carta. Mismo
+	 * precedente que {@code ProductRepository.findPublicMenuProducts}:
+	 * la regla vive en la consulta, no en el servicio.
+	 */
+	@Query("""
+			    SELECT DISTINCT c
+			    FROM Combo c
+			    JOIN FETCH c.items cp
+			    JOIN FETCH cp.product
+			    JOIN c.category cat
+			    WHERE cat.business.id = :businessId
+			    AND c.active = true
+			""")
+	List<Combo> findActiveFullMenuCombos(Long businessId);
 
 	/**
 	 * Finder acotado al negocio para la actualización: trae el combo con sus
