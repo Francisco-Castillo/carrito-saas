@@ -8,8 +8,9 @@
  *   - Submit works without a slug: the POST body carries NO restaurantSlug.
  *   - Submit with a slug keeps sending restaurantSlug (backward compatible).
  *   - The submit button is enabled without a slug.
- *   - Without a slug the restaurant chip shows a neutral label ("Ingreso
- *     general") and no slug lookup is fetched.
+ *   - The page renders NO restaurant chip and fires NO
+ *     /api/restaurants/slug/ lookup, with or without a slug in the URL: the
+ *     login screen carries no restaurant context on screen.
  *   - The redirect target keeps using data.restaurantSlug from the response
  *     even when the URL had no slug.
  *   - Phase 2: a successful login stores the response slug in localStorage
@@ -17,7 +18,7 @@
  *     expiresAt) so dashboard/kds/admin resolve it from the session; without
  *     a response slug and without a URL slug no stale value is kept.
  */
-import { render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import Login from '../src/pages/Login'
@@ -38,9 +39,6 @@ async function submitLogin(options: {
 }) {
   const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
     const u = String(url instanceof Request ? url.url : url)
-    if (u.startsWith('/api/restaurants/slug/')) {
-      return okJson({ name: 'Demo Pizzeria' })
-    }
     if (u === '/api/auth/login') {
       return okJson(
         options.loginResponse ?? {
@@ -98,14 +96,19 @@ describe('organic login (login without ?restaurant=)', () => {
     expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeEnabled()
   })
 
-  it('without a slug the chip shows the neutral "Ingreso general" label and no slug lookup fires', async () => {
-    const { fetchMock } = await submitLogin({ search: '' })
+  it('renders no restaurant chip and fires no slug lookup, with and without a URL slug', async () => {
+    for (const search of ['', '?restaurant=demo-pizzeria']) {
+      cleanup()
+      const { fetchMock } = await submitLogin({ search })
 
-    expect(screen.getByText('Ingreso general')).toBeInTheDocument()
-    // Give any (wrong) slug fetch a chance to happen before asserting.
-    await waitFor(() => {
-      expect(fetchMock.mock.calls.every(([u]) => !String(u).startsWith('/api/restaurants/slug/'))).toBe(true)
-    })
+      expect(screen.queryByText('Restaurante')).not.toBeInTheDocument()
+      expect(document.querySelector('.restaurant-chip')).toBeNull()
+      // Give any (wrong) slug fetch a chance to happen before asserting.
+      await waitFor(() => {
+        expect(fetchMock.mock.calls.every(([u]) => !String(u).startsWith('/api/restaurants/slug/'))).toBe(true)
+      })
+    }
+    cleanup()
   })
 
   it('the redirect target uses data.restaurantSlug from the response even without a slug in the URL', async () => {
