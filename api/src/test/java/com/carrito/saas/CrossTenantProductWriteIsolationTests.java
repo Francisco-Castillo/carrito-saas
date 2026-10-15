@@ -187,7 +187,7 @@ class CrossTenantProductWriteIsolationTests {
 	@Test
 	void updatingForeignProductReturns404AndLeavesForeignRowUntouched() throws Exception {
 
-		mockMvc.perform(put("/api/" + foreignProduct.getId())
+		mockMvc.perform(put("/api/products/" + foreignProduct.getId())
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(updateBody(categoryA.getId())))
@@ -215,7 +215,7 @@ class CrossTenantProductWriteIsolationTests {
 	@Test
 	void updatingOwnProductToForeignCategoryReturns404AndLeavesOwnRowUntouched() throws Exception {
 
-		mockMvc.perform(put("/api/" + ownProduct.getId())
+		mockMvc.perform(put("/api/products/" + ownProduct.getId())
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(updateBody(categoryB.getId())))
@@ -243,7 +243,7 @@ class CrossTenantProductWriteIsolationTests {
 	@Test
 	void updatingOwnProductWithinOwnCategoryReturns200AndPersists() throws Exception {
 
-		mockMvc.perform(put("/api/" + ownProduct.getId())
+		mockMvc.perform(put("/api/products/" + ownProduct.getId())
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(updateBody(categoryA.getId())))
@@ -272,7 +272,7 @@ class CrossTenantProductWriteIsolationTests {
 	@Test
 	void creatingProductInForeignCategoryReturns404AndCreatesNoRow() throws Exception {
 
-		mockMvc.perform(post("/api/productos")
+		mockMvc.perform(post("/api/products")
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(createBody(categoryB.getId())))
@@ -295,7 +295,7 @@ class CrossTenantProductWriteIsolationTests {
 	@Test
 	void creatingProductInOwnCategorySucceedsAndRowBelongsToCallerBusiness() throws Exception {
 
-		mockMvc.perform(post("/api/productos")
+		mockMvc.perform(post("/api/products")
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(createBody(categoryA.getId())))

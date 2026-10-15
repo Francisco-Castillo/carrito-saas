@@ -149,7 +149,7 @@ class ProductUpdateValidationTests {
 	@Test
 	void nullNameReturns400AndLeavesRowUnchanged() throws Exception {
 
-		mockMvc.perform(put("/api/" + product.getId())
+		mockMvc.perform(put("/api/products/" + product.getId())
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(updateBody("null", "\"100.00\"", "\"20.00\"")))
@@ -167,7 +167,7 @@ class ProductUpdateValidationTests {
 	@Test
 	void blankNameReturns400AndLeavesRowUnchanged() throws Exception {
 
-		mockMvc.perform(put("/api/" + product.getId())
+		mockMvc.perform(put("/api/products/" + product.getId())
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(updateBody("\"   \"", "\"100.00\"", "\"20.00\"")))
@@ -183,7 +183,7 @@ class ProductUpdateValidationTests {
 	@Test
 	void nullPriceReturns400() throws Exception {
 
-		mockMvc.perform(put("/api/" + product.getId())
+		mockMvc.perform(put("/api/products/" + product.getId())
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(updateBody("\"Nombre Valido\"", "null", "\"20.00\"")))
@@ -199,7 +199,7 @@ class ProductUpdateValidationTests {
 	@Test
 	void nullCostReturns400() throws Exception {
 
-		mockMvc.perform(put("/api/" + product.getId())
+		mockMvc.perform(put("/api/products/" + product.getId())
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(updateBody("\"Nombre Valido\"", "\"100.00\"", "null")))
@@ -215,7 +215,7 @@ class ProductUpdateValidationTests {
 	@Test
 	void validUpdateReturns200AndPersists() throws Exception {
 
-		mockMvc.perform(put("/api/" + product.getId())
+		mockMvc.perform(put("/api/products/" + product.getId())
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(updateBody("\"Nombre Actualizado\"", "\"150.00\"", "\"25.00\"")))
