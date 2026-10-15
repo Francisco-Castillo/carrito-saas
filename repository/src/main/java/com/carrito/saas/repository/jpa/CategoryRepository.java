@@ -30,6 +30,22 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
             """)
      boolean existsByNameIgnoreCaseAndBusiness(@Param("name") String name,
                                                @Param("businessId") Long businessId);
+
+    /**
+     * Igual que {@link #existsByNameIgnoreCaseAndBusiness} pero excluyendo la
+     * propia categoría: la edición necesita detectar duplicados contra el
+     * resto del negocio sin chocar con su nombre actual.
+     */
+    @Query("""
+            SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END
+            FROM Category c
+            WHERE LOWER(TRIM(c.name)) = LOWER(TRIM(:name))
+            AND c.business.id = :businessId
+            AND c.id <> :id
+            """)
+     boolean existsByNameIgnoreCaseAndBusinessAndIdNot(@Param("name") String name,
+                                                       @Param("businessId") Long businessId,
+                                                       @Param("id") Long id);
     
 		// Para frontend (clientes)
 		List<Category> findByBusiness_IdAndActiveTrueOrderByOrdenAsc(Long businessId);

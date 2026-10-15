@@ -69,10 +69,32 @@ public class CategoryServiceImpl implements ICategoryService {
 	@Override
 	@Transactional
 	public CategoryDTO actualizarCategoria(Long id, CategoryDTO dto) {
-		Category c = categoryRepository.findById(id).orElseThrow(() -> new BusinessException("Categoría no encontrada", ErrorType.NOT_FOUND));
 
-		if (dto.getName() != null)
-			c.setName(dto.getName());
+		// Mismas validaciones que la creación: el nombre es obligatorio y se
+		// normaliza antes de tocar la entidad.
+		if (dto.getName() == null || dto.getName().isBlank())
+			throw new BusinessException("El nombre de la categoría es obligatorio", ErrorType.VALIDATION);
+
+		// El tenant ancla en el JWT: un id de categoría ajeno al negocio
+		// resuelve como 404, nunca como un éxito silencioso, y la fila ajena
+		// queda exactamente igual.
+		Long businessId = securityService.getCurrentBusinessId();
+
+		Category c = categoryRepository.findByIdAndBusinessId(id, businessId)
+				.orElseThrow(() -> new BusinessException("Categoría no encontrada", ErrorType.NOT_FOUND));
+
+		String normalizedName = dto.getName().trim();
+
+		// Validamos duplicado dentro del negocio, excluyendo la propia
+		// categoría (renombrar manteniendo su nombre no es duplicado).
+		boolean exists = categoryRepository.existsByNameIgnoreCaseAndBusinessAndIdNot(normalizedName, businessId, id);
+
+		if (exists) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT,
+					"Ya existe una categoría con ese nombre para este negocio");
+		}
+
+		c.setName(normalizedName);
 
 		if (dto.getOrder() != null)
 			c.setOrden(dto.getOrder());
@@ -86,8 +108,13 @@ public class CategoryServiceImpl implements ICategoryService {
 	@Override
 	@Transactional
 	public void ordenarCategorias(List<Long> idsOrdenados) {
+		// El tenant ancla en el JWT: reordenar con un id ajeno al negocio
+		// resuelve como 404 y la transacción completa se descarta, dejando el
+		// orden de todas las filas exactamente como estaba.
+		Long businessId = securityService.getCurrentBusinessId();
+
 		for (int i = 0; i < idsOrdenados.size(); i++) {
-			Category c = categoryRepository.findById(idsOrdenados.get(i))
+			Category c = categoryRepository.findByIdAndBusinessId(idsOrdenados.get(i), businessId)
 					.orElseThrow(() -> new BusinessException("Categoría no encontrada", ErrorType.NOT_FOUND));
 			c.setOrden(i + 1);
 			categoryRepository.save(c);
@@ -109,7 +136,10 @@ public class CategoryServiceImpl implements ICategoryService {
 
 	@Override
 	public CategoryDTO findById(Long id) {
-		Category categoria = categoryRepository.findById(id)
+		// El tenant ancla en el JWT: leer por id una categoría ajena al
+		// negocio resuelve como 404, nunca filtra la fila ajena.
+		Category categoria = categoryRepository
+				.findByIdAndBusinessId(id, securityService.getCurrentBusinessId())
                 .orElseThrow(() -> new BusinessException("Categoría no encontrada", ErrorType.NOT_FOUND));
 		return iCategoryMapper.toDTO(categoria);
 	}
