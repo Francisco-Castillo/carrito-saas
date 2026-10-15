@@ -156,6 +156,23 @@ INSERT INTO business_hours (business_id, day_of_week, position, opens_at, closes
   (900000001, 7, 0, '19:00', '23:30')
 ON CONFLICT (business_id, day_of_week, position) DO NOTHING;
 
+-- Fechas especiales de la pizzería, con la bandera `yearly`: son fechas del
+-- calendario que se repiten TODOS los años, no un año suelto. El `date` guardado
+-- es la referencia de la validación de derrame (y de la primera ocurrencia
+-- cargada): el match anual es por día y mes, así que 25/12 rige en 2027, en 2030
+-- y siempre, sin volver a cargarlo.
+--   · 24/12 (Nochebuena): horario especial, cierra a las 23:00.
+--   · 25/12 (Navidad) y 01/01 (Año Nuevo): cerrado. La fila marcadora SIN
+--     horarios es la que representa "cerrado", porque en fechas la ausencia de
+--     la fila significa día normal.
+-- Mismo criterio que los horarios de arriba: DO NOTHING, porque este negocio es
+-- del dueño y el seed no pisa lo que él cargue desde Panel → Local.
+INSERT INTO business_date_exception (business_id, date, position, opens_at, closes_at, yearly) VALUES
+  (900000001, DATE '2026-12-24', 0, '20:00', '23:00', true),
+  (900000001, DATE '2026-12-25', 0, NULL, NULL, true),
+  (900000001, DATE '2027-01-01', 0, NULL, NULL, true)
+ON CONFLICT (business_id, date, position) DO NOTHING;
+
 -- Cancellation reasons used by the KDS cancel modal
 INSERT INTO cancellation_reasons (id, code, description, active, created_at) VALUES
   (990101, 'NO_STOCK',     'Sin stock de ingredientes', true, now()),
