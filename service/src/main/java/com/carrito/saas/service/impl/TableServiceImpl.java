@@ -95,7 +95,7 @@ public class TableServiceImpl implements ITableService {
 	public TableResponseDTO create(CreateTableRequestDTO request) {
 		Long businessId = securityService.getCurrentBusinessId();
 
-		// validateTableNumber(businessId, request.getTableNumber());
+		validateTableNumber(businessId, request.getTableNumber());
 
 		Business business = businessRepository.findById(businessId)
 				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
@@ -127,7 +127,7 @@ public class TableServiceImpl implements ITableService {
 
 		table.setTableName(request.getTableName());
 
-		//table.setActive(request.getActive());
+		table.setStatus(request.getStatus());
 
 		table.setUpdatedAt(LocalDateTime.now());
 
@@ -170,7 +170,7 @@ public class TableServiceImpl implements ITableService {
 			table.setTableName("Mesa " + i);
 			table.setQrToken(UUID.randomUUID().toString());
 
-			//table.setActive(Boolean.TRUE);
+			table.setStatus(TableStatus.AVAILABLE);
 
 			table.setCreatedAt(LocalDateTime.now());
 
@@ -211,7 +211,7 @@ public class TableServiceImpl implements ITableService {
 
 		if (tableRepository.existsByBusinessIdAndTableNumber(businessId, tableNumber)) {
 
-			//throw new BusinessException("Table number already exists");
+			throw new BusinessException("Ya existe una mesa con ese número", ErrorType.CONFLICT);
 		}
 	}
 
@@ -219,7 +219,7 @@ public class TableServiceImpl implements ITableService {
 
 		if (tableRepository.existsByBusinessIdAndTableNumberAndIdNot(businessId, tableNumber, tableId)) {
 
-			//throw new BusinessException("Table number already exists");
+			throw new BusinessException("Ya existe una mesa con ese número", ErrorType.CONFLICT);
 		}
 	}
 

@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 
 import com.carrito.saas.dto.TableResponseDTO;
 import com.carrito.saas.repository.entity.RestaurantTable;
-import com.carrito.saas.repository.enums.TableStatus;
 import com.carrito.saas.service.mapper.interfaces.IRestaurantTableMapper;
 
 @Component
@@ -28,7 +27,8 @@ public class RestaurantTableMapperImpl implements IRestaurantTableMapper {
 		response.setQrToken(entity.getQrToken());
 		response.setQrUrl("");
 		response.setCreatedAt(entity.getCreatedAt());
-		response.setStatus(TableStatus.AVAILABLE);
+		response.setUpdatedAt(entity.getUpdatedAt());
+		response.setStatus(entity.getStatus());
 		return response;
 	}
 
