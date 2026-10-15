@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -97,6 +98,36 @@ public class ProductController {
 	@PutMapping("/{id}")
 	public ProductDTO actualizar(@PathVariable Long id, @RequestBody ProductDTO dto) {
 		return productService.actualizarProducto(id, dto);
+	}
+
+	/**
+	 * Panel de administración: TODOS los productos del negocio autenticado
+	 * (activos e inactivos, el panel muestra una columna de estado). El
+	 * businessId sale del JWT, nunca del request.
+	 */
+	@GetMapping("/products")
+	public List<ProductDTO> listarProductosDelNegocio() {
+		return productService.findAllByBusinessId();
+	}
+
+	/**
+	 * Panel de administración: activa o desactiva un producto propio. Un id
+	 * ajeno al negocio resuelve como 404, nunca como un éxito silencioso.
+	 */
+	@PutMapping("/products/{id}/activar")
+	public ProductDTO activarProducto(@PathVariable Long id, @RequestParam boolean activo) {
+		return productService.cambiarEstadoActivo(id, activo);
+	}
+
+	/**
+	 * Panel de administración: elimina un producto propio. Un producto usado
+	 * por un combo falla con 409 (FK RESTRICT en combo_products), un id ajeno
+	 * resuelve como 404.
+	 */
+	@DeleteMapping("/products/{id}")
+	public ResponseEntity<Void> eliminarProducto(@PathVariable Long id) {
+		productService.eliminarProducto(id);
+		return ResponseEntity.noContent().build();
 	}
 
 }

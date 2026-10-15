@@ -30,6 +30,7 @@ import com.carrito.saas.service.interfaces.IProductPredictionService;
 import com.carrito.saas.service.interfaces.IProductService;
 import com.carrito.saas.service.interfaces.IProductTrendService;
 import com.carrito.saas.service.mapper.interfaces.IProductMapper;
+import com.carrito.saas.security.SecurityService;
 
 @Service
 public class ProductServiceImpl implements IProductService {
@@ -40,10 +41,12 @@ public class ProductServiceImpl implements IProductService {
 	private final IProductTrendService productTrendService;
 	private final IProductPredictionService productPredictionService;
 	private final ProductInsightService productInsightService;
+	private final SecurityService securityService;
 
 	public ProductServiceImpl(ProductRepository productRepository, CategoryRepository categoryRepository,
 			IProductMapper iProductMapper, IProductTrendService productTrendService,
-			IProductPredictionService productPredictionService, ProductInsightService productInsightService) {
+			IProductPredictionService productPredictionService, ProductInsightService productInsightService,
+			SecurityService securityService) {
 
 		this.productRepository = productRepository;
 		this.categoryRepository = categoryRepository;
@@ -51,6 +54,7 @@ public class ProductServiceImpl implements IProductService {
 		this.productTrendService = productTrendService;
 		this.productPredictionService = productPredictionService;
 		this.productInsightService = productInsightService;
+		this.securityService = securityService;
 	}
 
 	@Override
@@ -167,9 +171,49 @@ public class ProductServiceImpl implements IProductService {
 	}
 
 	@Override
+	@Transactional
 	public void eliminarProducto(Long id) {
-		// TODO Auto-generated method stub
 
+		Long businessId = securityService.getCurrentBusinessId();
+
+		Product p = productRepository.findByIdAndCategory_Business_Id(id, businessId)
+				.orElseThrow(() -> new BusinessException("Producto no encontrado", ErrorType.NOT_FOUND));
+
+		// combo_products.producto_id lleva una FK real (RESTRICT): un producto
+		// usado por un combo no puede borrarse. Fallamos de forma explícita en
+			// vez de chocar con la FK y terminar en un 500 genérico.
+		if (productRepository.existsInAnyCombo(p.getId())) {
+			throw new BusinessException(
+					"El producto está siendo usado por un combo y no puede eliminarse",
+					ErrorType.CONFLICT);
+		}
+
+		productRepository.delete(p);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<ProductDTO> findAllByBusinessId() {
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		// Panel de administración: activos E inactivos (el panel muestra una
+		// columna de estado), siempre acotados al negocio del JWT.
+		return iProductMapper.toListDTO(productRepository.findByCategory_Business_Id(businessId));
+	}
+
+	@Override
+	@Transactional
+	public ProductDTO cambiarEstadoActivo(Long id, boolean activo) {
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		Product p = productRepository.findByIdAndCategory_Business_Id(id, businessId)
+				.orElseThrow(() -> new BusinessException("Producto no encontrado", ErrorType.NOT_FOUND));
+
+		p.setActive(activo);
+
+		return iProductMapper.toDTO(productRepository.save(p));
 	}
 
 	private void validarProducto(String nombre, String descripcion, BigDecimal precio, BigDecimal cost,

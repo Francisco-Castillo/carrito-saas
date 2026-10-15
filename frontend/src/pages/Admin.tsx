@@ -50,11 +50,14 @@ export default function Admin() {
     }
   }
 
-  // Logout del legacy admin.js: localStorage.clear() COMPLETO (a diferencia
-  // del logout del dashboard, que solo borra el token) + redirect conservando
-  // el restaurante.
+  // Logout del legacy admin.js, adaptado: borra SOLO las claves de sesión que
+  // escribe el login (a diferencia del localStorage.clear() COMPLETO del
+  // legacy, que hoy borraría también savedUser del remember-me) + redirect
+  // conservando el restaurante.
   function logout() {
-    localStorage.clear();
+    for (const key of ["token", "businessId", "role", "username", "expiresAt"]) {
+      localStorage.removeItem(key);
+    }
 
     const params = new URLSearchParams(window.location.search);
     const restaurant = params.get("restaurant");
@@ -112,11 +115,13 @@ export default function Admin() {
       <div className="admin-main">
         <header className="admin-topbar">
           <h1 id="view-title">{view.toUpperCase()}</h1>
-          {/* El legacy conectaba "+ Nuevo" SIEMPRE al modal de crear categoría
-              (admin.js:545-548), desde cualquier vista. Comportamiento conservado. */}
-          <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>
-            + Nuevo
-          </button>
+          {/* "+ Nuevo" pertenece a la vista de categorías: abre el modal de
+              crear categoría (admin.js:545-548). Solo se muestra ahí. */}
+          {view === "categories" && (
+            <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>
+              + Nuevo
+            </button>
+          )}
         </header>
 
         <section id="content" className="admin-content stagger">

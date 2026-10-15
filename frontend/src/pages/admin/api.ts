@@ -1,13 +1,12 @@
 /**
- * Rutas y headers del legacy admin/admin.js: mismas paths, mismos métodos,
- * mismos headers (el legacy manda Bearer token leído de localStorage en el
- * momento de la llamada en categorías, y NINGÚN header en products/combos).
+ * Rutas y headers del panel admin: mismas paths y métodos que el legacy,
+ * ahora autenticados con el Bearer token de localStorage leído en caliente
+ * (los endpoints owner de cdaa4d0 responden 403 sin Authorization y scoped
+ * por el negocio del JWT). El businessId hardcodeado del legacy ya no se
+ * manda: el backend lo deduce del token.
  */
 
 export const API = "/api";
-
-/** businessId hardcodeado del legacy (admin.js:5, con su TODO). */
-export const BUSINESS_ID = 1;
 
 /** Header Authorization del legacy: Bearer + token de localStorage en caliente. */
 export function authHeader(): Record<string, string> {
