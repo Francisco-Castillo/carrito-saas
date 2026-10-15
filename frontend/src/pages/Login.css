@@ -71,8 +71,8 @@
   background: var(--glass-bg-subtle);
   border: 1px solid var(--glass-border-subtle);
   box-shadow: var(--glass-inset-highlight);
-  backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
 }
 
 .restaurant-chip-label {

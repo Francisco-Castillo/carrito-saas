@@ -156,7 +156,7 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
       await expectLoadError()
       expect(calls.some((call) => call.url.includes('/api/restaurants/'))).toBe(true)
       // No product list may be rendered when the menu fetch fails.
-      expect(document.querySelector('.category')).not.toBeInTheDocument()
+      expect(document.querySelector('.menu-section')).not.toBeInTheDocument()
       // The order panel must be hidden when the menu is unavailable, and the
       // unhappy path must never reach the order submit.
       expectNoOrderPanel()
@@ -178,14 +178,22 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
     // The happy path must not show the error message.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 
-    // La primera categoria ya viene abierta, asi que el cliente ve los
-    // productos sin tocar nada: se mantienen el resto del flujo y todas las
-    // aserciones (carrito y payload del pedido no cambian).
+    // Sections render as soon as the menu loads: the client sees the products
+    // without touching anything. The rest of the flow and every assertion is
+    // kept (cart and order payload do not change).
     await screen.findByText('Milanesa')
 
     await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+
+    // The redesigned phone-first cart is a floating bar; the order form lives
+    // in the cart sheet it opens.
+    await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
     const cart = await screen.findByRole('complementary', { name: 'Tu pedido' })
-    expect(within(cart).getByText('1 x Milanesa')).toBeInTheDocument()
+    // The cart line shows the product, its quantity and the line total.
+    expect(within(cart).getByText('Milanesa')).toBeInTheDocument()
+    expect(within(cart).getByLabelText('Cantidad de Milanesa')).toHaveTextContent('1')
+    expect(within(cart).getByText('$100')).toBeInTheDocument()
+    expect(within(cart).getByText('Total: $100')).toBeInTheDocument()
 
     await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Test')
     await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
@@ -204,5 +212,10 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
 
     // The customer must still get the order confirmation.
     expect(alertMock.mock.calls.some(([message]) => String(message).includes('Pedido recibido'))).toBe(true)
+
+    // The success reset is still full: cart UI gone and localStorage cleaned.
+    expect(screen.queryByRole('complementary', { name: 'Tu pedido' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ver pedido' })).not.toBeInTheDocument()
+    expect(localStorage.getItem('cart')).toBeNull()
   })
 })

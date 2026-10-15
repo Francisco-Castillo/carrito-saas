@@ -67,7 +67,11 @@ public class SecurityConfig {
 	                "/favicon.svg",
 	                "/favicon.ico",
 	                "/ding.mp3",
-	                "/ready.mp3"
+	                "/ready.mp3",
+	                // Fotos de demo del seed (docs/dev-seed.sql): son assets
+	                // publicos de la carta, igual que las imagenes de producto
+	                // que subiria un negocio real.
+	                "/dev-media/**"
 	            ).permitAll()
 
 	            // Actuator (incluye Prometheus)

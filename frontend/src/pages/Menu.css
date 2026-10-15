@@ -1,149 +1,190 @@
 /* ============================================================
-   Menú (Carta Digital) — Liquid Glass
-   Mobile-first; reuse of tokens.css aurora + glass recipes.
+   Menú (Carta Digital) — photo-first, liquid glass
+   Mobile-first; reuses tokens.css aurora + glass recipes.
+   Breakpoints: 640px (2-col grid), 768px (centred sheets),
+   1024px (3-col grid + cart sidebar).
    ============================================================ */
 
+/* El ancho manda: la carta ocupa la pantalla en vez de apretarse en el centro.
+   El gutter vive en una variable porque la barra sticky lo usa para sangrar
+   hasta los bordes del contenedor. */
 .menu-screen {
+  --menu-gutter: clamp(var(--space-4), 2vw, var(--space-8));
   min-height: 100vh;
-  max-width: 1280px;
+  max-width: 1720px;
   margin: 0 auto;
-  padding: var(--space-4);
+  padding: var(--space-3) var(--menu-gutter) var(--space-8);
 }
 
-/* Espacio para la barra de carrito fija en móvil (paridad con body.cart-visible) */
+/* Espacio para la barra de carrito fija en móvil */
 .menu-screen[data-cart-visible] {
-  padding-bottom: 120px;
+  padding-bottom: 132px;
 }
 
-@media (min-width: 640px) {
-  .menu-screen {
-    padding: var(--space-6);
-  }
-
-  .menu-screen[data-cart-visible] {
-    padding-bottom: var(--space-8);
-  }
-}
-
-/* ------------------------------------------------------------
-   Layout — 1 columna (móvil) → menú + sidebar sticky (desktop)
-   ------------------------------------------------------------ */
-
-.menu-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-5);
-  align-items: start;
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ------------------------------------------------------------
-   Header del restaurante — panel de vidrio
+   Barra sticky de vidrio — nombre del local + píldoras de categorías
+
+   Van juntas en UN solo bloque sticky a propósito: cuando eran dos elementos
+   sticky separados quedaba una ranura entre el header y la fila de píldoras por
+   donde el contenido pasaba sin desenfocar (el cliente veía la foto y el texto
+   mezclados con el header). Una sola barra, pegada al borde superior y sangrada
+   hasta los bordes del contenedor, no deja hueco por donde mirar.
    ------------------------------------------------------------ */
 
-.restaurant-header {
+.menu-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  margin: calc(var(--space-3) * -1) calc(var(--menu-gutter) * -1) var(--space-1);
+  padding: var(--space-3) var(--menu-gutter) var(--space-2);
+  background: rgba(2, 6, 23, 0.62);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border-subtle);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.45);
+}
+
+.menu-topbar {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-6);
-  margin-bottom: var(--space-5);
-  text-align: center;
+  gap: 2px;
+  padding: 0 var(--space-1) var(--space-2);
 }
 
-.restaurant-logo {
-  width: 120px;
-  max-height: 120px;
-  object-fit: contain;
-  border-radius: var(--radius-md);
-  box-shadow: var(--glass-inset-highlight);
+.menu-eyebrow {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
 .restaurant-name {
   margin: 0;
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: -0.02em;
-}
-
-/* ------------------------------------------------------------
-   Título de sección
-   ------------------------------------------------------------ */
-
-.menu-title {
-  margin: 0 0 var(--space-4);
-  text-align: center;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   letter-spacing: -0.01em;
 }
 
 /* ------------------------------------------------------------
-   Categorías — acordeón de vidrio
+   Navegación de categorías — píldoras sticky, scroll horizontal
    ------------------------------------------------------------ */
 
-.menu-categories {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+.menu-nav {
+  margin: 0;
 }
 
-.category {
-  padding: 0;
+.menu-nav-track {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: 0 0 var(--space-1);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
-.category-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  width: 100%;
-  min-height: 48px;
-  padding: var(--space-3) var(--space-4);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-lg);
+.menu-nav-track::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-pill {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  /* Sin backdrop-filter a propósito: la píldora ya vive sobre la barra
+     desenfocada, y Chromium desenfoca el fondo en el RECTÁNGULO del border-box
+     sin respetar el border-radius, lo que dibujaba un halo cuadrado alrededor
+     de la cápsula. */
+  background: rgba(2, 6, 23, 0.72);
   color: var(--color-text);
   font-family: var(--font-sans);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  text-align: left;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
   cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out-soft);
+  transition:
+    background var(--duration-fast) var(--ease-out-soft),
+    border-color var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft),
+    color var(--duration-fast) var(--ease-out-soft);
 }
 
-.category-header:hover {
-  background: var(--glass-bg-subtle);
+.nav-pill:hover {
+  background: rgba(2, 6, 23, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
-.category-header:focus-visible {
+.nav-pill:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
 
-.category-chevron {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  transition: transform var(--duration-fast) var(--ease-out-soft);
-}
-
-.category.open .category-chevron {
-  transform: rotate(180deg);
-}
-
-.category-content {
-  padding: 0 var(--space-3) var(--space-3);
-  border-top: 1px solid var(--glass-border-subtle);
+.nav-pill.active {
+  background: var(--accent-gradient);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: white;
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--button-glow);
 }
 
 /* ------------------------------------------------------------
-   Grilla de productos — 1 col (móvil) → 2 → 3 (pantallas anchas)
+   Secciones — una por categoría, encabezado + grilla
    ------------------------------------------------------------ */
 
+.menu-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.menu-section {
+  /* La barra sticky mide 118px en todos los breakpoints (medido en el
+     navegador): 140px deja aire sin que el título quede tapado al navegar con
+     las píldoras. */
+  scroll-margin-top: 140px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+.section-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Grilla: 1 col (móvil) → 2 (tablet) → 3 (desktop) */
 .menu-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-4);
-  padding-top: var(--space-3);
 }
 
 @media (min-width: 640px) {
@@ -152,21 +193,28 @@
   }
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1024px) {
   .menu-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
+/* Pantallas anchas: 4 columnas para aprovechar el ancho (tarjetas parecidas en
+   tamaño a las de 3 columnas en un viewport chico). */
+@media (min-width: 1440px) {
+  .menu-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 /* ------------------------------------------------------------
-   Tarjeta de producto
+   Tarjeta de producto — la foto es la protagonista
    ------------------------------------------------------------ */
 
 .product-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
+  padding: 0;
   border-radius: var(--radius-md);
   transition:
     transform var(--duration-fast) var(--ease-out-soft),
@@ -175,80 +223,154 @@
 }
 
 .product-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--glass-border);
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.22);
   box-shadow: var(--glass-shadow-hover), var(--glass-inset-highlight);
+}
+
+.product-card:active {
+  transform: scale(0.985);
+}
+
+.product-open {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  padding: 0 0 var(--space-3);
+  border: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.product-open:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .product-media {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 4 / 3;
   overflow: hidden;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: var(--glass-bg-subtle);
-  border: 1px solid var(--glass-border-subtle);
+  /* Reserva el box de la imagen: cero layout shift */
 }
 
-.product-media img {
+.product-media img,
+.product-media .food-placeholder {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+  transition: transform var(--duration-slow) var(--ease-out-soft);
 }
 
-.product-emoji {
-  font-size: 40px;
+.product-card:hover .product-media img {
+  transform: scale(1.05);
+}
+
+/* Placeholder intencional: gradiente teñido por categoría + glifo */
+.food-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  line-height: 1;
+}
+
+.food-placeholder[data-tint="indigo"] {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(2, 6, 23, 0.7));
+}
+
+.food-placeholder[data-tint="violet"] {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(2, 6, 23, 0.7));
+}
+
+.food-placeholder[data-tint="fuchsia"] {
+  background: linear-gradient(135deg, rgba(217, 70, 239, 0.35), rgba(2, 6, 23, 0.7));
+}
+
+.food-placeholder[data-tint="cyan"] {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.35), rgba(2, 6, 23, 0.7));
 }
 
 .product-badge {
   position: absolute;
   top: var(--space-2);
   left: var(--space-2);
-  padding: 2px var(--space-2);
+  z-index: 2;
+  padding: 3px var(--space-2);
   border-radius: var(--radius-full);
   background: var(--accent-gradient);
   color: white;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  box-shadow: var(--glass-inset-highlight);
 }
 
-.product-info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  flex: 1;
+.product-badge--inline {
+  position: static;
+  align-self: flex-start;
 }
 
 .product-name {
   margin: 0;
+  padding: 0 var(--space-3);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .product-description {
   margin: 0;
+  padding: 0 var(--space-3);
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.product-price {
+.product-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-3);
+  margin-top: auto;
+}
+
+.product-price,
+.sheet-price {
   margin: 0;
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
   /* Mantiene el branding del local (legacy --primary-color) con fallback glass */
   color: var(--primary-color, var(--accent-indigo));
 }
 
-/* Controles de cantidad — objetivos táctiles ≥44px */
-.product-controls {
-  display: flex;
+/* --- Stepper de cantidad (− n +) — objetivos táctiles ≥44px --- */
+
+.qty-stepper {
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-subtle);
 }
 
 .qty-btn {
@@ -257,7 +379,7 @@
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   border: 1px solid var(--glass-border);
   background: var(--glass-bg-subtle);
   color: var(--color-text);
@@ -290,7 +412,7 @@
 }
 
 .qty-btn:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.94);
   filter: brightness(0.95);
 }
 
@@ -304,7 +426,7 @@
   opacity: 0.45;
 }
 
-.product-qty {
+.qty-value {
   min-width: 28px;
   text-align: center;
   font-size: var(--font-size-md);
@@ -313,12 +435,328 @@
 }
 
 /* ------------------------------------------------------------
-   Carrito
+   Skeletons — shimmer mientras carga la carta
    ------------------------------------------------------------ */
 
-.menu-cart-wrap {
+.menu-skeleton {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .menu-skeleton {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .menu-skeleton {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.skeleton-card {
+  padding: 0;
+}
+
+.skeleton-media {
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.skeleton-line {
+  height: 14px;
+  margin: var(--space-3);
+  border-radius: var(--radius-full);
+}
+
+.skeleton-line--short {
+  width: 45%;
+}
+
+.shimmer {
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.05) 40%,
+    rgba(255, 255, 255, 0.13) 50%,
+    rgba(255, 255, 255, 0.05) 60%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -80% 0;
+  }
+}
+
+/* ------------------------------------------------------------
+   Layout principal — main + sidebar del carrito (≥1024px)
+   ------------------------------------------------------------ */
+
+.menu-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .menu-screen[data-cart-visible] {
+    padding-bottom: var(--space-8);
+  }
+}
+
+/* ------------------------------------------------------------
+   Barra de carrito flotante — siempre visible cuando hay ítems
+
+   El carrito ya no se muestra al costado: agregar un producto sólo actualiza
+   esta barra y abrir el pedido es una acción explícita. La carta nunca cambia
+   de tamaño mientras el cliente elige (que era exactamente lo que molestaba).
+   ------------------------------------------------------------ */
+
+.cart-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* Centrada por márgenes automáticos y no por transform: la animación de
+     entrada usa transform y lo pisaría. */
+  margin-inline: auto;
+  width: min(560px, calc(100% - var(--space-4) * 2));
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: rgba(2, 6, 23, 0.78);
+  box-shadow: var(--glass-shadow);
+  animation: fade-up var(--duration-fast) var(--ease-out-soft) both;
+}
+
+.cart-bar-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   min-width: 0;
 }
+
+.cart-bar-count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.cart-bar-total {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.cart-bar-open {
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--accent-gradient);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  box-shadow: var(--glass-inset-highlight), var(--button-glow);
+  transition:
+    transform var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft);
+}
+
+.cart-bar-open:hover {
+  transform: translateY(-2px);
+}
+
+.cart-bar-open:active {
+  transform: scale(0.96);
+}
+
+.cart-bar-open:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring), var(--button-glow);
+}
+
+/* ------------------------------------------------------------
+   Hojas (sheets) — bottom sheet en móvil, diálogo centrado ≥768px
+   ------------------------------------------------------------ */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: var(--space-3);
+  background: rgba(2, 6, 23, 0.6);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.sheet {
+  position: relative;
+  width: 100%;
+  max-height: min(88vh, 760px);
+  overflow-y: auto;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: rgba(15, 23, 42, 0.92);
+  animation: sheet-up var(--duration-slow) var(--ease-out-soft) both;
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 768px) {
+  .sheet-backdrop {
+    align-items: center;
+    padding: var(--space-6);
+  }
+
+  .sheet {
+    width: auto;
+    min-width: min(560px, 100%);
+    border-radius: var(--radius-lg);
+    animation: fade-up var(--duration-slow) var(--ease-out-soft) both;
+  }
+}
+
+/* El carrito en pantallas grandes es un panel lateral superpuesto: no reacomoda
+   la grilla ni cambia el tamaño de las tarjetas. El detalle del plato sigue
+   centrado (768px+) porque no comparte este modificador. */
+@media (min-width: 1024px) {
+  .sheet-backdrop--drawer {
+    justify-content: flex-end;
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .sheet-backdrop--drawer .sheet {
+    width: min(440px, 100%);
+    min-width: 0;
+    max-height: none;
+    height: 100%;
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    animation: drawer-in var(--duration-slow) var(--ease-out-soft) both;
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.sheet-close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: rgba(2, 6, 23, 0.65);
+  color: var(--color-text);
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out-soft);
+}
+
+.sheet-close:hover {
+  background: rgba(2, 6, 23, 0.9);
+}
+
+.sheet-close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* --- Hoja de detalle de producto --- */
+
+.sheet-media {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--glass-bg-subtle);
+}
+
+.sheet-media img,
+.sheet-media .food-placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.sheet-name {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.sheet-description {
+  margin: 0;
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.sheet-price {
+  font-size: var(--font-size-lg);
+}
+
+.sheet-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.sheet-add {
+  flex: 1;
+}
+
+/* ------------------------------------------------------------
+   Carrito (sidebar ≥1024px / hoja en móvil)
+   ------------------------------------------------------------ */
 
 .cart {
   padding: var(--space-5);
@@ -331,39 +769,66 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.cart-items {
+.cart-lines {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
 }
 
 .cart-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--glass-border-subtle);
+}
+
+.cart-thumb {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  font-size: 20px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border-subtle);
+}
+
+.cart-line-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.cart-line-name {
   font-size: var(--font-size-base);
-  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+}
+
+.cart-line-total {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .cart-total {
-  margin-bottom: var(--space-4);
+  margin: 0 0 var(--space-4);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
 }
 
-/* --- Formulario del pedido --- */
+/* --- Formulario del pedido (restyle glass) --- */
 
 .order-form {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   margin-bottom: var(--space-4);
-}
-
-.order-label {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-muted);
 }
 
 .order-input {
@@ -415,6 +880,66 @@
 .order-textarea {
   resize: none;
   min-height: 64px;
+}
+
+/* Reveal animado del campo dirección (solo DELIVERY) */
+.order-address-reveal {
+  animation: reveal-down var(--duration-fast) var(--ease-out-soft) both;
+}
+
+@keyframes reveal-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pago: control segmentado de dos opciones */
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: var(--input-bg);
+}
+
+.segment {
+  min-height: 44px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out-soft),
+    color var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft);
+}
+
+.segment:hover {
+  color: var(--color-text);
+}
+
+.segment:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.segment[aria-pressed="true"] {
+  background: var(--accent-gradient);
+  color: white;
+  box-shadow: var(--button-glow);
 }
 
 /* --- Botón de envío --- */
@@ -478,111 +1003,6 @@
   opacity: 0.85;
 }
 
-/* --- Resumen colapsable (solo móvil) --- */
-
-.cart-summary {
-  display: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  width: 100%;
-  min-height: 48px;
-  padding: var(--space-2) 0;
-  background: transparent;
-  border: none;
-  color: var(--color-text);
-  font-family: var(--font-sans);
-  cursor: pointer;
-}
-
-.cart-summary:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-  border-radius: var(--radius-sm);
-}
-
-.cart-summary-label {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-}
-
-.cart-summary-count {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-muted);
-}
-
-.cart-summary-total {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-bold);
-}
-
-.cart-summary-chevron {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  transition: transform var(--duration-fast) var(--ease-out-soft);
-}
-
-.cart[data-expanded] .cart-summary-chevron {
-  transform: rotate(180deg);
-}
-
-/* ------------------------------------------------------------
-   Responsive
-   ------------------------------------------------------------ */
-
-/* Móvil: carrito como barra fija inferior colapsable */
-@media (max-width: 1023px) {
-  .menu-cart-wrap {
-    position: fixed;
-    left: var(--space-3);
-    right: var(--space-3);
-    bottom: var(--space-3);
-    z-index: 50;
-  }
-
-  .cart {
-    padding: var(--space-3) var(--space-4);
-    box-shadow: var(--glass-shadow), var(--glass-inset-highlight);
-  }
-
-  .cart-summary {
-    display: flex;
-  }
-
-  .cart-body {
-    display: none;
-    max-height: min(62vh, 560px);
-    overflow-y: auto;
-    padding-top: var(--space-3);
-    border-top: 1px solid var(--glass-border-subtle);
-  }
-
-  .cart[data-expanded] .cart-body {
-    display: block;
-  }
-}
-
-/* Desktop: sidebar sticky a la derecha */
-@media (min-width: 1024px) {
-  .menu-layout:has(.menu-cart-wrap) {
-    grid-template-columns: minmax(0, 1fr) 360px;
-  }
-
-  .menu-cart-wrap {
-    position: sticky;
-    top: var(--space-5);
-  }
-
-  .cart-summary {
-    display: none;
-  }
-
-  .cart-body {
-    display: block;
-  }
-}
-
 /* ------------------------------------------------------------
    Error de carga — fin de camino legible para el cliente
    ------------------------------------------------------------ */
@@ -596,4 +1016,30 @@
   text-align: center;
   color: var(--color-text);
   border-color: rgba(248, 113, 113, 0.3);
+}
+
+/* ------------------------------------------------------------
+   Reduced motion — sin scroll suave (JS), ni animaciones
+   ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .product-card,
+  .product-card:hover,
+  .product-card:active,
+  .product-media img,
+  .qty-btn,
+  .nav-pill,
+  .cart-submit,
+  .cart-bar-open,
+  .sheet-close,
+  .segment {
+    transition: none;
+  }
+
+  .shimmer,
+  .sheet,
+  .order-address-reveal,
+  .cart-bar {
+    animation: none;
+  }
 }
