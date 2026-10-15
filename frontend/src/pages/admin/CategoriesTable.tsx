@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API, authHeader, type AdminCategory } from "./api";
 import { showSuccessToast } from "./toast";
+import ConfirmModal from "./ConfirmModal";
+
+interface ConfirmState {
+  message: string;
+  resolve: (ok: boolean) => void;
+}
 
 interface CategoriesTableProps {
   /** Bump para recargar categorías (tras crear una, como el loadCategories() del legacy). */
@@ -25,8 +31,9 @@ function normalize(text: string): string {
 /**
  * Listado de categorías del panel admin contra los endpoints owner:
  * GET /api/categorias (scoped por el negocio del JWT), PUT /api/categorias/{id}
- * para renombrar y cambiar estado, PUT /api/categorias/orden para reordenar.
- * El backend NO tiene delete de categorías, así que la fila no ofrece uno.
+ * para renombrar y cambiar estado, DELETE /api/categorias/{id} para eliminar
+ * (409 si todavía tiene productos: el mensaje del backend se muestra en el
+ * toast) y PUT /api/categorias/orden para reordenar.
  *
  * Unidad 3 del ODD (admin-panel-ui): buscador + edición descubrible + switch.
  * El buscador filtra EN CLIENTE sobre la lista ya cargada (misma piel de
@@ -60,6 +67,10 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
   /** Guardia de blur: mientras el PUT está en vuelo el input no se cierra, si
    * el 400 tiene dónde mostrarse. */
   const savingRef = useRef(false);
+  /** Confirmación de delete: mismo patrón que ProductsTable (promesa que
+   * responde true sólo con "Confirmar"). */
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const confirmResolveRef = useRef<((ok: boolean) => void) | null>(null);
 
   async function loadCategories() {
     try {
@@ -84,6 +95,51 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
   useEffect(() => {
     void loadCategories();
   }, [refreshKey]);
+
+  useEffect(() => {
+    // Si el componente se desmonta con una confirmación pendiente, resolverla.
+    return () => confirmResolveRef.current?.(false);
+  }, []);
+
+  /** showToastModal del legacy: promesa que responde true solo con "Confirmar". */
+  function confirmAsync(message: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmState({ message, resolve });
+    });
+  }
+
+  function settleConfirm(ok: boolean) {
+    confirmResolveRef.current?.(ok);
+    confirmResolveRef.current = null;
+    setConfirmState(null);
+  }
+
+  async function deleteCategory(c: AdminCategory) {
+    const ok = await confirmAsync(`¿Seguro que deseas eliminar la categoría "${c.name}"?`);
+    if (!ok) return;
+
+    try {
+      const res = await fetch(`${API}/categorias/${c.id}`, {
+        method: "DELETE",
+        headers: authHeader(),
+      });
+
+      if (res.status === 409) {
+        // La categoría todavía tiene productos: el backend manda un mensaje
+        // legible que nombra al bloqueador.
+        const data = (await res.json().catch(() => null)) as { message?: string } | null;
+        showSuccessToast(`Error: ${data?.message || "La categoría tiene productos asociados"}`);
+        return;
+      }
+      if (!res.ok) throw new Error("Error eliminando la categoría");
+
+      showSuccessToast("Categoría eliminada con éxito");
+      void loadCategories();
+    } catch (e) {
+      showSuccessToast(`Error: ${(e as Error).message}`);
+    }
+  }
 
   const reportCount = useCallback(
     (count: number | null) => onRowCountChange?.(count),
@@ -345,6 +401,14 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
                     >
                       <span className="admin-switch-knob" aria-hidden="true" />
                     </button>
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => void deleteCategory(c)}
+                      aria-label={`Eliminar ${c.name}`}
+                    >
+                      🗑
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -357,6 +421,14 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
           </table>
         </div>
       </div>
+
+      {confirmState && (
+        <ConfirmModal
+          message={confirmState.message}
+          onConfirm={() => settleConfirm(true)}
+          onCancel={() => settleConfirm(false)}
+        />
+      )}
     </>
   );
 }

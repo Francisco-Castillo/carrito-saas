@@ -20,6 +20,7 @@ public class IComboMapperImpl implements IComboMapper {
 		dto.setName(entity.getName());
 		dto.setPrice(entity.getPrice());
 		dto.setCategoryId(entity.getCategory().getId());
+		dto.setActive(entity.getActive());
 
 		List<ComboItemDTO> items = entity.getItems().stream().map(cp -> {
 			ComboItemDTO item = new ComboItemDTO();

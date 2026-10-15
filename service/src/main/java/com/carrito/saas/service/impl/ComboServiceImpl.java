@@ -174,6 +174,53 @@ public class ComboServiceImpl implements IComboService {
 	}
 
 	@Override
+	@Transactional
+	public ComboDTO cambiarEstadoActivo(Long id, boolean activo) {
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		// El tenant ancla en el JWT: un id de combo ajeno al negocio resuelve
+		// como 404, nunca como un éxito silencioso. Mismo finder que actualizar.
+		Combo combo = comboRepository.findByIdAndBusinessId(id, businessId)
+				.orElseThrow(() -> new BusinessException(
+						"Combo no encontrado: " + id, ErrorType.NOT_FOUND));
+
+		// Sólo el flag cambia: los items del combo no se tocan.
+		combo.setActive(activo);
+
+		return iComboMapper.toDTO(comboRepository.save(combo));
+	}
+
+	@Override
+	@Transactional
+	public void eliminarCombo(Long id) {
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		// El tenant ancla en el JWT: un id de combo ajeno al negocio resuelve
+		// como 404, nunca como un éxito silencioso, y la fila ajena queda
+		// exactamente igual.
+		Combo combo = comboRepository.findByIdAndBusinessId(id, businessId)
+				.orElseThrow(() -> new BusinessException(
+						"Combo no encontrado: " + id, ErrorType.NOT_FOUND));
+
+		// Misma forma que eliminarProducto: si algo referencia la fila, la FK
+		// no permitiría el borrado — fallamos de forma explícita (409) antes
+		// de chocar con la constraint y terminar en un 500 genérico.
+		// order_items.combo_id lleva una FK real (a diferencia de
+		// order_items.product_id, que no la tiene).
+		if (comboRepository.existsOrderReferencing(combo.getId())) {
+			throw new BusinessException(
+					"El combo está siendo usado por pedidos y no puede eliminarse",
+					ErrorType.CONFLICT);
+		}
+
+		// Los items (combo_products) se van con el combo vía cascade ALL +
+		// orphanRemoval sobre Combo.items.
+		comboRepository.delete(combo);
+	}
+
+	@Override
 	@Transactional(readOnly = true)
 	public List<ComboDTO> findAllByBusinessId() {
 

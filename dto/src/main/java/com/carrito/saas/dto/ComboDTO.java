@@ -16,6 +16,10 @@ public class ComboDTO {
 
     private Long categoryId;
 
+    /** El panel necesita el estado para el switch y la carta para saber qué
+     * combos están activos; aditivo e inofensivo para los clientes existentes. */
+    private Boolean active;
+
     private List<ComboItemDTO> items; // opcional (para detalle)
 
 }
