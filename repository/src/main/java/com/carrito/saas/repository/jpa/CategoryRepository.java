@@ -47,6 +47,20 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
                                                        @Param("businessId") Long businessId,
                                                        @Param("id") Long id);
     
+    /**
+     * {@code products.categoria_id} lleva una FK real: una categoría con
+     * productos no puede borrarse (el delete nunca hace cascade hacia los
+     * productos). Esta consulta permite fallar de forma explícita (409)
+     * antes de chocar con la FK y terminar en un 500 genérico — misma forma
+     * que {@code ProductRepository.existsInAnyCombo}.
+     */
+    @Query("""
+            SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END
+            FROM Product p
+            WHERE p.category.id = :categoryId
+            """)
+    boolean hasProducts(@Param("categoryId") Long categoryId);
+
 		// Para frontend (clientes)
 		List<Category> findByBusiness_IdAndActiveTrueOrderByOrdenAsc(Long businessId);
 

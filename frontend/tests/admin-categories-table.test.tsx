@@ -219,13 +219,17 @@ describe('Admin categories edit (inline rename, now discoverable)', () => {
     expect(categoryListRequests().length).toBeGreaterThanOrEqual(2)
   })
 
-  it('offers no delete action: the backend has no delete endpoint for categories', async () => {
+  it('offers a delete action now that the backend has DELETE /api/categorias/{id}', async () => {
     stubFetch()
     await openCategoriesView()
 
     expect(await screen.findByText('Pizzas')).toBeInTheDocument()
-    expect(screen.queryByLabelText(/Eliminar/)).not.toBeInTheDocument()
-    expect(screen.queryByText('🗑')).not.toBeInTheDocument()
+
+    // The backend gained a delete endpoint (admin-delete-and-toggle): each row
+    // offers 🗑 named after the row, gated by the shared ConfirmModal.
+    expect(screen.getByRole('button', { name: 'Eliminar Pizzas' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Eliminar Bebidas Frías' })).toBeInTheDocument()
+    expect(screen.getAllByText('🗑').length).toBeGreaterThan(0)
   })
 })
 

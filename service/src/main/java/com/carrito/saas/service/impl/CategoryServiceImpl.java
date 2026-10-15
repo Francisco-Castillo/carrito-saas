@@ -144,5 +144,28 @@ public class CategoryServiceImpl implements ICategoryService {
 		return iCategoryMapper.toDTO(categoria);
 	}
 
+	@Override
+	@Transactional
+	public void eliminarCategoria(Long id) {
+
+		// El tenant ancla en el JWT: un id de categoría ajeno al negocio
+		// resuelve como 404, nunca como un éxito silencioso, y la fila ajena
+		// queda exactamente igual.
+		Category c = categoryRepository.findByIdAndBusinessId(id, securityService.getCurrentBusinessId())
+				.orElseThrow(() -> new BusinessException("Categoría no encontrada", ErrorType.NOT_FOUND));
+
+		// Misma forma que eliminarProducto: si algo referencia la fila, la FK
+		// no permitiría el borrado — fallamos de forma explícita (409) antes
+		// de chocar con la constraint y terminar en un 500 genérico. El delete
+		// nunca hace cascade hacia los productos.
+		if (categoryRepository.hasProducts(c.getId())) {
+			throw new BusinessException(
+					"La categoría tiene productos asociados y no puede eliminarse",
+					ErrorType.CONFLICT);
+		}
+
+		categoryRepository.delete(c);
+	}
+
 }
 

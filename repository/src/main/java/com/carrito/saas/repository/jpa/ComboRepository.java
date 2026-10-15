@@ -54,4 +54,20 @@ public interface ComboRepository extends JpaRepository<Combo, Long> {
 			""")
 	List<Combo> findFullMenuCombosByIds(@Param("ids") List<Long> ids, @Param("businessId") Long businessId);
 
+	/**
+	 * {@code order_items.combo_id} lleva una FK real (a diferencia de
+	 * {@code order_items.product_id}, que no la tiene): un combo referenciado
+	 * por un pedido no puede borrarse. Esta consulta permite fallar de forma
+	 * explícita (409) antes de chocar con la FK y terminar en un 500 genérico
+	 * — misma forma que {@code ProductRepository.existsInAnyCombo}. La
+	 * consulta vive aquí porque OrderItemRepository no es superficie de
+	 * escritura de esta unidad y JPQL puede cruzar entidades.
+	 */
+	@Query("""
+			    SELECT CASE WHEN COUNT(oi) > 0 THEN true ELSE false END
+			    FROM OrderItem oi
+			    WHERE oi.combo.id = :comboId
+			""")
+	boolean existsOrderReferencing(@Param("comboId") Long comboId);
+
 }

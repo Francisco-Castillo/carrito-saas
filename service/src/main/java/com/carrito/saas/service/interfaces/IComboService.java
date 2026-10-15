@@ -29,6 +29,24 @@ public interface IComboService {
 	ComboDTO actualizarCombo(Long id, ComboCreateDTO combo);
 
 	/**
+	 * Activa o desactiva un combo del negocio del JWT (mismo shape que el
+	 * toggle de productos, {@code ProductController.activarProducto}): el
+	 * tenant se ancla en el token, sólo cambia el flag {@code active} y los
+	 * items del combo quedan intactos. Un id ajeno o inexistente lanza
+	 * {@code BusinessException(NOT_FOUND)} → 404, nunca una actualización
+	 * silenciosa.
+	 */
+	ComboDTO cambiarEstadoActivo(Long id, boolean activo);
+
+	/**
+	 * Elimina un combo del negocio del JWT. Sus items ({@code combo_products})
+	 * se van con él vía cascade + orphanRemoval; un combo referenciado por un
+	 * pedido se rechaza con 409 ({@code order_items.combo_id} lleva una FK
+	 * real) y un id ajeno al negocio resuelve como 404.
+	 */
+	void eliminarCombo(Long id);
+
+	/**
 	 * Listado de combos del negocio autenticado (anclado al businessId del
 	 * JWT), con sus items cargados.
 	 *
