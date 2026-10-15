@@ -4,7 +4,8 @@
  * since the broad /api/restaurants/** anonymous permit was narrowed, so every
  * request the dashboard page sends must carry the session token as
  * `Authorization: Bearer <token>` (read hot from localStorage, same pattern
- * as src/pages/admin/api.ts). Without the header the backend answers 403 and
+ * as src/pages/admin/api.ts). Without the header the backend answers 401
+ * (the chain's entry point for anonymous callers) and
  * the page renders nothing but empty state.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'

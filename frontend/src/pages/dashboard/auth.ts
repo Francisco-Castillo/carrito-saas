@@ -3,8 +3,8 @@
  * inline en <head>) y de checkAuth/isTokenExpired/logout del legacy
  * dashboard/dashboard.js.
  *
- * El rol lo valida el servidor (403 en la API): este guard solo cubre la
- * ausencia de una sesión usable. Nunca lanza y nunca deja la página corriendo
+ * El rol lo valida el servidor (403 con sesión y rol insuficiente; 401 sin
+ * sesión): este guard solo cubre la ausencia de una sesión usable. Nunca lanza y nunca deja la página corriendo
  * sin sesión: si falla la lectura del slug o del token (almacenamiento
  * bloqueado, modo privado), cae al redirect de todos modos. Sin slug legible
  * redirige sin él, con él conserva el restaurante.

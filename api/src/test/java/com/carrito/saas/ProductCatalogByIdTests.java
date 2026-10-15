@@ -40,7 +40,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * that business's product list ONLY when the path's {@code restaurantId} is
  * the caller's business; a foreign or non-existent id answers 404 — never a
  * null body, never a silent 200. Without a token the filter chain answers
- * 403, because the route is not in any {@code permitAll} matcher.</p>
+ * 401: the route is not in any {@code permitAll} matcher, and the chain's
+ * entry point answers 401 to anonymous callers.</p>
  */
 @SpringBootTest
 @Transactional
@@ -192,15 +193,15 @@ class ProductCatalogByIdTests {
 	}
 
 	/**
-	 * No token: 403. The route matches no {@code permitAll} matcher, so the
-	 * anonymous caller is rejected by the filter chain and never reaches the
-	 * controller.
+	 * No token: 401. The route matches no {@code permitAll} matcher, so the
+	 * anonymous caller is rejected by the filter chain's entry point (401)
+	 * and never reaches the controller.
 	 */
 	@Test
-	void noTokenIsRejectedWith403() throws Exception {
+	void noTokenIsRejectedWith401() throws Exception {
 
 		mockMvc.perform(get("/api/restaurants/" + BUSINESS_A_ID + "/products"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 	}
 
 }

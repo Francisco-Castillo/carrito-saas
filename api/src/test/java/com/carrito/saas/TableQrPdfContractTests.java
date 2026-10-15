@@ -148,8 +148,9 @@ class TableQrPdfContractTests {
 
 		mockMvc.perform(get("/api/tables/qr/pdf"))
 				.andExpect(result -> Assertions.assertThat(result.getResponse().getStatus())
-						.as("GET /api/tables/qr/pdf must stay authenticated (actual: %d)",
+						.as("GET /api/tables/qr/pdf must stay authenticated: an anonymous caller gets "
+								+ "401, the chain entry point's answer (actual: %d)",
 								result.getResponse().getStatus())
-						.isIn(401, 403));
+						.isEqualTo(401));
 	}
 }

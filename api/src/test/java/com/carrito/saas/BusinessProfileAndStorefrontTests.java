@@ -1111,7 +1111,7 @@ class BusinessProfileAndStorefrontTests {
 	// Security
 	// ------------------------------------------------------------------
 
-	/** No permitAll matcher covers /api/business/profile: anonymous is 403. */
+	/** No permitAll matcher covers /api/business/profile: anonymous is 401. */
 	@Test
 	void anonymousCallerIsRejectedOnProfileRoutes() throws Exception {
 
@@ -1119,12 +1119,12 @@ class BusinessProfileAndStorefrontTests {
 				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección",
 				"https://instagram.com/negocio", List.of());
 
-		mockMvc.perform(get("/api/business/profile")).andExpect(status().isForbidden());
+		mockMvc.perform(get("/api/business/profile")).andExpect(status().isUnauthorized());
 
 		mockMvc.perform(put("/api/business/profile")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body(payload)))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 	}
 
 	/**

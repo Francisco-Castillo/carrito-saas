@@ -1,7 +1,8 @@
 /**
  * Rutas y headers del panel admin: mismas paths y métodos que el legacy,
  * ahora autenticados con el Bearer token de localStorage leído en caliente
- * (los endpoints owner de cdaa4d0 responden 403 sin Authorization y scoped
+ * (los endpoints owner de cdaa4d0 responden 401 sin Authorization — entry
+ * point de la cadena — y 403 con rol insuficiente, y scoped
  * por el negocio del JWT). El businessId hardcodeado del legacy ya no se
  * manda: el backend lo deduce del token.
  */

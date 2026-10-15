@@ -86,23 +86,24 @@ class DashboardAnonymousAccessTests {
 
 	/**
 	 * Without a token the five business-only routes must be rejected by the
-	 * filter chain with 403 — never reach the controller. Today they answer
-	 * 200 (the four GETs leak the KPIs) or 500 (the POST reaches the
-	 * controller and fails there): that is the leak this contract closes.
+	 * filter chain with 401 — an anonymous caller gets the chain entry point's
+	 * 401, never the controller. Before the narrowing they answered 200 (the
+	 * four GETs leak the KPIs) or 500 (the POST reaches the controller and
+	 * fails there): that is the leak this contract closes.
 	 */
 	@Test
 	void anonymousCallerIsRejectedOnEveryBusinessRoute() throws Exception {
 
 		mockMvc.perform(get("/api/restaurants/" + SLUG + "/dashboard/today"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 		mockMvc.perform(get("/api/restaurants/" + SLUG + "/orders/status-summary"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 		mockMvc.perform(get("/api/restaurants/" + SLUG + "/analytics/top-products"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 		mockMvc.perform(get("/api/restaurants/" + SLUG + "/analytics/sales-by-hour"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 		mockMvc.perform(post("/api/restaurants/" + SLUG + "/users"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 	}
 
 	/**
