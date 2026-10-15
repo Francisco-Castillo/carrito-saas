@@ -44,71 +44,97 @@ out of scope and keeps its URL contract.
       bytes to 113d6ed; worker evidence). Storefront/menu contracts unmodified
       and green.
 
-## Review status (RDD native review)
+## Review status (RDD native review) — CLOSED
 
-Lineage review-9e7ca42128ada755 (high tier, 13 files, base 6675323) is OPEN
-in state `correction_required` — revision `sha256:0ca880899743be10e0bd77725b1b97269852f3abdcf468b6730d76d9a68c1cd6`,
-snapshot `sha256:4651fe88…`, correction budget 200 logical / plan declared at
-120 diff lines. Nothing burned; the lock is released.
+Lineage review-9e7ca42128ada755 (high tier, 13 files, base 6675323) is
+**approved and acknowledged**; authority burned
+(`gentle-ai.review-acknowledged/v1`, consumed revision
+`sha256:693f700fa4c9b07456d6fb871f8bd4312d7438c6a6887593b2530a846ccd2676`,
+target `sha256:a8db0324…`). An approval carries no delivery authority: commit,
+push, PR, and release stay under ordinary repository policy.
 
-Captured and admitted: review-risk, review-readability, review-reliability,
-review-resilience (the last one only after switching that lens' reviewer model
-from `nan/mimo-v2.6-flash` to `nan/glm5.3-flash` in
-`~/.gentle-shell/agent/subagents.json`; the old model returned empty output
-with `stopReason: length` on 4 attempts, ~607s each — backup at
-`subagents.json.bak-20261015153351`).
+Admitted lenses: review-risk (0 findings), review-resilience (1 CRITICAL),
+review-readability, review-reliability.
 
-### Open finding to correct
+### The correction
 
 `R4-session-slug-silent-empty-panels` (resilience, CRITICAL, deterministic,
 behavior-activated): an authenticated session without the session
-`restaurantSlug` key (e.g. every session created before this change, whose
-slug came from the URL query this candidate removed) builds its restaurant
-API base with no slug, so dashboard/KDS render empty data silently — no
-redirect, retry, or visible error.
+`restaurantSlug` key (every session created before this change, whose slug
+came from the URL query this candidate removed, or a link carrying only that
+query) built its restaurant API base with no slug, so dashboard and KDS kept
+sending restaurant-less requests while the token passed the session guard —
+empty panels with no redirect, retry, or visible error.
 
-Planned fix (already designed, not yet applied): make `hasUsableSession()` in
-`frontend/src/pages/dashboard/auth.ts` require
-`getSessionRestaurantSlug() !== null`, so a slug-less session is not usable
-and the existing guard redirects to the bare login (where the login writes the
-slug). All three panels gate on that function, so no call-site change is
-needed; `frontend/tests/session-guard.test.ts` and the panel tests that seed a
-token must seed `restaurantSlug` too.
+Plan declared 120 diff lines (provider budget 200); applied in commit
+**2d7496e** with **53** diff lines:
 
-### Blocked, then unblocked (Pi/tooling skew)
+- `frontend/src/pages/dashboard/auth.ts`: new
+  `sessionRestaurantSlugOrRedirect()` — resolves the session slug and, when
+  there is none, routes through the existing `enforceSession()` guard to the
+  bare `/login/login.html`; never throws.
+- `frontend/src/pages/dashboard/api.ts` and `frontend/src/pages/kds/api.ts`:
+  the slug comes from that helper, so the old `console.error("Restaurant slug
+  missing in session")` branch is gone and a slug-less session is redirected.
+- `frontend/tests/dashboard-api-auth.test.ts`: the missing-slug contract now
+  asserts the bare-login redirect; the header and slug-target contracts stay.
 
-`gentle-ai review capture-correction-plan` refused with
-`managed_assets_outdated`: Pi 4.0.0 mirrored provider bundle 1.2.0 while CLI
-4.1.1 requires 1.3.0. The Pi facade also cannot submit the plan at all in
-4.0.0 — `extensions/gentle-ai.ts:7358` compares the plan binding's `--target`
-(authority target `4651fe88…`) against `status.targetIdentity` (the newer
-snapshot identity `8019eedd…`); the escape hatch exists only for the targeted
-validator.
+`hasUsableSession()` was deliberately NOT changed. Requiring the slug there
+would also redirect Admin sessions and break tests outside the frozen review
+scope (`admin-business-profile.test.tsx` and `admin-products-combos.test.tsx`
+render `<Admin />` with a token and no slug), which the provider forbids as
+scope expansion.
 
-Resolved by upgrading gentle-pi 4.0.0 -> 4.2.0 (mirrors bundle 1.3.0; the
-distribution's installer pins CLI 4.1.1, already installed). An auto-saved
-defect report for the unknown-outcome capture is at
+Targeted validation (provider role, host-relay): `original_criteria.passed =
+true`, `correction_regression.passed = true`, `regressions: []`.
+
+### Tooling skew found and fixed (for the record)
+
+The correction route was blocked twice by tooling, not by the candidate:
+
+1. `review-resilience` produced empty output on 4 attempts (`stopReason:
+   length`, ~607 s each) because its reviewer model was
+   `nan/mimo-v2.6-flash`. Switching that lens to `nan/glm5.3-flash` in
+   `~/.gentle-shell/agent/subagents.json` (backup
+   `subagents.json.bak-20261015153351`) produced the CRITICAL finding
+   immediately.
+2. `capture-correction-plan` refused with `managed_assets_outdated`: Pi 4.0.0
+   mirrored provider bundle 1.2.0 while CLI 4.1.1 requires 1.3.0. Pi 4.0.0's
+   facade also could not submit the plan at all — `extensions/gentle-ai.ts:7358`
+   compares the plan binding's `--target` (authority target) against
+   `status.targetIdentity` (the newer snapshot identity), with the escape
+   hatch wired only for the targeted validator. Upgraded gentle-pi to 4.2.0
+   (mirrors bundle 1.3.0; its installer pins CLI 4.1.1, already installed).
+3. After the Pi restart, the facade lost the in-memory lineage binding (its
+   STATUS answered `unrelated`/`start`), so the correction plan and the
+   validator ran through the native CLI with the exact provider-issued tokens.
+
+An auto-saved defect report for the unknown-outcome capture sits at
 `.git/gentle-ai/defect-reports/operation-outcome-unknown-502550653d6b.md`.
 
-### Resume steps (next session, after restarting Pi so 4.2.0 is loaded)
+### Advisory findings (non-blocking, later work)
 
-1. Bound facade STATUS for lineage review-9e7ca42128ada755 in this worktree.
-2. Capture the provider-issued correction plan with `correctionLines: 120`
-   (or the CLI `gentle-ai review capture-correction-plan` with the exact
-   provider tokens if the facade still rejects the slot).
-3. Apply the planned fix above plus its test updates.
-4. Follow the provider-issued validator and final verification to `approved`,
-   then the exact `review.acknowledge-approved` continuation.
+- `R2-001` readability, `frontend/src/pages/Login.tsx:227` (WARNING).
+- `R2-002` readability, `api/src/test/java/com/carrito/saas/PanelErrorStatusHttpTests.java:154` (WARNING).
+- `R3-logout-does-not-clear-session-slug` reliability,
+  `frontend/src/pages/Login.tsx:181-189` (WARNING): logout leaves
+  `restaurantSlug` in localStorage.
+- `R3-null-slug-api-base` reliability,
+  `frontend/src/pages/dashboard/api.ts:49` (SUGGESTION): after requesting the
+  redirect the module still builds `API_BASE` with a null slug (harmless while
+  the page is being replaced, but worth tightening).
+- `R3-organic-login-contract-covered` reliability,
+  `security/src/main/java/com/carrito/saas/security/SecurityService.java:66-93`
+  (SUGGESTION).
 
-### Integration ordering (do not rebase while the lineage is open)
+### Integration (now unblocked)
 
-`develop` is ahead of this branch and already changed two manifest files:
-`frontend/src/pages/Admin.tsx` (+163, the admin shell) and
-`frontend/tests/admin-panel.test.tsx` (+71). Merging develop into
-feat/organic-login changes the candidate content, which invalidates the open
-frozen lineage — so integrate develop only AFTER the review closes, not before.
+`develop` moved ahead while the lineage was open and already changed two files
+of the frozen manifest: `frontend/src/pages/Admin.tsx` (admin shell, +163) and
+`frontend/tests/admin-panel.test.tsx` (+71). Integrating develop had to wait
+for the review to close — it now has.
 
-Agreed conflict resolutions with the sibling session (admin units):
+Agreed conflict resolutions with the sibling admin session:
 `admin-panel.test.tsx` keeps OUR point 1 (bare `/login/login.html`, no
 `?restaurant=`) plus THEIR points 3 and 4 (sidebar brand from
 `GET /api/business/profile`; view title is the Spanish label) — never a plain
@@ -118,7 +144,7 @@ icons, VIEW_LABELS, separator, logout icon on the button) with OUR logout block
 
 ## Notes
 
-- Base branch: develop. Feature branch: feat/organic-login.
+- Base branch: develop. Feature branch: feat/organic-login (unpushed).
 - Public menu URL contract (`/?restaurant=`) is explicitly NOT changed.
 - Future work: multi-business selector in the login (backend already
   returns a clear error when a user has several memberships).
