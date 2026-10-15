@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import com.carrito.saas.dto.CreateUserRequestDTO;
 import com.carrito.saas.dto.UserLoginInfoDTO;
 import com.carrito.saas.dto.UserResponseDTO;
+import com.carrito.saas.exception.BusinessException;
+import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.BusinessUser;
 import com.carrito.saas.repository.entity.Role;
@@ -39,16 +41,16 @@ public class UserServiceImpl implements IUserService {
 	@Override
 	public UserResponseDTO createUser(String restaurantSlug, CreateUserRequestDTO request) {
 		 if(userRepository.findByUsername(request.getUsername()).isPresent()){
-	            throw new RuntimeException("Username already exists");
+	            throw new BusinessException("Ya existe un usuario con ese nombre", ErrorType.CONFLICT);
 	        }
 
 	        Business restaurant = businessRepository
 	                .findBySlug(restaurantSlug)
-	                .orElseThrow(() -> new RuntimeException("Restaurant not found"));
+	                .orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 	        Role role = roleRepository
 	                .findByName(request.getRole())
-	                .orElseThrow(() -> new RuntimeException("Role not found"));
+	                .orElseThrow(() -> new BusinessException("El rol indicado no existe", ErrorType.VALIDATION));
 
 	        User user = new User();
 	        user.setUsername(request.getUsername());
@@ -73,14 +75,14 @@ public class UserServiceImpl implements IUserService {
 	public UserLoginInfoDTO getLoginInfo(String username, String slug){
 
 		User user = userRepository.findByUsername(username)
-		        .orElseThrow(() -> new RuntimeException("User not found"));
+		        .orElseThrow(() -> new BusinessException("Usuario no encontrado", ErrorType.NOT_FOUND));
 
 		    Business business = businessRepository.findBySlug(slug)
-		        .orElseThrow(() -> new RuntimeException("Business not found"));
+		        .orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 		    BusinessUser bu = businessUserRepository
 		        .findByUserAndBusiness(user, business)
-		        .orElseThrow(() -> new RuntimeException("No pertenece a este negocio"));
+		        .orElseThrow(() -> new BusinessException("El usuario no pertenece a este negocio", ErrorType.FORBIDDEN));
 
 		    return new UserLoginInfoDTO(
 		        bu.getRole().getName(),

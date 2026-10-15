@@ -15,6 +15,8 @@ import com.carrito.saas.dto.GenerateTablesRequestDTO;
 import com.carrito.saas.dto.QrPdfRequestDTO;
 import com.carrito.saas.dto.TableResponseDTO;
 import com.carrito.saas.dto.UpdateTableRequestDTO;
+import com.carrito.saas.exception.BusinessException;
+import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.RestaurantTable;
 import com.carrito.saas.repository.enums.TableStatus;
@@ -96,7 +98,7 @@ public class TableServiceImpl implements ITableService {
 		// validateTableNumber(businessId, request.getTableNumber());
 
 		Business business = businessRepository.findById(businessId)
-				.orElseThrow(() -> new RuntimeException("Business not found"));
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 		RestaurantTable table = new RestaurantTable();
 
@@ -150,7 +152,7 @@ public class TableServiceImpl implements ITableService {
 		Long businessId = securityService.getCurrentBusinessId();
 
 		Business business = businessRepository.findById(businessId)
-				.orElseThrow(() -> new RuntimeException("Business not found"));
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 		List<RestaurantTable> tables = new ArrayList<>();
 
@@ -202,7 +204,7 @@ public class TableServiceImpl implements ITableService {
 	private RestaurantTable findOwnedTable(Long tableId, Long businessId) {
 
 		return tableRepository.findByIdAndBusinessId(tableId, businessId)
-				.orElseThrow(() -> new RuntimeException(String.format("Table %d not found", tableId)));
+				.orElseThrow(() -> new BusinessException("Mesa no encontrada", ErrorType.NOT_FOUND));
 	}
 
 	private void validateTableNumber(Long businessId, Integer tableNumber) {
