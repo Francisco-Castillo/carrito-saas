@@ -95,3 +95,21 @@ Declaraba `iBusinessService` y **nunca lo inyectaba**, así que tiraba NPE en **
 - Llamados opinables, resueltos con criterio: `Role not found` → **400** (el rol viene en el body, es entrada inválida; 404 también sería defendible); `getLoginInfo` sin pertenencia → **403** (coherente con el login).
 - `TableController.update/delete/findAll/generateBulk` son **stubs muertos** (devuelven null, sin mapeo): el 404 de `findOwnedTable` sólo se alcanza por los endpoints de QR.
 - El `403` de `GET /api/categorias` sin token es correcto (la sesión vencida del dueño se ve así).
+
+### Guard de privilegio en `POST /api/predictions/run`
+
+El endpoint dispara `IGeneratePredictionsForAllBusinessesUseCase.execute()`: un job **global** (todos los negocios), no el recálculo del negocio propio. Estaba bajo `anyRequest().authenticated()`, así que **cualquier** usuario logueado de **cualquier** negocio —un KITCHEN, por ejemplo— podía forzar el recálculo de toda la plataforma.
+
+Ahora exige `hasAnyRole("OWNER", "ADMIN")` en la cadena de filtros. Tiene que ser ahí y no con `@PreAuthorize`: `@EnableMethodSecurity` no está habilitada, así que una anotación de método no haría **nada**. Las autoridades ya existen: `CustomUserDetailsService` mapea cada rol a `ROLE_<NOMBRE>`.
+
+Alcance honesto, escrito en el código: es una barrera de **privilegio, no de tenant**. El job es global, así que un OWNER del negocio A que lo invoca sigue recalculando las predicciones de **todos** los negocios. La regla limita quién puede accionar; no aísla negocios.
+
+El RED se midió, no se asumió: neutralizando la regla, `kitchenCallerOfRunIsForbidden` falla con `Status expected:<403> but was:<200>` — la vulnerabilidad misma. El archivo de la cadena se restauró **byte por byte** después de esa comprobación (mismo hash), y el GREEN es la suite completa.
+
+#### Anotado: 401 vs 403 para el anónimo
+
+La cadena **no configura entry point**, así que su default responde **403 también al anónimo** en toda ruta protegida: confunde "no tenés sesión" con "no tenés privilegio". Ese 403 está documentado como contrato vigente en tres suites (`ProductCatalogByIdTests`: *"403, because the route is not in any permitAll matcher"*, `DashboardAnonymousAccessTests`, `BusinessProfileAndStorefrontTests`), y el frontend no distingue un código del otro (no hay una sola comparación contra 401/403 en `frontend/src`).
+
+Por eso el guard del `run` **no** cambió ese contrato: un anónimo recibe 403 y un test lo fija como comportamiento **sin cambios**, no como endorsement. Un primer intento lo resolvió por ruta con `DelegatingAuthenticationEntryPoint` + fallback explícito: ~30 líneas de mecanismo para una sola ruta, que además dejaba a esa ruta discrepando con el resto de la API y con una perilla que rompe cuatro suites si alguien la toca después. Se descartó — la pregunta es de toda la cadena, no de un endpoint.
+
+Decisión pendiente (afecta a **toda** ruta protegida y a esas tres suites): configurar un entry point global para que el anónimo reciba **401** en todas partes, o quedarse con el 403. Se decide con apetito de cambiar el contrato público de la API, no de refilón en un guard.

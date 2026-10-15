@@ -95,6 +95,19 @@ public class SecurityConfig {
 	            // Crear pedidos público
 	            .requestMatchers(HttpMethod.POST, "/api/orders", "/api/orders/menu/{slug}").permitAll()
 
+	            // Barrera de PRIVILEGIO (no de tenant): POST /api/predictions/run
+	            // dispara el recálculo GLOBAL de predicciones (todos los negocios),
+	            // no un job del negocio propio. Solo OWNER/ADMIN pueden lanzarlo.
+	            // Honestidad del alcance: el job es global, así que un OWNER del
+	            // negocio A que lo invoca sigue recalculando las predicciones de
+	            // TODOS los negocios — esta regla no aísla negocios, solo limita
+	            // quién puede accionar el recálculo.
+	            // Un anónimo recibe 403, no 401: es lo que el chain responde
+	            // hoy en TODA ruta protegida (no hay entry point configurado),
+	            // y esta regla no cambia ese contrato acá. Ver la anotación
+	            // sobre 401 vs 403 en odd/tasks/http-error-contract.md.
+	            .requestMatchers(HttpMethod.POST, "/api/predictions/run").hasAnyRole("OWNER", "ADMIN")
+
 	            .anyRequest().authenticated()
 	        )
 
