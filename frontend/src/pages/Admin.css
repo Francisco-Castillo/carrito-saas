@@ -935,3 +935,54 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Picker de productos con cantidades del modal de combos (unidad 5 del
+   ODD): selectores NUEVOS con prefijo combo-, reusando admin-input y
+   btn-ghost. Nada de las reglas compartidas de arriba se toca (regla dura
+   del PR #37). */
+.combo-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.combo-picker-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.combo-picker-row .admin-input {
+  width: 100%;
+}
+
+.combo-picker-quantity {
+  max-width: 92px;
+}
+
+.combo-picker-add {
+  align-self: flex-start;
+}
+
+@media (max-width: 640px) {
+  .combo-picker-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "select remove"
+      "quantity remove";
+  }
+
+  .combo-picker-row .admin-input:first-child {
+    grid-area: select;
+  }
+
+  .combo-picker-row .combo-picker-quantity {
+    grid-area: quantity;
+  }
+
+  .combo-picker-row .btn-ghost {
+    grid-area: remove;
+  }
+}

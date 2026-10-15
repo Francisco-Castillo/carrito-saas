@@ -3,7 +3,9 @@ package com.carrito.saas.api;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,6 +27,16 @@ public class ComboController {
 	@PostMapping
 	public ComboDTO crear(@RequestBody ComboCreateDTO dto) {
 		return iComboService.crearCombo(dto);
+	}
+
+	/**
+	 * Panel de administración: actualiza un combo del negocio autenticado.
+	 * El tenant se ancla en el JWT — un id ajeno resuelve como 404, nunca
+	 * como un éxito silencioso.
+	 */
+	@PutMapping("/{id}")
+	public ComboDTO actualizar(@PathVariable Long id, @RequestBody ComboCreateDTO dto) {
+		return iComboService.actualizarCombo(id, dto);
 	}
 
 	/**
