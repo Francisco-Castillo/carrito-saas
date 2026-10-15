@@ -85,7 +85,14 @@
   margin: 0 auto;
 }
 
-.dashboard-screen main section {
+/* El espacio entre secciones no es de la PANTALLA sino del COMPONENTE: el panel
+   admin renderiza las mismas secciones (stats, orders-status, chart-section,
+   top-products) dentro de `.admin-dashboard`, y con el selector atado a
+   `.dashboard-screen` quedaban pegadas — 0px medidos contra los 32px de acá.
+   Ojo al agregar variantes de pantalla: si el mismo componente se reusa, el
+   selector tiene que listarla o el espacio desaparece sin que nada falle. */
+.dashboard-screen main section,
+.admin-dashboard > section {
   margin-bottom: var(--space-8);
 }
 
