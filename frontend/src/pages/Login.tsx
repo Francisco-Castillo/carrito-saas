@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import "./Login.css";
 
-const RESTAURANT_NAME_FALLBACK = "Restaurante no especificado";
+/** Neutral chip label shown when no restaurant slug is present in the URL
+ * (organic login): the user logs in without a restaurant context and the
+ * backend resolves membership. */
+const ORGANIC_LOGIN_LABEL = "Ingreso general";
 
 function titleCaseSlug(slug: string): string {
   return slug
@@ -9,10 +12,11 @@ function titleCaseSlug(slug: string): string {
     .replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-function redirectPathForRole(role: string, slug: string): string | null {
-  if (role.includes("OWNER")) return `/dashboard/index.html?restaurant=${slug}`;
-  if (role.includes("KITCHEN")) return `/kds/index.html?restaurant=${slug}`;
-  if (role.includes("ADMIN")) return `/admin/admin.html?restaurant=${slug}`;
+function redirectPathForRole(role: string, slug?: string | null): string | null {
+  const suffix = slug ? `?restaurant=${slug}` : "";
+  if (role.includes("OWNER")) return `/dashboard/index.html${suffix}`;
+  if (role.includes("KITCHEN")) return `/kds/index.html${suffix}`;
+  if (role.includes("ADMIN")) return `/admin/admin.html${suffix}`;
   return null;
 }
 
@@ -22,7 +26,7 @@ interface LoginResponse {
   role: string;
   username: string;
   expiresAt: string;
-  restaurantSlug: string;
+  restaurantSlug?: string;
 }
 
 function UserIcon() {
@@ -78,9 +82,10 @@ export default function Login() {
 
   useEffect(() => {
     if (!slug) {
-      setRestaurantName(null);
+      // Organic login: no restaurant context in the URL, show a neutral
+      // chip and do not fire a slug lookup.
+      setRestaurantName(ORGANIC_LOGIN_LABEL);
       setRestaurantLoading(false);
-      console.error("Missing restaurant slug");
       return;
     }
 
@@ -131,16 +136,19 @@ export default function Login() {
       return;
     }
 
-    if (!slug) {
-      setError("Falta el restaurante en la URL");
-      return;
-    }
-
     if (remember) {
       localStorage.setItem("savedUser", username.trim());
     } else {
       localStorage.removeItem("savedUser");
     }
+
+    const body: Record<string, string> = {
+      username: username.trim(),
+      password: password.trim(),
+    };
+    // Organic login: only include the restaurant slug when the URL provided
+    // one; otherwise the backend resolves the business from membership.
+    if (slug) body.restaurantSlug = slug;
 
     try {
       setLoading(true);
@@ -148,11 +156,7 @@ export default function Login() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: username.trim(),
-          password: password.trim(),
-          restaurantSlug: slug,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -209,7 +213,7 @@ export default function Login() {
             <span className="restaurant-chip-name">
               {restaurantLoading
                 ? "Cargando..."
-                : restaurantName ?? RESTAURANT_NAME_FALLBACK}
+                : restaurantName ?? ORGANIC_LOGIN_LABEL}
             </span>
           </div>
 
@@ -262,7 +266,7 @@ export default function Login() {
               </label>
             </div>
 
-            <button className="login-button" type="submit" disabled={loading || !slug}>
+            <button className="login-button" type="submit" disabled={loading}>
               {loading ? (
                 <span className="spinner" aria-label="Cargando" />
               ) : (
