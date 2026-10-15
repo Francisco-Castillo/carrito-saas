@@ -31,4 +31,8 @@ public class BusinessDTO {
 
     private List<BusinessHoursDTO> hours;
 
+    /** Fechas especiales (feriados y horarios especiales), ordenadas por fecha;
+     *  vacío cuando el negocio no tiene ninguna. La completa MenuServiceImpl. */
+    private List<DateExceptionDTO> dateExceptions;
+
 }

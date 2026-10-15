@@ -41,9 +41,11 @@ public class BusinessMapperImpl implements IBusinessMapper{
         dto.setBannerUrl(entity.getBannerUrl());
         dto.setAddress(entity.getAddress());
         dto.setInstagramUrl(entity.getInstagramUrl());
-        // Las horas las completa el llamador (MenuServiceImpl las trae del
-        // repositorio); el mapper solo mapea campos de la propia entidad.
+        // Las horas y las fechas especiales las completa el llamador
+        // (MenuServiceImpl las trae del repositorio); el mapper solo mapea
+        // campos de la propia entidad.
         dto.setHours(null);
+        dto.setDateExceptions(null);
 
         return dto;
 	}

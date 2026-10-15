@@ -179,6 +179,9 @@ class BusinessProfileAndStorefrontTests {
 		dto.setAddress(address);
 		dto.setInstagramUrl(instagram);
 		dto.setHours(hours);
+		// El campo es obligatorio en el PUT (guard igual al de shifts en un
+		// día): una lista vacía significa "sin fechas especiales".
+		dto.setDateExceptions(List.of());
 		return dto;
 	}
 

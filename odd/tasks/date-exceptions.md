@@ -70,7 +70,13 @@ Sección **"Fechas especiales"** en la pantalla Local: agregar una fecha (select
 ## Tareas
 
 - [x] 1. Feature doc y plan (este documento)
-- [ ] 2. Backend: tabla, entidad, DTO, reglas 1-6 y endpoints
+- [x] 2. Backend: tabla, entidad, DTO, reglas 1-6 y endpoints
 - [ ] 3. Carta: `effectiveShifts` en `openStatus` (hoy, derrame de ayer y próxima apertura)
 - [ ] 4. Panel: sección "Fechas especiales"
 - [ ] 5. Verificación en navegador (panel → carta con un feriado) y cierre
+
+## Dos decisiones que tomó el paso 2
+
+**Un feriado cerrado se guarda como una fila marcadora** (`position = 0`, horarios `NULL`), no como ausencia de filas. La diferencia con un día de la semana es la clave: en `business_hours`, *no tener filas* significa "cerrado", pero en las fechas excepcionales la ausencia significa **"día normal"**, así que "cerrado" tiene que estar guardado. La lectura mapea la fila marcadora a una lista vacía y el DTO vuelve a viajar igual que se cargó.
+
+**La regla del derrame de un día de la semana sigue comparando semana contra semana**, y es deliberado: la plantilla semanal se repite todas las semanas, así que un derrame del viernes que choca con la apertura del sábado es un problema de la plantilla (choca casi todas las semanas) y rechazarlo es correcto. El caso puntual —una sola semana donde el sábado es feriado— se modela cargando una excepción **en el viernes**, que sí resuelve su derrame contra las fechas reales. Las excepciones, en cambio, resuelven su derrame contra los **turnos efectivos** del día siguiente (su propia excepción si la tiene, si no el día de la semana).
