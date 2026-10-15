@@ -138,6 +138,16 @@ class ProductMetricsAggregationPipelineTests {
 	}
 
 	/**
+	 * A fixed moment of today. Seeding today's orders relative to
+	 * {@code now()} made the assertions depend on the hour the suite ran at:
+	 * close after midnight those instants belong to yesterday, which is what CI
+	 * hit at 00:04 UTC.
+	 */
+	private static LocalDateTime todayAtNoon() {
+		return LocalDate.now().atTime(12, 0);
+	}
+
+	/**
 	 * Seeds a real order + item via JPA and then pins {@code orders.created_at}
 	 * with a direct JDBC update: {@code @CreationTimestamp} owns that column on
 	 * insert, so the JPA value cannot be trusted for backdated orders.
@@ -208,12 +218,19 @@ class ProductMetricsAggregationPipelineTests {
 	 * The aggregation must write real numbers: two orders for the same product
 	 * today collapse into one (business_id, product_id, date) row with the
 	 * summed quantity and revenue.
+	 *
+	 * <p>The orders are placed at a fixed hour of today, like the older
+	 * day-offset cases below, because the wall clock made this test depend on
+	 * WHEN it ran: seeded with {@code now().minusHours(2)} it failed whenever
+	 * the run happened before 02:00 local time, because then the order belongs
+	 * to yesterday. CI caught it at 00:04 UTC; the aggregation was right and
+	 * the expectation was not.</p>
 	 */
 	@Test
 	void aggregationWritesQuantityAndRevenueForOrdersInTheWindow() {
 
-		seedOrder(LocalDateTime.now().minusHours(1), 3, "100.00");
-		seedOrder(LocalDateTime.now().minusHours(2), 2, "100.00");
+		seedOrder(todayAtNoon().minusHours(1), 3, "100.00");
+		seedOrder(todayAtNoon().minusHours(2), 2, "100.00");
 
 		aggregateUseCase.execute();
 
@@ -231,7 +248,7 @@ class ProductMetricsAggregationPipelineTests {
 	@Test
 	void aggregationIsIdempotentWhenRunTwice() {
 
-		seedOrder(LocalDateTime.now().minusHours(1), 3, "100.00");
+		seedOrder(todayAtNoon(), 3, "100.00");
 
 		aggregateUseCase.execute();
 		Map<String, Object> firstRun = dailySalesRow(LocalDate.now());
@@ -278,7 +295,7 @@ class ProductMetricsAggregationPipelineTests {
 	@Test
 	void trendJobConsumesTheAggregationAndTopUpEndpointReflectsIt() throws Exception {
 
-		seedOrder(LocalDateTime.now().minusHours(1), 6, "100.00"); // current week
+		seedOrder(todayAtNoon(), 6, "100.00"); // current week
 		seedOrder(LocalDate.now().minusDays(10).atTime(12, 0), 2, "100.00"); // previous week
 		seedOrder(LocalDate.now().minusDays(12).atTime(12, 0), 2, "100.00"); // previous week
 
