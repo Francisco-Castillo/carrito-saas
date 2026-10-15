@@ -7,9 +7,11 @@
  * used by the Dashboard, KDS and Admin pages, so there is a single guard to
  * pin instead of one per page. The pinned access contract is unchanged:
  *
- *   - A page without a usable session must land on /login/login.html, keeping
- *     the `restaurant` slug so the login can bind the session to the right
- *     restaurant, and must stop there (nothing else may run or throw).
+ *   - A page without a usable session must land on the bare /login/login.html
+ *     and must stop there (nothing else may run or throw). Phase 2 (organic
+ *     login): the redirect no longer carries ?restaurant= — the slug lives in
+ *     the session (localStorage `restaurantSlug`, written by the login) and
+ *     the URL param support is gone.
  *   - A page with a token must not redirect and must not inspect the token:
  *     role enforcement is the server's job (403 with a session and an
  *     insufficient role, 401 without a session), and a client-side
@@ -19,14 +21,17 @@
  * (storage disabled) and dead token strings ("null", "undefined", empty,
  * whitespace-only, and the same dead literals padded with whitespace) must all
  * still end in a redirect, while a real JWT-shaped token must never redirect.
+ * The same hardening applies to the session slug resolution
+ * (getSessionRestaurantSlug): blocked storage and dead slug strings yield no
+ * slug instead of throwing or returning a bogus value.
  *
  * Not portable to the React app (documented, not weakened): the legacy AC12
- * case "missing URLSearchParams" — in the React SPA URLSearchParams is a
- * runtime global that always exists, and the ported guard's try/catch around
- * the slug read (which is what AC12 exercised) is still in place in auth.ts.
+ * case "missing URLSearchParams" — the React SPA never reads a slug from the
+ * URL anymore, and the ported guard's try/catch around the localStorage slug
+ * read (which is what AC12 exercised) is still in place in auth.ts.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { enforceSession, hasUsableSession } from '../src/pages/dashboard/auth'
+import { enforceSession, getSessionRestaurantSlug, hasUsableSession } from '../src/pages/dashboard/auth'
 
 const LOGIN_TARGET = '/login/login.html'
 const RESTAURANT_SLUG = 'demo-pizzeria'
@@ -62,11 +67,11 @@ function setToken(token: string | null) {
   }
 }
 
-function expectRedirectWithSlug(location: ReturnType<typeof stubLocation>) {
-  expect(location.replace).toHaveBeenCalledWith(
-    `${LOGIN_TARGET}?restaurant=${RESTAURANT_SLUG}`
-  )
-  expect(location.href).toBe(`${LOGIN_TARGET}?restaurant=${RESTAURANT_SLUG}`)
+function expectBareLoginRedirect(location: ReturnType<typeof stubLocation>) {
+  // Phase 2: the guard never carries ?restaurant= anymore, even when the
+  // current URL still has one.
+  expect(location.replace).toHaveBeenCalledWith(LOGIN_TARGET)
+  expect(location.href).toBe(LOGIN_TARGET)
 }
 
 beforeEach(() => {
@@ -74,12 +79,13 @@ beforeEach(() => {
 })
 
 describe('page guard (ported from api/src/test/js/page-guard.test.mjs — backs dashboard/, kds/ and admin/ pages)', () => {
-  it('no token and a restaurant slug lands on /login/login.html with the slug and stops', () => {
+  it('no token and a restaurant slug in the URL lands on the bare /login/login.html and stops', () => {
+    // Phase 2: the slug in the URL is ignored — the redirect must not carry it.
     const location = stubLocation(`?restaurant=${RESTAURANT_SLUG}`)
     setToken(null)
 
     expect(() => enforceSession()).not.toThrow()
-    expectRedirectWithSlug(location)
+    expectBareLoginRedirect(location)
     expect(hasUsableSession()).toBe(false)
   })
 
@@ -92,7 +98,7 @@ describe('page guard (ported from api/src/test/js/page-guard.test.mjs — backs 
     expect(location.href).toBe(LOGIN_TARGET)
   })
 
-  it('a failing localStorage.getItem still redirects to /login/login.html with the slug and stops (AC10)', () => {
+  it('a failing localStorage.getItem still redirects to the bare /login/login.html and stops (AC10)', () => {
     const location = stubLocation(`?restaurant=${RESTAURANT_SLUG}`)
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('localStorage is blocked (storage disabled or private mode)')
@@ -102,19 +108,19 @@ describe('page guard (ported from api/src/test/js/page-guard.test.mjs — backs 
       expect(hasUsableSession()).toBe(false)
       enforceSession()
     }).not.toThrow()
-    // Blocked storage must still end in a redirect that keeps the slug.
-    expectRedirectWithSlug(location)
+    // Blocked storage must still end in a redirect.
+    expectBareLoginRedirect(location)
   })
 
-  it('dead token strings land on /login/login.html with the slug (AC11)', () => {
+  it('dead token strings land on the bare /login/login.html (AC11)', () => {
     for (const dead of ['null', 'undefined', '', '   ', ' null ', 'null\n', '\tnull\t', ' undefined ']) {
       const location = stubLocation(`?restaurant=${RESTAURANT_SLUG}`)
       setToken(dead)
 
       expect(hasUsableSession(), `the unusable token ${JSON.stringify(dead)} must be treated as no session`).toBe(false)
       expect(() => enforceSession()).not.toThrow()
-      // The unusable token must redirect with the restaurant slug.
-      expectRedirectWithSlug(location)
+      // The unusable token must redirect to the bare login page.
+      expectBareLoginRedirect(location)
     }
   })
 
@@ -147,6 +153,39 @@ describe('page guard (ported from api/src/test/js/page-guard.test.mjs — backs 
     enforceSession()
     expect(location.replace).toHaveBeenCalledTimes(2)
     // Both decisions carry the same target: nothing re-ran with a mutated URL.
-    expectRedirectWithSlug(location)
+    expectBareLoginRedirect(location)
+  })
+
+  describe('session slug resolution (localStorage `restaurantSlug`, not the URL)', () => {
+    it('resolves the slug the login stored in the session', () => {
+      stubLocation('')
+      localStorage.setItem('restaurantSlug', RESTAURANT_SLUG)
+
+      expect(getSessionRestaurantSlug()).toBe(RESTAURANT_SLUG)
+    })
+
+    it('returns no slug when the session has none', () => {
+      stubLocation('')
+
+      expect(getSessionRestaurantSlug()).toBeNull()
+    })
+
+    it('treats dead slug strings as no slug (same hardening as the token, AC11)', () => {
+      stubLocation('')
+      for (const dead of ['null', 'undefined', '', '   ', ' null ', 'null\n', '\tnull\t', ' undefined ']) {
+        localStorage.setItem('restaurantSlug', dead)
+        expect(getSessionRestaurantSlug(), `the dead slug ${JSON.stringify(dead)} must resolve to no slug`).toBeNull()
+      }
+    })
+
+    it('resolves no slug when storage is disabled instead of throwing (AC10)', () => {
+      stubLocation('')
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('localStorage is blocked (storage disabled or private mode)')
+      })
+
+      expect(() => getSessionRestaurantSlug()).not.toThrow()
+      expect(getSessionRestaurantSlug()).toBeNull()
+    })
   })
 })

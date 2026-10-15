@@ -178,6 +178,17 @@ export default function Login() {
       localStorage.setItem("username", data.username);
       localStorage.setItem("expiresAt", data.expiresAt);
 
+      // Fase 2 (login orgánico): el slug de la respuesta (o, en su defecto, el
+      // de la URL) queda en la sesión para que dashboard/kds/admin lo
+      // resuelvan sin depender de ?restaurant= en la URL. Sin slug en la
+      // respuesta ni en la URL se descarta cualquier valor viejo.
+      const sessionSlug = data.restaurantSlug ?? slug;
+      if (sessionSlug) {
+        localStorage.setItem("restaurantSlug", sessionSlug);
+      } else {
+        localStorage.removeItem("restaurantSlug");
+      }
+
       const target = redirectPathForRole(data.role, data.restaurantSlug ?? slug);
       if (!target) throw new Error("Rol no permitido");
 

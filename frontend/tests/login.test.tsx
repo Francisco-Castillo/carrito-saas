@@ -12,6 +12,10 @@
  *     general") and no slug lookup is fetched.
  *   - The redirect target keeps using data.restaurantSlug from the response
  *     even when the URL had no slug.
+ *   - Phase 2: a successful login stores the response slug in localStorage
+ *     under `restaurantSlug` (next to token, businessId, role, username,
+ *     expiresAt) so dashboard/kds/admin resolve it from the session; without
+ *     a response slug and without a URL slug no stale value is kept.
  */
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -118,5 +122,49 @@ describe('organic login (login without ?restaurant=)', () => {
     })
 
     await waitFor(() => expect(location.href).toBe('/kds/index.html?restaurant=otra-sucursal'))
+  })
+
+  it('a successful login stores the response slug in localStorage under "restaurantSlug" (Phase 2)', async () => {
+    const { location } = await submitLogin({ search: '' })
+
+    await waitFor(() => expect(location.href).toBe('/dashboard/index.html?restaurant=demo-pizzeria'))
+
+    expect(localStorage.getItem('restaurantSlug')).toBe('demo-pizzeria')
+  })
+
+  it('a login with a URL slug but no slug in the response stores the URL slug in "restaurantSlug" (Phase 2)', async () => {
+    const { location } = await submitLogin({
+      search: '?restaurant=de-la-url',
+      loginResponse: {
+        token: 'header.payload.signature',
+        businessId: 1,
+        role: 'OWNER',
+        username: 'demo',
+        expiresAt: '2030-01-01T00:00:00Z',
+      },
+    })
+
+    await waitFor(() => expect(location.href).toBe('/dashboard/index.html?restaurant=de-la-url'))
+
+    expect(localStorage.getItem('restaurantSlug')).toBe('de-la-url')
+  })
+
+  it('without a response slug and without a URL slug no stale "restaurantSlug" is kept (Phase 2)', async () => {
+    localStorage.setItem('restaurantSlug', 'local-viejo')
+
+    const { location } = await submitLogin({
+      search: '',
+      loginResponse: {
+        token: 'header.payload.signature',
+        businessId: 7,
+        role: 'KITCHEN',
+        username: 'demo',
+        expiresAt: '2030-01-01T00:00:00Z',
+      },
+    })
+
+    await waitFor(() => expect(location.href).toBe('/kds/index.html'))
+
+    expect(localStorage.getItem('restaurantSlug')).toBeNull()
   })
 })

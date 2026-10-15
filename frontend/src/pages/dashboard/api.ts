@@ -5,7 +5,13 @@
  * Authorization: Bearer + token de localStorage leído en caliente, igual
  * que src/pages/admin/api.ts. Manejo de errores igual que el legacy:
  * cualquier !ok lanza "API error" y la UI conserva sus valores iniciales.
+ *
+ * Fase 2 (login orgánico): el slug del restaurante se resuelve desde la
+ * sesión (localStorage "restaurantSlug", escrito por el login), no de la
+ * URL — el panel funciona con una URL limpia.
  */
+
+import { getSessionRestaurantSlug } from "./auth";
 
 export interface DashboardToday {
   revenue: number;
@@ -30,11 +36,10 @@ export interface SalesByHour {
   revenue: number;
 }
 
-const params = new URLSearchParams(window.location.search);
-const restaurantSlug = params.get("restaurant");
+const restaurantSlug = getSessionRestaurantSlug();
 
 if (!restaurantSlug) {
-  console.error("Restaurant slug missing in URL");
+  console.error("Restaurant slug missing in session");
 }
 
 const API_BASE = `/api/restaurants/${restaurantSlug}`;

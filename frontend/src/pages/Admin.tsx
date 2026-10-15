@@ -134,7 +134,8 @@ const VIEW_ICONS: Record<AdminView, React.ReactNode> = {
  */
 export default function Admin() {
   // Guard del legacy (mismas reglas que el dashboard): token recortado,
-  // ""/"null"/"undefined" → redirect a /login/login.html?restaurant={slug}.
+  // ""/"null"/"undefined" → redirect a /login/login.html (sin ?restaurant=:
+  // el slug vive en la sesión).
   const [sessionUsable] = useState(hasUsableSession);
 
   useLayoutEffect(() => {
@@ -181,21 +182,13 @@ export default function Admin() {
   // Logout del legacy admin.js, adaptado: borra SOLO las claves de sesión que
   // escribe el login (a diferencia del localStorage.clear() COMPLETO del
   // legacy, que hoy borraría también savedUser del remember-me) + redirect
-  // conservando el restaurante.
+  // al login limpio (fase 2: sin ?restaurant=, el slug vive en la sesión).
   function logout() {
     for (const key of ["token", "businessId", "role", "username", "expiresAt"]) {
       localStorage.removeItem(key);
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const restaurant = params.get("restaurant");
-
-    let loginUrl = "/login/login.html";
-    if (restaurant) {
-      loginUrl += `?restaurant=${restaurant}`;
-    }
-
-    window.location.href = loginUrl;
+    window.location.href = "/login/login.html";
   }
 
   // El legacy determinaba el orden al final leyendo el tbody: filas + 1

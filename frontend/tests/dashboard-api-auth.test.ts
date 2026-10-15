@@ -7,6 +7,10 @@
  * as src/pages/admin/api.ts). Without the header the backend answers 401
  * (the chain's entry point for anonymous callers) and
  * the page renders nothing but empty state.
+ *
+ * Phase 2 (organic login): the slug comes from the session (localStorage
+ * `restaurantSlug`, written by the login), never from the URL query — these
+ * tests run against a clean URL (no ?restaurant=).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -24,8 +28,10 @@ function stubRecordingFetch() {
 }
 
 beforeEach(() => {
-  stubLocation(`?restaurant=${SLUG}`)
+  // Clean URL: the dashboard must not depend on ?restaurant= anymore.
+  stubLocation('')
   localStorage.setItem('token', TOKEN)
+  localStorage.setItem('restaurantSlug', SLUG)
 })
 
 describe('dashboard api auth header', () => {
@@ -48,12 +54,23 @@ describe('dashboard api auth header', () => {
     }
   })
 
-  it('the dashboard requests still target the restaurant slug from the URL', async () => {
+  it('the dashboard requests target the restaurant slug from the session (localStorage), not the URL', async () => {
     const fetchMock = stubRecordingFetch()
     const { api } = await import('../src/pages/dashboard/api')
 
     await api.getDashboardToday()
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`/api/restaurants/${SLUG}/dashboard/today`)
+  })
+
+  it('a missing session slug is reported and does not throw', async () => {
+    localStorage.removeItem('restaurantSlug')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.resetModules()
+
+    await expect(import('../src/pages/dashboard/api')).resolves.toBeDefined()
+
+    expect(consoleError).toHaveBeenCalledWith('Restaurant slug missing in session')
+    consoleError.mockRestore()
   })
 })

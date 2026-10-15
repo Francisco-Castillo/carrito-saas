@@ -5,9 +5,14 @@
  *
  * El rol lo valida el servidor (403 con sesión y rol insuficiente; 401 sin
  * sesión): este guard solo cubre la ausencia de una sesión usable. Nunca lanza y nunca deja la página corriendo
- * sin sesión: si falla la lectura del slug o del token (almacenamiento
- * bloqueado, modo privado), cae al redirect de todos modos. Sin slug legible
- * redirige sin él, con él conserva el restaurante.
+ * sin sesión: si falla la lectura del token (almacenamiento bloqueado, modo
+ * privado), cae al redirect de todos modos.
+ *
+ * Fase 2 (login orgánico): el slug del restaurante vive en la sesión
+ * (localStorage "restaurantSlug", lo escribe el login tras autenticar) y el
+ * redirect al login ya no lleva ?restaurant=. La lectura del slug aplica el
+ * mismo endurecimiento que el token: almacenamiento bloqueado y valores
+ * muertos ("null", "undefined", vacío, espacios) no son un slug legible.
  */
 
 const LOGIN_PAGE = "/login/login.html";
@@ -26,18 +31,31 @@ export function hasUsableSession(): boolean {
   }
 }
 
-/** Redirect del guard legacy: conserva el restaurante si el slug es legible. */
-export function enforceSession(): void {
-  let target = LOGIN_PAGE;
+/**
+ * Slug del restaurante resuelto desde la SESIÓN (localStorage
+ * "restaurantSlug"), nunca de la URL. Mismo endurecimiento que el token:
+ * un valor recortado vacío o "null"/"undefined" tampoco es un slug, y un
+ * almacenamiento bloqueado devuelve null en vez de lanzar.
+ */
+export function getSessionRestaurantSlug(): string | null {
   try {
-    const slug = new URLSearchParams(window.location.search).get("restaurant");
-    if (slug) {
-      target += "?restaurant=" + encodeURIComponent(slug);
-    }
+    const slug = localStorage.getItem("restaurantSlug");
+    // Se compara el valor RECORTADO, igual que el token: un slug " null " o
+    // "null\n" no es un slug de sesión.
+    const session = typeof slug === "string" ? slug.trim() : "";
+    return session !== "" && session !== "null" && session !== "undefined"
+      ? session
+      : null;
   } catch {
-    // Slug ilegible: redirigimos sin él.
+    // Slug ilegible (almacenamiento bloqueado): no hay slug de sesión.
+    return null;
   }
-  window.location.replace(target);
+}
+
+/** Redirect del guard: siempre al login limpio, sin ?restaurant= — el login
+ * orgánico resuelve el restaurante desde la sesión. */
+export function enforceSession(): void {
+  window.location.replace(LOGIN_PAGE);
 }
 
 function isTokenExpired(token: string): boolean {
