@@ -5,12 +5,14 @@ interface CartPanelProps {
   cart: Cart;
   total: number;
   customerName: string;
+  customerPhone: string;
   orderType: OrderType;
   address: string;
   notes: string;
   paymentMethod: PaymentMethod;
   sending: boolean;
   onCustomerNameChange: (value: string) => void;
+  onCustomerPhoneChange: (value: string) => void;
   onOrderTypeChange: (value: OrderType) => void;
   onAddressChange: (value: string) => void;
   onNotesChange: (value: string) => void;
@@ -30,12 +32,14 @@ export default function CartPanel({
   cart,
   total,
   customerName,
+  customerPhone,
   orderType,
   address,
   notes,
   paymentMethod,
   sending,
   onCustomerNameChange,
+  onCustomerPhoneChange,
   onOrderTypeChange,
   onAddressChange,
   onNotesChange,
@@ -99,6 +103,17 @@ export default function CartPanel({
           placeholder="Nombre y Apellido"
           value={customerName}
           onChange={(e) => onCustomerNameChange(e.target.value)}
+        />
+
+        {/* Celular obligatorio: la cocina lo muestra como llamada con un tap. */}
+        <input
+          className="order-input"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="Celular (ej. 11 5555 1234)"
+          value={customerPhone}
+          onChange={(e) => onCustomerPhoneChange(e.target.value)}
         />
 
         <select
