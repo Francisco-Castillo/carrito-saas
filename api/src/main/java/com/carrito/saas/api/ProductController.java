@@ -19,8 +19,11 @@ import com.carrito.saas.dto.PageResponse;
 import com.carrito.saas.dto.ProductCreateDTO;
 import com.carrito.saas.dto.ProductDTO;
 import com.carrito.saas.dto.ProductFilterDTO;
+import com.carrito.saas.exception.BusinessException;
+import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.jpa.BusinessRepository;
+import com.carrito.saas.security.ISecurityService;
 import com.carrito.saas.service.interfaces.IProductService;
 import com.carrito.saas.service.mapper.interfaces.IBusinessMapper;
 
@@ -34,19 +37,35 @@ public class ProductController {
 	private final IProductService productService;
 	private final BusinessRepository businessRepository;
 	private final IBusinessMapper iBusinessMapper;
+	private final ISecurityService securityService;
 
 	public ProductController(IProductService productService, BusinessRepository businessRepository,
-			IBusinessMapper iBusinessMapper) {
+			IBusinessMapper iBusinessMapper, ISecurityService securityService) {
 		super();
 		this.productService = productService;
 		this.businessRepository = businessRepository;
 		this.iBusinessMapper = iBusinessMapper;
+		this.securityService = securityService;
 	}
 
+	/**
+	 * Catálogo acotado por id de restaurante: el negocio sale del JWT y solo
+	 * se responde cuando el restaurantId del path ES el negocio del caller; un
+	 * id ajeno o inexistente resuelve como 404 — nunca un 200 silencioso con
+	 * cuerpo vacío (el stub anterior hacía {@code return null}). El listado
+	 * sale de findAllByBusinessId, anclado al JWT igual que /api/products.
+	 */
 	@GetMapping("/restaurants/{restaurantId}/products")
 	public List<ProductDTO> getProductsByRestaurant(@PathVariable Long restaurantId) {
-		//return productService.getProductsByRestaurant(restaurantId);
-		return null;
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		if (!restaurantId.equals(businessId)) {
+			throw new BusinessException(
+					"Restaurante no encontrado: " + restaurantId, ErrorType.NOT_FOUND);
+		}
+
+		return productService.findAllByBusinessId();
 	}
 
 	@GetMapping("/restaurants/slug/{slug}/products")
