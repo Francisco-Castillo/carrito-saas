@@ -11,6 +11,8 @@ import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.BusinessUser;
 
+import java.util.List;
+
 import com.carrito.saas.repository.jpa.BusinessUserRepository;
 
 @Service
@@ -31,12 +33,6 @@ public class SecurityService implements ISecurityService {
 	@Override
 	public LoginResponseDTO login(LoginRequestDTO request) {
 
-		// 0. Slug del negocio: sin él no hay contra qué comparar la membresía.
-		// Es un error del cliente (400), no una falla del servidor.
-		if (request.getRestaurantSlug() == null || request.getRestaurantSlug().isBlank()) {
-			throw new BusinessException("Debe indicar el negocio", ErrorType.VALIDATION);
-		}
-
 		// 1. Autenticación. AuthenticationException (contraseña incorrecta,
 		// usuario inexistente, cuenta bloqueada) NO debe escapar como 500: el
 		// cliente se equivocó y el 401 es honesto. El mensaje es único y
@@ -51,9 +47,7 @@ public class SecurityService implements ISecurityService {
 
 		// 2. Relación user-business. Acá las credenciales YA son válidas, así
 		// que nombrar el motivo no filtra nada: 403, no 401 ni 500.
-		BusinessUser bu = businessUserRepository
-				.findByUserUsernameAndBusinessSlug(request.getUsername(), request.getRestaurantSlug())
-				.orElseThrow(() -> new BusinessException("El usuario no pertenece a este negocio", ErrorType.FORBIDDEN));
+		BusinessUser bu = resolveMembership(request);
 
 		Long businessId = bu.getBusiness().getId();
 		String role = bu.getRole().getName();
@@ -66,6 +60,37 @@ public class SecurityService implements ISecurityService {
 
 		// 4. Response PRO
 		return new LoginResponseDTO(token, bu.getBusiness().getSlug(), businessId, role, username, expiresAt);
+	}
+
+	/**
+	 * Resuelve la membresía que alimenta el token. Con un slug explícito en el
+	 * pedido manda el slug (comportamiento de siempre, hacia atrás compatible
+	 * y a prueba de multi-negocio). Sin slug — login orgánico — el negocio se
+	 * deduce de la membresía: exactamente una → esa; cero → 403; más de una →
+	 * 400 pidiendo el negocio, porque todavía no existe selector en el login.
+	 */
+	private BusinessUser resolveMembership(LoginRequestDTO request) {
+
+		String slug = request.getRestaurantSlug();
+
+		if (slug != null && !slug.isBlank()) {
+			return businessUserRepository
+					.findByUserUsernameAndBusinessSlug(request.getUsername(), slug)
+					.orElseThrow(() -> new BusinessException("El usuario no pertenece a este negocio", ErrorType.FORBIDDEN));
+		}
+
+		List<BusinessUser> memberships = businessUserRepository.findByUserUsername(request.getUsername());
+
+		if (memberships.isEmpty()) {
+			throw new BusinessException("El usuario no pertenece a ningún negocio", ErrorType.FORBIDDEN);
+		}
+
+		if (memberships.size() > 1) {
+			throw new BusinessException("El usuario pertenece a varios negocios. Debe indicar el negocio",
+					ErrorType.VALIDATION);
+		}
+
+		return memberships.get(0);
 	}
 
 	@Override
