@@ -89,6 +89,29 @@ Verificado además **en el navegador** (`~/.local/opt/e2e/login-error.mjs`): el 
 
 Declaraba `iBusinessService` y **nunca lo inyectaba**, así que tiraba NPE en **cualquier** slug, válido o no: no era un estado equivocado, era un endpoint que no funcionaba. Corregida la inyección, responde **200** con el negocio y **404** con un slug inexistente. El test de nivel servicio que existía sólo porque la ruta no se podía alcanzar fue reemplazado por dos de nivel HTTP.
 
+#### El re-despacho a `/error` que pisaba el status (y por qué la suite no lo veía)
+
+Separar 401 de 403 expuso un bug **latente**. Las respuestas de seguridad que no llevan cuerpo —el 403 del
+`AccessDeniedHandler`, el 401 del entry point— hacen que el contenedor re-despache a `/error` con
+`DispatcherType.ERROR`. En ese segundo paso el filtro de JWT **ya no corre** (actúa una vez por request),
+así que el contexto es **anónimo**: la cadena denegaba su propio renderizado de error y el entry point
+**pisaba el status real**. Medido en vivo con un KITCHEN autenticado: el `AccessDeniedHandler` emitía
+**403** y la respuesta final salía **401**.
+
+Era latente, y por eso nadie lo había visto: mientras *toda* respuesta de seguridad fue 403, el pisotón
+daba el mismo código. Separar 401 de 403 lo hizo visible. Se cierra con
+`dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()` —renderizar un error ya decidido no puede
+conceder acceso a nada; lo que hace es impedir que la cadena pise su propio veredicto— y queda fijado por
+`SecurityErrorDispatchTests`, que pide el `DispatcherType.ERROR` a una ruta protegida: sin el fix
+reproduce el 401 (RED medido en MockMvc), con el fix pasa. Un test de control verifica que esa misma ruta
+sigue exigiendo token en el dispatch normal, para que la aserción no pueda cumplirse por vacuidad.
+
+**Ningún test HTTP común podía verlo**: MockMvc no pasa por el contenedor y nunca hace ese re-despacho, así
+que la suite reportaba 403 donde el servicio real devolvía 401. Lección de método: para un cambio de
+contrato HTTP **una suite verde no alcanza** — el contenedor hace cosas que MockMvc no hace, y la
+verificación en vivo no es un extra. El contrato completo se midió contra el backend real: anónimo 401,
+KITCHEN 403, OWNER 200, rutas públicas 200.
+
 ### Notas que conviene conservar
 
 - Sitios **sólo defensivos** (convertidos por honestidad, pero no alcanzables por HTTP): `UserServiceImpl.getLoginInfo` (ningún controller lo llama), los lookups de negocio derivados del JWT en `TableServiceImpl` y `CategoryServiceImpl`.

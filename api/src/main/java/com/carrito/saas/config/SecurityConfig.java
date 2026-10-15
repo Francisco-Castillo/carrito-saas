@@ -1,5 +1,7 @@
 package com.carrito.saas.config;
 
+import jakarta.servlet.DispatcherType;
+
 import org.springframework.boot.security.autoconfigure.actuate.web.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,6 +47,19 @@ public class SecurityConfig {
 	        )
 
 	        .authorizeHttpRequests(auth -> auth
+
+	            // El contenedor re-despacha a /error las respuestas de seguridad SIN
+	            // cuerpo (el 403 del AccessDeniedHandler, el 401 del entry point). En
+	            // ese segundo paso el filtro de JWT ya no corre —actúa una vez por
+	            // request— así que el contexto es ANÓNIMO. Sin esta regla la cadena
+	            // deniega su propio renderizado de error y el entry point PISA el
+	            // status real: un 403 legítimo de un usuario autenticado salía 401.
+	            // El bug era latente mientras TODA respuesta de seguridad fue 403
+	            // (el pisotón daba el mismo código) y quedó a la vista al separar
+	            // 401 (anónimo) de 403 (autenticado sin el rol exigido). MockMvc no
+	            // pasa por el contenedor, así que no hace ese re-despacho: lo fija
+	            // SecurityErrorDispatchTests y lo verifica la prueba en vivo.
+	            .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
 
 	            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
