@@ -175,6 +175,27 @@ the documentation commits); the reviewed code of commits 1-4 is otherwise
 identical. No new review is owed for a mechanical rebase, but a fresh review
 would be the honest call if the resolutions are ever revised.
 
+## Chained follow-up slice: feat/login-ui-cleanup
+
+Child branch of `feat/organic-login` (PR #42), which stays untouched and green.
+Scope of this slice — the two advisory findings that touch the login:
+
+- Commits: 60630c6 refactor(login) drops the restaurant chip and its slug-name
+  fetch/cache (`R2-001`, the nested ternary at `Login.tsx:227` disappears with
+  it); 765e416 fix(session) clears `restaurantSlug` on every logout path
+  (`auth.logout()`, `kds.logoutKds()`, the admin logout loop) per
+  `R3-logout-does-not-clear-session-slug`.
+- Verified: frontend vitest 18 files / 163 tests passed, `npx tsc -b` exit 0
+  (RED evidence per unit in the worker run: chip test, then the three
+  teardown paths).
+- Unchanged by design: the URL slug read, the conditional `restaurantSlug` in
+  the POST body, the session write/clear of the response slug, remember-me,
+  the role-based redirect, and the bare logout redirect.
+
+Out of scope for this slice: the multi-business selector, `R3-null-slug-api-base`
+(`dashboard/api.ts` still builds its base before the redirect fires) and
+`R2-002` (`PanelErrorStatusHttpTests.java:154`, backend).
+
 ## Notes
 
 - Base branch: develop. Feature branch: feat/organic-login (unpushed).
