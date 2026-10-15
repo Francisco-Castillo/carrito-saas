@@ -18,6 +18,8 @@ public class OrderKitchenDTO {
 
     private String customerName;
 
+    private String customerPhone;
+
     private OrderStatus status;
 
     private LocalDateTime createdAt;

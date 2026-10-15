@@ -44,27 +44,28 @@ jobs:
           java-version: "21"
           cache: maven
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
       - name: Verify
-        run: mvn -B --no-transfer-progress verify
+        # The `frontend` profile installs the frontend dependencies and builds
+        # the SPA into the static classpath (generate-resources) before the
+        # backend tests run, because the generated bundle is not versioned.
+        run: mvn -B --no-transfer-progress -Pfrontend verify
 
-      - name: Menu page contract tests (JS)
-        # menu/app.js has no Maven runner. This executes the real file in a node
-        # vm sandbox with a DOM/fetch stub and pins the customer-facing failure
-        # contract, so it must run here or it protects nothing.
-        run: node api/src/test/js/menu-app.test.mjs
-
-      - name: Frontend origin guard (JS)
-        # A hardcoded application origin in a client duplicates deployment
-        # data: the server port already flipped 9090 -> 8080 -> 9090 while
-        # admin.js kept the old host, which broke every admin API call. This
-        # guard keeps every static client on a relative /api base, so it must
-        # run here or it protects nothing.
-        run: node api/src/test/js/frontend-origin.test.mjs
-
-      - name: Page guard and login redirect contract (JS)
-        # The /kds and /dashboard inline guards and the login redirect chain
-        # have no Maven runner. This executes the real guard scripts and
-        # login.js in node vm sandboxes, so a wrong redirect target, a guard
-        # that keeps executing after redirecting, or a lost role destination
-        # fails CI here or it protects nothing.
-        run: node api/src/test/js/page-guard.test.mjs
+      - name: Frontend contract tests
+        # The three legacy Node contract runners (menu-app, page-guard,
+        # frontend-origin) used to execute the vanilla files in vm sandboxes.
+        # Those files no longer exist: the contracts now run against the React
+        # sources with Vitest, see frontend/tests/. They pin the customer-facing
+        # menu failure contract (missing slug / unloadable restaurant / failed
+        # or malformed menu fetch all stop with a readable message), the session
+        # guard and the login redirect chain (including dead tokens, blocked
+        # storage and a missing roles claim), the first-screen menu behaviour
+        # and the rule that no shipped client hardcodes the application origin.
+        working-directory: frontend
+        run: npm test

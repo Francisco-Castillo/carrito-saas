@@ -1,5 +1,8 @@
 # Feature: table-qr-links
 
+> **Superseded (2026-10-13):** el contrato JS de la carta digital ya no vive en `api/src/test/js/menu-app.test.mjs` (archivo eliminado con el frontend vanilla). Corre con Vitest en `frontend/tests/menu-contract.test.tsx`; ver `odd/tasks/ui-liquid-glass.md`.
+
+
 **Branch**: `fix-qr-mesa-links` (from `fix-pedidos-carta-qr`)
 **Status**: 2/2 tasks done and green; independent verification passed with no blocking findings.
 **Post-merge cleanup (on `develop`)**: the redundant test gap 6 describes was removed, so `QrPdfTemplateUrlTests`

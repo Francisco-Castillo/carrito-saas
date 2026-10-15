@@ -1,0 +1,685 @@
+/* ============================================================
+   KDS — Cocina
+   Liquid glass adaptado a entorno de cocina: legibilidad a
+   distancia > decoración. Paneles de vidrio MÁS OPACOS (>=70%
+   oscuros), tipografía grande, cantidades en negrita, targets
+   táctiles >=48px y códigos de color por estado:
+   nuevos = ámbar, preparando = azul, listos = verde
+   (misma semántica de color que kds.css:46-64 del legacy).
+   ============================================================ */
+
+.kds-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+.kds-fatal {
+  margin: 20vh auto 0;
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.kds-fatal h1 {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+}
+
+/* ------------------------------------------------------------
+   Topbar — vidrio sticky de ALTO contraste (kds.css:17-41 legacy)
+   ------------------------------------------------------------ */
+
+.kds-screen .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  /* Neutraliza el .topbar de Dashboard.css, que viaja en el mismo bundle */
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  min-height: 72px;
+  /* Panel más opaco que la receta estándar: el brillo de una cocina
+     no puede comerse el texto. */
+  background: rgba(8, 12, 22, 0.85);
+  border-bottom: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.kds-screen .title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.kds-screen .title h1 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.kds-restaurant {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Indicador de refresco / conexión en vivo */
+.refresh-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border-subtle);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.refresh-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-text-faint);
+  flex-shrink: 0;
+}
+
+.refresh-indicator.live .refresh-dot {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
+}
+
+.refresh-indicator.live {
+  color: var(--color-text);
+}
+
+/* Reloj — kds.css:139-153 legacy */
+.clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.clock-time {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.clock-date {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.kds-screen .logout-btn {
+  min-width: 48px; /* touch target ≥48px */
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: var(--font-size-lg);
+  transition: background var(--duration-fast) var(--ease-out-soft),
+    transform var(--duration-fast) var(--ease-out-soft);
+}
+
+.kds-screen .logout-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: scale(1.06);
+}
+
+.kds-screen .logout-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ------------------------------------------------------------
+   Kanban — 1 columna por estado en pantallas anchas,
+   apilado a ancho completo en mobile.
+   ------------------------------------------------------------ */
+
+.kanban {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  min-height: 0;
+  /* Neutraliza el `main` y `main section` de Dashboard.css */
+  max-width: none;
+  margin: 0;
+}
+
+.kanban section {
+  margin-bottom: 0;
+}
+
+@media (min-width: 900px) {
+  .kanban {
+    grid-template-columns: repeat(3, 1fr);
+    height: calc(100vh - 72px);
+    overflow: hidden;
+  }
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* Panel de columna muy opaco: legibilidad garantizada */
+  background: rgba(8, 12, 22, 0.78);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow), var(--glass-inset-highlight);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  overflow: hidden;
+}
+
+/* Solo el primer paint entra animado; los polls posteriores no
+   re-animan (no distraer en la cocina). */
+.first-paint .column-header {
+  animation: fade-up var(--duration-slow) var(--ease-out-soft) both;
+}
+
+.first-paint .column:nth-child(2) .column-header {
+  animation-delay: 100ms;
+}
+
+.first-paint .column:nth-child(3) .column-header {
+  animation-delay: 200ms;
+}
+
+.column-header {
+  padding: var(--space-4);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  text-align: center;
+  border-bottom: 2px solid transparent;
+}
+
+/* Colores por estado — misma semántica que kds.css:46-64 legacy */
+.column-new .column-header {
+  color: #f59e0b; /* ámbar */
+  border-bottom-color: rgba(245, 158, 11, 0.55);
+}
+
+.column-preparing .column-header {
+  color: #60a5fa; /* azul */
+  border-bottom-color: rgba(59, 130, 246, 0.55);
+}
+
+.column-ready .column-header {
+  color: #4ade80; /* verde */
+  border-bottom-color: rgba(34, 197, 94, 0.55);
+}
+
+.column-body {
+  flex: 1;
+  padding: var(--space-3);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.column-empty {
+  margin: 0;
+  padding: var(--space-5) var(--space-3);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-md);
+}
+
+/* ------------------------------------------------------------
+   Tarjeta de pedido — vidrio oscuro >=70%, tipografía grande.
+   Estructura de createCard (kds.js:133-262).
+   ------------------------------------------------------------ */
+
+.order-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: rgba(13, 18, 32, 0.8);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), var(--glass-inset-highlight);
+  cursor: grab;
+}
+
+.order-card:active {
+  cursor: grabbing;
+}
+
+.order-card.urgent {
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.7), 0 0 18px rgba(239, 68, 68, 0.45);
+}
+
+/* Número de pedido: lo más legible de la tarjeta */
+.order-number {
+  font-size: 2.5rem;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.1;
+  letter-spacing: 0.5px;
+}
+
+.customer {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+.order-type {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.order-type.pickup {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.order-type.delivery {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.order-items {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.item {
+  font-size: 1.25rem; /* 20px — legible a distancia */
+  line-height: 1.35;
+}
+
+.item-qty {
+  font-weight: var(--font-weight-bold);
+  color: var(--accent-fuchsia);
+  margin-right: 2px;
+}
+
+/* Notas — kds.css:109-131 legacy (borde ámbar + 📝) */
+.order-notes {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: rgba(245, 158, 11, 0.08);
+  border-left: 4px solid #f59e0b;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-md);
+  line-height: 1.3;
+  color: var(--color-text);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  max-height: 72px;
+  overflow: auto;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.order-notes-icon {
+  flex-shrink: 0;
+}
+
+/* Timer + progreso — kds.js:141-155 */
+.order-card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.timer {
+  font-size: 1.75rem;
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.timer.green {
+  color: #4ade80;
+}
+
+.timer.orange {
+  color: #fbbf24;
+}
+
+.timer.red {
+  color: #f87171;
+}
+
+.progress {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, #4ade80, #16a34a);
+  transition: width 1s linear;
+}
+
+/* Botones de acción grandes (targets >=48px) */
+.btn {
+  min-height: 52px;
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 1.125rem; /* 18px */
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: filter var(--duration-fast) var(--ease-out-soft),
+    transform var(--duration-fast) var(--ease-out-soft);
+}
+
+.btn:hover {
+  filter: brightness(1.1);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* Mismos colores de acción que kds.css:82-94 legacy */
+.btn-start {
+  background: #f59e0b;
+  color: #1a1206;
+}
+
+.btn-ready {
+  background: #22c55e;
+  color: #05230f;
+}
+
+.btn-delivered {
+  background: #374151;
+  color: #f8fafc;
+}
+
+/* ------------------------------------------------------------
+   Drag & swipe — kds.css:160-186 legacy
+   ------------------------------------------------------------ */
+
+.order-card.dragging {
+  position: fixed;
+  z-index: 1000;
+  cursor: grabbing;
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.7);
+  transition: none;
+}
+
+.order-card.transition {
+  transition: transform 0.3s ease;
+}
+
+.order-card.rotate {
+  transform-origin: center bottom;
+}
+
+.fade-in {
+  animation: kds-fade 0.25s ease;
+}
+
+@keyframes kds-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ------------------------------------------------------------
+   Modal de cancelación — index.html:120-143 + kds.css:196-330
+   ------------------------------------------------------------ */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  animation: kds-fade 0.25s ease;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 380px;
+  padding: var(--space-5);
+  background: rgba(13, 18, 32, 0.92);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow), var(--glass-inset-highlight);
+}
+
+.modal-content h3 {
+  margin: 0 0 var(--space-2);
+  text-align: center;
+  font-size: var(--font-size-lg);
+}
+
+.modal-content h3::after {
+  content: "";
+  display: block;
+  width: 40px;
+  height: 3px;
+  margin: var(--space-2) auto 0;
+  border-radius: 2px;
+  background: #f59e0b; /* color KDS — kds.css:331 legacy */
+}
+
+.modal-subtitle {
+  margin: 0 0 var(--space-3);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* Inputs — kds.css:314-349 legacy, contraste alto */
+.input {
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-md); /* 16px, legible */
+  outline: none;
+  transition: border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.input:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.input:focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+}
+
+/* Estado de error — kds.css:234-240 legacy */
+.input.error {
+  border-color: #f87171;
+  background: rgba(239, 68, 68, 0.08);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+select.input {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg width='20' height='20' fill='white' viewBox='0 0 20 20'%3E%3Cpath d='M5.5 7l4.5 4 4.5-4' stroke='white' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+select option {
+  background: #131826;
+  color: #f8fafc;
+}
+
+.modal-buttons {
+  margin-top: var(--space-3);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.modal-buttons .btn {
+  flex: 1;
+  margin-top: 0;
+}
+
+/* ------------------------------------------------------------
+   Toasts — toast.js + kds.css:333-380 legacy, patrón compartido
+   con el admin (toast arriba con borde por tipo).
+   ------------------------------------------------------------ */
+
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 100;
+}
+
+.toast {
+  min-width: 260px;
+  max-width: 340px;
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  background: rgba(13, 18, 32, 0.94);
+  border: 1px solid var(--glass-border-subtle);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transform: translateY(16px);
+  animation: toast-in 0.3s var(--ease-out-soft) forwards;
+}
+
+.toast.toast-out {
+  animation: toast-out 0.3s forwards;
+}
+
+.toast.success {
+  border-left: 4px solid #10b981;
+}
+
+.toast.error {
+  border-left: 4px solid #f87171;
+}
+
+.toast.warning {
+  border-left: 4px solid #f59e0b;
+}
+
+.toast.info {
+  border-left: 4px solid #60a5fa;
+}
+
+@keyframes toast-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+/* ------------------------------------------------------------
+   Reduced motion — nada re-anima en la cocina si el usuario
+   lo pide (además del bloque global de tokens.css).
+   ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .first-paint .column-header {
+    animation: none;
+  }
+
+  .fade-in,
+  .modal,
+  .toast,
+  .toast.toast-out {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .progress-bar {
+    transition: none;
+  }
+}

@@ -1,0 +1,215 @@
+/* ============================================================
+   Dashboard — liquid glass sobre los tokens de src/styles/tokens.css
+   Mobile-first: denso en desktop, usable a 390px.
+   ============================================================ */
+
+.dashboard-screen {
+  min-height: 100vh;
+  padding: var(--space-5) var(--space-4) var(--space-8);
+}
+
+/* ------------------------------------------------------------
+   Topbar — barra de vidrio sticky (título + fecha + salir)
+   ------------------------------------------------------------ */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  margin: calc(var(--space-5) * -1) calc(var(--space-4) * -1) var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  background: var(--glass-bg-strong);
+  border-bottom: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.title h1 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+#date {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+}
+
+.logout-btn {
+  min-height: 44px; /* touch target ≥44px */
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  transition: background var(--duration-fast) var(--ease-out-soft);
+}
+
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.logout-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.logout-btn svg {
+  opacity: 0.8;
+}
+
+/* ------------------------------------------------------------
+   Layout general
+   ------------------------------------------------------------ */
+
+/* Scoped al root del dashboard: un selector pelado `main` también aplicaba al
+   <main> del menú público (lo limitaba a 1100px y le sumaba márgenes). */
+.dashboard-screen main {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.dashboard-screen main section {
+  margin-bottom: var(--space-8);
+}
+
+/* Panel de vidrio con padding (chart-section, top-products, orders-status) */
+.panel {
+  padding: var(--space-5);
+}
+
+.panel h2 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Contenido tabular/lista scrolleable en horizontal en mobile sin romper layout */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ------------------------------------------------------------
+   KPI cards — grid responsive 1 → 2 → 4
+   ------------------------------------------------------------ */
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+.stat-card {
+  padding: 22px;
+}
+
+.stat-card span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.stat-card h2 {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+}
+
+/* ------------------------------------------------------------
+   Pedidos activos
+   ------------------------------------------------------------ */
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-4);
+}
+
+.status-card {
+  background: var(--glass-bg-subtle);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.status-card span {
+  color: var(--color-text-muted);
+}
+
+.status-card h3 {
+  font-size: var(--font-size-xl);
+  margin: var(--space-2) 0 0;
+}
+
+/* ------------------------------------------------------------
+   Ventas hoy (chart) y Top productos
+   ------------------------------------------------------------ */
+
+.chart-container {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  height: 320px;
+  margin: auto;
+}
+
+.top-products ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.top-products li {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.top-products li:last-child {
+  border-bottom: none;
+}
+
+/* ------------------------------------------------------------
+   Breakpoints — mobile first
+   ------------------------------------------------------------ */
+
+@media (min-width: 560px) {
+  .dashboard-screen {
+    padding: var(--space-6) var(--space-6) var(--space-8);
+  }
+
+  .topbar {
+    margin: calc(var(--space-6) * -1) calc(var(--space-6) * -1) var(--space-6);
+    padding: var(--space-4) var(--space-6);
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .panel {
+    padding: 25px;
+  }
+}
+
+@media (min-width: 960px) {
+  .stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

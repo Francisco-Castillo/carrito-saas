@@ -1,0 +1,1243 @@
+/* ============================================================
+   Menú (Carta Digital) — photo-first, liquid glass
+   Mobile-first; reuses tokens.css aurora + glass recipes.
+   Breakpoints: 640px (2-col grid), 768px (centred sheets),
+   1024px (3-col grid + cart sidebar).
+   ============================================================ */
+
+/* El ancho manda: la carta ocupa la pantalla en vez de apretarse en el centro.
+   El gutter vive en una variable porque la barra sticky lo usa para sangrar
+   hasta los bordes del contenedor. */
+.menu-screen {
+  --menu-gutter: clamp(var(--space-4), 2vw, var(--space-8));
+  min-height: 100vh;
+  max-width: 1720px;
+  margin: 0 auto;
+  padding: var(--space-3) var(--menu-gutter) var(--space-8);
+}
+
+/* Espacio para la barra de carrito fija en móvil */
+.menu-screen[data-cart-visible] {
+  padding-bottom: 132px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ------------------------------------------------------------
+   Portada del local (storefront) — banner + identidad + contacto
+
+   Se renderiza arriba de la barra sticky. Sin banner no hay bloque ni hueco:
+   la cabecera arranca directo. Cada dato faltante desaparece sin dejar espacio.
+   ------------------------------------------------------------ */
+
+.storefront {
+  margin: 0 0 var(--space-6);
+}
+
+.storefront-banner {
+  position: relative;
+  /* Altura acotada a propósito: con 16:6 el banner medía ~576px en una pantalla
+     de 1600 y se comía más de media pantalla antes del primer producto. Un
+     ancho completo con `object-fit: cover` deja ver el local sin tapar la carta. */
+  height: clamp(170px, 17vw, 260px);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border-subtle);
+  background: var(--glass-bg-subtle);
+  box-shadow: var(--glass-shadow);
+}
+
+@media (max-width: 639px) {
+  .storefront-banner {
+    /* En un teléfono el ancho disponible es chico: la misma idea, más baja. */
+    height: clamp(140px, 36vw, 190px);
+  }
+}
+
+.storefront-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Fundido al aurora: el borde inferior del banner se disuelve en el fondo. */
+.storefront-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(2, 6, 23, 0) 62%,
+    rgba(2, 6, 23, 0.6) 100%
+  );
+  pointer-events: none;
+}
+
+.storefront-head {
+  display: flex;
+  align-items: center;
+  /* Los pills de contacto viven acá dentro: en pantallas anchas se apoyan a
+     la derecha de la columna de info; en teléfonos bajan debajo (wrap). */
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+}
+
+/* El logo cabalga sobre el borde inferior del banner (sólo cuando hay banner:
+   el selector de hermano evita la superposición fantasma sin banner). */
+.storefront-banner + .storefront-head {
+  margin: -28px var(--space-4) 0;
+}
+
+.storefront-logo {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-subtle);
+  box-shadow: var(--glass-inset-highlight);
+}
+
+.storefront-titles {
+  min-width: 0;
+}
+
+.storefront-name {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.storefront-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+}
+
+.storefront-badge {
+  padding: 3px var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+}
+
+.storefront-badge.is-open {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.storefront-badge.is-closed {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+}
+
+.storefront-status-line {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.storefront-hours {
+  margin: 2px 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.storefront-contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  /* Anchas: tercera columna de la tarjeta, pegada al borde derecho. */
+  margin-left: auto;
+}
+
+@media (max-width: 639px) {
+  .storefront-contact {
+    /* Teléfonos: los pills bajan como fila propia debajo de la info. La
+       tarjeta crece una fila de pills (~52px), no más: la info y el logo
+       mantienen su altura (72px de logo > 44px de pills, no suman en ancho). */
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+}
+
+.storefront-link {
+  display: inline-flex;
+  align-items: center;
+  /* Objetivo táctil ≥44px, igual que el resto de la carta. */
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-subtle);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  transition:
+    background var(--duration-fast) var(--ease-out-soft),
+    border-color var(--duration-fast) var(--ease-out-soft);
+}
+
+.storefront-link:hover {
+  background: rgba(2, 6, 23, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.storefront-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.storefront-link--address {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------
+   Bloque de menú — encabezado + píldoras + secciones
+
+   Los filtros pertenecen al menú: el encabezado real y las píldoras viven
+   dentro del bloque, arriba de la primera sección. Nada de barra flotante.
+   ------------------------------------------------------------ */
+
+.menu-block-heading {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+/* ------------------------------------------------------------
+   Barra sticky de píldoras — vidrio SOLO mientras está pegada
+
+   En su lugar natural las píldoras son parte del bloque de menú: fondo
+   transparente, alineadas con el contenido. Cuando el sentinel (un elemento
+   de 1px justo antes de la barra, vigilado por IntersectionObserver) deja de
+   verse, la barra quedó pegada arriba y la pseudo-capa ::before enciende el
+   tratamiento de vidrio sangrado a los bordes del contenedor. El vidrio va en
+   ::before y no en la barra para que encenderlo/apagarlo no cambie ninguna
+   métrica de layout (cero salto al cruzar el umbral) y la opacidad haga la
+   transición suave.
+   ------------------------------------------------------------ */
+
+.menu-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  margin: 0 0 var(--space-1);
+  padding: var(--space-1) 0;
+}
+
+.menu-sticky::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(var(--menu-gutter) * -1);
+  z-index: -1;
+  pointer-events: none;
+  background: rgba(2, 6, 23, 0.62);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border-subtle);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out-soft);
+}
+
+.menu-sticky.is-stuck::before {
+  opacity: 1;
+}
+
+/* Sentinel del sticky: invisible (1px) y sin interacción; sólo marca el punto
+   donde la barra alcanza el borde superior. */
+.menu-sticky-sentinel {
+  height: 1px;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------
+   Navegación de categorías — píldoras sticky, scroll horizontal
+   ------------------------------------------------------------ */
+
+.menu-nav {
+  margin: 0;
+}
+
+.menu-nav-track {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: 0 0 var(--space-1);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.menu-nav-track::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-pill {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  /* Sin backdrop-filter a propósito: la píldora ya vive sobre la barra
+     desenfocada, y Chromium desenfoca el fondo en el RECTÁNGULO del border-box
+     sin respetar el border-radius, lo que dibujaba un halo cuadrado alrededor
+     de la cápsula. */
+  background: rgba(2, 6, 23, 0.72);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out-soft),
+    border-color var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft),
+    color var(--duration-fast) var(--ease-out-soft);
+}
+
+.nav-pill:hover {
+  background: rgba(2, 6, 23, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.nav-pill:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.nav-pill.active {
+  background: var(--accent-gradient);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: white;
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--button-glow);
+}
+
+/* ------------------------------------------------------------
+   Secciones — una por categoría, encabezado + grilla
+   ------------------------------------------------------------ */
+
+.menu-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.menu-section {
+  /* La barra sticky mide 61px (sólo píldoras, medido en el navegador): 80px
+     deja un respiro sin que el título quede tapado al navegar con las píldoras. */
+  scroll-margin-top: 80px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+.section-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Grilla: 1 col (móvil) → 2 (tablet) → 3 (desktop) */
+.menu-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .menu-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .menu-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Pantallas anchas: 4 columnas para aprovechar el ancho (tarjetas parecidas en
+   tamaño a las de 3 columnas en un viewport chico). */
+@media (min-width: 1440px) {
+  .menu-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ------------------------------------------------------------
+   Tarjeta de producto — la foto es la protagonista
+   ------------------------------------------------------------ */
+
+.product-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border-radius: var(--radius-md);
+  transition:
+    transform var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft),
+    border-color var(--duration-fast) var(--ease-out-soft);
+}
+
+.product-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: var(--glass-shadow-hover), var(--glass-inset-highlight);
+}
+
+.product-card:active {
+  transform: scale(0.985);
+}
+
+.product-open {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  padding: 0 0 var(--space-3);
+  border: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.product-open:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.product-media {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--glass-bg-subtle);
+  /* Reserva el box de la imagen: cero layout shift */
+}
+
+.product-media img,
+.product-media .food-placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform var(--duration-slow) var(--ease-out-soft);
+}
+
+.product-card:hover .product-media img {
+  transform: scale(1.05);
+}
+
+/* Placeholder intencional: gradiente teñido por categoría + glifo */
+.food-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  line-height: 1;
+}
+
+.food-placeholder[data-tint="indigo"] {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(2, 6, 23, 0.7));
+}
+
+.food-placeholder[data-tint="violet"] {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(2, 6, 23, 0.7));
+}
+
+.food-placeholder[data-tint="fuchsia"] {
+  background: linear-gradient(135deg, rgba(217, 70, 239, 0.35), rgba(2, 6, 23, 0.7));
+}
+
+.food-placeholder[data-tint="cyan"] {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.35), rgba(2, 6, 23, 0.7));
+}
+
+.product-badge {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 2;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--accent-gradient);
+  color: white;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: var(--glass-inset-highlight);
+}
+
+.product-badge--inline {
+  position: static;
+  align-self: flex-start;
+}
+
+.product-name {
+  margin: 0;
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.product-description {
+  margin: 0;
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.product-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-3);
+  margin-top: auto;
+}
+
+.product-price,
+.sheet-price {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  /* Mantiene el branding del local (legacy --primary-color) con fallback glass */
+  color: var(--primary-color, var(--accent-indigo));
+}
+
+/* --- Stepper de cantidad (− n +) — objetivos táctiles ≥44px --- */
+
+.qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-subtle);
+}
+
+.qty-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-subtle);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft),
+    filter var(--duration-fast) var(--ease-out-soft);
+}
+
+.qty-btn--plus {
+  background: var(--accent-gradient);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: white;
+  box-shadow: var(--glass-inset-highlight), var(--button-glow);
+}
+
+.qty-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: saturate(1.1);
+}
+
+.qty-btn--plus:hover:not(:disabled) {
+  box-shadow: var(--glass-inset-highlight), var(--button-glow),
+    0 14px 40px rgba(139, 92, 246, 0.4);
+}
+
+.qty-btn:active:not(:disabled) {
+  transform: scale(0.94);
+  filter: brightness(0.95);
+}
+
+.qty-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.qty-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.qty-value {
+  min-width: 28px;
+  text-align: center;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------
+   Skeletons — shimmer mientras carga la carta
+   ------------------------------------------------------------ */
+
+.menu-skeleton {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .menu-skeleton {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .menu-skeleton {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.skeleton-card {
+  padding: 0;
+}
+
+.skeleton-media {
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.skeleton-line {
+  height: 14px;
+  margin: var(--space-3);
+  border-radius: var(--radius-full);
+}
+
+.skeleton-line--short {
+  width: 45%;
+}
+
+.shimmer {
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.05) 40%,
+    rgba(255, 255, 255, 0.13) 50%,
+    rgba(255, 255, 255, 0.05) 60%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -80% 0;
+  }
+}
+
+/* ------------------------------------------------------------
+   Layout principal — main + sidebar del carrito (≥1024px)
+   ------------------------------------------------------------ */
+
+.menu-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .menu-screen[data-cart-visible] {
+    padding-bottom: var(--space-8);
+  }
+}
+
+/* ------------------------------------------------------------
+   Barra de carrito flotante — siempre visible cuando hay ítems
+
+   El carrito ya no se muestra al costado: agregar un producto sólo actualiza
+   esta barra y abrir el pedido es una acción explícita. La carta nunca cambia
+   de tamaño mientras el cliente elige (que era exactamente lo que molestaba).
+   ------------------------------------------------------------ */
+
+.cart-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* Centrada por márgenes automáticos y no por transform: la animación de
+     entrada usa transform y lo pisaría. */
+  margin-inline: auto;
+  width: min(560px, calc(100% - var(--space-4) * 2));
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: rgba(2, 6, 23, 0.78);
+  box-shadow: var(--glass-shadow);
+  animation: fade-up var(--duration-fast) var(--ease-out-soft) both;
+}
+
+.cart-bar-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.cart-bar-count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.cart-bar-total {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.cart-bar-open {
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--accent-gradient);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  box-shadow: var(--glass-inset-highlight), var(--button-glow);
+  transition:
+    transform var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft);
+}
+
+.cart-bar-open:hover {
+  transform: translateY(-2px);
+}
+
+.cart-bar-open:active {
+  transform: scale(0.96);
+}
+
+.cart-bar-open:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring), var(--button-glow);
+}
+
+/* ------------------------------------------------------------
+   Hojas (sheets) — bottom sheet en móvil, diálogo centrado ≥768px
+   ------------------------------------------------------------ */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: var(--space-3);
+  background: rgba(2, 6, 23, 0.6);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.sheet {
+  position: relative;
+  width: 100%;
+  max-height: min(88vh, 760px);
+  overflow-y: auto;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: rgba(15, 23, 42, 0.92);
+  animation: sheet-up var(--duration-slow) var(--ease-out-soft) both;
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 768px) {
+  .sheet-backdrop {
+    align-items: center;
+    padding: var(--space-6);
+  }
+
+  .sheet {
+    width: auto;
+    min-width: min(560px, 100%);
+    border-radius: var(--radius-lg);
+    animation: fade-up var(--duration-slow) var(--ease-out-soft) both;
+  }
+}
+
+/* El carrito en pantallas grandes es un panel lateral superpuesto: no reacomoda
+   la grilla ni cambia el tamaño de las tarjetas. El detalle del plato sigue
+   centrado (768px+) porque no comparte este modificador. */
+@media (min-width: 1024px) {
+  .sheet-backdrop--drawer {
+    justify-content: flex-end;
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .sheet-backdrop--drawer .sheet {
+    width: min(440px, 100%);
+    min-width: 0;
+    max-height: none;
+    height: 100%;
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    animation: drawer-in var(--duration-slow) var(--ease-out-soft) both;
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.sheet-close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: rgba(2, 6, 23, 0.65);
+  color: var(--color-text);
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out-soft);
+}
+
+.sheet-close:hover {
+  background: rgba(2, 6, 23, 0.9);
+}
+
+.sheet-close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* --- Hoja de detalle de producto --- */
+
+.sheet-media {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--glass-bg-subtle);
+}
+
+.sheet-media img,
+.sheet-media .food-placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.sheet-name {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.sheet-description {
+  margin: 0;
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.sheet-price {
+  font-size: var(--font-size-lg);
+}
+
+.sheet-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.sheet-add {
+  flex: 1;
+}
+
+/* ------------------------------------------------------------
+   Carrito (sidebar ≥1024px / hoja en móvil)
+   ------------------------------------------------------------ */
+
+.cart {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+}
+
+.cart-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+.cart-lines {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--glass-border-subtle);
+}
+
+.cart-thumb {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  font-size: 20px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border-subtle);
+}
+
+.cart-line-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.cart-line-name {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+}
+
+.cart-line-total {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cart-total {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Formulario del pedido (restyle glass) --- */
+
+.order-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.order-input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border-subtle);
+  background: var(--input-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  box-shadow: var(--glass-inset-highlight);
+  transition:
+    border-color var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft),
+    background var(--duration-fast) var(--ease-out-soft);
+}
+
+.order-input::placeholder {
+  color: var(--color-text-faint);
+}
+
+.order-input:hover {
+  border-color: var(--glass-border);
+}
+
+.order-input:focus-visible {
+  outline: none;
+  border-color: var(--accent-violet);
+  background: rgba(2, 6, 23, 0.6);
+  box-shadow: var(--focus-ring), var(--glass-inset-highlight);
+}
+
+.order-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+  padding-right: var(--space-8);
+  cursor: pointer;
+}
+
+.order-select option {
+  background: #0f172a;
+  color: var(--color-text);
+}
+
+.order-textarea {
+  resize: none;
+  min-height: 64px;
+}
+
+/* Reveal animado del campo dirección (solo DELIVERY) */
+.order-address-reveal {
+  animation: reveal-down var(--duration-fast) var(--ease-out-soft) both;
+}
+
+@keyframes reveal-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pago: control segmentado de dos opciones */
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: var(--input-bg);
+}
+
+.segment {
+  min-height: 44px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out-soft),
+    color var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft);
+}
+
+.segment:hover {
+  color: var(--color-text);
+}
+
+.segment:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.segment[aria-pressed="true"] {
+  background: var(--accent-gradient);
+  color: white;
+  box-shadow: var(--button-glow);
+}
+
+/* --- Botón de envío --- */
+
+.cart-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-sm);
+  background: var(--accent-gradient);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: var(--glass-inset-highlight), var(--button-glow);
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft),
+    filter var(--duration-fast) var(--ease-out-soft);
+}
+
+.cart-submit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 80% at 50% 0%,
+    rgba(255, 255, 255, 0.25),
+    rgba(255, 255, 255, 0) 55%
+  );
+  pointer-events: none;
+}
+
+.cart-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-inset-highlight), var(--button-glow),
+    0 14px 40px rgba(139, 92, 246, 0.4);
+  filter: saturate(1.1);
+}
+
+.cart-submit:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(0.95);
+}
+
+.cart-submit:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring), var(--glass-inset-highlight), var(--button-glow);
+}
+
+.cart-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+/* ------------------------------------------------------------
+   Error de carga — fin de camino legible para el cliente
+   ------------------------------------------------------------ */
+
+.menu-load-error {
+  margin: var(--space-6) auto;
+  max-width: 520px;
+  padding: var(--space-5) var(--space-6);
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  text-align: center;
+  color: var(--color-text);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+/* ------------------------------------------------------------
+   Reduced motion — sin scroll suave (JS), ni animaciones
+   ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-sticky::before {
+    transition: none;
+  }
+  .product-card,
+  .product-card:hover,
+  .product-card:active,
+  .product-media img,
+  .qty-btn,
+  .nav-pill,
+  .cart-submit,
+  .cart-bar-open,
+  .sheet-close,
+  .segment {
+    transition: none;
+  }
+
+  .shimmer,
+  .sheet,
+  .order-address-reveal,
+  .cart-bar {
+    animation: none;
+  }
+}

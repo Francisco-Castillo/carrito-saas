@@ -21,6 +21,10 @@ public class BusinessMapperImpl implements IBusinessMapper{
         entity.setName(dto.getName());
         entity.setSlug(dto.getSlug());
         entity.setPhone(dto.getWhatsappNumber());
+        entity.setLogoUrl(dto.getLogoUrl());
+        entity.setBannerUrl(dto.getBannerUrl());
+        entity.setAddress(dto.getAddress());
+        entity.setInstagramUrl(dto.getInstagramUrl());
 
         return entity;
 	}
@@ -33,6 +37,13 @@ public class BusinessMapperImpl implements IBusinessMapper{
         dto.setName(entity.getName());
         dto.setSlug(entity.getSlug());
         dto.setWhatsappNumber(entity.getPhone());
+        dto.setLogoUrl(entity.getLogoUrl());
+        dto.setBannerUrl(entity.getBannerUrl());
+        dto.setAddress(entity.getAddress());
+        dto.setInstagramUrl(entity.getInstagramUrl());
+        // Las horas las completa el llamador (MenuServiceImpl las trae del
+        // repositorio); el mapper solo mapea campos de la propia entidad.
+        dto.setHours(null);
 
         return dto;
 	}

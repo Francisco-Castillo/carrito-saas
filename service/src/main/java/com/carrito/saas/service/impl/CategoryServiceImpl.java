@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.carrito.saas.dto.CategoryDTO;
+import com.carrito.saas.exception.BusinessException;
+import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.repository.jpa.BusinessRepository;
@@ -40,10 +42,10 @@ public class CategoryServiceImpl implements ICategoryService {
 		
 	
 		if (dto.getName() == null || dto.getName().isBlank())
-			throw new RuntimeException("Nombre requerido");
+			throw new BusinessException("El nombre de la categoría es obligatorio", ErrorType.VALIDATION);
 
 		Business business = businessRepository.findById(businessId)
-				.orElseThrow(() -> new RuntimeException("Restaurante no encontrado"));
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 		String normalizedName = dto.getName().trim();
 
@@ -67,7 +69,7 @@ public class CategoryServiceImpl implements ICategoryService {
 	@Override
 	@Transactional
 	public CategoryDTO actualizarCategoria(Long id, CategoryDTO dto) {
-		Category c = categoryRepository.findById(id).orElseThrow(() -> new RuntimeException("Categoria no encontrada"));
+		Category c = categoryRepository.findById(id).orElseThrow(() -> new BusinessException("Categoría no encontrada", ErrorType.NOT_FOUND));
 
 		if (dto.getName() != null)
 			c.setName(dto.getName());
@@ -86,7 +88,7 @@ public class CategoryServiceImpl implements ICategoryService {
 	public void ordenarCategorias(List<Long> idsOrdenados) {
 		for (int i = 0; i < idsOrdenados.size(); i++) {
 			Category c = categoryRepository.findById(idsOrdenados.get(i))
-					.orElseThrow(() -> new RuntimeException("Categoria no encontrada"));
+					.orElseThrow(() -> new BusinessException("Categoría no encontrada", ErrorType.NOT_FOUND));
 			c.setOrden(i + 1);
 			categoryRepository.save(c);
 		}
@@ -108,7 +110,7 @@ public class CategoryServiceImpl implements ICategoryService {
 	@Override
 	public CategoryDTO findById(Long id) {
 		Category categoria = categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Categoría no encontrada con id: " + id));
+                .orElseThrow(() -> new BusinessException("Categoría no encontrada", ErrorType.NOT_FOUND));
 		return iCategoryMapper.toDTO(categoria);
 	}
 

@@ -57,6 +57,23 @@ public class SecurityConfig {
 	                "/dashboard/**"
 	            ).permitAll()
 
+	            // Shell de la SPA (Vite) y assets publicos que referencia:
+	            // sin esto el bundle en /assets/** responde 403 y ninguna
+	            // pantalla carga, porque cualquier ruta no listada exige token.
+	            .requestMatchers(
+	                "/",
+	                "/index.html",
+	                "/assets/**",
+	                "/favicon.svg",
+	                "/favicon.ico",
+	                "/ding.mp3",
+	                "/ready.mp3",
+	                // Fotos de demo del seed (docs/dev-seed.sql): son assets
+	                // publicos de la carta, igual que las imagenes de producto
+	                // que subiria un negocio real.
+	                "/dev-media/**"
+	            ).permitAll()
+
 	            // Actuator (incluye Prometheus)
 	            .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
 
@@ -64,11 +81,13 @@ public class SecurityConfig {
 	            .requestMatchers("/api/menu/**").permitAll()
 	            .requestMatchers("/menu/**").permitAll()
 
-	            // Restaurante público
+	            // Restaurante público (slug lookup del menú público y login;
+	            // el slug es público porque va impreso en el QR)
 	            .requestMatchers("/api/restaurants/slug/**").permitAll()
 
-	            // Crear restaurantes
-	            .requestMatchers("/api/restaurants/**").permitAll()
+	            // Todo lo demás bajo /api/restaurants/** (dashboard, analytics,
+	            // users, QR, tables) exige token: los KPIs del negocio no pueden
+	            // ser públicos solo porque el slug lo sea.
 
 	            // Websocket
 	            .requestMatchers("/ws/**").permitAll()

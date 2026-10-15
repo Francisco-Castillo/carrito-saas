@@ -41,8 +41,13 @@ public class IComboMapperImpl implements IComboMapper {
 
 	@Override
 	public List<ComboDTO> toListDTO(List<Combo> entities) {
-		// TODO Auto-generated method stub
-		return null;
+		if (entities == null) {
+			return null;
+		}
+
+		return entities.stream()
+				.map(this::toDTO)
+				.toList();
 	}
 
 }

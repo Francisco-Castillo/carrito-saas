@@ -1,5 +1,8 @@
 # Feature: kds-access
 
+> **Superseded (2026-10-13):** el guard de sesión ya no vive en `api/src/test/js/page-guard.test.mjs` (archivo eliminado con el frontend vanilla). Corre con Vitest en `frontend/tests/session-guard.test.ts` y `frontend/tests/login-redirect.test.tsx`; ver `odd/tasks/ui-liquid-glass.md`.
+
+
 ## Objective
 
 Que una persona con sesión pueda abrir la pantalla de cocina (KDS) y el dashboard, y que el login deje de rechazar el rol que realmente existe en los datos.
