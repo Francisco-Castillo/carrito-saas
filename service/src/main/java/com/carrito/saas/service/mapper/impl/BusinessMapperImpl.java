@@ -6,28 +6,11 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.carrito.saas.dto.BusinessDTO;
-import com.carrito.saas.dto.CategoryDTO;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.service.mapper.interfaces.IBusinessMapper;
 
 @Component
 public class BusinessMapperImpl implements IBusinessMapper{
-
-	@Override
-	public Business toEntity(BusinessDTO dto) {
-		Business entity = new Business();
-
-        entity.setId(dto.getId());
-        entity.setName(dto.getName());
-        entity.setSlug(dto.getSlug());
-        entity.setPhone(dto.getWhatsappNumber());
-        entity.setLogoUrl(dto.getLogoUrl());
-        entity.setBannerUrl(dto.getBannerUrl());
-        entity.setAddress(dto.getAddress());
-        entity.setInstagramUrl(dto.getInstagramUrl());
-
-        return entity;
-	}
 
 	@Override
 	public BusinessDTO toDTO(Business entity) {

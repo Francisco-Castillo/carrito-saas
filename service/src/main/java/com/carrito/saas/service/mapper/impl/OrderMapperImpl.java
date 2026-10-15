@@ -16,12 +16,6 @@ import com.carrito.saas.service.mapper.interfaces.IOrderMapper;
 public class OrderMapperImpl implements IOrderMapper {
 
 	@Override
-	public Order toEntity(OrderDTO dto) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	public OrderDTO toDTO(Order entity) {
 		if (entity == null) {
 			return null;
@@ -72,8 +66,9 @@ public class OrderMapperImpl implements IOrderMapper {
 
 	@Override
 	public List<OrderDTO> toListDTO(List<Order> entities) {
-		// TODO Auto-generated method stub
-		return null;
+		List<OrderDTO> lista = new ArrayList<OrderDTO>();
+		entities.forEach(entity -> lista.add(toDTO(entity)));
+		return lista;
 	}
 
 	

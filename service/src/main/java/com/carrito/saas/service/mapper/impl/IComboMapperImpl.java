@@ -13,12 +13,6 @@ import com.carrito.saas.service.mapper.interfaces.IComboMapper;
 public class IComboMapperImpl implements IComboMapper {
 
 	@Override
-	public Combo toEntity(ComboDTO dto) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	public ComboDTO toDTO(Combo entity) {
 		ComboDTO dto = new ComboDTO();
 
