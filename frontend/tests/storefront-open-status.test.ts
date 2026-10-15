@@ -13,14 +13,20 @@
  * (new Date(y, m, d, hh, mm)): cero sorpresas de zona horaria.
  */
 import { describe, expect, it } from "vitest";
-import { getOpenStatus } from "../src/pages/menu/openStatus";
-import type { BusinessHours } from "../src/pages/menu/types";
+import { getOpenStatus, nextStatusBoundaryAt } from "../src/pages/menu/openStatus";
+import type { BusinessHours, DateException } from "../src/pages/menu/types";
 
 const d = (day: number, hh: number, mm: number) => new Date(2024, 0, day, hh, mm, 0);
 
 /** Día con sus turnos como pares [opensAt, closesAt]; sin pares = día cerrado. */
 const h = (dayOfWeek: number, ...pairs: Array<[string, string]>): BusinessHours => ({
   dayOfWeek,
+  shifts: pairs.map(([opensAt, closesAt]) => ({ opensAt, closesAt })),
+});
+
+/** Excepción por fecha con sus turnos como pares; sin pares = feriado cerrado. */
+const ex = (date: string, ...pairs: Array<[string, string]>): DateException => ({
+  date,
   shifts: pairs.map(([opensAt, closesAt]) => ({ opensAt, closesAt })),
 });
 
@@ -200,5 +206,119 @@ describe("getOpenStatus — próxima apertura (copiado)", () => {
   it("sin ninguna apertura dentro de los siete días siguientes → null", () => {
     const s = getOpenStatus([h(7)], d(1, 12, 0));
     expect(s.nextOpeningLine).toBeNull();
+  });
+});
+
+describe("getOpenStatus — excepciones por fecha (feriados y horarios especiales)", () => {
+  // Enero 2024: el 4/1 es jueves, el 5/1 viernes y el 6/1 sábado.
+  it("un feriado de HOY cierra aunque el día de la semana diga lo contrario", () => {
+    const hours = [h(5, ["11:00:00", "23:00:00"])];
+    const exceptions = [ex("2024-01-05")]; // viernes 5/1: cerrado
+    const s = getOpenStatus(hours, d(5, 13, 0), exceptions);
+    expect(s.open).toBe(false);
+    expect(s.closingLine).toBeNull();
+    expect(s.todayLine).toBe("Cerrado");
+  });
+
+  it("un feriado con horario propio abre dentro de él, cierra fuera y nombra SU cierre", () => {
+    const hours = [h(5, ["11:00:00", "23:00:00"])];
+    const exceptions = [ex("2024-01-05", ["11:00:00", "18:00:00"])];
+
+    const abierto = getOpenStatus(hours, d(5, 13, 0), exceptions);
+    expect(abierto.open).toBe(true);
+    expect(abierto.closingLine).toBe("Cierra a las 18:00");
+    expect(abierto.todayLine).toBe("11:00–18:00");
+
+    const cerrado = getOpenStatus(hours, d(5, 19, 0), exceptions);
+    expect(cerrado.open).toBe(false);
+    // La próxima apertura vuelve a salir de la plantilla (el sábado abre).
+    const conSabado = [h(5, ["11:00:00", "23:00:00"]), h(6, ["11:00:00", "23:00:00"])];
+    expect(getOpenStatus(conSabado, d(5, 19, 0), exceptions).nextOpeningLine).toBe(
+      "Abre mañana a las 11:00",
+    );
+  });
+
+  it("un feriado que cruza la medianoche mantiene abierto la madrugada siguiente", () => {
+    // Noche especial del jueves 4/1: 20:00 → 02:00, aunque el jueves de la
+    // plantilla cierre a las 23:00. Viernes 00:30: sigue la noche especial.
+    const hours = [h(4, ["11:00:00", "23:00:00"]), h(5, ["11:00:00", "23:00:00"])];
+    const exceptions = [ex("2024-01-04", ["20:00:00", "02:00:00"])];
+    const s = getOpenStatus(hours, d(5, 0, 30), exceptions);
+    expect(s.open).toBe(true);
+    expect(s.closingLine).toBe("Cierra a las 02:00");
+  });
+
+  it("un AYER que fue feriado NO derrama desde la plantilla del día de la semana", () => {
+    // El jueves de la plantilla cruza la medianoche, pero el 4/1 fue feriado:
+    // viernes 00:30 es cerrado aunque la plantilla del jueves diga lo contrario.
+    const hours = [h(4, ["20:00:00", "02:00:00"]), h(5, ["11:00:00", "23:00:00"])];
+    const exceptions = [ex("2024-01-04")];
+    const s = getOpenStatus(hours, d(5, 0, 30), exceptions);
+    expect(s.open).toBe(false);
+    expect(s.closingLine).toBeNull();
+  });
+
+  it("la próxima apertura se saltea el feriado y nombra la apertura REAL", () => {
+    const lunesAViernes = [1, 2, 3, 4, 5].map((day) => h(day, ["11:00:00", "23:00:00"]));
+    const exceptions = [ex("2024-01-03")]; // miércoles 3/1: cerrado
+    // Martes 23:30: la nocturna del martes ya cerró (23:00); el miércoles es
+    // feriado, así que la apertura real es la del jueves.
+    const s = getOpenStatus(lunesAViernes, d(2, 23, 30), exceptions);
+    expect(s.open).toBe(false);
+    expect(s.nextOpeningLine).toBe("Abre el jueves a las 11:00");
+  });
+
+  it("una fecha que NO está en la lista sigue siendo un día normal (regresión)", () => {
+    const hours = [h(5, ["11:00:00", "23:00:00"])];
+    const exceptions = [ex("2024-01-06", ["12:00:00", "18:00:00"])]; // sólo el sábado
+    const s = getOpenStatus(hours, d(5, 13, 0), exceptions);
+    expect(s.open).toBe(true);
+    expect(s.closingLine).toBe("Cierra a las 23:00");
+    expect(s.todayLine).toBe("11:00–23:00");
+  });
+
+  it("sin excepciones (lista vacía o ausente) el comportamiento es el de la plantilla semanal", () => {
+    const hours = [h(5, ["11:00:00", "15:00:00"], ["19:00:00", "23:00:00"])];
+    for (const exceptions of [[], undefined]) {
+      const s = getOpenStatus(hours, d(5, 13, 0), exceptions);
+      expect(s.open).toBe(true);
+      expect(s.closingLine).toBe("Cierra a las 15:00");
+      expect(s.todayLine).toBe("11:00–15:00 y 19:00–23:00");
+    }
+  });
+
+  it("la fecha es la LOCAL: de noche no confunde el día con el UTC", () => {
+    // Viernes 5/1 22:00 en Buenos Aires (UTC-3) = sábado 6/1 01:00 UTC:
+    // `toISOString().slice(0,10)` diría 2024-01-06 y el feriado se perdería.
+    const prevTz = process.env.TZ;
+    process.env.TZ = "America/Argentina/Buenos_Aires";
+    try {
+      const hours = [h(5, ["11:00:00", "23:00:00"]), h(6, ["11:00:00", "23:00:00"])];
+      const exceptions = [ex("2024-01-05")]; // viernes 5/1: cerrado
+      const s = getOpenStatus(hours, d(5, 22, 0), exceptions);
+      expect(s.open).toBe(false);
+      expect(s.todayLine).toBe("Cerrado");
+    } finally {
+      if (prevTz === undefined) delete process.env.TZ;
+      else process.env.TZ = prevTz;
+    }
+  });
+});
+
+describe("nextStatusBoundaryAt — excepciones por fecha", () => {
+  it("agenda el borde del feriado con horario propio, no el del día de la semana", () => {
+    const hours = [h(5, ["11:00:00", "23:00:00"])];
+    const exceptions = [ex("2024-01-05", ["11:00:00", "18:00:00"])];
+    expect(nextStatusBoundaryAt(hours, d(5, 12, 0), exceptions)).toBe(
+      new Date(2024, 0, 5, 18, 0).getTime(),
+    );
+  });
+
+  it("un feriado cerrado no aporta bordes: el próximo es la apertura del día siguiente", () => {
+    const hours = [h(5, ["11:00:00", "23:00:00"]), h(6, ["11:00:00", "23:00:00"])];
+    const exceptions = [ex("2024-01-05")];
+    expect(nextStatusBoundaryAt(hours, d(5, 12, 0), exceptions)).toBe(
+      new Date(2024, 0, 6, 11, 0).getTime(),
+    );
   });
 });

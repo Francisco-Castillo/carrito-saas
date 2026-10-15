@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getOpenStatus, nextStatusBoundaryAt } from "./openStatus";
-import type { BusinessHours } from "./types";
+import type { BusinessHours, DateException } from "./types";
 
 /**
  * El estado abierto/cerrado de la portada, refrescado SOLO cuando puede
@@ -24,8 +24,16 @@ import type { BusinessHours } from "./types";
  */
 const FALLBACK_RECHECK_MS = 60_000;
 
-export function useOpenStatus(hours: BusinessHours[] | null | undefined) {
-  const hoursKey = useMemo(() => JSON.stringify(hours ?? null), [hours]);
+export function useOpenStatus(
+  hours: BusinessHours[] | null | undefined,
+  dateExceptions?: DateException[] | null,
+) {
+  // Las excepciones entran en la clave: una lista que cambia bajo el mismo
+  // `hours` tiene que re-agendar el timeout y recalcular el badge.
+  const hoursKey = useMemo(
+    () => JSON.stringify([hours ?? null, dateExceptions ?? null]),
+    [hours, dateExceptions],
+  );
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -33,7 +41,7 @@ export function useOpenStatus(hours: BusinessHours[] | null | undefined) {
 
     const scheduleNextBoundary = () => {
       if (timeoutId !== undefined) clearTimeout(timeoutId);
-      const at = nextStatusBoundaryAt(hours, new Date());
+      const at = nextStatusBoundaryAt(hours, new Date(), dateExceptions);
       timeoutId = at === null ? undefined : setTimeout(tick, at - Date.now());
     };
 
@@ -55,10 +63,10 @@ export function useOpenStatus(hours: BusinessHours[] | null | undefined) {
       clearInterval(fallbackId);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-    // `hours` se captura por closure; la clave serializada garantiza que el
-    // efecto se re-ejecute exactamente cuando los DATOS cambian.
+    // `hours` y `dateExceptions` se capturan por closure; la clave serializada
+    // garantiza que el efecto se re-ejecute exactamente cuando los DATOS cambian.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hoursKey]);
 
-  return useMemo(() => getOpenStatus(hours, now), [hoursKey, now]);
+  return useMemo(() => getOpenStatus(hours, now, dateExceptions), [hoursKey, now]);
 }

@@ -52,6 +52,22 @@ export interface BusinessHours {
 }
 
 /**
+ * Una fecha excepcional del calendario (feriado o día con horario especial),
+ * tal como la sirve el backend en el perfil y en `business` del payload del
+ * menú (`dateExceptions`, ordenada por fecha). `date` es "YYYY-MM-DD" y
+ * `shifts` tiene la MISMA forma que los turnos de un día.
+ *
+ * La semántica es la INVERSA de `business_hours`: una fecha presente con
+ * `shifts: []` ES un feriado cerrado, pero una fecha AUSENTE de la lista es
+ * un día normal (rige la plantilla de su día de la semana) — no hace falta
+ * declarar los 364 días restantes.
+ */
+export interface DateException {
+  date: string;
+  shifts: BusinessHoursShift[];
+}
+
+/**
  * Storefront (portada) del local, tal como lo sirve `GET /api/menu/{slug}`
  * dentro de `business`. Todo es opcional: un local sin portada no renderiza
  * nada nuevo en la carta.
@@ -66,6 +82,7 @@ export interface StorefrontBusiness {
   address?: string | null;
   instagramUrl?: string | null;
   hours?: BusinessHours[] | null;
+  dateExceptions?: DateException[] | null;
 }
 
 export interface MenuResponse {

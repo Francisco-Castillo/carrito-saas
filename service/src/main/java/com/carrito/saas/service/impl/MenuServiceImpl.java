@@ -1,7 +1,9 @@
 package com.carrito.saas.service.impl;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -13,15 +15,18 @@ import com.carrito.saas.dto.BusinessHoursDTO;
 import com.carrito.saas.dto.BusinessShiftDTO;
 import com.carrito.saas.dto.CategoryDTO;
 import com.carrito.saas.dto.ComboDTO;
+import com.carrito.saas.dto.DateExceptionDTO;
 import com.carrito.saas.dto.MenuDTO;
 import com.carrito.saas.dto.ProductDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
+import com.carrito.saas.repository.entity.BusinessDateException;
 import com.carrito.saas.repository.entity.BusinessHours;
 import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.repository.entity.Combo;
 import com.carrito.saas.repository.entity.Product;
+import com.carrito.saas.repository.jpa.BusinessDateExceptionRepository;
 import com.carrito.saas.repository.jpa.BusinessHoursRepository;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.CategoryRepository;
@@ -38,6 +43,7 @@ public class MenuServiceImpl implements IMenuService {
 
 	private final BusinessRepository businessRepository;
 	private final BusinessHoursRepository businessHoursRepository;
+	private final BusinessDateExceptionRepository businessDateExceptionRepository;
 	private final CategoryRepository categoryRepository;
 	private final ProductRepository productRepository;
 	private final ComboRepository comboRepository;
@@ -47,11 +53,12 @@ public class MenuServiceImpl implements IMenuService {
 	private final IComboMapper iComboMapper;
 
 	public MenuServiceImpl(BusinessRepository businessRepository, BusinessHoursRepository businessHoursRepository,
-			CategoryRepository categoryRepository,
+			BusinessDateExceptionRepository businessDateExceptionRepository, CategoryRepository categoryRepository,
 			ProductRepository productRepository, ComboRepository comboRepository, IBusinessMapper iBusinessMapper,
 			ICategoryMapper iCategoryMapper, IProductMapper iProductMapper, IComboMapper iComboMapper) {
 		this.businessRepository = businessRepository;
 		this.businessHoursRepository = businessHoursRepository;
+		this.businessDateExceptionRepository = businessDateExceptionRepository;
 		this.categoryRepository = categoryRepository;
 		this.productRepository = productRepository;
 		this.comboRepository = comboRepository;
@@ -86,6 +93,12 @@ public class MenuServiceImpl implements IMenuService {
 		// que inferir "el día que falta es un día cerrado".
 		menu.getBusiness().setHours(toSevenDayDTOs(businessHoursRepository
 				.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(business.getId())));
+
+		// Las fechas especiales viajan en el mismo payload del negocio, ordenadas
+		// por fecha, con la lista de turnos vacía en las cerradas — así la carta
+		// resuelve el 25/12 con la misma forma que un día de la semana.
+		menu.getBusiness().setDateExceptions(toDateExceptionDTOs(businessDateExceptionRepository
+				.findByBusiness_IdOrderByDateAscPositionAsc(business.getId())));
 
 		List<CategoryDTO> categoryDTOs = categories.stream().map(iCategoryMapper::toDTO).collect(Collectors.toList());
 
@@ -122,6 +135,33 @@ public class MenuServiceImpl implements IMenuService {
 			days.add(dto);
 		}
 		return days;
+	}
+
+	/** Igual que en {@code BusinessProfileServiceImpl}: las fechas ordenadas, con la lista vacía en las cerradas. */
+	private static List<DateExceptionDTO> toDateExceptionDTOs(List<BusinessDateException> rows) {
+
+		// Las filas vienen por (date, position): el LinkedHashMap conserva el
+		// orden de fechas. La fila marcadora (opensAt NULL) deja la lista vacía.
+		Map<LocalDate, List<BusinessShiftDTO>> shiftsByDate = new LinkedHashMap<>();
+		for (BusinessDateException row : rows) {
+			List<BusinessShiftDTO> shifts = shiftsByDate.computeIfAbsent(row.getDate(), date -> new ArrayList<>());
+			if (row.getOpensAt() == null) {
+				continue;
+			}
+			BusinessShiftDTO shift = new BusinessShiftDTO();
+			shift.setOpensAt(row.getOpensAt());
+			shift.setClosesAt(row.getClosesAt());
+			shifts.add(shift);
+		}
+
+		List<DateExceptionDTO> dates = new ArrayList<>(shiftsByDate.size());
+		for (Map.Entry<LocalDate, List<BusinessShiftDTO>> entry : shiftsByDate.entrySet()) {
+			DateExceptionDTO dto = new DateExceptionDTO();
+			dto.setDate(entry.getKey());
+			dto.setShifts(entry.getValue());
+			dates.add(dto);
+		}
+		return dates;
 	}
 
 }

@@ -1,9 +1,11 @@
 package com.carrito.saas.service.impl;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,10 +17,13 @@ import org.springframework.transaction.annotation.Transactional;
 import com.carrito.saas.dto.BusinessHoursDTO;
 import com.carrito.saas.dto.BusinessProfileDTO;
 import com.carrito.saas.dto.BusinessShiftDTO;
+import com.carrito.saas.dto.DateExceptionDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
+import com.carrito.saas.repository.entity.BusinessDateException;
 import com.carrito.saas.repository.entity.BusinessHours;
+import com.carrito.saas.repository.jpa.BusinessDateExceptionRepository;
 import com.carrito.saas.repository.jpa.BusinessHoursRepository;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.security.ISecurityService;
@@ -40,6 +45,24 @@ import com.carrito.saas.service.interfaces.IBusinessProfileService;
  * cual). La igualdad se rechaza porque es ambigua (¿cero horas o 24?).
  * Un día sin turnos es un día cerrado.</p>
  *
+ * <p>Fechas especiales (feriados y horarios especiales): {@code dateExceptions}
+ * viaja en el mismo perfil y se reemplaza en bloque como las horas — una fecha
+ * ausente del payload vuelve a ser un día normal. Cada fecha tiene la misma
+ * forma que un día (turnos ordenados, lista vacía = cerrado) y cumple las
+ * mismas reglas: hasta 4 turnos, sin solapes, sólo el último cruza la
+ * medianoche. El derrame del último turno se compara contra los turnos
+ * <em>efectivos</em> del día siguiente: su propia excepción si la tiene, si no
+ * el día de la semana, así una excepción no abre un agujero en el horario
+ * normal. Reglas propias de la lista: fecha obligatoria, sin duplicados
+ * ({@code Ya hay una excepción para esa fecha}) y hasta 100 fechas por
+ * negocio ({@code No se pueden cargar más de 100 fechas especiales}).
+ * {@code dateExceptions} es obligatorio en el PUT (400 cuando falta): un
+ * cliente que olvide el campo no puede borrar los feriados ya guardados en
+ * silencio, igual que el guard de {@code shifts} en un día. Un feriado
+ * cerrado se guarda como una fila marcadora sin horarios, porque acá la
+ * ausencia de la fecha significa "día normal" y el cerrado tiene que estar
+ * representado.</p>
+ *
  * <p>La lista de horas se reemplaza en bloque: un día ausente del payload —
  * o presente con la lista de turnos vacía— queda cerrado (delete-then-insert
  * dentro de la misma transacción). El servidor ordena los turnos de cada día
@@ -56,16 +79,21 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 	private static final int MAX_ADDRESS_LENGTH = 300;
 	/** Máximo de turnos por día: holgado para cualquier local real. */
 	private static final int MAX_SHIFTS_PER_DAY = 4;
+	/** Máximo de fechas especiales por negocio: el perfil viaja entero en cada request. */
+	private static final int MAX_DATE_EXCEPTIONS = 100;
 	private static final int MINUTES_PER_DAY = 24 * 60;
 
 	private final BusinessRepository businessRepository;
 	private final BusinessHoursRepository businessHoursRepository;
+	private final BusinessDateExceptionRepository businessDateExceptionRepository;
 	private final ISecurityService securityService;
 
 	public BusinessProfileServiceImpl(BusinessRepository businessRepository,
-			BusinessHoursRepository businessHoursRepository, ISecurityService securityService) {
+			BusinessHoursRepository businessHoursRepository,
+			BusinessDateExceptionRepository businessDateExceptionRepository, ISecurityService securityService) {
 		this.businessRepository = businessRepository;
 		this.businessHoursRepository = businessHoursRepository;
+		this.businessDateExceptionRepository = businessDateExceptionRepository;
 		this.securityService = securityService;
 	}
 
@@ -82,6 +110,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		dto.setAddress(business.getAddress());
 		dto.setInstagramUrl(business.getInstagramUrl());
 		dto.setHours(toHoursDTOs(business.getId()));
+		dto.setDateExceptions(toDateExceptionDTOs(business.getId()));
 
 		return dto;
 	}
@@ -100,6 +129,8 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		validateUrl("instagramUrl", dto.getInstagramUrl(), MAX_URL_LENGTH);
 		validateAddress(dto.getAddress());
 		List<BusinessHoursDTO> hours = validateHours(dto.getHours());
+		List<DateExceptionDTO> dateExceptions = validateDateExceptions(dto.getDateExceptions(),
+				toOpenDaysMap(hours));
 
 		Business business = currentBusiness();
 
@@ -131,6 +162,34 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 			}
 		}
 
+		// Reemplazo en bloque de las fechas especiales, igual que las horas:
+		// una fecha ausente del payload vuelve a ser un día normal. Una fecha
+		// con la lista de turnos vacía (feriado cerrado) se guarda como UNA fila
+		// marcadora sin horarios: acá la ausencia de la fecha significa "día
+		// normal", así que el cerrado tiene que estar representado.
+		businessDateExceptionRepository.deleteByBusiness_Id(business.getId());
+		businessDateExceptionRepository.flush();
+
+		for (DateExceptionDTO exceptionDTO : dateExceptions) {
+			if (exceptionDTO.getShifts().isEmpty()) {
+				BusinessDateException marker = new BusinessDateException();
+				marker.setBusiness(business);
+				marker.setDate(exceptionDTO.getDate());
+				marker.setPosition(0);
+				businessDateExceptionRepository.save(marker);
+				continue;
+			}
+			for (int position = 0; position < exceptionDTO.getShifts().size(); position++) {
+				BusinessDateException entity = new BusinessDateException();
+				entity.setBusiness(business);
+				entity.setDate(exceptionDTO.getDate());
+				entity.setPosition(position);
+				entity.setOpensAt(exceptionDTO.getShifts().get(position).getOpensAt());
+				entity.setClosesAt(exceptionDTO.getShifts().get(position).getClosesAt());
+				businessDateExceptionRepository.save(entity);
+			}
+		}
+
 		BusinessProfileDTO result = new BusinessProfileDTO();
 		result.setName(business.getName());
 		result.setLogoUrl(business.getLogoUrl());
@@ -138,6 +197,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		result.setAddress(business.getAddress());
 		result.setInstagramUrl(business.getInstagramUrl());
 		result.setHours(toHoursDTOs(business.getId()));
+		result.setDateExceptions(toDateExceptionDTOs(business.getId()));
 
 		return result;
 	}
@@ -236,53 +296,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 				continue; // día cerrado: no hay nada que validar
 			}
 
-			for (BusinessShiftDTO shift : shifts) {
-				if (shift == null || shift.getOpensAt() == null) {
-					throw new BusinessException("opensAt es obligatorio en cada turno del día abierto",
-							ErrorType.VALIDATION);
-				}
-				if (shift.getClosesAt() == null) {
-					throw new BusinessException("closesAt es obligatorio en cada turno del día abierto",
-							ErrorType.VALIDATION);
-				}
-			}
-
-			// El cliente puede mandar los turnos en cualquier orden: se ordenan
-			// por apertura antes de validar y de guardar.
-			List<BusinessShiftDTO> sorted = new ArrayList<>(shifts);
-			sorted.sort(Comparator.comparing(BusinessShiftDTO::getOpensAt));
-
-			for (BusinessShiftDTO shift : sorted) {
-				if (shift.getOpensAt().equals(shift.getClosesAt())) {
-					throw new BusinessException("opensAt y closesAt no pueden ser iguales", ErrorType.VALIDATION);
-				}
-			}
-
-			if (sorted.size() > MAX_SHIFTS_PER_DAY) {
-				throw new BusinessException("Un día no puede tener más de 4 turnos", ErrorType.VALIDATION);
-			}
-
-			// Sólo el último turno del día puede pasar la medianoche. Se chequea
-			// antes del solape genérico porque es el caso más específico: un turno
-			// que cruza la medianoche termina "pasado el día", así que si hubiera
-			// otro turno después siempre se superpondría con él.
-			for (int i = 0; i < sorted.size() - 1; i++) {
-				if (crossesMidnight(sorted.get(i))) {
-					throw new BusinessException("Un turno que pasa la medianoche tiene que ser el último del día",
-							ErrorType.VALIDATION);
-				}
-			}
-
-			// Sin solapes dentro del día, comparando en minutos del día; un turno
-			// que cruza la medianoche termina "pasado el día". Tocarse de punta
-			// (15:00 cierra, 15:00 abre) no es solape.
-			for (int i = 1; i < sorted.size(); i++) {
-				if (endMinute(sorted.get(i - 1)) > startMinute(sorted.get(i))) {
-					throw new BusinessException("Los turnos de un día no pueden superponerse", ErrorType.VALIDATION);
-				}
-			}
-
-			openDays.put(day, sorted);
+			openDays.put(day, validateAndSortShifts(shifts));
 		}
 
 		// Sin solape con el derrame: si el último turno de un día termina pasado
@@ -308,6 +322,154 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 			dto.setDayOfWeek(hoursDTO.getDayOfWeek());
 			List<BusinessShiftDTO> sorted = openDays.get(hoursDTO.getDayOfWeek());
 			dto.setShifts(sorted == null ? List.of() : sorted);
+			normalized.add(dto);
+		}
+		return normalized;
+	}
+
+	/**
+	 * Las reglas que comparten un día de la semana y una fecha especial, sobre
+	 * la lista de turnos de un día no vacío: horarios presentes y distintos,
+	 * máximo 4 turnos, sólo el último cruza la medianoche, sin solapes. Devuelve
+	 * la lista ordenada por apertura (el cliente puede mandarla en cualquier
+	 * orden); los mensajes son exactamente los de un día, porque es la misma
+	 * validación — una fecha excepcional es, para todo lo demás, un día.
+	 */
+	private List<BusinessShiftDTO> validateAndSortShifts(List<BusinessShiftDTO> shifts) {
+
+		for (BusinessShiftDTO shift : shifts) {
+			if (shift == null || shift.getOpensAt() == null) {
+				throw new BusinessException("opensAt es obligatorio en cada turno del día abierto",
+						ErrorType.VALIDATION);
+			}
+			if (shift.getClosesAt() == null) {
+				throw new BusinessException("closesAt es obligatorio en cada turno del día abierto",
+						ErrorType.VALIDATION);
+			}
+		}
+
+		// El cliente puede mandar los turnos en cualquier orden: se ordenan
+		// por apertura antes de validar y de guardar.
+		List<BusinessShiftDTO> sorted = new ArrayList<>(shifts);
+		sorted.sort(Comparator.comparing(BusinessShiftDTO::getOpensAt));
+
+		for (BusinessShiftDTO shift : sorted) {
+			if (shift.getOpensAt().equals(shift.getClosesAt())) {
+				throw new BusinessException("opensAt y closesAt no pueden ser iguales", ErrorType.VALIDATION);
+			}
+		}
+
+		if (sorted.size() > MAX_SHIFTS_PER_DAY) {
+			throw new BusinessException("Un día no puede tener más de 4 turnos", ErrorType.VALIDATION);
+		}
+
+		// Sólo el último turno del día puede pasar la medianoche. Se chequea
+		// antes del solape genérico porque es el caso más específico: un turno
+		// que cruza la medianoche termina "pasado el día", así que si hubiera
+		// otro turno después siempre se superpondría con él.
+		for (int i = 0; i < sorted.size() - 1; i++) {
+			if (crossesMidnight(sorted.get(i))) {
+				throw new BusinessException("Un turno que pasa la medianoche tiene que ser el último del día",
+						ErrorType.VALIDATION);
+			}
+		}
+
+		// Sin solapes dentro del día, comparando en minutos del día; un turno
+		// que cruza la medianoche termina "pasado el día". Tocarse de punta
+		// (15:00 cierra, 15:00 abre) no es solape.
+		for (int i = 1; i < sorted.size(); i++) {
+			if (endMinute(sorted.get(i - 1)) > startMinute(sorted.get(i))) {
+				throw new BusinessException("Los turnos de un día no pueden superponerse", ErrorType.VALIDATION);
+			}
+		}
+
+		return sorted;
+	}
+
+	/**
+	 * Valida las fechas especiales y devuelve la lista normalizada, ordenada
+	 * por fecha (TreeMap) y con los turnos de cada fecha ya ordenados.
+	 * {@code openDays} son los días de la semana ya validados del mismo PUT:
+	 * es el fallback del chequeo de derrame cuando el día siguiente no tiene
+	 * excepción propia.
+	 */
+	private List<DateExceptionDTO> validateDateExceptions(List<DateExceptionDTO> exceptions,
+			Map<Integer, List<BusinessShiftDTO>> openDays) {
+
+		if (exceptions == null) {
+			// El campo viaja en el perfil completo; que no viaje no puede
+			// significar "sin fechas": borraría los feriados del dueño en
+			// silencio, igual que un día nombrado sin la clave shifts.
+			throw new BusinessException("dateExceptions es obligatorio (una lista vacía significa que no hay fechas especiales)",
+					ErrorType.VALIDATION);
+		}
+
+		if (exceptions.size() > MAX_DATE_EXCEPTIONS) {
+			throw new BusinessException("No se pueden cargar más de 100 fechas especiales", ErrorType.VALIDATION);
+		}
+
+		Set<LocalDate> seenDates = new HashSet<>();
+		// Fecha → turnos ya validados (lista vacía = fecha cerrada). TreeMap
+		// deja la respuesta ordenada por fecha.
+		Map<LocalDate, List<BusinessShiftDTO>> effectiveByDate = new TreeMap<>();
+
+		for (DateExceptionDTO exceptionDTO : exceptions) {
+
+			if (exceptionDTO == null) {
+				throw new BusinessException("Las fechas especiales no pueden incluir elementos vacíos",
+						ErrorType.VALIDATION);
+			}
+
+			if (exceptionDTO.getDate() == null) {
+				throw new BusinessException("date es obligatoria en cada fecha especial", ErrorType.VALIDATION);
+			}
+
+			if (!seenDates.add(exceptionDTO.getDate())) {
+				throw new BusinessException("Ya hay una excepción para esa fecha", ErrorType.VALIDATION);
+			}
+
+			List<BusinessShiftDTO> shifts = exceptionDTO.getShifts();
+
+			if (shifts == null) {
+				// La fecha fue nombrada en el payload, así que no se permite el
+				// default silencioso: es el mismo guard que en un día.
+				throw new BusinessException("shifts es obligatorio en cada fecha (una lista vacía significa cerrado)",
+						ErrorType.VALIDATION);
+			}
+
+			effectiveByDate.put(exceptionDTO.getDate(),
+					shifts.isEmpty() ? List.of() : validateAndSortShifts(shifts));
+		}
+
+		// Sin solape con el día siguiente, resuelto contra los turnos
+		// efectivos del día siguiente: su propia excepción si la tiene
+		// (incluida la cerrada, que no abre nunca y no puede chocar), si no
+		// el día de la semana del payload. Es la regla que evita que una
+		// excepción abra un agujero en el horario normal.
+		for (Map.Entry<LocalDate, List<BusinessShiftDTO>> entry : effectiveByDate.entrySet()) {
+			List<BusinessShiftDTO> dayShifts = entry.getValue();
+			if (dayShifts.isEmpty()) {
+				continue;
+			}
+			int spill = endMinute(dayShifts.get(dayShifts.size() - 1)) - MINUTES_PER_DAY;
+			if (spill <= 0) {
+				continue;
+			}
+			LocalDate next = entry.getKey().plusDays(1);
+			List<BusinessShiftDTO> nextShifts = effectiveByDate.containsKey(next)
+					? effectiveByDate.get(next)
+					: openDays.get(next.getDayOfWeek().getValue());
+			if (nextShifts != null && !nextShifts.isEmpty() && startMinute(nextShifts.get(0)) < spill) {
+				throw new BusinessException("El turno que pasa la medianoche se superpone con la apertura del día siguiente",
+						ErrorType.VALIDATION);
+			}
+		}
+
+		List<DateExceptionDTO> normalized = new ArrayList<>(effectiveByDate.size());
+		for (Map.Entry<LocalDate, List<BusinessShiftDTO>> entry : effectiveByDate.entrySet()) {
+			DateExceptionDTO dto = new DateExceptionDTO();
+			dto.setDate(entry.getKey());
+			dto.setShifts(entry.getValue());
 			normalized.add(dto);
 		}
 		return normalized;
@@ -349,10 +511,55 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 	 * "el día que falta es un día cerrado" y una vuelta de lo que el cliente
 	 * recibió conserva el mismo significado.
 	 */
+	/** Los días de la semana con turnos del payload ya validado (cerrados fuera), para el fallback del derrame. */
+	private static Map<Integer, List<BusinessShiftDTO>> toOpenDaysMap(List<BusinessHoursDTO> normalizedHours) {
+
+		Map<Integer, List<BusinessShiftDTO>> openDays = new HashMap<>();
+		for (BusinessHoursDTO dto : normalizedHours) {
+			if (!dto.getShifts().isEmpty()) {
+				openDays.put(dto.getDayOfWeek(), dto.getShifts());
+			}
+		}
+		return openDays;
+	}
+
 	private List<BusinessHoursDTO> toHoursDTOs(Long businessId) {
 
 		return toSevenDayDTOs(businessHoursRepository
 				.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(businessId));
+	}
+
+	/** Las fechas especiales con al menos una fila, ordenadas por fecha, con la lista vacía en las cerradas. */
+	private List<DateExceptionDTO> toDateExceptionDTOs(Long businessId) {
+
+		return toDateExceptionDTOList(businessDateExceptionRepository
+				.findByBusiness_IdOrderByDateAscPositionAsc(businessId));
+	}
+
+	private static List<DateExceptionDTO> toDateExceptionDTOList(List<BusinessDateException> rows) {
+
+		// Las filas vienen por (date, position): el LinkedHashMap conserva el
+		// orden de fechas. La fila marcadora (opensAt NULL) deja la lista vacía.
+		Map<LocalDate, List<BusinessShiftDTO>> shiftsByDate = new LinkedHashMap<>();
+		for (BusinessDateException row : rows) {
+			List<BusinessShiftDTO> shifts = shiftsByDate.computeIfAbsent(row.getDate(), date -> new ArrayList<>());
+			if (row.getOpensAt() == null) {
+				continue;
+			}
+			BusinessShiftDTO shift = new BusinessShiftDTO();
+			shift.setOpensAt(row.getOpensAt());
+			shift.setClosesAt(row.getClosesAt());
+			shifts.add(shift);
+		}
+
+		List<DateExceptionDTO> dates = new ArrayList<>(shiftsByDate.size());
+		for (Map.Entry<LocalDate, List<BusinessShiftDTO>> entry : shiftsByDate.entrySet()) {
+			DateExceptionDTO dto = new DateExceptionDTO();
+			dto.setDate(entry.getKey());
+			dto.setShifts(entry.getValue());
+			dates.add(dto);
+		}
+		return dates;
 	}
 
 	private static List<BusinessHoursDTO> toSevenDayDTOs(List<BusinessHours> rows) {

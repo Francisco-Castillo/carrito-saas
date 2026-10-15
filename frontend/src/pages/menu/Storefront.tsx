@@ -33,7 +33,9 @@ export default function Storefront({
   const hasHours = Boolean(business?.hours && business.hours.length > 0);
   const hasContact = Boolean(whatsappDigits || instagramUrl || address);
 
-  const status = useOpenStatus(business?.hours);
+  // Las excepciones por fecha viajan dentro de `business` (payload del menú):
+  // el badge resuelve cada fecha con sus turnos efectivos, no con la plantilla.
+  const status = useOpenStatus(business?.hours, business?.dateExceptions);
 
   if (!name && !bannerUrl && !logoUrl && !hasContact && !hasHours) {
     return null;
