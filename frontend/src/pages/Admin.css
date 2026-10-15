@@ -814,7 +814,8 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Productos: buscador, modal de crear/editar, switch de estado y estados vacíos.
+ * Panel admin: buscador, modal de crear/editar, switch de estado y estados vacíos
+ * (productos y categorías comparten esta piel).
  *
  * Estas reglas vinieron de una hoja nueva en `pages/admin/Admin.css`, creada
  * porque un brief las ubicó mal. Dos `Admin.css` para la misma pantalla es peor
@@ -824,8 +825,12 @@
  * lo que ya había.
  * --------------------------------------------------------------------------- */
 /*
- * Estilos propios de la vista PRODUCTOS del panel admin (buscador, switch,
- * modal de producto, estado vacío).
+ * Estilos del panel admin (buscador, switch, modal de producto, estado vacío).
+ *
+ * La tabla de categorías REUSA `products-toolbar`, `admin-switch*` y
+ * `admin-empty-state` tal cual (unidad 3 del ODD): los dos catálogos tienen
+ * que verse como hermanos. No renombrar sin actualizar CategoriesTable.tsx —
+ * y viceversa: ProductsTable.tsx usa estos mismos selectores.
  *
  * Regla dura después del PR #37: la piel COMPARTIDA de tablas vive en
  * src/pages/Admin.css y NO se toca acá. Esta hoja sólo declara selectores de
