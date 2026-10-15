@@ -68,4 +68,15 @@ public class BusinessDateException {
     /** Anterior a {@link #opensAt} significa que el turno cruza la medianoche. */
     private LocalTime closesAt;
 
+    /**
+     * true: la excepción se repite todos los años en el día y mes de
+     * {@link #date} (Navidad es 25/12 todos los años); false: sólo esa fecha
+     * exacta. El año de {@link #date} es sólo la referencia para la validación
+     * de derrame, nunca parte del match anual. Todas las filas de una misma
+     * fecha comparten la bandera: se guardan juntas desde el mismo
+     * {@code DateExceptionDTO}.
+     */
+    @Column(name = "yearly", nullable = false)
+    private boolean yearly = false;
+
 }

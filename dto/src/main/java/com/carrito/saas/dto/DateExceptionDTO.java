@@ -21,6 +21,17 @@ public class DateExceptionDTO {
     private LocalDate date;
 
     /**
+     * true: la excepción se repite todos los años en el día y mes de
+     * {@code date} (Navidad es 25/12 todos los años); false: sólo esa fecha
+     * exacta. El año de {@code date} es sólo la referencia para la validación,
+     * nunca parte del match anual. En el PUT, ausente significa false — un
+     * payload viejo conserva exactamente su significado. Una fecha exacta gana
+     * sobre una anual que caiga el mismo día: por eso una anual y una one-off
+     * que compartan día/mes están permitidas.
+     */
+    private boolean yearly;
+
+    /**
      * Ordered shifts of the date (sorted by {@code opensAt}); empty when the
      * date is closed (feriado). Required on a date entry present in a request.
      */

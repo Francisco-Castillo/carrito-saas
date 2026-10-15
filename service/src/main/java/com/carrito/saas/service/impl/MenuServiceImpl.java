@@ -143,8 +143,12 @@ public class MenuServiceImpl implements IMenuService {
 		// Las filas vienen por (date, position): el LinkedHashMap conserva el
 		// orden de fechas. La fila marcadora (opensAt NULL) deja la lista vacía.
 		Map<LocalDate, List<BusinessShiftDTO>> shiftsByDate = new LinkedHashMap<>();
+		Map<LocalDate, Boolean> yearlyByDate = new LinkedHashMap<>();
 		for (BusinessDateException row : rows) {
 			List<BusinessShiftDTO> shifts = shiftsByDate.computeIfAbsent(row.getDate(), date -> new ArrayList<>());
+			// La bandera se lee ANTES del continue: un feriado cerrado también
+			// puede repetirse cada año, y su fila marcadora no aporta turnos.
+			yearlyByDate.put(row.getDate(), row.isYearly());
 			if (row.getOpensAt() == null) {
 				continue;
 			}
@@ -159,6 +163,9 @@ public class MenuServiceImpl implements IMenuService {
 			DateExceptionDTO dto = new DateExceptionDTO();
 			dto.setDate(entry.getKey());
 			dto.setShifts(entry.getValue());
+			// Sin esto la carta pública nunca vería un feriado anual: el perfil
+			// del dueño lo mapeaba y este gemelo se había quedado atrás.
+			dto.setYearly(Boolean.TRUE.equals(yearlyByDate.get(entry.getKey())));
 			dates.add(dto);
 		}
 		return dates;

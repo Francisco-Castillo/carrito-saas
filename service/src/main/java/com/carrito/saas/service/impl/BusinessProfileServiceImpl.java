@@ -1,6 +1,7 @@
 package com.carrito.saas.service.impl;
 
 import java.time.LocalDate;
+import java.time.MonthDay;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -55,7 +56,13 @@ import com.carrito.saas.service.interfaces.IBusinessProfileService;
  * el día de la semana, así una excepción no abre un agujero en el horario
  * normal. Reglas propias de la lista: fecha obligatoria, sin duplicados
  * ({@code Ya hay una excepción para esa fecha}) y hasta 100 fechas por
- * negocio ({@code No se pueden cargar más de 100 fechas especiales}).
+ * negocio ({@code No se pueden cargar más de 100 fechas especiales}). Con la
+ * bandera {@code yearly} la excepción se repite todos los años en ese día y
+ * mes (Navidad es 25/12 todos los años): el año de la fecha guardada es sólo
+ * la referencia para la validación de derrame. Dos anuales con el mismo día y
+ * mes son un duplicado aunque los años difieran ({@code Ya hay una excepción
+ * anual para ese día y mes}); una anual y una one-off que compartan día/mes
+ * están permitidas y la exacta gana su año (precedencia).
  * Actualización parcial: {@code dateExceptions} ausente del payload conserva
  * las fechas ya guardadas (un campo que no viaja no borra datos); la lista
  * vacía es el "ninguna" explícito y reemplaza en bloque. El derrame de una
@@ -213,6 +220,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 				BusinessDateException marker = new BusinessDateException();
 				marker.setBusiness(business);
 				marker.setDate(exceptionDTO.getDate());
+				marker.setYearly(exceptionDTO.isYearly());
 				marker.setPosition(0);
 				businessDateExceptionRepository.save(marker);
 				continue;
@@ -221,6 +229,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 				BusinessDateException entity = new BusinessDateException();
 				entity.setBusiness(business);
 				entity.setDate(exceptionDTO.getDate());
+				entity.setYearly(exceptionDTO.isYearly());
 				entity.setPosition(position);
 				entity.setOpensAt(exceptionDTO.getShifts().get(position).getOpensAt());
 				entity.setClosesAt(exceptionDTO.getShifts().get(position).getClosesAt());
@@ -446,9 +455,16 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		}
 
 		Set<LocalDate> seenDates = new HashSet<>();
-		// Fecha → turnos ya validados (lista vacía = fecha cerrada). TreeMap
-		// deja la respuesta ordenada por fecha.
-		Map<LocalDate, List<BusinessShiftDTO>> effectiveByDate = new TreeMap<>();
+		// Las anuales se deduplican por día y mes (MonthDay), no por fecha:
+		// dos anuales con años distintos significan lo mismo.
+		Set<MonthDay> seenYearlyMonthDays = new HashSet<>();
+		// Fecha → excepción ya validada (turnos ordenados; lista vacía = fecha
+		// cerrada). TreeMap deja la respuesta ordenada por fecha.
+		Map<LocalDate, DateExceptionDTO> effectiveByDate = new TreeMap<>();
+		// Día/mes → turnos de la excepción anual: fallback del chequeo de
+		// derrame cuando el día siguiente no tiene excepción en fecha exacta
+		// pero sí una anual, que rige todos los años.
+		Map<MonthDay, List<BusinessShiftDTO>> yearlyByMonthDay = new HashMap<>();
 
 		for (DateExceptionDTO exceptionDTO : exceptions) {
 
@@ -461,7 +477,17 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 				throw new BusinessException("date es obligatoria en cada fecha especial", ErrorType.VALIDATION);
 			}
 
-			if (!seenDates.add(exceptionDTO.getDate())) {
+			// Duplicados: dos one-off con la misma fecha exacta chocan; dos
+			// anuales con el mismo día y mes también, aunque los años difieran.
+			// Una anual y una one-off que compartan día/mes están permitidas:
+			// la exacta gana su año (precedencia) y la anual rige el resto.
+			MonthDay monthDay = MonthDay.from(exceptionDTO.getDate());
+			if (exceptionDTO.isYearly()) {
+				if (!seenYearlyMonthDays.add(monthDay)) {
+					throw new BusinessException("Ya hay una excepción anual para ese día y mes",
+							ErrorType.VALIDATION);
+				}
+			} else if (!seenDates.add(exceptionDTO.getDate())) {
 				throw new BusinessException("Ya hay una excepción para esa fecha", ErrorType.VALIDATION);
 			}
 
@@ -474,17 +500,30 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 						ErrorType.VALIDATION);
 			}
 
-			effectiveByDate.put(exceptionDTO.getDate(),
-					shifts.isEmpty() ? List.of() : validateAndSortShifts(shifts));
+			DateExceptionDTO normalized = new DateExceptionDTO();
+			normalized.setDate(exceptionDTO.getDate());
+			normalized.setYearly(exceptionDTO.isYearly());
+			normalized.setShifts(shifts.isEmpty() ? List.of() : validateAndSortShifts(shifts));
+			effectiveByDate.put(exceptionDTO.getDate(), normalized);
+			if (exceptionDTO.isYearly()) {
+				yearlyByMonthDay.put(monthDay, normalized.getShifts());
+			}
 		}
 
 		// Sin solape con el día siguiente, resuelto contra los turnos
 		// efectivos del día siguiente: su propia excepción si la tiene
 		// (incluida la cerrada, que no abre nunca y no puede chocar), si no
-		// el día de la semana del payload. Es la regla que evita que una
-		// excepción abra un agujero en el horario normal.
-		for (Map.Entry<LocalDate, List<BusinessShiftDTO>> entry : effectiveByDate.entrySet()) {
-			List<BusinessShiftDTO> dayShifts = entry.getValue();
+		// la anual que caiga ese día y mes (rige todos los años; la fecha
+		// exacta ya ganó el primer lookup), si no el día de la semana del
+		// payload. Es la regla que evita que una excepción abra un agujero
+		// en el horario normal. La fecha es siempre la concreta guardada —
+		// también para una anual, cuyo año es sólo referencia: plusDays(1)
+		// maneja solo los bordes (31/12 cae en el año siguiente; el día
+		// siguiente a un 29/02 bisiesto es el 01/03, y en los años no
+		// bisiestos la anual del 29/02 simplemente no ocurre, así que no hay
+		// derrame que validar).
+		for (Map.Entry<LocalDate, DateExceptionDTO> entry : effectiveByDate.entrySet()) {
+			List<BusinessShiftDTO> dayShifts = entry.getValue().getShifts();
 			if (dayShifts.isEmpty()) {
 				continue;
 			}
@@ -494,8 +533,11 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 			}
 			LocalDate next = entry.getKey().plusDays(1);
 			List<BusinessShiftDTO> nextShifts = effectiveByDate.containsKey(next)
-					? effectiveByDate.get(next)
-					: openDays.get(next.getDayOfWeek().getValue());
+					? effectiveByDate.get(next).getShifts()
+					: yearlyByMonthDay.get(MonthDay.from(next));
+			if (nextShifts == null) {
+				nextShifts = openDays.get(next.getDayOfWeek().getValue());
+			}
 			if (nextShifts != null && !nextShifts.isEmpty() && startMinute(nextShifts.get(0)) < spill) {
 				throw new BusinessException("El turno que pasa la medianoche se superpone con la apertura del día siguiente",
 						ErrorType.VALIDATION);
@@ -503,11 +545,8 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		}
 
 		List<DateExceptionDTO> normalized = new ArrayList<>(effectiveByDate.size());
-		for (Map.Entry<LocalDate, List<BusinessShiftDTO>> entry : effectiveByDate.entrySet()) {
-			DateExceptionDTO dto = new DateExceptionDTO();
-			dto.setDate(entry.getKey());
-			dto.setShifts(entry.getValue());
-			normalized.add(dto);
+		for (Map.Entry<LocalDate, DateExceptionDTO> entry : effectiveByDate.entrySet()) {
+			normalized.add(entry.getValue());
 		}
 		return normalized;
 	}
@@ -577,26 +616,26 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 
 		// Las filas vienen por (date, position): el LinkedHashMap conserva el
 		// orden de fechas. La fila marcadora (opensAt NULL) deja la lista vacía.
-		Map<LocalDate, List<BusinessShiftDTO>> shiftsByDate = new LinkedHashMap<>();
+		// Todas las filas de una fecha comparten la bandera yearly (se guardan
+		// juntas desde el mismo DTO), así que la primera fija el valor.
+		Map<LocalDate, DateExceptionDTO> byDate = new LinkedHashMap<>();
 		for (BusinessDateException row : rows) {
-			List<BusinessShiftDTO> shifts = shiftsByDate.computeIfAbsent(row.getDate(), date -> new ArrayList<>());
+			DateExceptionDTO dto = byDate.computeIfAbsent(row.getDate(), date -> {
+				DateExceptionDTO created = new DateExceptionDTO();
+				created.setDate(date);
+				created.setYearly(row.isYearly());
+				created.setShifts(new ArrayList<>());
+				return created;
+			});
 			if (row.getOpensAt() == null) {
 				continue;
 			}
 			BusinessShiftDTO shift = new BusinessShiftDTO();
 			shift.setOpensAt(row.getOpensAt());
 			shift.setClosesAt(row.getClosesAt());
-			shifts.add(shift);
+			dto.getShifts().add(shift);
 		}
-
-		List<DateExceptionDTO> dates = new ArrayList<>(shiftsByDate.size());
-		for (Map.Entry<LocalDate, List<BusinessShiftDTO>> entry : shiftsByDate.entrySet()) {
-			DateExceptionDTO dto = new DateExceptionDTO();
-			dto.setDate(entry.getKey());
-			dto.setShifts(entry.getValue());
-			dates.add(dto);
-		}
-		return dates;
+		return new ArrayList<>(byDate.values());
 	}
 
 	private static List<BusinessHoursDTO> toSevenDayDTOs(List<BusinessHours> rows) {
