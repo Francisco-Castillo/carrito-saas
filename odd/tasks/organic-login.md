@@ -44,6 +44,17 @@ out of scope and keeps its URL contract.
       bytes to 113d6ed; worker evidence). Storefront/menu contracts unmodified
       and green.
 
+## Review status (RDD native review)
+
+Lineage review-9e7ca42128ada755 (high tier, 13 files, base 6675323) is OPEN
+in state reviewing. Captured and admitted: review-risk, review-readability,
+review-reliability. review-resilience failed 3x deterministically at the pi
+host relay (reviewer-empty-output, stopReason: length) — transport
+limitation, not a candidate defect. Per user decision (2026-10-15) the
+lineage stays open and the lens will be retried later: resume with bound
+facade STATUS for this lineageId in the worktree
+/home/rodrigo/work/carrito-saas-organic. No acknowledgement was burned.
+
 ## Notes
 
 - Base branch: develop. Feature branch: feat/organic-login.
