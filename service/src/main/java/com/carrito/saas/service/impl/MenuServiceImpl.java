@@ -80,7 +80,9 @@ public class MenuServiceImpl implements IMenuService {
 		List<Product> products = productRepository.findPublicMenuProducts(business.getId());
 
 		// NUEVO: traer combos
-		List<Combo> combos = comboRepository.findFullMenuCombos(business.getId());
+		// Carta pública: sólo combos ACTIVOS (el switch del panel saca de la
+		// carta los apagados); la regla vive en la consulta, como en productos.
+		List<Combo> combos = comboRepository.findActiveFullMenuCombos(business.getId());
 
 		MenuDTO menu = new MenuDTO();
 
