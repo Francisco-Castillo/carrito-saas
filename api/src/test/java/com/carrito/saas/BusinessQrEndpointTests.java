@@ -150,9 +150,10 @@ class BusinessQrEndpointTests {
 
 		mockMvc.perform(get("/api/business/qr"))
 				.andExpect(result -> Assertions.assertThat(result.getResponse().getStatus())
-						.as("GET /api/business/qr must stay authenticated (actual: %d)",
+						.as("GET /api/business/qr must stay authenticated: an anonymous caller gets "
+								+ "401, the chain entry point's answer (actual: %d)",
 								result.getResponse().getStatus())
-						.isIn(401, 403));
+						.isEqualTo(401));
 	}
 
 	private String decodeQrText(byte[] png) {

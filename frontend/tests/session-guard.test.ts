@@ -11,7 +11,8 @@
  *     the `restaurant` slug so the login can bind the session to the right
  *     restaurant, and must stop there (nothing else may run or throw).
  *   - A page with a token must not redirect and must not inspect the token:
- *     role enforcement is the server's job (403 on the API), and a client-side
+ *     role enforcement is the server's job (403 with a session and an
+ *     insufficient role, 401 without a session), and a client-side
  *     role gate crashes on tokens without a `roles` claim.
  *
  * Hardening (AC10-AC13) is ported too: a failing `localStorage.getItem`

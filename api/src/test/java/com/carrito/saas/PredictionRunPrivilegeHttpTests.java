@@ -39,11 +39,10 @@ import com.carrito.saas.service.interfaces.IGeneratePredictionsForAllBusinessesU
  *
  * <p>Required behaviour: an authenticated caller without a privileged role
  * (KITCHEN) → 403, and OWNER/ADMIN reach the use case (200). An anonymous
- * caller also gets 403, which is this chain's documented answer for every
- * protected route (no {@code permitAll} matcher covers it, and no entry point
- * is configured) — pinned here as <em>unchanged</em> behaviour, not as an
- * endorsement: {@code odd/tasks/http-error-contract.md} carries the open
- * question about 401 versus 403 for anonymous callers.</p>
+ * caller gets 401: the chain's entry point answers 401 to every anonymous
+ * caller on a protected route — the 401-versus-403 question recorded in
+ * {@code odd/tasks/http-error-contract.md} was resolved in favour of the
+ * global 401, so "no session" (401) and "no privilege" (403) stay distinct.</p>
  *
  * <p>The rule is a privilege barrier, NOT a tenant one: the job is global, so
  * an OWNER of business A still triggers a recalculation for every business.</p>
@@ -107,15 +106,16 @@ class PredictionRunPrivilegeHttpTests {
 	// ==================================================================
 
 	@Test
-	@DisplayName("anonymous caller of POST /api/predictions/run gets 403, like every protected route")
-	void anonymousCallerOfRunIsForbidden() throws Exception {
+	@DisplayName("anonymous caller of POST /api/predictions/run gets 401, like every protected route")
+	void anonymousCallerOfRunIsUnauthorized() throws Exception {
 
-		// 403 and not 401: the route matches no permitAll matcher and the chain
-		// configures no entry point, so anonymous callers get the same 403 that
-		// ProductCatalogByIdTests and DashboardAnonymousAccessTests document for
-		// the rest of the API. What matters here is the job provably not running.
+		// 401 and not 403: an anonymous caller has no session, and the chain's
+		// entry point answers 401 to anonymous callers on every protected route
+		// (resolved contract, see odd/tasks/http-error-contract.md). 403 is the
+		// answer for an AUTHENTICATED caller without the role (next test). What
+		// matters here is the job provably not running.
 		mockMvc.perform(post("/api/predictions/run"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isUnauthorized());
 
 		Mockito.verifyNoInteractions(generateForAllBusinessesUseCase);
 	}

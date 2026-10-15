@@ -4,11 +4,13 @@ import org.springframework.boot.security.autoconfigure.actuate.web.servlet.Endpo
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -102,13 +104,31 @@ public class SecurityConfig {
 	            // negocio A que lo invoca sigue recalculando las predicciones de
 	            // TODOS los negocios — esta regla no aísla negocios, solo limita
 	            // quién puede accionar el recálculo.
-	            // Un anónimo recibe 403, no 401: es lo que el chain responde
-	            // hoy en TODA ruta protegida (no hay entry point configurado),
-	            // y esta regla no cambia ese contrato acá. Ver la anotación
-	            // sobre 401 vs 403 en odd/tasks/http-error-contract.md.
+	            // Un anónimo recibe 401 (entry point de la cadena, contrato
+	            // resuelto en odd/tasks/http-error-contract.md); un AUTENTICADO
+	            // sin OWNER/ADMIN recibe 403, que es el caso que esta regla
+	            // castiga.
 	            .requestMatchers(HttpMethod.POST, "/api/predictions/run").hasAnyRole("OWNER", "ADMIN")
 
 	            .anyRequest().authenticated()
+	        )
+
+	        // CONTRATO DE ERRORES HTTP para toda la cadena: un anónimo (sin
+	        // credenciales) recibe 401 del entry point; un AUTENTICADO sin el
+	        // rol exigido sigue recibiendo 403 del AccessDeniedHandler (que
+	        // queda por default, no se toca). ExceptionTranslationFilter manda
+	        // al anónimo al entry point y al autenticado al handler, así que
+	        // esta única configuración separa "no tenés sesión" de "no tenés
+	        // privilegio". Se eligió HttpStatusEntryPoint (no
+	        // BearerTokenAuthenticationEntryPoint) porque ésta vive en
+	        // spring-security-oauth2-resource-server, que no está en el
+	        // classpath y agregar la dependencia está fuera de alcance. Sin
+	        // matchers por ruta: la regla es de TODA la cadena. Un intento
+	        // anterior con defaultAuthenticationEntryPointFor(matcher)
+	        // convirtió en 401 a TODO el sitio: el builder toma la primera
+	        // entrada como default global cuando no hay default declarado.
+	        .exceptionHandling(e -> e
+	            .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
 	        )
 
 	        // ORDEN DE FILTROS (correcto y sin dependencia entre ellos)

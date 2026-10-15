@@ -176,16 +176,16 @@ class AdminProductAndComboEndpointTests {
 
 	/**
 	 * None of the four admin routes matches a {@code permitAll} matcher: an
-	 * anonymous caller must be rejected by the filter chain, never reach the
-	 * controller.
+	 * anonymous caller is rejected by the filter chain's entry point (401),
+	 * never reaches the controller.
 	 */
 	@Test
 	void anonymousCallerIsRejectedOnEveryAdminRoute() throws Exception {
 
-		mockMvc.perform(get("/api/products")).andExpect(status().isForbidden());
-		mockMvc.perform(get("/api/combos")).andExpect(status().isForbidden());
-		mockMvc.perform(put("/api/products/1/activar?activo=true")).andExpect(status().isForbidden());
-		mockMvc.perform(delete("/api/products/1")).andExpect(status().isForbidden());
+		mockMvc.perform(get("/api/products")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/combos")).andExpect(status().isUnauthorized());
+		mockMvc.perform(put("/api/products/1/activar?activo=true")).andExpect(status().isUnauthorized());
+		mockMvc.perform(delete("/api/products/1")).andExpect(status().isUnauthorized());
 	}
 
 	/**

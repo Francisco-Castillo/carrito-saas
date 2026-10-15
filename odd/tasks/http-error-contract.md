@@ -106,10 +106,33 @@ Alcance honesto, escrito en el código: es una barrera de **privilegio, no de te
 
 El RED se midió, no se asumió: neutralizando la regla, `kitchenCallerOfRunIsForbidden` falla con `Status expected:<403> but was:<200>` — la vulnerabilidad misma. El archivo de la cadena se restauró **byte por byte** después de esa comprobación (mismo hash), y el GREEN es la suite completa.
 
-#### Anotado: 401 vs 403 para el anónimo
+#### Resuelto: 401 vs 403 para el anónimo
 
-La cadena **no configura entry point**, así que su default responde **403 también al anónimo** en toda ruta protegida: confunde "no tenés sesión" con "no tenés privilegio". Ese 403 está documentado como contrato vigente en tres suites (`ProductCatalogByIdTests`: *"403, because the route is not in any permitAll matcher"*, `DashboardAnonymousAccessTests`, `BusinessProfileAndStorefrontTests`), y el frontend no distingue un código del otro (no hay una sola comparación contra 401/403 en `frontend/src`).
+La pregunta anotada acá se resolvió **a favor del 401 global**: la cadena ahora configura
+`exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))`
+en `SecurityConfig`, así que el contrato de **toda** ruta protegida queda:
 
-Por eso el guard del `run` **no** cambió ese contrato: un anónimo recibe 403 y un test lo fija como comportamiento **sin cambios**, no como endorsement. Un primer intento lo resolvió por ruta con `DelegatingAuthenticationEntryPoint` + fallback explícito: ~30 líneas de mecanismo para una sola ruta, que además dejaba a esa ruta discrepando con el resto de la API y con una perilla que rompe cuatro suites si alguien la toca después. Se descartó — la pregunta es de toda la cadena, no de un endpoint.
+- **anónimo → 401** (no tenés sesión): `ExceptionTranslationFilter` manda al anónimo al entry point;
+- **autenticado sin el rol exigido → 403** (no tenés privilegio): sigue yendo al `AccessDeniedHandler` por default, que no se tocó;
+- las rutas `permitAll` siguen públicas, sin cambios.
 
-Decisión pendiente (afecta a **toda** ruta protegida y a esas tres suites): configurar un entry point global para que el anónimo reciba **401** en todas partes, o quedarse con el 403. Se decide con apetito de cambiar el contrato público de la API, no de refilón en un guard.
+`BearerTokenAuthenticationEntryPoint` hubiera puesto además `WWW-Authenticate: Bearer`, pero vive en
+`spring-security-oauth2-resource-server`, que no está en el classpath y agregar la dependencia está
+fuera de alcance; el status es lo que importa del contrato.
+
+Qué costó: nueve aserciones de test que fijaban el 403-del-anónimo pasaron a esperar 401 (el RED se
+midió con la suite completa: 9 fallos sobre 215, todos `expected:<401> but was:<403>`, en
+`AnonymousMenuOrderSecurityTests`, `AdminProductAndComboEndpointTests`, `BusinessProfileAndStorefrontTests`,
+`BusinessQrEndpointTests`, `DashboardAnonymousAccessTests`, `PredictionRunPrivilegeHttpTests`,
+`ProductCatalogByIdTests` y `TableQrPdfContractTests`). Tres aserciones tolerantes
+(`.isIn(401, 403)`, escritas cuando la respuesta del anónimo no estaba definida) se ajustaron al único
+valor verdadero: un test que acepta ambos ahora escondería una regresión.
+
+Qué NO cambió: ningún matcher de ruta, ningún `permitAll`, ningún `AccessDeniedHandler`. El caso
+"credenciales válidas, negocio ajeno" de `PanelErrorStatusHttpTests` sigue siendo 403 — ese que llama
+está autenticado. La experiencia del frontend tampoco cambia: no hay una sola comparación contra
+401/403 en `frontend/src` (el guard mira la sesión local, no el status de la API).
+
+Nota de archivo: los documentos históricos `tenant-isolation.md`, `admin-fixes.md` y `kds-access.md`
+describen el contrato ANTERIOR (403 para el anónimo) en verificaciones que fueron verdaderas cuando se
+corrieron; no se reescriben.

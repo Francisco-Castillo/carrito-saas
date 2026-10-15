@@ -134,8 +134,10 @@ class AnonymousMenuOrderSecurityTests {
 
 		mockMvc.perform(patch("/api/orders/1/status").param("status", "PREPARING"))
 				.andExpect(result -> Assertions.assertThat(result.getResponse().getStatus())
-						.as("PATCH /api/orders/{id}/status must stay authenticated")
-						.isIn(401, 403));
+						.as("PATCH /api/orders/{id}/status must stay authenticated: an anonymous "
+								+ "caller gets 401, the chain entry point's answer (actual: %d)",
+								result.getResponse().getStatus())
+						.isEqualTo(401));
 	}
 
 	@Test
@@ -145,8 +147,10 @@ class AnonymousMenuOrderSecurityTests {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{}"))
 				.andExpect(result -> Assertions.assertThat(result.getResponse().getStatus())
-						.as("PATCH /api/orders/{id}/cancel must stay authenticated")
-						.isIn(401, 403));
+						.as("PATCH /api/orders/{id}/cancel must stay authenticated: an anonymous "
+								+ "caller gets 401, the chain entry point's answer (actual: %d)",
+								result.getResponse().getStatus())
+						.isEqualTo(401));
 	}
 
 }
