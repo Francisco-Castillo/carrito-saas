@@ -145,6 +145,13 @@ class BusinessDateExceptionTests {
 		return dto;
 	}
 
+	/** Igual que arriba, con la bandera {@code yearly} explícita. */
+	private DateExceptionDTO exceptionDTO(LocalDate date, boolean yearly, BusinessShiftDTO... shifts) {
+		DateExceptionDTO dto = exceptionDTO(date, shifts);
+		dto.setYearly(yearly);
+		return dto;
+	}
+
 	private BusinessHoursDTO hoursDTO(int dayOfWeek, BusinessShiftDTO... shifts) {
 		BusinessHoursDTO dto = new BusinessHoursDTO();
 		dto.setDayOfWeek(dayOfWeek);
@@ -618,6 +625,223 @@ class BusinessDateExceptionTests {
 	}
 
 	// ------------------------------------------------------------------
+	// yearly: feriados que se repiten todos los años
+	// ------------------------------------------------------------------
+
+	/**
+	 * Una excepción {@code yearly: true} persiste (flag en cada fila de la
+	 * base) y vuelve con la bandera en el payload del perfil.
+	 */
+	@Test
+	void putYearlyExceptionPersistsAndComesBackWithTheFlag() throws Exception {
+
+		LocalDate christmas = LocalDate.of(2026, 12, 25);
+
+		BusinessProfileDTO payload = profileWithExceptions(List.of(),
+				List.of(exceptionDTO(christmas, true, shiftDTO("11:00:00", "15:00:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(payload)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.dateExceptions", hasSize(1)))
+				.andExpect(jsonPath("$.dateExceptions[0].date").value("2026-12-25"))
+				.andExpect(jsonPath("$.dateExceptions[0].yearly").value(true));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		mockMvc.perform(get("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.dateExceptions[0].yearly").value(true));
+
+		List<BusinessDateException> rows = savedRows();
+		assertThat(rows).hasSize(1);
+		assertThat(rows.get(0).getDate()).isEqualTo(christmas);
+		assertThat(rows.get(0).isYearly()).as("la bandera anual se guarda en la fila").isTrue();
+		assertThat(rows.get(0).getOpensAt()).isEqualTo(LocalTime.parse("11:00:00"));
+	}
+
+	/**
+	 * Un payload viejo que omite {@code yearly} se comporta exactamente como
+	 * antes: la bandera vale false y el feriado cerrado (lista de turnos
+	 * vacía) sigue cerrando su día.
+	 */
+	@Test
+	void putWithoutYearlyFieldKeepsTheOldMeaning() throws Exception {
+
+		String payload = """
+				{"name":"Negocio Fechas",
+				 "hours":[],
+				 "dateExceptions":[{"date":"2026-12-25","shifts":[]}]}
+				""";
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(payload))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.dateExceptions", hasSize(1)))
+				.andExpect(jsonPath("$.dateExceptions[0].yearly").value(false))
+				.andExpect(jsonPath("$.dateExceptions[0].shifts", hasSize(0)));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		List<BusinessDateException> rows = savedRows();
+		assertThat(rows).as("el feriado cerrado de un payload viejo sigue siendo una fila marcadora").hasSize(1);
+		assertThat(rows.get(0).getDate()).isEqualTo(LocalDate.of(2026, 12, 25));
+		assertThat(rows.get(0).getOpensAt()).isNull();
+		assertThat(rows.get(0).isYearly()).isFalse();
+	}
+
+	/**
+	 * Dos anuales con el mismo día y mes son un duplicado aunque los años
+	 * difieran: significan lo mismo (la anual rige todos los años).
+	 */
+	@Test
+	void putRejectsTwoYearlyExceptionsOnSameMonthDayEvenInDifferentYears() throws Exception {
+
+		BusinessProfileDTO payload = profileWithExceptions(List.of(), List.of(
+				exceptionDTO(LocalDate.of(2026, 12, 25), true, shiftDTO("11:00:00", "15:00:00")),
+				exceptionDTO(LocalDate.of(2027, 12, 25), true, shiftDTO("16:00:00", "20:00:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(payload)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("Ya hay una excepción anual para ese día y mes"));
+	}
+
+	/**
+	 * Una anual y una one-off que comparten día/mes están permitidas: la
+	 * exacta gana su año (precedencia) y la anual rige el resto. La respuesta
+	 * lleva las dos, ordenadas por fecha, cada una con su bandera.
+	 */
+	@Test
+	void putAllowsYearlyAndOneOffOnTheSameMonthDay() throws Exception {
+
+		LocalDate yearlyReference = LocalDate.of(2026, 12, 25);
+		LocalDate exactOverride = LocalDate.of(2027, 12, 25);
+
+		BusinessProfileDTO payload = profileWithExceptions(List.of(), List.of(
+				exceptionDTO(yearlyReference, true, shiftDTO("11:00:00", "15:00:00")),
+				exceptionDTO(exactOverride, false)));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(payload)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.dateExceptions", hasSize(2)))
+				.andExpect(jsonPath("$.dateExceptions[0].date").value("2026-12-25"))
+				.andExpect(jsonPath("$.dateExceptions[0].yearly").value(true))
+				.andExpect(jsonPath("$.dateExceptions[1].date").value("2027-12-25"))
+				.andExpect(jsonPath("$.dateExceptions[1].yearly").value(false));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		List<BusinessDateException> rows = savedRows();
+		assertThat(rows).as("la anual y la one-off conviven: son dos fechas en la base").hasSize(2);
+		assertThat(rows.get(0).getDate()).isEqualTo(yearlyReference);
+		assertThat(rows.get(0).isYearly()).isTrue();
+		assertThat(rows.get(1).getDate()).isEqualTo(exactOverride);
+		assertThat(rows.get(1).isYearly()).isFalse();
+	}
+
+	/**
+	 * El derrame de una fila anual se valida igual que una one-off, contra el
+	 * día siguiente a su fecha concreta: 2027-03-05 es viernes y derrama 30
+	 * minutos; la one-off del sábado 2027-03-06 que abre 00:15 choca → 400.
+	 * El año guardado es sólo referencia para la validación.
+	 */
+	@Test
+	void putRejectsYearlySpillCollidingWithConcreteNextDay() throws Exception {
+
+		LocalDate friday = LocalDate.of(2027, 3, 5);
+		assertThat(friday.getDayOfWeek().getValue()).isEqualTo(5);
+
+		BusinessProfileDTO payload = profileWithExceptions(List.of(), List.of(
+				exceptionDTO(friday, true, shiftDTO("19:00:00", "00:30:00")),
+				exceptionDTO(friday.plusDays(1), false, shiftDTO("00:15:00", "08:00:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(payload)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message")
+						.value("El turno que pasa la medianoche se superpone con la apertura del día siguiente"));
+	}
+
+	/**
+	 * Borde 31/12: el día siguiente cae en el año siguiente. Una anual del
+	 * 31/12 derramando choca con la anual del 01/01 guardada con año distinto —
+	 * la anual del día siguiente rige todos los años, así que el match es por
+	 * día y mes, no por la fecha exacta.
+	 */
+	@Test
+	void putRejectsYearlySpillAcrossYearBoundaryAgainstYearlyNextMonthDay() throws Exception {
+
+		LocalDate newYearsEve = LocalDate.of(2027, 12, 31);
+		LocalDate newYearsDay = LocalDate.of(2027, 1, 1);
+
+		BusinessProfileDTO payload = profileWithExceptions(List.of(), List.of(
+				exceptionDTO(newYearsEve, true, shiftDTO("19:00:00", "00:30:00")),
+				exceptionDTO(newYearsDay, true, shiftDTO("00:15:00", "08:00:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(payload)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message")
+						.value("El turno que pasa la medianoche se superpone con la apertura del día siguiente"));
+	}
+
+	/**
+	 * Borde 29/02: la anual del 29/02 sólo ocurre en años bisiestos, así que
+	 * el derrame se valida contra el día siguiente a la fecha guardada
+	 * (2028-03-01, miércoles). Sin excepción ese día, el derrame se compara con
+	 * el miércoles de las horas efectivas — cerrado acá, pasa; con una one-off
+	 * del 01/03 que abre antes del derrame, choca.
+	 */
+	@Test
+	void putYearlyLeapDaySpillIsCheckedAgainstMarchFirst() throws Exception {
+
+		LocalDate leapDay = LocalDate.of(2028, 2, 29);
+		assertThat(leapDay.plusDays(1)).isEqualTo(LocalDate.of(2028, 3, 1));
+		assertThat(LocalDate.of(2028, 3, 1).getDayOfWeek().getValue()).isEqualTo(3);
+
+		// Sin excepción el 01/03 y el miércoles cerrado: el derrame pasa.
+		BusinessProfileDTO alone = profileWithExceptions(List.of(),
+				List.of(exceptionDTO(leapDay, true, shiftDTO("19:00:00", "00:30:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(alone)))
+				.andExpect(status().isOk());
+
+		// Con una one-off del 01/03/2028 que abre 00:15: choca con el derrame.
+		BusinessProfileDTO colliding = profileWithExceptions(List.of(), List.of(
+				exceptionDTO(leapDay, true, shiftDTO("19:00:00", "00:30:00")),
+				exceptionDTO(LocalDate.of(2028, 3, 1), false, shiftDTO("00:15:00", "08:00:00"))));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(colliding)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message")
+						.value("El turno que pasa la medianoche se superpone con la apertura del día siguiente"));
+	}
+
+	// ------------------------------------------------------------------
 	 // Menú público
 	// ------------------------------------------------------------------
 
@@ -678,6 +902,48 @@ class BusinessDateExceptionTests {
 		mockMvc.perform(get("/api/menu/" + SLUG_A))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.business.dateExceptions", hasSize(0)));
+	}
+
+	/**
+	 * El menú público también tiene que llevar la bandera anual. La carta es
+	 * quien resuelve las fechas (el backend sólo las guarda y valida), así que un
+	 * payload que la omitiera dejaría a un feriado anual sin aplicar nunca del
+	 * lado del cliente. Este mapeo es el gemelo de
+	 * {@code BusinessProfileServiceImpl#toDateExceptionDTOs}, y se había quedado
+	 * atrás del perfil del dueño: por eso el test mira el payload público y no
+	 * el interno.
+	 */
+	@Test
+	public void publicMenuCarriesTheYearlyFlagOnDateExceptions() throws Exception {
+
+		Business a = businessRepository.findById(BUSINESS_A_ID).orElseThrow();
+
+		// Feriado anual cerrado: la fila marcadora (sin horarios) también puede
+		// repetirse todos los años, y la bandera no depende de tener turnos.
+		BusinessDateException christmas = new BusinessDateException();
+		christmas.setBusiness(a);
+		christmas.setDate(LocalDate.of(2026, 12, 25));
+		christmas.setPosition(0);
+		christmas.setYearly(true);
+		businessDateExceptionRepository.saveAndFlush(christmas);
+
+		// Y una fecha exacta de una sola vez: la bandera es por fila, no global.
+		BusinessDateException oneOff = new BusinessDateException();
+		oneOff.setBusiness(a);
+		oneOff.setDate(LocalDate.of(2026, 10, 20));
+		oneOff.setPosition(0);
+		oneOff.setOpensAt(LocalTime.parse("11:00:00"));
+		oneOff.setClosesAt(LocalTime.parse("15:00:00"));
+		oneOff.setYearly(false);
+		businessDateExceptionRepository.saveAndFlush(oneOff);
+
+		mockMvc.perform(get("/api/menu/" + SLUG_A))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.business.dateExceptions", hasSize(2)))
+				.andExpect(jsonPath("$.business.dateExceptions[0].date").value("2026-10-20"))
+				.andExpect(jsonPath("$.business.dateExceptions[0].yearly").value(false))
+				.andExpect(jsonPath("$.business.dateExceptions[1].date").value("2026-12-25"))
+				.andExpect(jsonPath("$.business.dateExceptions[1].yearly").value(true));
 	}
 
 	// ------------------------------------------------------------------
