@@ -69,7 +69,7 @@ const MENU_PAYLOAD = {
 
 const okJson = (data: unknown) => ({ ok: true, status: 200, json: async () => data });
 
-function stubFetch() {
+function stubFetch(business?: unknown) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string | URL | Request) => {
@@ -77,7 +77,9 @@ function stubFetch() {
       if (u.startsWith("/api/restaurants/slug/")) {
         return okJson({ name: "Local OK", whatsappNumber: "" });
       }
-      if (u.startsWith("/api/menu/")) return okJson(MENU_PAYLOAD);
+      if (u.startsWith("/api/menu/")) {
+        return okJson(business === undefined ? MENU_PAYLOAD : { ...MENU_PAYLOAD, business });
+      }
       return okJson({});
     }),
   );
@@ -86,6 +88,25 @@ function stubFetch() {
 async function renderMenu() {
   window.history.replaceState({}, "", `/?restaurant=${SLUG}`);
   stubFetch();
+  render(<Menu />);
+  await screen.findByText("Milanesa");
+}
+
+const STOREFRONT_BUSINESS = {
+  id: 990000001,
+  name: "Local Vidriería",
+  slug: SLUG,
+  whatsappNumber: "1155556666",
+  logoUrl: null,
+  bannerUrl: null,
+  address: "Calle Falsa 123",
+  instagramUrl: null,
+  hours: [],
+};
+
+async function renderMenuWithStorefront() {
+  window.history.replaceState({}, "", `/?restaurant=${SLUG}`);
+  stubFetch(STOREFRONT_BUSINESS);
   render(<Menu />);
   await screen.findByText("Milanesa");
 }
@@ -201,6 +222,62 @@ describe("category nav pills (scroll-spy)", () => {
     expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith(
       expect.objectContaining({ behavior: "auto" }),
     );
+  });
+});
+
+describe("menu block: heading + pills in place", () => {
+  it("renders the pills inside the menu block, after the storefront, under a real heading", async () => {
+    stubScrollSpy();
+    await renderMenuWithStorefront();
+
+    // El bloque de menú existe y viene DESPUÉS de la portada.
+    const block = document.querySelector(".menu-block") as HTMLElement;
+    expect(block).not.toBeNull();
+    const storefront = document.querySelector(".storefront")!;
+    expect(storefront).not.toBeNull();
+    expect(
+      storefront.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    // Encabezado real que precede a las píldoras, dentro del mismo bloque.
+    const heading = within(block).getByRole("heading", { name: "Menú" });
+    const nav = within(block).getByRole("navigation", { name: "Categorías" });
+    expect(
+      heading.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    // Las píldoras quedan por encima de la primera sección (y dentro del bloque).
+    const firstSection = block.querySelector(".menu-section");
+    expect(firstSection).not.toBeNull();
+    expect(block.contains(nav)).toBe(true);
+    expect(
+      nav.compareDocumentPosition(firstSection!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("toggles is-stuck with the sentinel observer: glass only while the bar is actually stuck", async () => {
+    stubScrollSpy();
+    await renderMenu();
+
+    const bar = document.querySelector(".menu-sticky")!;
+    expect(bar).not.toBeNull();
+    // En su lugar natural (dentro del bloque de menú) NO hay vidrio.
+    expect(bar).not.toHaveClass("is-stuck");
+
+    // El observer del sentinel es uno aparte del scroll-spy de secciones.
+    const observer = FakeIntersectionObserver.instances.find((o) =>
+      o.elements.some((el) => el.classList.contains("menu-sticky-sentinel")),
+    );
+    expect(observer).toBeDefined();
+    expect(observer!.elements).toHaveLength(1);
+
+    // El sentinel dejó de verse → la barra quedó pegada arriba → vidrio.
+    act(() => observer!.trigger(0, false));
+    expect(bar).toHaveClass("is-stuck");
+
+    // El sentinel volvió a verse → la barra está en su lugar natural.
+    act(() => observer!.trigger(0, true));
+    expect(bar).not.toHaveClass("is-stuck");
   });
 });
 

@@ -34,50 +34,246 @@
 }
 
 /* ------------------------------------------------------------
-   Barra sticky de vidrio — nombre del local + píldoras de categorías
+   Portada del local (storefront) — banner + identidad + contacto
 
-   Van juntas en UN solo bloque sticky a propósito: cuando eran dos elementos
-   sticky separados quedaba una ranura entre el header y la fila de píldoras por
-   donde el contenido pasaba sin desenfocar (el cliente veía la foto y el texto
-   mezclados con el header). Una sola barra, pegada al borde superior y sangrada
-   hasta los bordes del contenedor, no deja hueco por donde mirar.
+   Se renderiza arriba de la barra sticky. Sin banner no hay bloque ni hueco:
+   la cabecera arranca directo. Cada dato faltante desaparece sin dejar espacio.
+   ------------------------------------------------------------ */
+
+.storefront {
+  margin: 0 0 var(--space-6);
+}
+
+.storefront-banner {
+  position: relative;
+  /* Altura acotada a propósito: con 16:6 el banner medía ~576px en una pantalla
+     de 1600 y se comía más de media pantalla antes del primer producto. Un
+     ancho completo con `object-fit: cover` deja ver el local sin tapar la carta. */
+  height: clamp(170px, 17vw, 260px);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border-subtle);
+  background: var(--glass-bg-subtle);
+  box-shadow: var(--glass-shadow);
+}
+
+@media (max-width: 639px) {
+  .storefront-banner {
+    /* En un teléfono el ancho disponible es chico: la misma idea, más baja. */
+    height: clamp(140px, 36vw, 190px);
+  }
+}
+
+.storefront-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Fundido al aurora: el borde inferior del banner se disuelve en el fondo. */
+.storefront-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(2, 6, 23, 0) 62%,
+    rgba(2, 6, 23, 0.6) 100%
+  );
+  pointer-events: none;
+}
+
+.storefront-head {
+  display: flex;
+  align-items: center;
+  /* Los pills de contacto viven acá dentro: en pantallas anchas se apoyan a
+     la derecha de la columna de info; en teléfonos bajan debajo (wrap). */
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+}
+
+/* El logo cabalga sobre el borde inferior del banner (sólo cuando hay banner:
+   el selector de hermano evita la superposición fantasma sin banner). */
+.storefront-banner + .storefront-head {
+  margin: -28px var(--space-4) 0;
+}
+
+.storefront-logo {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-subtle);
+  box-shadow: var(--glass-inset-highlight);
+}
+
+.storefront-titles {
+  min-width: 0;
+}
+
+.storefront-name {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.storefront-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+}
+
+.storefront-badge {
+  padding: 3px var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+}
+
+.storefront-badge.is-open {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.storefront-badge.is-closed {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+}
+
+.storefront-status-line {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.storefront-hours {
+  margin: 2px 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.storefront-contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  /* Anchas: tercera columna de la tarjeta, pegada al borde derecho. */
+  margin-left: auto;
+}
+
+@media (max-width: 639px) {
+  .storefront-contact {
+    /* Teléfonos: los pills bajan como fila propia debajo de la info. La
+       tarjeta crece una fila de pills (~52px), no más: la info y el logo
+       mantienen su altura (72px de logo > 44px de pills, no suman en ancho). */
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+}
+
+.storefront-link {
+  display: inline-flex;
+  align-items: center;
+  /* Objetivo táctil ≥44px, igual que el resto de la carta. */
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-subtle);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  transition:
+    background var(--duration-fast) var(--ease-out-soft),
+    border-color var(--duration-fast) var(--ease-out-soft);
+}
+
+.storefront-link:hover {
+  background: rgba(2, 6, 23, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.storefront-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.storefront-link--address {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------
+   Bloque de menú — encabezado + píldoras + secciones
+
+   Los filtros pertenecen al menú: el encabezado real y las píldoras viven
+   dentro del bloque, arriba de la primera sección. Nada de barra flotante.
+   ------------------------------------------------------------ */
+
+.menu-block-heading {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+/* ------------------------------------------------------------
+   Barra sticky de píldoras — vidrio SOLO mientras está pegada
+
+   En su lugar natural las píldoras son parte del bloque de menú: fondo
+   transparente, alineadas con el contenido. Cuando el sentinel (un elemento
+   de 1px justo antes de la barra, vigilado por IntersectionObserver) deja de
+   verse, la barra quedó pegada arriba y la pseudo-capa ::before enciende el
+   tratamiento de vidrio sangrado a los bordes del contenedor. El vidrio va en
+   ::before y no en la barra para que encenderlo/apagarlo no cambie ninguna
+   métrica de layout (cero salto al cruzar el umbral) y la opacidad haga la
+   transición suave.
    ------------------------------------------------------------ */
 
 .menu-sticky {
   position: sticky;
   top: 0;
   z-index: 40;
-  margin: calc(var(--space-3) * -1) calc(var(--menu-gutter) * -1) var(--space-1);
-  padding: var(--space-3) var(--menu-gutter) var(--space-2);
+  margin: 0 0 var(--space-1);
+  padding: var(--space-1) 0;
+}
+
+.menu-sticky::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(var(--menu-gutter) * -1);
+  z-index: -1;
+  pointer-events: none;
   background: rgba(2, 6, 23, 0.62);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border-bottom: 1px solid var(--glass-border-subtle);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out-soft);
 }
 
-.menu-topbar {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 0 var(--space-1) var(--space-2);
+.menu-sticky.is-stuck::before {
+  opacity: 1;
 }
 
-.menu-eyebrow {
-  margin: 0;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
-.restaurant-name {
-  margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: -0.01em;
+/* Sentinel del sticky: invisible (1px) y sin interacción; sólo marca el punto
+   donde la barra alcanza el borde superior. */
+.menu-sticky-sentinel {
+  height: 1px;
+  pointer-events: none;
 }
 
 /* ------------------------------------------------------------
@@ -154,10 +350,9 @@
 }
 
 .menu-section {
-  /* La barra sticky mide 118px en todos los breakpoints (medido en el
-     navegador): 140px deja aire sin que el título quede tapado al navegar con
-     las píldoras. */
-  scroll-margin-top: 140px;
+  /* La barra sticky mide 61px (sólo píldoras, medido en el navegador): 80px
+     deja un respiro sin que el título quede tapado al navegar con las píldoras. */
+  scroll-margin-top: 80px;
 }
 
 .section-heading {
@@ -1023,6 +1218,9 @@
    ------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
+  .menu-sticky::before {
+    transition: none;
+  }
   .product-card,
   .product-card:hover,
   .product-card:active,

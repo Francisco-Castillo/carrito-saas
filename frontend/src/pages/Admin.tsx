@@ -5,16 +5,18 @@ import DashboardSection from "./admin/DashboardSection";
 import ProductsTable from "./admin/ProductsTable";
 import CategoriesTable from "./admin/CategoriesTable";
 import CombosTable from "./admin/CombosTable";
+import LocalSection from "./admin/LocalSection";
 import CreateCategoryModal from "./admin/CreateCategoryModal";
 import ToastHost from "./admin/ToastHost";
 
-type AdminView = "dashboard" | "products" | "categories" | "combos";
+type AdminView = "dashboard" | "products" | "categories" | "combos" | "local";
 
 const NAV_ITEMS: { view: AdminView; label: string }[] = [
   { view: "dashboard", label: "📊 Dashboard" },
   { view: "products", label: "🍔 Productos" },
   { view: "categories", label: "📂 Categorías" },
   { view: "combos", label: "🔥 Combos" },
+  { view: "local", label: "🏪 Local" },
 ];
 
 /**
@@ -134,6 +136,7 @@ export default function Admin() {
             />
           )}
           {view === "combos" && <CombosTable />}
+          {view === "local" && <LocalSection />}
         </section>
       </div>
 

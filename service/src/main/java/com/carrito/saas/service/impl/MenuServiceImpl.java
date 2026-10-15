@@ -5,14 +5,18 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import com.carrito.saas.dto.BusinessDTO;
+import com.carrito.saas.dto.BusinessHoursDTO;
 import com.carrito.saas.dto.CategoryDTO;
 import com.carrito.saas.dto.ComboDTO;
 import com.carrito.saas.dto.MenuDTO;
 import com.carrito.saas.dto.ProductDTO;
 import com.carrito.saas.repository.entity.Business;
+import com.carrito.saas.repository.entity.BusinessHours;
 import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.repository.entity.Combo;
 import com.carrito.saas.repository.entity.Product;
+import com.carrito.saas.repository.jpa.BusinessHoursRepository;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.CategoryRepository;
 import com.carrito.saas.repository.jpa.ComboRepository;
@@ -27,6 +31,7 @@ import com.carrito.saas.service.mapper.interfaces.IProductMapper;
 public class MenuServiceImpl implements IMenuService {
 
 	private final BusinessRepository businessRepository;
+	private final BusinessHoursRepository businessHoursRepository;
 	private final CategoryRepository categoryRepository;
 	private final ProductRepository productRepository;
 	private final ComboRepository comboRepository;
@@ -35,10 +40,12 @@ public class MenuServiceImpl implements IMenuService {
 	private final IProductMapper iProductMapper;
 	private final IComboMapper iComboMapper;
 
-	public MenuServiceImpl(BusinessRepository businessRepository, CategoryRepository categoryRepository,
+	public MenuServiceImpl(BusinessRepository businessRepository, BusinessHoursRepository businessHoursRepository,
+			CategoryRepository categoryRepository,
 			ProductRepository productRepository, ComboRepository comboRepository, IBusinessMapper iBusinessMapper,
 			ICategoryMapper iCategoryMapper, IProductMapper iProductMapper, IComboMapper iComboMapper) {
 		this.businessRepository = businessRepository;
+		this.businessHoursRepository = businessHoursRepository;
 		this.categoryRepository = categoryRepository;
 		this.productRepository = productRepository;
 		this.comboRepository = comboRepository;
@@ -66,6 +73,18 @@ public class MenuServiceImpl implements IMenuService {
 
 		menu.setBusiness(iBusinessMapper.toDTO(business));
 
+		// Storefront: las horas se traen acá (la entidad Business no las
+		// colecciona) para que el menú no necesite una segunda llamada. La
+		// consulta ya ordena lunes→domingo (1..7); sin horas, lista vacía —
+		// nunca null.
+		List<BusinessHoursDTO> hoursDTOs = businessHoursRepository
+				.findByBusiness_IdOrderByDayOfWeekAsc(business.getId())
+				.stream()
+				.map(MenuServiceImpl::toHoursDTO)
+				.collect(Collectors.toList());
+
+		menu.getBusiness().setHours(hoursDTOs);
+
 		List<CategoryDTO> categoryDTOs = categories.stream().map(iCategoryMapper::toDTO).collect(Collectors.toList());
 
 		menu.setCategories(categoryDTOs);
@@ -80,6 +99,15 @@ public class MenuServiceImpl implements IMenuService {
 		menu.setCombos(comboDTOs);
 
 		return menu;
+	}
+
+	private static BusinessHoursDTO toHoursDTO(BusinessHours hours) {
+		BusinessHoursDTO dto = new BusinessHoursDTO();
+		dto.setDayOfWeek(hours.getDayOfWeek());
+		dto.setOpensAt(hours.getOpensAt());
+		dto.setClosesAt(hours.getClosesAt());
+		dto.setClosed(hours.isClosed());
+		return dto;
 	}
 
 }
