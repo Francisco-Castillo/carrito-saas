@@ -135,6 +135,27 @@ INSERT INTO business_hours (business_id, day_of_week, position, opens_at, closes
 ON CONFLICT (business_id, day_of_week, position) DO UPDATE
 SET opens_at = EXCLUDED.opens_at, closes_at = EXCLUDED.closes_at;
 
+-- Segunda demo: la pizzería que se muestra en el panel. A diferencia del
+-- foodtruck, este negocio NO es del seed (es del dueño), así que sus filas van
+-- con DO NOTHING: siembran un estado vacío una sola vez y NUNCA pisan lo que el
+-- dueño cargue desde Panel → Local. El contraste con el DO UPDATE de arriba es
+-- deliberado: esas filas son del seed, éstas son del dueño.
+-- Lunes cerrado (un día sin turnos ES un día cerrado); martes a jueves de
+-- noche; viernes y sábado mediodía y noche; domingo sólo noche. El último turno
+-- cierra después de medianoche (convención documentada en
+-- IBusinessProfileService) y ninguno de esos cierres se solapa con la apertura
+-- del día siguiente: 00:30 del viernes contra las 12:00 del sábado, por ejemplo.
+INSERT INTO business_hours (business_id, day_of_week, position, opens_at, closes_at) VALUES
+  (900000001, 2, 0, '19:00', '00:00'),
+  (900000001, 3, 0, '19:00', '00:00'),
+  (900000001, 4, 0, '19:00', '00:00'),
+  (900000001, 5, 0, '12:00', '15:00'),
+  (900000001, 5, 1, '19:00', '00:30'),
+  (900000001, 6, 0, '12:00', '15:00'),
+  (900000001, 6, 1, '19:00', '00:30'),
+  (900000001, 7, 0, '19:00', '23:30')
+ON CONFLICT (business_id, day_of_week, position) DO NOTHING;
+
 -- Cancellation reasons used by the KDS cancel modal
 INSERT INTO cancellation_reasons (id, code, description, active, created_at) VALUES
   (990101, 'NO_STOCK',     'Sin stock de ingredientes', true, now()),
