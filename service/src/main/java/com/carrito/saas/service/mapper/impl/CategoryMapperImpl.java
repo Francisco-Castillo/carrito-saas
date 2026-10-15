@@ -6,22 +6,11 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.carrito.saas.dto.CategoryDTO;
-import com.carrito.saas.dto.ProductDTO;
 import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.service.mapper.interfaces.ICategoryMapper;
 
 @Component
 public class CategoryMapperImpl implements ICategoryMapper {
-
-	@Override
-	public Category toEntity(CategoryDTO dto) {
-		Category entity = new Category();
-
-		entity.setId(dto.getId());
-		entity.setName(dto.getName());
-
-		return entity;
-	}
 
 	@Override
 	public CategoryDTO toDTO(Category entity) {

@@ -13,12 +13,6 @@ import com.carrito.saas.service.mapper.interfaces.IRestaurantTableMapper;
 public class RestaurantTableMapperImpl implements IRestaurantTableMapper {
 
 	@Override
-	public RestaurantTable toEntity(TableResponseDTO dto) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	public TableResponseDTO toDTO(RestaurantTable entity) {
 		TableResponseDTO response =  new TableResponseDTO();
 		response.setId(entity.getId());

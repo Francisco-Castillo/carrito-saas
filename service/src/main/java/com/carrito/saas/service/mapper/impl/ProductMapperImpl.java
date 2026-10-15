@@ -14,12 +14,6 @@ import com.carrito.saas.service.mapper.interfaces.IProductMapper;
 public class ProductMapperImpl implements IProductMapper {
 
 	@Override
-	public Product toEntity(ProductDTO dto) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	public ProductDTO toDTO(Product entity) {
 		ProductDTO dto = new ProductDTO();
 
