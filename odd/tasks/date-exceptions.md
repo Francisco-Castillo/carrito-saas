@@ -96,3 +96,12 @@ Sección **"Fechas especiales"** en la pantalla Local: agregar una fecha (select
 Capturas: `/tmp/e2e-menu/32-panel-fechas.png` y `33-carta-feriado.png`.
 
 La tabla la creó Hibernate al arrancar sobre la base real: `business_date_exception` con sus columnas y la constraint nombrada. **No necesita migración manual** (una tabla nueva es lo que `ddl-auto: update` hace de forma confiable; lo que no hace bien es alterar una existente, y por eso los turnos sí llevaron script).
+
+### Decidido: el producto NO trae un calendario de feriados
+
+Era tentador y está mal: precargar los feriados de un país. Es un SaaS multi-tenant —los
+negocios pueden estar en países distintos, y el mismo país cambia su calendario por ley— así
+que el calendario correcto **no existe en el código**: cada dueño lo carga en "Fechas
+especiales", y la bandera `yearly` hace que no tenga que repetirlo cada año. El demo sí trae
+tres ejemplos (24/12 con horario especial, 25/12 y 01/01 cerrados) como datos **del negocio de
+demostración**, no como calendario del producto.
