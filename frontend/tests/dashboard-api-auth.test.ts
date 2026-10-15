@@ -11,6 +11,12 @@
  * Phase 2 (organic login): the slug comes from the session (localStorage
  * `restaurantSlug`, written by the login), never from the URL query — these
  * tests run against a clean URL (no ?restaurant=).
+ *
+ * Missing-slug contract: a session without a readable slug must NOT keep
+ * rendering silently empty panels — the module still imports (never throws)
+ * and asks for the redirect to the bare login page (/login/login.html, no
+ * ?restaurant=), where the organic login writes the slug on the next
+ * authentication.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -63,14 +69,14 @@ describe('dashboard api auth header', () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`/api/restaurants/${SLUG}/dashboard/today`)
   })
 
-  it('a missing session slug is reported and does not throw', async () => {
+  it('a missing session slug redirects to the bare login page and the module still imports', async () => {
     localStorage.removeItem('restaurantSlug')
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const replace = vi.fn()
+    vi.stubGlobal('location', { href: '/dashboard/index.html', search: '', replace })
     vi.resetModules()
 
     await expect(import('../src/pages/dashboard/api')).resolves.toBeDefined()
 
-    expect(consoleError).toHaveBeenCalledWith('Restaurant slug missing in session')
-    consoleError.mockRestore()
+    expect(replace).toHaveBeenCalledWith('/login/login.html')
   })
 })

@@ -8,10 +8,12 @@
  *
  * Fase 2 (login orgánico): el slug del restaurante se resuelve desde la
  * sesión (localStorage "restaurantSlug", escrito por el login), no de la
- * URL — el panel funciona con una URL limpia.
+ * URL — el panel funciona con una URL limpia. Sin slug legible el módulo
+ * redirige al login limpio (sessionRestaurantSlugOrRedirect) en vez de
+ * seguir con paneles vacíos en silencio; nunca lanza y siempre importa.
  */
 
-import { getSessionRestaurantSlug } from "./auth";
+import { sessionRestaurantSlugOrRedirect } from "./auth";
 
 export interface DashboardToday {
   revenue: number;
@@ -36,11 +38,9 @@ export interface SalesByHour {
   revenue: number;
 }
 
-const restaurantSlug = getSessionRestaurantSlug();
-
-if (!restaurantSlug) {
-  console.error("Restaurant slug missing in session");
-}
+// Sin slug legible el helper ya pidió el redirect al login limpio: la sesión
+// sin slug no sigue mandando requests sin la ruta del restaurante.
+const restaurantSlug = sessionRestaurantSlugOrRedirect();
 
 const API_BASE = `/api/restaurants/${restaurantSlug}`;
 

@@ -58,6 +58,24 @@ export function enforceSession(): void {
   window.location.replace(LOGIN_PAGE);
 }
 
+/**
+ * Slug de sesión o redirect al login: cierra el hueco de los paneles
+ * silenciosamente vacíos. Una sesión autenticada sin slug legible (sesiones
+ * creadas antes del login orgánico, o deep links/bookmarks que solo traían
+ * la query) ya no sigue construyendo una base de API sin slug con todos los
+ * requests fallando en silencio: vuelve al login limpio (sin ?restaurant=),
+ * donde el login orgánico escribe el slug en la próxima autenticación.
+ * Nunca lanza: sin slug legible pide el redirect y devuelve null.
+ */
+export function sessionRestaurantSlugOrRedirect(): string | null {
+  const slug = getSessionRestaurantSlug();
+  if (slug === null) {
+    enforceSession();
+    return null;
+  }
+  return slug;
+}
+
 function isTokenExpired(token: string): boolean {
   try {
     const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as {
