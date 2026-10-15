@@ -3,6 +3,7 @@ package com.carrito.saas;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -400,6 +401,74 @@ class AdminProductAndComboEndpointTests {
 				.andExpect(jsonPath("$[*].id", Matchers.not(Matchers.hasItem(foreignCombo.getId().intValue()))))
 				.andExpect(jsonPath("$[0].items[*].productName",
 						Matchers.hasItem("Admin Combo Component A")));
+	}
+
+	/**
+	 * Creating a product answers on the route the rest of the product API uses.
+	 *
+	 * <p>It used to be {@code POST /api/productos} — the only Spanish segment
+	 * among {@code /api/products/**} — and nothing called it: not the panel (it
+	 * had no create UI), not the legacy frontend, not the tests. That is why the
+	 * inconsistency survived, and why renaming it is safe.</p>
+	 */
+	@Test
+	void createProductAnswersOnTheProductsPath() throws Exception {
+
+		String body = """
+				{"categoryId": %d, "name": "Admin Created", "description": "Creado en el test",
+				 "price": 150.00, "cost": 30.00, "stock": 3, "active": true}
+				""".formatted(categoryA.getId());
+
+		mockMvc.perform(post("/api/products")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value("Admin Created"));
+
+		// Y el camino viejo ya no responde: no quedan dos puertas al mismo recurso.
+		mockMvc.perform(post("/api/productos")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isNotFound());
+	}
+
+	/**
+	 * Updating a product lives under its own collection, like every other product
+	 * route. It used to be {@code PUT /api/{id}} — a bare id hanging off the API
+	 * root, reachable by nothing — and a foreign id must stay a 404 even on the
+	 * corrected path.
+	 */
+	@Test
+	void updateProductAnswersOnTheProductsPathAndStaysScoped() throws Exception {
+
+		Product own = product(categoryA, "Admin Before", true);
+		Product foreign = product(categoryB, "Admin Foreign", true);
+
+		String body = """
+				{"categoryId": %d, "name": "Admin After", "description": "Editado en el test",
+				 "price": 175.00, "cost": 35.00, "stock": 4, "active": true}
+				""".formatted(categoryA.getId());
+
+		mockMvc.perform(put("/api/products/" + own.getId())
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value("Admin After"));
+
+		mockMvc.perform(put("/api/products/" + foreign.getId())
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isNotFound());
+
+		mockMvc.perform(put("/api/" + own.getId())
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isNotFound());
 	}
 
 }

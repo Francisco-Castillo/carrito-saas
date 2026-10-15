@@ -106,14 +106,14 @@ public class ProductController {
 		return iBusinessMapper.toDTO(restaurant);
 	}
 
-	@PostMapping("/productos")
+	@PostMapping("/products")
 	public ResponseEntity<ProductDTO> crear(@RequestBody ProductCreateDTO dto) {
 		ProductDTO creado = productService.crearProducto(dto);
 
 		return ResponseEntity.ok(creado);
 	}
 
-	@PutMapping("/{id}")
+	@PutMapping("/products/{id}")
 	public ProductDTO actualizar(@PathVariable Long id, @RequestBody ProductDTO dto) {
 		return productService.actualizarProducto(id, dto);
 	}
