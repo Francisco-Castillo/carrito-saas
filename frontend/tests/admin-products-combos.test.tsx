@@ -4,17 +4,26 @@
  *
  *   1. GET /api/products is called with the Authorization header and without
  *      the legacy hardcoded `businessId` query parameter.
- *   2. The ON/OFF toggle sends the TARGET state: `activo=true` for an
- *      inactive product and `activo=false` for an active one (the legacy
- *      always sent activo=false, so activating never worked).
+ *   2. The toggle is a real switch (role="switch" + aria-checked) with a
+ *      meaningful accessible name, and sends the TARGET state:
+ *      `activo=true` for an inactive product and `activo=false` for an
+ *      active one (the legacy always sent activo=false, so activating never
+ *      worked).
  *   3. Deleting asks for confirmation first (same ConfirmModal interaction
  *      as CategoriesTable): cancelling/Escape/backdrop issue no DELETE;
  *      confirming issues DELETE /api/products/{id} with the auth header.
  *      A 409 (product used by a combo) surfaces a readable message to the
  *      operator via toast instead of failing silently.
  *   4. GET /api/combos is called with the Authorization header.
+ *   5. Search filters the loaded list client-side, case- AND accent-
+ *      insensitively (Spanish catalogue: "César" matches "cesar"), with an
+ *      explicit empty state when nothing matches.
+ *   6. Create and edit live in a modal: create POSTs /api/products with the
+ *      ProductCreateDTO fields and refreshes the list; edit prefills from
+ *      the row and PUTs /api/products/{id}. A backend 400 keeps the modal
+ *      open and shows the backend's Spanish message INLINE in the modal.
  */
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Admin from '../src/pages/Admin'
@@ -27,12 +36,52 @@ function futureJwt(): string {
 
 const TOKEN = futureJwt()
 
+/** Full ProductDTO shape the backend actually returns on GET /api/products. */
 const PRODUCTS = [
-  { id: 1, name: 'Pizza Margherita', price: 8500, stock: 10, active: true },
-  { id: 2, name: 'Combo Cantor', price: 12000, stock: null, active: false },
+  {
+    id: 1,
+    name: 'Pizza Margherita',
+    price: 8500,
+    cost: 3000,
+    description: 'Muzzarella y albahaca',
+    stock: 10,
+    active: true,
+    categoryId: 3628,
+    categoryName: 'Pizzas',
+    unitMeasure: 'PORCION',
+  },
+  {
+    id: 2,
+    name: 'Combo Cantor',
+    price: 12000,
+    cost: 5000,
+    description: 'Para compartir',
+    stock: null,
+    active: false,
+    categoryId: 990011,
+    categoryName: 'Hamburguesas',
+    unitMeasure: 'UNIDAD',
+  },
+  {
+    id: 3,
+    name: 'Ensalada César',
+    price: 6200,
+    cost: 2500,
+    description: 'Lechuga y pollo',
+    stock: 5,
+    active: true,
+    categoryId: 990013,
+    categoryName: 'Postres',
+    unitMeasure: 'UNIDAD',
+  },
 ]
 
 const COMBOS = [{ id: 7, name: 'Combo Familiar', price: 15000, active: true, items: [] }]
+
+const CATEGORIES = [
+  { id: 990012, name: 'Bebidas', active: true },
+  { id: 3628, name: 'Pizzas', active: true },
+]
 
 interface RecordedCall {
   url: string
@@ -48,20 +97,35 @@ interface ResponseLike {
   json: () => Promise<unknown>
 }
 
-function okJson(body: unknown): ResponseLike {
-  return { ok: true, status: 200, json: async () => body }
+function okJson(body: unknown, status = 200): ResponseLike {
+  return { ok: true, status, json: async () => body }
 }
 
 function noContent(): ResponseLike {
   return { ok: true, status: 204, json: async () => undefined }
 }
 
+function parseBody(init?: RequestInit): unknown {
+  try {
+    return JSON.parse(String(init?.body ?? '{}'))
+  } catch {
+    return {}
+  }
+}
+
+interface StubHandlers {
+  delete?: (id: string) => ResponseLike
+  postProduct?: (body: unknown) => ResponseLike
+  putProduct?: (id: string, body: unknown) => ResponseLike
+}
+
 /**
  * Fetch stub that records every call (url, method, headers) and routes:
- * dashboard calls fail quietly, products/combos GETs serve the fixtures, and
- * the caller can override the DELETE /api/products/{id} outcome per test.
+ * dashboard calls fail quietly, products/categories/combos GETs serve the
+ * fixtures, and the caller can override the DELETE /api/products/{id},
+ * POST /api/products and PUT /api/products/{id} outcomes per test.
  */
-function stubFetch(deleteHandler?: (id: string) => ResponseLike) {
+function stubFetch(handlers: StubHandlers = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
     const method = (init?.method ?? 'GET').toUpperCase()
@@ -73,12 +137,19 @@ function stubFetch(deleteHandler?: (id: string) => ResponseLike) {
       ),
     })
     if (url.startsWith('/api/products') && !url.includes('/activar') && method === 'GET') return okJson(PRODUCTS)
+    if (url === '/api/categorias' && method === 'GET') return okJson(CATEGORIES)
     if (url === '/api/combos' && method === 'GET') return okJson(COMBOS)
+    if (url === '/api/products' && method === 'POST') {
+      return handlers.postProduct ? handlers.postProduct(parseBody(init)) : okJson({})
+    }
     if (method === 'PUT' && /\/api\/products\/\d+\/activar/.test(url)) {
       return okJson(PRODUCTS.find((p) => url.startsWith(`/api/products/${p.id}/`)))
     }
+    if (method === 'PUT' && /^\/api\/products\/\d+$/.test(url)) {
+      return handlers.putProduct ? handlers.putProduct(url.split('/').pop()!, parseBody(init)) : okJson({})
+    }
     if (method === 'DELETE' && /^\/api\/products\/\d+$/.test(url)) {
-      return deleteHandler ? deleteHandler(url.split('/').pop()!) : noContent()
+      return handlers.delete ? handlers.delete(url.split('/').pop()!) : noContent()
     }
     // Dashboard loaders (and anything unexpected): fail quietly like the
     // stubFailingFetch seam in admin-panel.test.tsx.
@@ -128,10 +199,45 @@ describe('Admin products list', () => {
     expect(requests.length).toBeGreaterThan(0)
     expect(requests[0].headers['authorization']).toBe(`Bearer ${TOKEN}`)
     expect(new URL(requests[0].url, 'http://localhost').searchParams.has('businessId')).toBe(false)
-    expect(requests[0].url).toBe('/api/products')  })
+    expect(requests[0].url).toBe('/api/products')
+  })
 })
 
-describe('Admin product toggle (ON/OFF)', () => {
+describe('Admin products search', () => {
+  it('filters client-side case- and accent-insensitively and shows an empty state when nothing matches', async () => {
+    stubFetch()
+    const user = userEvent.setup()
+    await openAdminView('Productos')
+
+    expect(await screen.findByText('Ensalada César')).toBeInTheDocument()
+
+    // Accent- AND case-insensitive: "CESAR" (no accent, upper case) matches "César".
+    const search = screen.getByRole('searchbox', { name: 'Buscar productos por nombre' })
+    await user.type(search, 'CESAR')
+    expect(screen.getByText('Ensalada César')).toBeInTheDocument()
+    expect(screen.queryByText('Pizza Margherita')).not.toBeInTheDocument()
+    expect(screen.queryByText('Combo Cantor')).not.toBeInTheDocument()
+
+    // Empty state when the filter matches nothing.
+    await user.clear(search)
+    await user.type(search, 'sushi xyz')
+    expect(screen.getByText('No hay productos que coincidan con la búsqueda')).toBeInTheDocument()
+    expect(screen.queryByText('Ensalada César')).not.toBeInTheDocument()
+  })
+})
+
+describe('Admin product toggle (switch)', () => {
+  it('renders each row toggle as a switch with aria-checked and a meaningful accessible name', async () => {
+    stubFetch()
+    await openAdminView('Productos')
+
+    const activeSwitch = await screen.findByRole('switch', { name: 'Desactivar Pizza Margherita' })
+    expect(activeSwitch).toHaveAttribute('aria-checked', 'true')
+
+    const inactiveSwitch = screen.getByRole('switch', { name: 'Activar Combo Cantor' })
+    expect(inactiveSwitch).toHaveAttribute('aria-checked', 'false')
+  })
+
   it('sends activo=true for an inactive product and activo=false for an active one, then reloads the list', async () => {
     stubFetch()
     const user = userEvent.setup()
@@ -140,17 +246,134 @@ describe('Admin product toggle (ON/OFF)', () => {
     expect(await screen.findByText('Combo Cantor')).toBeInTheDocument()
 
     // Toggle the inactive product (id 2): target state is active → activo=true.
-    await user.click(screen.getByRole('button', { name: 'Activar o desactivar Combo Cantor' }))
+    await user.click(screen.getByRole('switch', { name: 'Activar Combo Cantor' }))
     let toggle = calls.find((c) => c.method === 'PUT' && c.url.includes('/activar'))
     expect(toggle?.url).toBe('/api/products/2/activar?activo=true')
     expect(toggle?.headers['authorization']).toBe(`Bearer ${TOKEN}`)
 
     // Toggle the active product (id 1): target state is inactive → activo=false.
-    await user.click(screen.getByRole('button', { name: 'Activar o desactivar Pizza Margherita' }))
+    await user.click(screen.getByRole('switch', { name: 'Desactivar Pizza Margherita' }))
     toggle = calls.filter((c) => c.method === 'PUT' && c.url.includes('/activar')).at(-1)
     expect(toggle?.url).toBe('/api/products/1/activar?activo=false')
 
     // Legacy behaviour kept: the list reloads after the mutation.
+    expect(productRequests().length).toBeGreaterThanOrEqual(2)
+  })
+})
+
+describe('Admin product create (modal)', () => {
+  it('opens the modal, posts the ProductCreateDTO payload to /api/products and refreshes the list', async () => {
+    const postProduct = vi.fn(() => okJson({ id: 99, name: 'Pizza Napolitana' }))
+    stubFetch({ postProduct })
+    const user = userEvent.setup()
+    await openAdminView('Productos')
+
+    expect(await screen.findByText('Pizza Margherita')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '+ Nuevo producto' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toBeInTheDocument()
+
+    await user.type(within(dialog).getByLabelText('Nombre'), 'Pizza Napolitana')
+    await user.type(within(dialog).getByLabelText('Descripción'), 'Tomate, anchoas y muzzarella')
+    await user.type(within(dialog).getByLabelText('Precio'), '9900')
+    await user.type(within(dialog).getByLabelText('Costo'), '4000')
+    await user.type(within(dialog).getByLabelText('Stock'), '3')
+    await user.selectOptions(within(dialog).getByLabelText('Categoría'), '3628')
+    await user.selectOptions(within(dialog).getByLabelText('Unidad de medida'), 'PORCION')
+
+    await user.click(within(dialog).getByRole('button', { name: 'Guardar' }))
+
+    // The exact ProductCreateDTO the backend service validates.
+    expect(postProduct).toHaveBeenCalledTimes(1)
+    expect(postProduct.mock.calls[0][0]).toEqual({
+      categoryId: 3628,
+      name: 'Pizza Napolitana',
+      description: 'Tomate, anchoas y muzzarella',
+      price: 9900,
+      cost: 4000,
+      stock: 3,
+      active: true,
+      unitMeasure: 'PORCION',
+    })
+
+    // Success closes the modal and refreshes the list.
+    await waitForModalToClose()
+    expect(productRequests().length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('keeps the modal open and shows the backend message INLINE when creation fails with 400', async () => {
+    stubFetch({
+      postProduct: () => ({
+        ok: false,
+        status: 400,
+        json: async () => ({ message: 'El nombre es obligatorio' }),
+      }),
+    })
+    const user = userEvent.setup()
+    await openAdminView('Productos')
+
+    expect(await screen.findByText('Pizza Margherita')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '+ Nuevo producto' }))
+    const dialog = await screen.findByRole('dialog')
+
+    await user.type(within(dialog).getByLabelText('Nombre'), 'Pizza sin precio')
+    await user.type(within(dialog).getByLabelText('Descripción'), 'Faltan campos')
+    await user.type(within(dialog).getByLabelText('Precio'), '100')
+    await user.type(within(dialog).getByLabelText('Costo'), '50')
+    await user.selectOptions(within(dialog).getByLabelText('Categoría'), '3628')
+
+    await user.click(within(dialog).getByRole('button', { name: 'Guardar' }))
+
+    // The backend's Spanish message appears inline inside the modal (like the
+    // profile form), NOT as a dismissible toast, and the modal stays open.
+    const dialogAfter = screen.getByRole('dialog')
+    expect(within(dialogAfter).getByText('El nombre es obligatorio')).toBeInTheDocument()
+
+    // Nothing was created: no refresh of the list happened after the failure.
+    expect(productRequests().length).toBe(1)
+  })
+})
+
+describe('Admin product edit (modal)', () => {
+  it('prefills the modal from the row and sends PUT /api/products/{id}, then refreshes', async () => {
+    const putProduct = vi.fn(() => okJson({}))
+    stubFetch({ putProduct })
+    const user = userEvent.setup()
+    await openAdminView('Productos')
+
+    expect(await screen.findByText('Pizza Margherita')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Editar Pizza Margherita' }))
+    const dialog = await screen.findByRole('dialog')
+
+    // Prefilled from the row (full ProductDTO served by GET /api/products).
+    expect(within(dialog).getByLabelText('Nombre')).toHaveValue('Pizza Margherita')
+    expect(within(dialog).getByLabelText('Descripción')).toHaveValue('Muzzarella y albahaca')
+    expect(within(dialog).getByLabelText('Precio')).toHaveValue(8500)
+    expect(within(dialog).getByLabelText('Costo')).toHaveValue(3000)
+    expect(within(dialog).getByLabelText('Categoría')).toHaveValue('3628')
+    expect(within(dialog).getByLabelText('Stock')).toHaveValue(10)
+
+    await user.clear(within(dialog).getByLabelText('Nombre'))
+    await user.type(within(dialog).getByLabelText('Nombre'), 'Pizza Margherita XL')
+    await user.click(within(dialog).getByRole('button', { name: 'Guardar' }))
+
+    expect(putProduct).toHaveBeenCalledTimes(1)
+    const [id, body] = putProduct.mock.calls[0]
+    expect(id).toBe('1')
+    expect(body).toMatchObject({
+      id: 1,
+      name: 'Pizza Margherita XL',
+      description: 'Muzzarella y albahaca',
+      price: 8500,
+      cost: 3000,
+      stock: 10,
+      categoryId: 3628,
+    })
+
+    await waitForModalToClose()
     expect(productRequests().length).toBeGreaterThanOrEqual(2)
   })
 })
@@ -183,11 +406,13 @@ describe('Admin product delete confirmation', () => {
   })
 
   it('surfaces a readable message when the backend answers 409 (product used by a combo) and keeps the view alive', async () => {
-    stubFetch(() => ({
-      ok: false,
-      status: 409,
-      json: async () => ({ message: 'No se puede eliminar: el producto pertenece a un combo' }),
-    }))
+    stubFetch({
+      delete: () => ({
+        ok: false,
+        status: 409,
+        json: async () => ({ message: 'No se puede eliminar: el producto pertenece a un combo' }),
+      }),
+    })
     const user = userEvent.setup()
     await openAdminView('Productos')
 
@@ -216,3 +441,13 @@ describe('Admin combos list', () => {
     expect(request?.headers['authorization']).toBe(`Bearer ${TOKEN}`)
   })
 })
+
+/** Waits until the product modal is gone (success path closes it). */
+async function waitForModalToClose() {
+  const deadline = Date.now() + 2000
+  while (Date.now() < deadline) {
+    if (!document.querySelector('[role="dialog"]')) return
+    await new Promise((r) => setTimeout(r, 25))
+  }
+  throw new Error('el modal del producto seguía abierto')
+}
