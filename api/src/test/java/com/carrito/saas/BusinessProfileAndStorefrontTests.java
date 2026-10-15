@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,8 +31,11 @@ import org.springframework.web.context.WebApplicationContext;
 import com.carrito.saas.dto.BusinessHoursDTO;
 import com.carrito.saas.dto.BusinessProfileDTO;
 import com.carrito.saas.dto.BusinessShiftDTO;
+import com.carrito.saas.dto.DateExceptionDTO;
 import com.carrito.saas.repository.entity.Business;
+import com.carrito.saas.repository.entity.BusinessDateException;
 import com.carrito.saas.repository.entity.BusinessHours;
+import com.carrito.saas.repository.jpa.BusinessDateExceptionRepository;
 import com.carrito.saas.repository.jpa.BusinessHoursRepository;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.BusinessUserRepository;
@@ -86,6 +90,9 @@ class BusinessProfileAndStorefrontTests {
 
 	@Autowired
 	private BusinessHoursRepository businessHoursRepository;
+
+	@Autowired
+	private BusinessDateExceptionRepository businessDateExceptionRepository;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -179,8 +186,8 @@ class BusinessProfileAndStorefrontTests {
 		dto.setAddress(address);
 		dto.setInstagramUrl(instagram);
 		dto.setHours(hours);
-		// El campo es obligatorio en el PUT (guard igual al de shifts en un
-		// día): una lista vacía significa "sin fechas especiales".
+		// La lista vacía es el "sin fechas especiales" explícito; ausente significa
+		// "no tocar" en la actualización parcial.
 		dto.setDateExceptions(List.of());
 		return dto;
 	}
@@ -492,6 +499,246 @@ class BusinessProfileAndStorefrontTests {
 		assertThat(savedHours.get(1).getClosesAt())
 				.as("el turno nocturno se guarda tal cual: cierra en la madrugada del día siguiente")
 				.isEqualTo(LocalTime.parse("00:30:00"));
+	}
+
+	// ------------------------------------------------------------------
+	// Actualización parcial: campo ausente conserva lo guardado
+	// ------------------------------------------------------------------
+
+	/**
+	 * PUT parcial: sólo {@code address}. El resto — nombre, URLs, turnos y
+	 * fechas especiales— queda exactamente como estaba, en la respuesta y en
+	 * las filas de la base.
+	 */
+	@Test
+	void putWithOnlyAddressKeepsEverythingElseIntact() throws Exception {
+
+		seedStorefront(BUSINESS_A_ID,
+				"https://cdn.ejemplo.com/logo.png",
+				"https://cdn.ejemplo.com/banner.jpg",
+				"Av. Siempre Viva 742",
+				"https://instagram.com/_negocio");
+		hour(businessA(), 5, 0, "11:00:00", "15:00:00");
+		hour(businessA(), 5, 1, "19:00:00", "00:30:00");
+
+		BusinessDateException marker = new BusinessDateException();
+		marker.setBusiness(businessA());
+		marker.setDate(LocalDate.of(2026, 12, 25));
+		marker.setPosition(0);
+		businessDateExceptionRepository.saveAndFlush(marker);
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"address\":\"Calle Parcial 789\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value("Business " + SLUG_A))
+				.andExpect(jsonPath("$.logoUrl").value("https://cdn.ejemplo.com/logo.png"))
+				.andExpect(jsonPath("$.bannerUrl").value("https://cdn.ejemplo.com/banner.jpg"))
+				.andExpect(jsonPath("$.address").value("Calle Parcial 789"))
+				.andExpect(jsonPath("$.instagramUrl").value("https://instagram.com/_negocio"))
+				.andExpect(jsonPath("$.hours[4].shifts", hasSize(2)))
+				.andExpect(jsonPath("$.dateExceptions", hasSize(1)));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		Business saved = businessA();
+		assertThat(saved.getName()).isEqualTo("Business " + SLUG_A);
+		assertThat(saved.getLogoUrl()).isEqualTo("https://cdn.ejemplo.com/logo.png");
+		assertThat(saved.getBannerUrl()).isEqualTo("https://cdn.ejemplo.com/banner.jpg");
+		assertThat(saved.getAddress()).isEqualTo("Calle Parcial 789");
+		assertThat(saved.getInstagramUrl()).isEqualTo("https://instagram.com/_negocio");
+
+		assertThat(businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID))
+				.as("los turnos guardados quedan intactos").hasSize(2);
+		assertThat(businessDateExceptionRepository.findByBusiness_IdOrderByDateAscPositionAsc(BUSINESS_A_ID))
+				.as("las fechas especiales guardadas quedan intactas").hasSize(1);
+	}
+
+	/** {@code logoUrl: ""} limpia el campo (null en la base) sin tocar nada más. */
+	@Test
+	void putWithBlankLogoUrlClearsItAndKeepsEverythingElseIntact() throws Exception {
+
+		seedStorefront(BUSINESS_A_ID,
+				"https://cdn.ejemplo.com/logo.png",
+				"https://cdn.ejemplo.com/banner.jpg",
+				"Av. Siempre Viva 742",
+				"https://instagram.com/_negocio");
+		hour(businessA(), 5, 0, "11:00:00", "15:00:00");
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"logoUrl\":\"   \"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.logoUrl").value(equalTo(null)))
+				.andExpect(jsonPath("$.name").value("Business " + SLUG_A))
+				.andExpect(jsonPath("$.bannerUrl").value("https://cdn.ejemplo.com/banner.jpg"))
+				.andExpect(jsonPath("$.address").value("Av. Siempre Viva 742"))
+				.andExpect(jsonPath("$.instagramUrl").value("https://instagram.com/_negocio"))
+				.andExpect(jsonPath("$.hours[4].shifts", hasSize(1)));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThat(businessA().getLogoUrl()).as("el logo quedó en null en la base").isNull();
+		assertThat(businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID))
+				.hasSize(1);
+	}
+
+	/**
+	 * {@code name: ""} es 400 (un negocio necesita nombre) y no toca lo
+	 * guardado; {@code name} ausente conserva el nombre almacenado.
+	 */
+	@Test
+	void putBlankNameIsRejectedAndAbsentNameKeepsStoredName() throws Exception {
+
+		seedStorefront(BUSINESS_A_ID,
+				"https://cdn.ejemplo.com/logo.png",
+				"https://cdn.ejemplo.com/banner.jpg",
+				"Av. Siempre Viva 742",
+				"https://instagram.com/_negocio");
+		hour(businessA(), 5, 0, "11:00:00", "15:00:00");
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\":\"   \"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message", containsString("nombre")));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThat(businessA().getName()).isEqualTo("Business " + SLUG_A);
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\":\"Nombre Parcial\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value("Nombre Parcial"))
+				.andExpect(jsonPath("$.logoUrl").value("https://cdn.ejemplo.com/logo.png"))
+				.andExpect(jsonPath("$.hours[4].shifts", hasSize(1)));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThat(businessA().getName()).isEqualTo("Nombre Parcial");
+		assertThat(businessA().getLogoUrl()).isEqualTo("https://cdn.ejemplo.com/logo.png");
+		assertThat(businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID))
+				.as("name solo no borra los turnos").hasSize(1);
+	}
+
+	/** {@code hours} ausente conserva los turnos guardados, fila por fila. */
+	@Test
+	void putWithHoursAbsentKeepsStoredShiftRows() throws Exception {
+
+		hour(businessA(), 5, 0, "11:00:00", "15:00:00");
+		hour(businessA(), 5, 1, "19:00:00", "00:30:00");
+		hour(businessA(), 6, 0, "10:00:00", "23:00:00");
+
+		BusinessProfileDTO payload = new BusinessProfileDTO();
+		payload.setName("Negocio Storefront");
+		payload.setLogoUrl("https://cdn.ejemplo.com/l.png");
+		payload.setBannerUrl("https://cdn.ejemplo.com/b.jpg");
+		payload.setAddress("Dirección");
+		payload.setInstagramUrl("https://instagram.com/negocio");
+		// dateExceptions presente y vacío: el "sin fechas" explícito.
+		payload.setDateExceptions(List.of());
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(payload)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.hours[4].shifts", hasSize(2)))
+				.andExpect(jsonPath("$.hours[4].shifts[1].closesAt").value("00:30:00"))
+				.andExpect(jsonPath("$.hours[5].shifts", hasSize(1)));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		List<BusinessHours> savedHours =
+				businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID);
+		assertThat(savedHours).as("hours ausente no borra los turnos").hasSize(3);
+		assertThat(savedHours).extracting(BusinessHours::getOpensAt)
+				.containsExactly(LocalTime.parse("11:00:00"), LocalTime.parse("19:00:00"),
+						LocalTime.parse("10:00:00"));
+	}
+
+	/** {@code hours: []} es el "ninguno" explícito: borra todos los turnos. */
+	@Test
+	void putWithEmptyHoursListClosesEveryDay() throws Exception {
+
+		hour(businessA(), 5, 0, "11:00:00", "15:00:00");
+
+		BusinessProfileDTO payload = new BusinessProfileDTO();
+		payload.setName("Negocio Storefront");
+		payload.setHours(List.of());
+		payload.setDateExceptions(List.of());
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(payload)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.hours", hasSize(7)))
+				.andExpect(jsonPath("$.hours[4].shifts", hasSize(0)));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThat(businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID))
+				.as("hours [] borra todas las filas de turnos").isEmpty();
+	}
+
+	/**
+	 * Regresión del panel: el payload completo (todos los campos presentes)
+	 * sigue comportándose como siempre — reemplazo en bloque de horas y fechas.
+	 */
+	@Test
+	void putFullPayloadReplacesEverythingAsBefore() throws Exception {
+
+		// Turno viejo que tiene que desaparecer con el reemplazo en bloque.
+		hour(businessA(), 5, 0, "11:00:00", "15:00:00");
+
+		BusinessProfileDTO payload = new BusinessProfileDTO();
+		payload.setName("Negocio Completo");
+		payload.setLogoUrl("https://cdn.ejemplo.com/nuevo.png");
+		payload.setBannerUrl("https://cdn.ejemplo.com/nuevo.jpg");
+		payload.setAddress("Dirección Nueva 1");
+		payload.setInstagramUrl("https://instagram.com/nuevo");
+		payload.setHours(List.of(hoursDTO(1, shiftDTO("09:00:00", "13:00:00"))));
+
+		DateExceptionDTO closed = new DateExceptionDTO();
+		closed.setDate(LocalDate.of(2026, 12, 25));
+		closed.setShifts(new ArrayList<>());
+		payload.setDateExceptions(new ArrayList<>(List.of(closed)));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(payload)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value("Negocio Completo"))
+				.andExpect(jsonPath("$.logoUrl").value("https://cdn.ejemplo.com/nuevo.png"))
+				.andExpect(jsonPath("$.hours[0].shifts", hasSize(1)))
+				.andExpect(jsonPath("$.hours[4].shifts", hasSize(0)))
+				.andExpect(jsonPath("$.dateExceptions", hasSize(1)))
+				.andExpect(jsonPath("$.dateExceptions[0].date").value("2026-12-25"))
+				.andExpect(jsonPath("$.dateExceptions[0].shifts", hasSize(0)));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		Business saved = businessA();
+		assertThat(saved.getAddress()).isEqualTo("Dirección Nueva 1");
+		assertThat(businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(BUSINESS_A_ID))
+				.as("el reemplazo en bloque borra el turno viejo").hasSize(1);
+		assertThat(businessDateExceptionRepository.findByBusiness_IdOrderByDateAscPositionAsc(BUSINESS_A_ID))
+				.hasSize(1);
 	}
 
 	// ------------------------------------------------------------------

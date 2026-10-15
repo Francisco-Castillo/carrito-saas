@@ -9,13 +9,14 @@ import lombok.Data;
 /**
  * Owner-facing storefront profile ({@code GET}/{@code PUT
  * /api/business/profile}). The fields mean the same as on
- * {@link BusinessDTO}; {@code hours} and {@code dateExceptions} are replaced
- * wholesale on PUT (a day missing from the list is deleted; a date missing
- * from {@code dateExceptions} is a normal day again). On the request side
- * {@code dateExceptions} is mandatory (400 when absent): like the
- * {@code shifts} guard on a day, a client forgetting the field must not
- * silently erase the owner's holidays — an empty list is the explicit "no
- * special dates".
+ * {@link BusinessDTO}. The PUT is a partial update: a field absent (null)
+ * keeps the stored value, and present fields are validated and replaced as
+ * before. For the structured lists an empty list is the explicit "none":
+ * {@code hours: []} closes every day and {@code dateExceptions: []} deletes
+ * every special date; {@code hours}/{@code dateExceptions} absent leave the
+ * stored shifts/dates intact. {@code name} is the one exception on the right:
+ * blank is rejected with 400 (a business needs a name), absent keeps the
+ * stored name.
  */
 @Data
 public class BusinessProfileDTO {

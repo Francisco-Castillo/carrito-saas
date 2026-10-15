@@ -31,6 +31,7 @@ import com.carrito.saas.dto.BusinessShiftDTO;
 import com.carrito.saas.dto.DateExceptionDTO;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.BusinessDateException;
+import com.carrito.saas.repository.entity.BusinessHours;
 import com.carrito.saas.repository.jpa.BusinessDateExceptionRepository;
 import com.carrito.saas.repository.jpa.BusinessHoursRepository;
 import com.carrito.saas.repository.jpa.BusinessRepository;
@@ -56,8 +57,9 @@ import jakarta.persistence.PersistenceContext;
  * día: máximo 4 turnos, sin solapes, sólo el último cruza la medianoche. El
  * derrame del último turno se compara contra los turnos <em>efectivos</em> del
  * día siguiente: su propia excepción si la tiene, si no el día de la semana.
- * El campo {@code dateExceptions} es obligatorio en el PUT: un cliente que
- * olvide el campo no puede borrar los feriados del dueño en silencio.</p>
+ * En el PUT {@code dateExceptions} ausente significa "no tocar" (actualización
+ * parcial, conserva las fechas guardadas); la lista vacía es el "ninguna"
+ * explícito y reemplaza en bloque.</p>
  */
 @SpringBootTest
 @Transactional
@@ -362,20 +364,21 @@ class BusinessDateExceptionTests {
 	}
 
 	/**
-	 * El campo {@code dateExceptions} es obligatorio en el PUT: como el guard
-	 * de {@code shifts} en un día, impide que un cliente que manda la forma
-	 * vieja del contrato borre los feriados del dueño en silencio. Los 400 no
-	 * tocan lo ya guardado.
+	 * {@code dateExceptions} ausente conserva las fechas ya guardadas — y ya
+	 * no es 400: igual que {@code hours}, ausente significa "no tocar". La
+	 * lista vacía sigue siendo el "ninguna" explícito. (Este test reemplaza al
+	 * que antes exigía 400 con el campo ausente: la actualización parcial
+	 * extiende la misma propiedad de seguridad — un campo que no viaja no
+	 * borra datos — en vez del rechazo.)
 	 */
 	@Test
-	void putRejectsMissingDateExceptionsFieldAndLeavesStoredExceptionsIntact() throws Exception {
+	void putWithDateExceptionsAbsentKeepsStoredExceptions() throws Exception {
 
 		LocalDate holiday = LocalDate.of(2026, 12, 25);
 		mockMvc.perform(put("/api/business/profile")
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(body(profileWithExceptions(List.of(), List.of(exceptionDTO(holiday)))))
-				)
+						.content(body(profileWithExceptions(List.of(), List.of(exceptionDTO(holiday))))))
 				.andExpect(status().isOk());
 
 		entityManager.flush();
@@ -390,14 +393,41 @@ class BusinessDateExceptionTests {
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(noFieldPayload))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.message")
-						.value("dateExceptions es obligatorio (una lista vacía significa que no hay fechas especiales)"));
+				.andExpect(status().isOk());
 
 		entityManager.flush();
 		entityManager.clear();
 
-		assertThat(savedRows()).as("el rechazo del guard no borra las fechas ya guardadas").hasSize(1);
+		List<BusinessDateException> rows = savedRows();
+		assertThat(rows).as("dateExceptions ausente no borra las fechas ya guardadas").hasSize(1);
+		assertThat(rows.get(0).getDate()).isEqualTo(holiday);
+	}
+
+	/** {@code dateExceptions: []} es el "ninguna" explícito: borra las fechas guardadas. */
+	@Test
+	void putWithEmptyDateExceptionsListDeletesStoredExceptions() throws Exception {
+
+		LocalDate holiday = LocalDate.of(2026, 12, 25);
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(profileWithExceptions(List.of(), List.of(exceptionDTO(holiday))))))
+				.andExpect(status().isOk());
+
+		entityManager.flush();
+		entityManager.clear();
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(profileWithExceptions(List.of(), List.of()))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.dateExceptions", hasSize(0)));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThat(savedRows()).as("la lista vacía explícita borra las fechas").isEmpty();
 	}
 
 	/** Igual que el guard de shifts en un día: una fecha nombrada sin la clave shifts. */
@@ -524,6 +554,66 @@ class BusinessDateExceptionTests {
 						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body(touching)))
+				.andExpect(status().isOk());
+	}
+
+	/**
+	 * Derrame contra los turnos guardados cuando {@code hours} no viaja: con
+	 * viernes 19:00 → 00:30 y sábado 00:15 → 08:00 ya guardados, una excepción
+	 * del viernes que derrama 30 minutos se rechaza aunque el payload no traiga
+	 * horas — la validación usa los turnos <em>efectivos</em> del día siguiente,
+	 * que acá son los almacenados, no una lista vacía.
+	 */
+	@Test
+	void putDateExceptionSpillIsCheckedAgainstStoredHoursWhenHoursAbsent() throws Exception {
+
+		Business a = businessA();
+
+		BusinessHours fridayNight = new BusinessHours();
+		fridayNight.setBusiness(a);
+		fridayNight.setDayOfWeek(5);
+		fridayNight.setPosition(0);
+		fridayNight.setOpensAt(LocalTime.parse("19:00:00"));
+		fridayNight.setClosesAt(LocalTime.parse("00:30:00"));
+		businessHoursRepository.saveAndFlush(fridayNight);
+
+		BusinessHours saturdayEarly = new BusinessHours();
+		saturdayEarly.setBusiness(a);
+		saturdayEarly.setDayOfWeek(6);
+		saturdayEarly.setPosition(0);
+		saturdayEarly.setOpensAt(LocalTime.parse("00:15:00"));
+		saturdayEarly.setClosesAt(LocalTime.parse("08:00:00"));
+		businessHoursRepository.saveAndFlush(saturdayEarly);
+
+		// 2027-03-05 es viernes.
+		LocalDate friday = LocalDate.of(2027, 3, 5);
+		assertThat(friday.getDayOfWeek().getValue()).isEqualTo(5);
+
+		String payload = """
+				{"dateExceptions":[{"date":"2027-03-05","shifts":[{"opensAt":"19:00:00","closesAt":"00:30:00"}]}]}
+				""";
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(payload))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message")
+						.value("El turno que pasa la medianoche se superpone con la apertura del día siguiente"));
+
+		entityManager.flush();
+		entityManager.clear();
+		assertThat(savedRows()).as("el rechazo no toca lo ya guardado").isEmpty();
+
+		// Sin el sábado guardado, el día siguiente efectivo está cerrado y el
+		// mismo derrame pasa.
+		businessHoursRepository.delete(saturdayEarly);
+		businessHoursRepository.flush();
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(payload))
 				.andExpect(status().isOk());
 	}
 
