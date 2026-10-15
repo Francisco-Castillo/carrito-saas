@@ -71,18 +71,6 @@ public interface PredictionRepository extends JpaRepository<Order, Long> {
 			""", nativeQuery = true)
 	List<HourlyProjection> getHourlyDistribution(Long businessId);
 
-	// Top productos
-	@Query(value = """
-			    SELECT oi.product_id as productId, SUM(oi.quantity) as quantity
-			    FROM order_items oi
-			    JOIN orders o ON o.id = oi.order_id
-			    WHERE o.business_id = :businessId
-			      AND o.created_at >= CURRENT_DATE - INTERVAL '7 days'
-			    GROUP BY oi.product_id
-			    ORDER BY quantity DESC
-			    LIMIT 5
-			""", nativeQuery = true)
-	List<ProductProjection> getTopProducts(Long businessId);
 
 	// 🍔 Top 1
 	@Query(value = """
