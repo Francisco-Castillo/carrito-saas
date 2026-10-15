@@ -353,7 +353,8 @@ class PanelErrorStatusHttpTests {
 
 	// ==================================================================
 	// Tables: unknown id → 404 (reachable via the QR GET endpoints; the
-	// controller's update/delete/findAll are dead stubs)
+	// wired update/delete/findAll/findById share the same findOwnedTable
+	// guard, covered in depth by TableEndpointsHttpTests)
 	// ==================================================================
 
 	@Test

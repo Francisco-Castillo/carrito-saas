@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.carrito.saas.api.ITableController;
@@ -43,35 +44,37 @@ public class TableController implements ITableController {
 	@Override
 	@PostMapping
 	public ResponseEntity<TableResponseDTO> create(@Valid CreateTableRequestDTO request) {
-		log.debug("TEST ERROR LOG");
-		TableResponseDTO creado = service.create(request);
-		return ResponseEntity.ok(creado);
+		return ResponseEntity.ok(service.create(request));
 	}
 
 	@Override
+	@PutMapping("/{id}")
 	public TableResponseDTO update(Long id, @Valid UpdateTableRequestDTO request) {
-		// TODO Auto-generated method stub
-		return null;
+		return service.update(id, request);
 	}
 
 	@Override
 	@DeleteMapping("/{id}")
 	public void delete(Long id) {
-		// TODO Auto-generated method stub
-
+		service.delete(id);
 	}
 
 	@Override
+	@GetMapping
 	public Page<TableResponseDTO> findAll(Pageable pageable) {
-		// TODO Auto-generated method stub
-		return null;
+		return service.findAll(pageable);
+	}
+
+	@Override
+	@GetMapping("/{id}")
+	public TableResponseDTO findById(Long id) {
+		return service.findById(id);
 	}
 
 	@Override
 	@PostMapping("/bulk")
 	public List<TableResponseDTO> generateBulk(@Valid GenerateTablesRequestDTO request) {
-		// TODO Auto-generated method stub
-		return null;
+		return service.generateBulk(request);
 	}
 
 	@Override

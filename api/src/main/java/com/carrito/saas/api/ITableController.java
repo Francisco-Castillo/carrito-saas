@@ -27,6 +27,11 @@ public interface ITableController {
 
 	public Page<TableResponseDTO> findAll(Pageable pageable);
 
+	/**
+	 * Detalle de una mesa propia del caller (404 si no existe o es ajena).
+	 */
+	public TableResponseDTO findById(@PathVariable Long id);
+
 	public List<TableResponseDTO> generateBulk(@Valid @RequestBody GenerateTablesRequestDTO request);
 
 	/**
