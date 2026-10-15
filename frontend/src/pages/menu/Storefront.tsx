@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { getOpenStatus } from "./openStatus";
+import { useOpenStatus } from "./useOpenStatus";
 import type { StorefrontBusiness } from "./types";
 
 /**
@@ -14,6 +13,10 @@ import type { StorefrontBusiness } from "./types";
  *
  * Todo es opcional: cada elemento desaparece cuando su dato falta, y un local
  * sin portada no renderiza nada (la carta queda exactamente como era).
+ *
+ * El badge usa `useOpenStatus`: se recalcula en el próximo borde del horario,
+ * con un re-chequeo acotado de respaldo y al volver la pestaña visible. Ya no
+ * se congela en el render inicial (antes era un useMemo sobre `business`).
  */
 export default function Storefront({
   business,
@@ -30,10 +33,7 @@ export default function Storefront({
   const hasHours = Boolean(business?.hours && business.hours.length > 0);
   const hasContact = Boolean(whatsappDigits || instagramUrl || address);
 
-  const status = useMemo(
-    () => getOpenStatus(business?.hours, new Date()),
-    [business],
-  );
+  const status = useOpenStatus(business?.hours);
 
   if (!name && !bannerUrl && !logoUrl && !hasContact && !hasHours) {
     return null;

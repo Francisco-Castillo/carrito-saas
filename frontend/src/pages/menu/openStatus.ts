@@ -155,6 +155,38 @@ export function getOpenStatus(
   };
 }
 
+export function nextStatusBoundaryAt(
+  hours: BusinessHours[] | null | undefined,
+  now: Date,
+): number | null {
+  if (!hours || hours.length === 0) return null;
+
+  const nowMs = now.getTime();
+  let next: number | null = null;
+  const consider = (ts: number) => {
+    if (ts > nowMs && (next === null || ts < next)) next = ts;
+  };
+
+  // offset -1 cubre el derrame del turno cruzado de AYER (cierra HOY en la
+  // madrugada); offset 0..7 cubre los turnos de los próximos siete días, que
+  // es todo el ciclo semanal del modelo. Cada turno aporta DOS bordes: su
+  // apertura y su cierre (el cierre del turno cruzado cae en el día SIGUIENTE).
+  for (let offset = -1; offset <= 7; offset++) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    const nextDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + offset + 1,
+    );
+    const dayStart = day.getTime();
+    for (const shift of shiftsOf(hours, dayOfWeekOf(day))) {
+      consider(dayStart + shift.opens * 60_000);
+      consider((shift.crossing ? nextDay.getTime() : dayStart) + shift.closes * 60_000);
+    }
+  }
+  return next;
+}
+
 /**
  * Próxima apertura dentro de los siete días siguientes (hoy incluido), para el
  * copy "Cerrado · Abre …". Cada día puede tener varios turnos: se anuncia la
