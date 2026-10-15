@@ -1,29 +1,29 @@
 import { useEffect, useState } from "react";
 import { API, authHeader } from "./api";
 import { showSuccessToast } from "./toast";
+import type { BusinessHours } from "../menu/types";
 
 /**
  * Editor del perfil del local (vista "Local" del panel admin) contra los
  * endpoints owner GET/PUT /api/business/profile (scoped por el JWT):
  *
  *   - El PUT REEMPLAZA todo el perfil: un campo en blanco ("") lo limpia y
- *     el array de horarios se reconstruye con los siete días, por lo que
+ *     el array de horarios se reconstruye con los SIETE días, cada uno con
+ *     su lista de turnos (incluyendo `[]` en los cerrados), por lo que
  *     nunca se envía de menos.
+ *   - El modelo es de TURNOS ordenados por día (el backend los reordena y
+ *     valida): un día sin turnos ES un día cerrado; no existe un flag
+ *     `closed` que pueda contradecir a los datos.
  *   - Los <input type="time"> hablan "HH:mm"; el backend habla "HH:mm:ss",
  *     así que se convierte en ambas direcciones.
  *   - Convención de medianoche del backend: closesAt MENOR que opensAt
  *     significa que el cierre cae en la madrugada del día siguiente
  *     (viernes 11:00 → 00:30); se permite tal cual y se avisa en una línea.
- *   - Un 400 del backend trae un `message` legible en español: se muestra
- *     inline en vez de fallar en silencio, y el formulario queda usable.
+ *   - Un 400 del backend trae un `message` legible en español (solapes, un
+ *     turno que cruza medianoche sin ser el último, derrame contra la
+ *     mañana siguiente): se muestra inline en vez de fallar en silencio, y
+ *     el formulario queda usable.
  */
-
-export interface BusinessHoursEntry {
-  dayOfWeek: number;
-  opensAt: string | null;
-  closesAt: string | null;
-  closed: boolean;
-}
 
 export interface BusinessProfile {
   name?: string | null;
@@ -31,19 +31,19 @@ export interface BusinessProfile {
   bannerUrl?: string | null;
   address?: string | null;
   instagramUrl?: string | null;
-  hours?: BusinessHoursEntry[] | null;
+  hours?: BusinessHours[] | null;
 }
 
 const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
-interface DayRow {
-  closed: boolean;
-  opensAt: string; // "HH:mm" para el <input type="time">
+/** Un turno en el estado del formulario: "HH:mm" para los <input type="time">. */
+interface ShiftRow {
+  opensAt: string;
   closesAt: string;
 }
 
-function emptyDays(): DayRow[] {
-  return DAYS.map(() => ({ closed: true, opensAt: "", closesAt: "" }));
+function emptyDays(): ShiftRow[][] {
+  return DAYS.map(() => []);
 }
 
 /** "HH:mm:ss" (backend) → "HH:mm" (input). */
@@ -56,13 +56,11 @@ function toBackendTime(t: string): string | null {
   return t ? `${t}:00` : null;
 }
 
-function dayFromEntry(entry: BusinessHoursEntry | undefined): DayRow {
-  const closed = entry?.closed ?? true;
-  return {
-    closed,
-    opensAt: closed ? "" : toInputTime(entry?.opensAt),
-    closesAt: closed ? "" : toInputTime(entry?.closesAt),
-  };
+function dayFromEntry(entry: BusinessHours | undefined): ShiftRow[] {
+  return (entry?.shifts ?? []).map((s) => ({
+    opensAt: toInputTime(s.opensAt),
+    closesAt: toInputTime(s.closesAt),
+  }));
 }
 
 /** Miniatura de lo que apunta la URL: el owner pega URLs, ver la imagen es su única devolución. */
@@ -97,7 +95,7 @@ export default function LocalSection() {
   const [bannerUrl, setBannerUrl] = useState("");
   const [address, setAddress] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
-  const [days, setDays] = useState<DayRow[]>(emptyDays);
+  const [days, setDays] = useState<ShiftRow[][]>(emptyDays);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,16 +126,20 @@ export default function LocalSection() {
     };
   }, []);
 
-  function setDay(index: number, patch: Partial<DayRow>) {
-    setDays((prev) => prev.map((d, i) => (i === index ? { ...d, ...patch } : d)));
-  }
-
-  function toggleClosed(index: number) {
+  function setShift(index: number, shiftIndex: number, patch: Partial<ShiftRow>) {
     setDays((prev) =>
-      prev.map((d, i) =>
-        i === index ? { closed: !d.closed, opensAt: "", closesAt: "" } : d,
+      prev.map((day, i) =>
+        i === index ? day.map((s, j) => (j === shiftIndex ? { ...s, ...patch } : s)) : day,
       ),
     );
+  }
+
+  function addShift(index: number) {
+    setDays((prev) => prev.map((day, i) => (i === index ? [...day, { opensAt: "", closesAt: "" }] : day)));
+  }
+
+  function removeShift(index: number, shiftIndex: number) {
+    setDays((prev) => prev.map((day, i) => (i === index ? day.filter((_, j) => j !== shiftIndex) : day)));
   }
 
   async function save() {
@@ -153,12 +155,14 @@ export default function LocalSection() {
           bannerUrl,
           address,
           instagramUrl,
-          // Los siete días SIEMPRE van: el backend borra un día que falte.
-          hours: days.map((d, i) => ({
+          // Los siete días SIEMPRE van, cada uno con su lista de turnos
+          // (un día cerrado viaja como `[]`): el backend reemplaza todo.
+          hours: days.map((shifts, i) => ({
             dayOfWeek: i + 1,
-            opensAt: d.closed ? null : toBackendTime(d.opensAt),
-            closesAt: d.closed ? null : toBackendTime(d.closesAt),
-            closed: d.closed,
+            shifts: shifts.map((s) => ({
+              opensAt: toBackendTime(s.opensAt),
+              closesAt: toBackendTime(s.closesAt),
+            })),
           })),
         }),
       });
@@ -257,32 +261,48 @@ export default function LocalSection() {
           </p>
 
           {DAYS.map((day, i) => (
-            <div key={day} className={`admin-profile-day${days[i].closed ? " admin-profile-day--closed" : ""}`}>
-              <span className="admin-profile-day-name">{day}</span>
-              <input
-                type="time"
-                className="admin-input"
-                aria-label={`Apertura ${day}`}
-                value={days[i].opensAt}
-                disabled={days[i].closed}
-                onChange={(e) => setDay(i, { opensAt: e.target.value })}
-              />
-              <input
-                type="time"
-                className="admin-input"
-                aria-label={`Cierre ${day}`}
-                value={days[i].closesAt}
-                disabled={days[i].closed}
-                onChange={(e) => setDay(i, { closesAt: e.target.value })}
-              />
-              <label className="admin-profile-day-closed">
-                <input
-                  type="checkbox"
-                  checked={days[i].closed}
-                  onChange={() => toggleClosed(i)}
-                />
-                Cerrado {day}
-              </label>
+            <div
+              key={day}
+              className={`admin-profile-day${days[i].length === 0 ? " admin-profile-day--closed" : ""}`}
+            >
+              <div className="admin-profile-day-head">
+                <span className="admin-profile-day-name">{day}</span>
+                {days[i].length === 0 && <span className="admin-profile-day-closed">Cerrado {day}</span>}
+                <button
+                  type="button"
+                  className="btn-ghost admin-profile-day-add"
+                  aria-label={`Agregar turno ${day}`}
+                  onClick={() => addShift(i)}
+                >
+                  + Agregar turno
+                </button>
+              </div>
+              {days[i].map((shift, j) => (
+                <div key={j} className="admin-profile-shift">
+                  <input
+                    type="time"
+                    className="admin-input"
+                    aria-label={`Apertura ${day} turno ${j + 1}`}
+                    value={shift.opensAt}
+                    onChange={(e) => setShift(i, j, { opensAt: e.target.value })}
+                  />
+                  <input
+                    type="time"
+                    className="admin-input"
+                    aria-label={`Cierre ${day} turno ${j + 1}`}
+                    value={shift.closesAt}
+                    onChange={(e) => setShift(i, j, { closesAt: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    className="btn-ghost admin-profile-shift-remove"
+                    aria-label={`Quitar turno ${day} ${j + 1}`}
+                    onClick={() => removeShift(i, j)}
+                  >
+                    Quitar
+                  </button>
+                </div>
+              ))}
             </div>
           ))}
         </div>

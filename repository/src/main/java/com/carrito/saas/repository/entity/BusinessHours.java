@@ -16,25 +16,30 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * One row per weekday of a business's opening hours ({@code dayOfWeek}
- * 1 = Monday … 7 = Sunday, ISO convention). Owned by the storefront profile:
- * the owner replaces the whole list via {@code PUT /api/business/profile}, so
- * the UNIQUE (business_id, day_of_week) constraint — declared on the table
- * with an explicit name, same policy as {@link Business}'s constraints —
- * guarantees at most one franja per day.
+ * One row per shift of a business's opening hours ({@code dayOfWeek}
+ * 1 = Monday … 7 = Sunday, ISO convention), ordered inside the day by
+ * {@code position}. Owned by the storefront profile: the owner replaces the
+ * whole list via {@code PUT /api/business/profile}, so the
+ * UNIQUE (business_id, day_of_week, position) constraint — declared on the
+ * table with an explicit name, same policy as {@link Business}'s
+ * constraints — guarantees at most one shift per ordinal within a day.
  *
- * <p>When {@code closed} is {@code true} the times are NULL (the day is not
- * open, there is nothing to show); when it is {@code false} both
- * {@code opensAt} and {@code closesAt} are present and ordered
- * ({@code opensAt < closesAt}) — that shape is enforced in
- * {@code BusinessProfileServiceImpl} before save, not by the schema.</p>
+ * <p>This is the target shape of the multi-shift change
+ * (docs/migrations/2026-10-15-business-hours-shifts.sql): a day holds one or
+ * more ordered shifts, and a day with no rows is a closed day — the removed
+ * {@code closed} column can no longer contradict the hours.
+ * A shift whose {@code closesAt} is earlier than its {@code opensAt} is legal:
+ * it crosses midnight and ends in the early hours of the next day (a Friday
+ * 11:00 → 00:30 closes at 00:30 the following Saturday); the equality is
+ * rejected in {@code BusinessProfileServiceImpl} before save, not by the
+ * schema.</p>
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "business_hours",
-        uniqueConstraints = @UniqueConstraint(name = "uq_business_hours_business_day",
-                columnNames = {"business_id", "day_of_week"}))
+        uniqueConstraints = @UniqueConstraint(name = "uq_business_hours_business_day_position",
+                columnNames = {"business_id", "day_of_week", "position"}))
 public class BusinessHours {
 
     @Id
@@ -49,12 +54,14 @@ public class BusinessHours {
     @Column(name = "day_of_week", nullable = false)
     private Integer dayOfWeek;
 
-    /** Present only when {@link #closed} is {@code false}. */
+    /** Ordinal of the shift inside the day (0-based). */
+    @Column(name = "position", nullable = false)
+    private Integer position;
+
+    /** Present together with {@link #closesAt}; a day with no rows is closed. */
     private LocalTime opensAt;
 
+    /** Earlier than {@link #opensAt} means the shift crosses midnight. */
     private LocalTime closesAt;
-
-    @Column(nullable = false)
-    private boolean closed;
 
 }

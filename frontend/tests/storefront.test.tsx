@@ -21,9 +21,9 @@ const BUSINESS: StorefrontBusiness = {
   address: "Av. Siempreviva 742, Springfield",
   instagramUrl: "https://instagram.com/foodtruckdemo",
   hours: [
-    { dayOfWeek: 1, opensAt: "11:00:00", closesAt: "23:00:00", closed: false },
-    { dayOfWeek: 5, opensAt: "11:00:00", closesAt: "00:30:00", closed: false },
-    { dayOfWeek: 7, opensAt: null, closesAt: null, closed: true },
+    { dayOfWeek: 1, shifts: [{ opensAt: "11:00:00", closesAt: "23:00:00" }] },
+    { dayOfWeek: 5, shifts: [{ opensAt: "11:00:00", closesAt: "00:30:00" }] },
+    { dayOfWeek: 7, shifts: [] },
   ],
 };
 
@@ -126,7 +126,7 @@ describe("Storefront — portada completa", () => {
 
     expect(screen.getByText("Cerrado")).toHaveClass("is-closed");
     expect(screen.getByText("Abre mañana a las 11:00")).toBeInTheDocument();
-    expect(screen.getByText("Hoy: cerrado")).toBeInTheDocument();
+    expect(screen.getByText("Hoy: Cerrado")).toBeInTheDocument();
   });
 });
 

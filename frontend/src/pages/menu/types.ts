@@ -30,16 +30,25 @@ export interface Restaurant {
 }
 
 /**
+ * Un turno del horario de atención. `opensAt`/`closesAt` llegan como
+ * "HH:mm:ss" (a veces "HH:mm"; ambos formatos conviven en fixtures y
+ * payloads). Convención del backend: `closesAt` MENOR que `opensAt` significa
+ * que el cierre cae en la madrugada del día SIGUIENTE (viernes 19:00 → 00:30).
+ */
+export interface BusinessHoursShift {
+  opensAt: string | null;
+  closesAt: string | null;
+}
+
+/**
  * Un día del horario de atención del local (portada). `dayOfWeek` es
- * 1 = lunes … 7 = domingo; `opensAt`/`closesAt` son "HH:MM:SS" (null en días
- * cerrados). Convención del backend: `closesAt` MENOR que `opensAt` significa
- * que el cierre cae en la madrugada del día SIGUIENTE (viernes 11:00 → 00:30).
+ * 1 = lunes … 7 = domingo y `shifts` es la lista ORDENADA de turnos del día.
+ * Un día con la lista vacía ES un día cerrado: ya no existe `closed`, que
+ * podía contradecir a los horarios cargados.
  */
 export interface BusinessHours {
   dayOfWeek: number;
-  opensAt?: string | null;
-  closesAt?: string | null;
-  closed?: boolean;
+  shifts: BusinessHoursShift[];
 }
 
 /**

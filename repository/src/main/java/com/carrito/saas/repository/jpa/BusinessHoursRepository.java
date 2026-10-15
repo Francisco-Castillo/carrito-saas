@@ -15,7 +15,7 @@ import com.carrito.saas.repository.entity.BusinessHours;
 @Repository
 public interface BusinessHoursRepository extends JpaRepository<BusinessHours, Long> {
 
-    List<BusinessHours> findByBusiness_IdOrderByDayOfWeekAsc(Long businessId);
+    List<BusinessHours> findByBusiness_IdOrderByDayOfWeekAscPositionAsc(Long businessId);
 
     void deleteByBusiness_Id(Long businessId);
 
