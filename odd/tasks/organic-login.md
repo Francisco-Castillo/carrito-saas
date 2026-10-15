@@ -100,6 +100,22 @@ defect report for the unknown-outcome capture is at
 4. Follow the provider-issued validator and final verification to `approved`,
    then the exact `review.acknowledge-approved` continuation.
 
+### Integration ordering (do not rebase while the lineage is open)
+
+`develop` is ahead of this branch and already changed two manifest files:
+`frontend/src/pages/Admin.tsx` (+163, the admin shell) and
+`frontend/tests/admin-panel.test.tsx` (+71). Merging develop into
+feat/organic-login changes the candidate content, which invalidates the open
+frozen lineage — so integrate develop only AFTER the review closes, not before.
+
+Agreed conflict resolutions with the sibling session (admin units):
+`admin-panel.test.tsx` keeps OUR point 1 (bare `/login/login.html`, no
+`?restaurant=`) plus THEIR points 3 and 4 (sidebar brand from
+`GET /api/business/profile`; view title is the Spanish label) — never a plain
+"take mine" or "take theirs"; `Admin.tsx` keeps THEIR shell (brand fetch, SVG
+icons, VIEW_LABELS, separator, logout icon on the button) with OUR logout block
+(bare redirect, button keeps its icon).
+
 ## Notes
 
 - Base branch: develop. Feature branch: feat/organic-login.
