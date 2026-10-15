@@ -130,8 +130,10 @@ export async function cancelOrder(
 /**
  * kds.js:313-320 — logout(): borra "token" y vuelve al login. Fase 2: SIN
  * ?restaurant= — el slug vive en la sesión y el login orgánico lo resuelve.
+ * La sesión incluye el slug del restaurante: se limpia junto con el token.
  */
 export function logoutKds(): void {
   localStorage.removeItem("token");
+  localStorage.removeItem("restaurantSlug");
   window.location.href = "/login/login.html";
 }

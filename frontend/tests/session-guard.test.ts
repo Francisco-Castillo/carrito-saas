@@ -31,7 +31,8 @@
  * read (which is what AC12 exercised) is still in place in auth.ts.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { enforceSession, getSessionRestaurantSlug, hasUsableSession } from '../src/pages/dashboard/auth'
+import { enforceSession, getSessionRestaurantSlug, hasUsableSession, logout } from '../src/pages/dashboard/auth'
+import { logoutKds } from '../src/pages/kds/api'
 
 const LOGIN_TARGET = '/login/login.html'
 const RESTAURANT_SLUG = 'demo-pizzeria'
@@ -186,6 +187,32 @@ describe('page guard (ported from api/src/test/js/page-guard.test.mjs — backs 
 
       expect(() => getSessionRestaurantSlug()).not.toThrow()
       expect(getSessionRestaurantSlug()).toBeNull()
+    })
+  })
+
+  describe('session teardown clears the session slug (the login writes it, every logout path must clear it)', () => {
+    it('dashboard logout() removes restaurantSlug and token, and lands on the bare login', () => {
+      const location = stubLocation('')
+      localStorage.setItem('token', 'tok')
+      localStorage.setItem('restaurantSlug', RESTAURANT_SLUG)
+
+      expect(() => logout()).not.toThrow()
+
+      expect(localStorage.getItem('restaurantSlug'), 'restaurantSlug must be removed on logout').toBeNull()
+      expect(localStorage.getItem('token'), 'token must still be removed on logout').toBeNull()
+      expect(location.href).toBe(LOGIN_TARGET)
+    })
+
+    it('kds logoutKds() removes restaurantSlug and token, and lands on the bare login', () => {
+      const location = stubLocation('')
+      localStorage.setItem('token', 'tok')
+      localStorage.setItem('restaurantSlug', RESTAURANT_SLUG)
+
+      expect(() => logoutKds()).not.toThrow()
+
+      expect(localStorage.getItem('restaurantSlug'), 'restaurantSlug must be removed on logout').toBeNull()
+      expect(localStorage.getItem('token'), 'token must still be removed on logout').toBeNull()
+      expect(location.href).toBe(LOGIN_TARGET)
     })
   })
 })
