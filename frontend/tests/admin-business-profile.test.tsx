@@ -35,6 +35,10 @@ const PROFILE = {
   bannerUrl: '/dev-media/banner-local.jpg',
   address: 'Av. Siempreviva 742, Springfield',
   instagramUrl: 'https://instagram.com/foodtruckdemo',
+  dateExceptions: [
+    { date: '2026-12-24', shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
+    { date: '2026-12-25', shifts: [] },
+  ],
   hours: [
     { dayOfWeek: 1, shifts: [{ opensAt: '11:00:00', closesAt: '15:00:00' }, { opensAt: '19:00:00', closesAt: '23:00:00' }] },
     { dayOfWeek: 2, shifts: [{ opensAt: '11:00:00', closesAt: '23:00:00' }] },
@@ -60,7 +64,10 @@ let calls: RecordedCall[] = []
  * the GET profile fixture; the caller can override the PUT outcome per test.
  * Anything unexpected fails quietly, like the seam in admin-products-combos.test.tsx.
  */
-function stubFetch(putHandler?: () => { status: number; body: unknown }) {
+function stubFetch(
+  putHandler?: () => { status: number; body: unknown },
+  profile: typeof PROFILE = PROFILE,
+) {
   return vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -75,7 +82,7 @@ function stubFetch(putHandler?: () => { status: number; body: unknown }) {
         body: typeof init?.body === 'string' ? init.body : null,
       })
       if (url === '/api/business/profile' && method === 'GET') {
-        return { ok: true, status: 200, json: async () => PROFILE }
+        return { ok: true, status: 200, json: async () => profile }
       }
       if (url === '/api/business/profile' && method === 'PUT') {
         const outcome = putHandler?.()
@@ -113,6 +120,13 @@ function putCall(): RecordedCall {
 
 function putHours(): Array<{ dayOfWeek: number; shifts: Array<{ opensAt: string | null; closesAt: string | null }> }> {
   return JSON.parse(putCall().body ?? '{}').hours
+}
+
+function putDateExceptions(): Array<{
+  date: string
+  shifts: Array<{ opensAt: string | null; closesAt: string | null }>
+}> {
+  return JSON.parse(putCall().body ?? '{}').dateExceptions
 }
 
 beforeEach(() => {
@@ -222,6 +236,10 @@ describe('Admin "Local" view — business profile editor', () => {
       bannerUrl: '/dev-media/banner-local.jpg',
       address: 'Av. Siempreviva 742, Springfield',
       instagramUrl: 'https://instagram.com/foodtruckdemo',
+      dateExceptions: [
+        { date: '2026-12-24', shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
+        { date: '2026-12-25', shifts: [] },
+      ],
       hours: [
         { dayOfWeek: 1, shifts: [{ opensAt: '10:30:00', closesAt: '15:00:00' }, { opensAt: '19:00:00', closesAt: '23:00:00' }] },
         { dayOfWeek: 2, shifts: [{ opensAt: '11:00:00', closesAt: '23:00:00' }, { opensAt: '19:00:00', closesAt: '22:00:00' }] },
@@ -272,5 +290,150 @@ describe('Admin "Local" view — business profile editor', () => {
 
     const friday = putHours().find((h) => h.dayOfWeek === 5)
     expect(friday).toEqual({ dayOfWeek: 5, shifts: [{ opensAt: '11:00:00', closesAt: '00:30:00' }] })
+  })
+})
+
+describe('Admin "Local" view — fechas especiales (date exceptions)', () => {
+  it('renders the loaded exceptions ordered by date, each with its weekday name and its closed marker', async () => {
+    stubFetch()
+    await openLocalView()
+
+    // Both loaded exceptions render with the weekday beside the date:
+    // 2026-12-24 is a Thursday and 2026-12-25 is a Friday (pinned calendar facts).
+    const dec24 = screen.getByText('24/12 (jueves)')
+    const dec25 = screen.getByText('25/12 (viernes)')
+    expect(dec24).toBeInTheDocument()
+    expect(dec25).toBeInTheDocument()
+    // Ordered by date: 24/12 before 25/12 in the DOM.
+    expect(dec24.compareDocumentPosition(dec25) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    // The closed exception (empty shifts) renders the honest closed marker.
+    expect(screen.getByText('Cerrado 25/12 (viernes)')).toBeInTheDocument()
+
+    // The exception with shifts reuses the weekday shift-row controls.
+    expect(screen.getByLabelText('Apertura 24/12 (jueves) turno 1')).toHaveValue('11:00')
+    expect(screen.getByLabelText('Cierre 24/12 (jueves) turno 1')).toHaveValue('18:00')
+
+    // With exceptions loaded there is no empty state.
+    expect(screen.queryByText(/Sin fechas especiales/)).not.toBeInTheDocument()
+  })
+
+  it('the weekday label is computed from the date parts, never from a UTC parse (2026-12-25 is a Friday)', async () => {
+    stubFetch()
+    await openLocalView()
+
+    // In a negative-offset timezone `new Date('2026-12-25')` lands on Dec 24
+    // local time and the label would wrongly read "jueves". The label must
+    // come from the parsed parts: Friday.
+    expect(screen.getByText('25/12 (viernes)')).toBeInTheDocument()
+  })
+
+  it('adding a closed date and saving sends { date, shifts: [] } and keeps the loaded ones', async () => {
+    stubFetch()
+    const user = await openLocalView()
+
+    // 2027-01-01 is a Friday too; the new row must show the weekday name.
+    await user.type(screen.getByLabelText('Nueva fecha especial'), '2027-01-01')
+    await user.click(screen.getByRole('button', { name: 'Agregar fecha' }))
+
+    // It lands in the list, sorted, as a closed date.
+    expect(screen.getByText('1/1 (viernes)')).toBeInTheDocument()
+    expect(screen.getByText('Cerrado 1/1 (viernes)')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(putDateExceptions()).toEqual([
+      { date: '2026-12-24', shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
+      { date: '2026-12-25', shifts: [] },
+      { date: '2027-01-01', shifts: [] },
+    ])
+  })
+
+  it('adding a date with shifts sends them in HH:mm:ss, sorted by opening time', async () => {
+    stubFetch()
+    const user = await openLocalView()
+
+    await user.type(screen.getByLabelText('Nueva fecha especial'), '2027-01-01')
+    await user.click(screen.getByRole('button', { name: 'Agregar fecha' }))
+
+    // Two shifts entered OUT of order: the later opening goes in first.
+    await user.click(screen.getByRole('button', { name: 'Agregar turno 1/1 (viernes)' }))
+    await user.type(screen.getByLabelText('Apertura 1/1 (viernes) turno 1'), '20:00')
+    await user.type(screen.getByLabelText('Cierre 1/1 (viernes) turno 1'), '23:00')
+    await user.click(screen.getByRole('button', { name: 'Agregar turno 1/1 (viernes)' }))
+    await user.type(screen.getByLabelText('Apertura 1/1 (viernes) turno 2'), '12:00')
+    await user.type(screen.getByLabelText('Cierre 1/1 (viernes) turno 2'), '15:00')
+
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(putDateExceptions()).toEqual([
+      { date: '2026-12-24', shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
+      { date: '2026-12-25', shifts: [] },
+      {
+        date: '2027-01-01',
+        shifts: [
+          { opensAt: '12:00:00', closesAt: '15:00:00' },
+          { opensAt: '20:00:00', closesAt: '23:00:00' },
+        ],
+      },
+    ])
+  })
+
+  it('removing a date drops it from the payload: that day is a normal weekday again', async () => {
+    stubFetch()
+    const user = await openLocalView()
+
+    await user.click(screen.getByRole('button', { name: 'Quitar fecha 25/12 (viernes)' }))
+    expect(screen.queryByText('25/12 (viernes)')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(putDateExceptions()).toEqual([
+      { date: '2026-12-24', shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
+    ])
+  })
+
+  it('a profile with no exceptions renders the empty state and still sends dateExceptions: []', async () => {
+    const { dateExceptions: _omitted, ...withoutExceptions } = PROFILE
+    stubFetch(undefined, withoutExceptions)
+    const user = await openLocalView()
+
+    expect(screen.getByText('Sin fechas especiales: los días se rigen por el horario semanal.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    // The field is MANDATORY on the PUT: it travels even when empty.
+    expect(putDateExceptions()).toEqual([])
+  })
+
+  it('adding a duplicate date is refused locally and the row is not duplicated', async () => {
+    stubFetch()
+    const user = await openLocalView()
+
+    await user.type(screen.getByLabelText('Nueva fecha especial'), '2026-12-25')
+    await user.click(screen.getByRole('button', { name: 'Agregar fecha' }))
+
+    expect(screen.getByText('Ya hay una excepción para esa fecha')).toBeInTheDocument()
+    expect(screen.getAllByText('Cerrado 25/12 (viernes)')).toHaveLength(1)
+  })
+
+  it('a 400 from the backend (duplicate date) shows its message and keeps the user\'s work editable', async () => {
+    stubFetch(() => ({
+      status: 400,
+      body: { message: 'Ya hay una excepción para esa fecha' },
+    }))
+    const user = await openLocalView()
+
+    await user.type(screen.getByLabelText('Nueva fecha especial'), '2027-01-01')
+    await user.click(screen.getByRole('button', { name: 'Agregar fecha' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    // The backend's message is rendered, not swallowed.
+    expect(await screen.findByText('Ya hay una excepción para esa fecha')).toBeInTheDocument()
+    expect(screen.queryByText('Perfil actualizado')).not.toBeInTheDocument()
+
+    // The user's work is not dropped: the added date is still in the form.
+    expect(screen.getByText('1/1 (viernes)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Nueva fecha especial')).toBeEnabled()
   })
 })

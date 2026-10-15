@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { API, authHeader } from "./api";
 import { showSuccessToast } from "./toast";
-import type { BusinessHours } from "../menu/types";
+import type { BusinessHours, DateException } from "../menu/types";
 
 /**
  * Editor del perfil del local (vista "Local" del panel admin) contra los
@@ -23,6 +23,19 @@ import type { BusinessHours } from "../menu/types";
  *     turno que cruza medianoche sin ser el último, derrame contra la
  *     mañana siguiente): se muestra inline en vez de fallar en silencio, y
  *     el formulario queda usable.
+ *   - Las FECHAS ESPECIALES (excepciones por fecha, feriados y días con
+ *     horario propio) comparten el PUT: `dateExceptions` viaja SIEMPRE,
+ *     incluso vacía (el backend la exige; una lista vacía significa "no hay
+ *     fechas especiales"). Una fecha presente con `shifts: []` ES un
+ *     feriado cerrado; una fecha AUSENTE es un día normal. El reemplazo es
+ *     total, igual que el resto del perfil.
+ *   - Una fecha "YYYY-MM-DD" NUNCA se construye con `new Date(string)`: ese
+ *     parse es UTC y en una zona de offset negativo cae en el día anterior
+ *     (el rótulo diría "jueves" para un viernes). Se divide en partes y se
+ *     arma la fecha local, tanto para el rótulo como para el día de semana.
+ *   - Los límites conocidos no viajan en silencio: una fecha duplicada o
+ *     superar las 100 fechas se rechaza en el formulario con el mismo
+ *     mensaje del backend, y un 400 real se muestra sin descartar el trabajo.
  */
 
 export interface BusinessProfile {
@@ -32,14 +45,55 @@ export interface BusinessProfile {
   address?: string | null;
   instagramUrl?: string | null;
   hours?: BusinessHours[] | null;
+  dateExceptions?: DateException[] | null;
 }
 
 const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+/** Nombres de día en el orden de `Date#getDay` (0 = domingo). */
+const WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+/** Límite del backend:fechas especiales por perfil. */
+const MAX_DATE_EXCEPTIONS = 100;
 
 /** Un turno en el estado del formulario: "HH:mm" para los <input type="time">. */
 interface ShiftRow {
   opensAt: string;
   closesAt: string;
+}
+
+/** Una fecha especial en el estado del formulario. */
+interface ExceptionRow {
+  date: string;
+  shifts: ShiftRow[];
+}
+
+/**
+ * "YYYY-MM-DD" → Date LOCAL construida por partes. NUNCA `new Date(string)`:
+ * ese parse es UTC y en una zona de offset negativo cae en la tarde del día
+ * anterior (el rótulo diría "jueves" para un viernes).
+ */
+function parseLocalDate(date: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+/** "2026-12-25" → "25/12 (viernes)": fecha y día de semana por partes locales. */
+function exceptionLabel(date: string): string {
+  const dt = parseLocalDate(date);
+  if (!dt) return date;
+  return `${dt.getDate()}/${dt.getMonth() + 1} (${WEEKDAYS[dt.getDay()].toLowerCase()})`;
+}
+
+/** Ordenadas por fecha: así viajan y así se muestran. */
+function sortedExceptionRows(rows: ExceptionRow[]): ExceptionRow[] {
+  return [...rows].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Turnos ordenados por apertura (igual que los reordena el backend). */
+function sortedShiftRows(shifts: ShiftRow[]): ShiftRow[] {
+  return [...shifts].sort((a, b) => (a.opensAt || "99:99").localeCompare(b.opensAt || "99:99"));
 }
 
 function emptyDays(): ShiftRow[][] {
@@ -56,7 +110,7 @@ function toBackendTime(t: string): string | null {
   return t ? `${t}:00` : null;
 }
 
-function dayFromEntry(entry: BusinessHours | undefined): ShiftRow[] {
+function dayFromEntry(entry: { shifts?: BusinessHours["shifts"] } | undefined): ShiftRow[] {
   return (entry?.shifts ?? []).map((s) => ({
     opensAt: toInputTime(s.opensAt),
     closesAt: toInputTime(s.closesAt),
@@ -96,6 +150,8 @@ export default function LocalSection() {
   const [address, setAddress] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [days, setDays] = useState<ShiftRow[][]>(emptyDays);
+  const [exceptions, setExceptions] = useState<ExceptionRow[]>([]);
+  const [newExceptionDate, setNewExceptionDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +171,11 @@ export default function LocalSection() {
         setInstagramUrl(data.instagramUrl ?? "");
         const byDay = new Map((data.hours ?? []).map((h) => [h.dayOfWeek, h]));
         setDays(DAYS.map((_, i) => dayFromEntry(byDay.get(i + 1))));
+        setExceptions(
+          sortedExceptionRows(
+            (data.dateExceptions ?? []).map((e) => ({ date: e.date, shifts: dayFromEntry(e) })),
+          ),
+        );
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
       } finally {
@@ -142,6 +203,48 @@ export default function LocalSection() {
     setDays((prev) => prev.map((day, i) => (i === index ? day.filter((_, j) => j !== shiftIndex) : day)));
   }
 
+  function setExceptionShift(date: string, shiftIndex: number, patch: Partial<ShiftRow>) {
+    setExceptions((prev) =>
+      prev.map((exc) =>
+        exc.date === date
+          ? { ...exc, shifts: exc.shifts.map((s, j) => (j === shiftIndex ? { ...s, ...patch } : s)) }
+          : exc,
+      ),
+    );
+  }
+
+  function addExceptionShift(date: string) {
+    setExceptions((prev) =>
+      prev.map((exc) => (exc.date === date ? { ...exc, shifts: [...exc.shifts, { opensAt: "", closesAt: "" }] } : exc)),
+    );
+  }
+
+  function removeExceptionShift(date: string, shiftIndex: number) {
+    setExceptions((prev) =>
+      prev.map((exc) => (exc.date === date ? { ...exc, shifts: exc.shifts.filter((_, j) => j !== shiftIndex) } : exc)),
+    );
+  }
+
+  function removeException(date: string) {
+    setExceptions((prev) => prev.filter((exc) => exc.date !== date));
+  }
+
+  function addException() {
+    if (!newExceptionDate) return;
+    // Los límites conocidos no viajan en silencio: mismo mensaje del backend.
+    if (exceptions.some((exc) => exc.date === newExceptionDate)) {
+      setError("Ya hay una excepción para esa fecha");
+      return;
+    }
+    if (exceptions.length >= MAX_DATE_EXCEPTIONS) {
+      setError("No se pueden cargar más de 100 fechas especiales");
+      return;
+    }
+    setError(null);
+    setExceptions((prev) => sortedExceptionRows([...prev, { date: newExceptionDate, shifts: [] }]));
+    setNewExceptionDate("");
+  }
+
   async function save() {
     setSaving(true);
     setError(null);
@@ -164,6 +267,17 @@ export default function LocalSection() {
               closesAt: toBackendTime(s.closesAt),
             })),
           })),
+          // `dateExceptions` SIEMPRE viaja, incluso vacía: el backend la
+          // exige (400 si falta) y una lista vacía significa "no hay
+          // fechas especiales". Los turnos van ordenados por apertura,
+          // convertidos a "HH:mm:ss".
+          dateExceptions: exceptions.map((exc) => ({
+            date: exc.date,
+            shifts: sortedShiftRows(exc.shifts).map((s) => ({
+              opensAt: toBackendTime(s.opensAt),
+              closesAt: toBackendTime(s.closesAt),
+            })),
+          })),
         }),
       });
       if (!res.ok) {
@@ -179,6 +293,8 @@ export default function LocalSection() {
   }
 
   if (loading) return null;
+
+  const sortedExceptions = sortedExceptionRows(exceptions);
 
   return (
     <div className="glass-panel fade-up admin-table-panel admin-profile-panel">
@@ -305,6 +421,91 @@ export default function LocalSection() {
               ))}
             </div>
           ))}
+        </div>
+
+        <div className="admin-profile-hours admin-profile-exceptions">
+          <h3>Fechas especiales</h3>
+          <p className="admin-profile-hours-note">
+            Un feriado se agrega sin turnos (cerrado); con turnos, rige ese horario sólo ese día.
+          </p>
+
+          {sortedExceptions.length === 0 ? (
+            <p className="admin-profile-exceptions-empty">
+              Sin fechas especiales: los días se rigen por el horario semanal.
+            </p>
+          ) : (
+            sortedExceptions.map((exc) => {
+              const label = exceptionLabel(exc.date);
+              return (
+                <div
+                  key={exc.date}
+                  className={`admin-profile-day${exc.shifts.length === 0 ? " admin-profile-day--closed" : ""}`}
+                >
+                  <div className="admin-profile-day-head">
+                    <span className="admin-profile-day-name">{label}</span>
+                    {exc.shifts.length === 0 && (
+                      <span className="admin-profile-day-closed">Cerrado {label}</span>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-ghost admin-profile-day-add"
+                      aria-label={`Agregar turno ${label}`}
+                      onClick={() => addExceptionShift(exc.date)}
+                    >
+                      + Agregar turno
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost admin-profile-exception-remove"
+                      aria-label={`Quitar fecha ${label}`}
+                      onClick={() => removeException(exc.date)}
+                    >
+                      Quitar fecha
+                    </button>
+                  </div>
+                  {exc.shifts.map((shift, j) => (
+                    <div key={j} className="admin-profile-shift">
+                      <input
+                        type="time"
+                        className="admin-input"
+                        aria-label={`Apertura ${label} turno ${j + 1}`}
+                        value={shift.opensAt}
+                        onChange={(e) => setExceptionShift(exc.date, j, { opensAt: e.target.value })}
+                      />
+                      <input
+                        type="time"
+                        className="admin-input"
+                        aria-label={`Cierre ${label} turno ${j + 1}`}
+                        value={shift.closesAt}
+                        onChange={(e) => setExceptionShift(exc.date, j, { closesAt: e.target.value })}
+                      />
+                      <button
+                        type="button"
+                        className="btn-ghost admin-profile-shift-remove"
+                        aria-label={`Quitar turno ${label} ${j + 1}`}
+                        onClick={() => removeExceptionShift(exc.date, j)}
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })
+          )}
+
+          <div className="admin-profile-exception-add">
+            <input
+              type="date"
+              className="admin-input"
+              aria-label="Nueva fecha especial"
+              value={newExceptionDate}
+              onChange={(e) => setNewExceptionDate(e.target.value)}
+            />
+            <button type="button" className="btn-ghost" aria-label="Agregar fecha" onClick={addException}>
+              + Agregar fecha
+            </button>
+          </div>
         </div>
 
         <button type="submit" className="btn-primary admin-profile-save" disabled={saving}>
