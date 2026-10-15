@@ -59,3 +59,19 @@ Suite: **101/101** en base descartable (verificada por el orquestador).
 ### Costo a revisar (no cambiado por decisión propia)
 
 Métricas cada **5 minutos** re-agregando **30 días** es bastante más trabajo que el diseño original (que agregaba sólo el día en curso). Es correcto y barato en esta escala, pero si el volumen crece conviene subir `fixedRate` o bajar `app.metrics.window-days` y hacer un backfill único. Queda anotado, no modificado: los crons son del autor.
+
+## Lo que encontró la CI: la suite dependía de la hora
+
+La primera corrida de CI sobre la rama falló a las **00:04 UTC** con dos tests de esta suite:
+
+```
+ProductMetricsAggregationPipelineTests.aggregationWritesQuantityAndRevenueForOrdersInTheWindow
+  [expected a product_daily_sales row for today] → Expecting actual not to be empty
+ProductMetricsAggregationPipelineTests.aggregationIsIdempotentWhenRunTwice → NullPointer
+```
+
+La causa no era el pipeline: los tests sembraban los pedidos de "hoy" con `now().minusHours(2)`, así que **corriendo antes de las 02:00** esos instantes caían en **ayer** y la fila del día de hoy no existía. El mismo archivo ya usaba el patrón correcto (`LocalDate.now().minusDays(N).atTime(12, 0)`) para los días anteriores.
+
+Se reprodujo localmente sin adivinar: `TZ=UTC mvn test -Dtest=ProductMetricsAggregationPipelineTests` falla idéntico (era 00:06 UTC en la máquina), y con la zona local pasa. Ahora los pedidos de hoy se siembran a una hora fija de hoy (`todayAtNoon()`), y la suite pasa **159/159 en las dos zonas horarias**.
+
+Lección: un test que siembra datos relativos a `now()` y después afirma sobre "hoy" se rompe cerca de la medianoche. Es el mismo anti-patrón que la medición con espera fija en los e2e de navegador, y sólo aparece si algo corre a la hora incómoda.
