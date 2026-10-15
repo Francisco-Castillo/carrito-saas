@@ -812,3 +812,121 @@
     min-width: 0;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Productos: buscador, modal de crear/editar, switch de estado y estados vacíos.
+ *
+ * Estas reglas vinieron de una hoja nueva en `pages/admin/Admin.css`, creada
+ * porque un brief las ubicó mal. Dos `Admin.css` para la misma pantalla es peor
+ * que el error que las originó, así que viven acá, con la piel de tabla que ya
+ * estaba en este archivo. Todas las clases son propias (`products-*`,
+ * `admin-switch*`, `admin-product-form*`, `admin-empty-state`): no pisan nada de
+ * lo que ya había.
+ * --------------------------------------------------------------------------- */
+/*
+ * Estilos propios de la vista PRODUCTOS del panel admin (buscador, switch,
+ * modal de producto, estado vacío).
+ *
+ * Regla dura después del PR #37: la piel COMPARTIDA de tablas vive en
+ * src/pages/Admin.css y NO se toca acá. Esta hoja sólo declara selectores de
+ * clase nuevos (prefijo products- / admin-), de modo que ningún estilo de la
+ * vista de productos pueda filtrarse a dashboard, KDS, carta o categorías.
+ * El guard tests/css-scoping.test.ts incluye esta hoja en su lista.
+ */
+
+/* Buscador + botón crear, arriba de la tabla */
+.products-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.products-toolbar-search {
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.products-toolbar .btn-primary {
+  white-space: nowrap;
+}
+
+/* Switch activar/desactivar (reemplaza al botón ON/OFF del legacy) */
+.admin-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out-soft), border-color var(--duration-fast) var(--ease-out-soft);
+}
+
+.admin-switch.is-on {
+  background: var(--accent-gradient);
+  border-color: transparent;
+}
+
+.admin-switch:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.admin-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform var(--duration-fast) var(--ease-out-soft);
+}
+
+.admin-switch.is-on .admin-switch-knob {
+  transform: translateX(18px);
+}
+
+/* Estado vacío: búsqueda sin resultados o catálogo todavía vacío */
+.admin-empty-state {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: var(--space-6) 0 !important;
+  white-space: normal !important;
+}
+
+/* Formulario del modal de producto (grid de dos columnas) */
+.admin-product-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.admin-product-form .admin-product-form--full {
+  grid-column: 1 / -1;
+}
+
+.admin-product-check {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.admin-product-form-actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .admin-product-form {
+    grid-template-columns: 1fr;
+  }
+}
