@@ -116,7 +116,7 @@ function seedStorage() {
 async function openLocalView() {
   render(<Admin />)
   const user = userEvent.setup()
-  await user.click(screen.getByRole('button', { name: '🏪 Local' }))
+  await user.click(screen.getByRole('button', { name: 'Local' }))
   await screen.findByDisplayValue('Foodtruck Demo')
   return user
 }
