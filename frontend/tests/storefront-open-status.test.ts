@@ -30,6 +30,17 @@ const ex = (date: string, ...pairs: Array<[string, string]>): DateException => (
   shifts: pairs.map(([opensAt, closesAt]) => ({ opensAt, closesAt })),
 });
 
+/**
+ * Excepción YEARLY: `date` es sólo el año de REFERENCIA guardado; la
+ * excepción matchea ese MES/DÍA en cualquier año. Con turnos = horario
+ * propio anual; sin turnos = feriado cerrado todos los años.
+ */
+const yex = (date: string, ...pairs: Array<[string, string]>): DateException & { yearly: boolean } => ({
+  date,
+  yearly: true,
+  shifts: pairs.map(([opensAt, closesAt]) => ({ opensAt, closesAt })),
+});
+
 describe("getOpenStatus — turnos del mismo día", () => {
   // Viernes con mediodía y noche: dos turnos, el modelo nuevo que motiva esto.
   const viernes = [h(5, ["11:00:00", "15:00:00"], ["19:00:00", "23:00:00"])];
@@ -296,6 +307,88 @@ describe("getOpenStatus — excepciones por fecha (feriados y horarios especiale
       const hours = [h(5, ["11:00:00", "23:00:00"]), h(6, ["11:00:00", "23:00:00"])];
       const exceptions = [ex("2024-01-05")]; // viernes 5/1: cerrado
       const s = getOpenStatus(hours, d(5, 22, 0), exceptions);
+      expect(s.open).toBe(false);
+      expect(s.todayLine).toBe("Cerrado");
+    } finally {
+      if (prevTz === undefined) delete process.env.TZ;
+      else process.env.TZ = prevTz;
+    }
+  });
+});
+
+describe("nextStatusBoundaryAt — excepciones YEARLY (se repiten cada año)", () => {
+  // El año GUARDADO de la excepción es 2020: los días de la suite son de
+  // enero 2024, así que toda matchea por mes/día en OTRO año.
+
+  it("la yearly con horario propio rige un día de OTRO año (matchea por mes/día)", () => {
+    const hours = [h(5, ["11:00:00", "23:00:00"])]; // viernes
+    const s = getOpenStatus(hours, d(5, 13, 0), [yex("2020-01-05", ["12:00:00", "18:00:00"])]);
+    expect(s.open).toBe(true);
+    expect(s.closingLine).toBe("Cierra a las 18:00");
+    expect(s.todayLine).toBe("12:00–18:00");
+  });
+
+  it("una yearly CERRADA cierra ese día en otro año", () => {
+    const hours = [h(5, ["11:00:00", "23:00:00"])];
+    const s = getOpenStatus(hours, d(5, 13, 0), [yex("2020-01-05")]);
+    expect(s.open).toBe(false);
+    expect(s.closingLine).toBeNull();
+    expect(s.todayLine).toBe("Cerrado");
+  });
+
+  it("una fecha EXACTA le gana a la yearly del mismo mes/día, en cualquier orden de la lista", () => {
+    const hours = [h(5, ["11:00:00", "23:00:00"])];
+    // La anual de 25/12 (guardada en 2020) es cerrada; la EXACTA de 2024
+    // abre al mediodía: la exacta manda aunque la anual aparezca primera.
+    const exacta = ex("2024-01-05", ["14:00:00", "20:00:00"]);
+    const anual = yex("2020-01-05");
+    for (const exceptions of [[anual, exacta], [exacta, anual]]) {
+      const s = getOpenStatus(hours, d(5, 15, 0), exceptions);
+      expect(s.open).toBe(true);
+      expect(s.todayLine).toBe("14:00–20:00");
+    }
+  });
+
+  it("una one-off SIN el flag guardada en OTRO año NO matchea (flag ausente = false)", () => {
+    const hours = [h(5, ["11:00:00", "23:00:00"])];
+    const s = getOpenStatus(hours, d(5, 13, 0), [ex("2023-01-05", ["12:00:00", "18:00:00"])]);
+    expect(s.open).toBe(true);
+    expect(s.todayLine).toBe("11:00–23:00");
+  });
+
+  it("la próxima apertura se saltea la yearly cerrada y nombra la apertura REAL", () => {
+    const lunesAViernes = [1, 2, 3, 4, 5].map((day) => h(day, ["11:00:00", "23:00:00"]));
+    // Martes 23:30: el miércoles 3/1 es yearly cerrado (guardado en 2020);
+    // la apertura real es la del jueves.
+    const s = getOpenStatus(lunesAViernes, d(2, 23, 30), [yex("2020-01-03")]);
+    expect(s.open).toBe(false);
+    expect(s.nextOpeningLine).toBe("Abre el jueves a las 11:00");
+  });
+
+  it("nextStatusBoundaryAt mueve el borde igual que una one-off: el día yearly cerrado no aporta bordes", () => {
+    const hours = [h(3, ["11:00:00", "23:00:00"]), h(4, ["11:00:00", "23:00:00"])];
+    // Martes 23:30 (sin horario propio): sin yearly el próximo borde sería la
+    // apertura del MIÉRCOLES; con el miércoles yearly cerrado, la del jueves.
+    expect(nextStatusBoundaryAt(hours, d(2, 23, 30), [yex("2020-01-03")])).toBe(
+      new Date(2024, 0, 4, 11, 0).getTime(),
+    );
+  });
+
+  it("nextStatusBoundaryAt agenda el borde de la yearly con horario propio, en otro año", () => {
+    const hours = [h(5, ["11:00:00", "23:00:00"])];
+    expect(nextStatusBoundaryAt(hours, d(5, 12, 0), [yex("2020-01-05", ["11:00:00", "18:00:00"])]))
+      .toBe(new Date(2024, 0, 5, 18, 0).getTime());
+  });
+
+  it("el match yearly también es por fecha LOCAL: de noche no confunde el día con el UTC", () => {
+    // Viernes 5/1 22:00 en Buenos Aires (UTC-3) = sábado 6/1 01:00 UTC: un
+    // "MM-DD" sacado de toISOString() sería 01-06 y la yearly de 01-05
+    // (guardada en 2019) se perdería.
+    const prevTz = process.env.TZ;
+    process.env.TZ = "America/Argentina/Buenos_Aires";
+    try {
+      const hours = [h(5, ["11:00:00", "23:00:00"])];
+      const s = getOpenStatus(hours, d(5, 22, 0), [yex("2019-01-05")]);
       expect(s.open).toBe(false);
       expect(s.todayLine).toBe("Cerrado");
     } finally {

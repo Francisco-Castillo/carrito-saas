@@ -19,9 +19,14 @@ import type { BusinessHours, BusinessHoursShift, DateException } from "./types";
  *
  * Sobre la plantilla semanal se resuelven las EXCEPCIONES POR FECHA
  * (`dateExceptions`): una fecha presente en la lista manda (lista vacía =
- * feriado cerrado); una fecha ausente es un día normal. La resolución —
- * `effectiveShifts` — es la única puerta: hoy, el derrame de ayer, la próxima
- * apertura y los bordes del badge la usan todos.
+ * feriado cerrado); una fecha ausente es un día normal. Desde el flag
+ * `yearly` del backend, una excepción con `yearly: true` matchea por MES/DÍA
+ * en CUALQUIER año (la Navidad es 25/12 todos los años); `false` o ausente
+ * (payloads viejos) rige sólo su fecha exacta. Si una fecha exacta y una
+ * anual comparten el día, la EXACTA gana (el backend permite ambas filas a
+ * propósito). La resolución — `effectiveShifts` — es la única puerta: hoy,
+ * el derrame de ayer, la próxima apertura y los bordes del badge la usan
+ * todos.
  */
 export interface OpenStatus {
   open: boolean;
@@ -77,6 +82,33 @@ function localDateKey(date: Date): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/**
+ * "MM-DD" LOCAL del día, por partes (`getMonth`/`getDate`, nunca UTC): la
+ * clave con la que una excepción YEARLY matchea en cualquier año.
+ */
+function monthDayKey(date: Date): string {
+  return localDateKey(date).slice(5);
+}
+
+/**
+ * La excepción que rige una fecha del calendario: la de FECHA EXACTA si
+ * existe — gana sobre la anual aunque ambas compartan mes/día, que es una
+ * combinación válida del modelo — y si no, la YEARLY cuyo mes/día coincide,
+ * sea cual sea el año guardado en su `date`.
+ */
+function exceptionFor(
+  dateExceptions: DateException[] | null | undefined,
+  date: Date,
+): DateException | undefined {
+  const list = dateExceptions ?? [];
+  const exact = list.find((e) => e?.date === localDateKey(date));
+  if (exact) return exact;
+  const monthDay = monthDayKey(date);
+  return list.find(
+    (e) => e?.yearly === true && typeof e?.date === "string" && e.date.slice(5) === monthDay,
+  );
+}
+
 export interface Shift {
   opens: number;
   closes: number;
@@ -121,6 +153,8 @@ function shiftsOf(
  * usan hoy, el derrame de ayer y la próxima apertura. Si la fecha tiene una
  * excepción, manda la excepción (lista vacía = feriado cerrado); si NO está
  * en la lista, es un día normal y rige la plantilla de su día de la semana.
+ * Una excepción `yearly: true` matchea por mes/día en cualquier año; una
+ * fecha exacta presente gana sobre la anual del mismo mes/día.
  *
  * `date` debe ser una fecha LOCAL (`new Date(año, mes, día)`); la clave de la
  * excepción se arma con `getFullYear`/`getMonth`/`getDate`, nunca con UTC.
@@ -130,8 +164,7 @@ export function effectiveShifts(
   dateExceptions: DateException[] | null | undefined,
   date: Date,
 ): Shift[] {
-  const key = localDateKey(date);
-  const exception = dateExceptions?.find((e) => e?.date === key);
+  const exception = exceptionFor(dateExceptions, date);
   if (exception) return parseShifts(exception.shifts);
   return shiftsOf(hours, dayOfWeekOf(date));
 }
