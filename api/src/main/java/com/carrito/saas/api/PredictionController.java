@@ -37,11 +37,11 @@ public class PredictionController {
 	}
 
 	/**
-	 * REMOVED (was GET /products): answered 200 with a null body — the service
-	 * stub (PredictionServiceImpl.getProducts) has no implementation and the
-	 * predictionRepository.getTopProducts query it needs is commented out. It
-	 * needs real repository support for "top products" before it can answer
-	 * anything honest; until then the path must not exist.
+	 * REMOVED (was GET /products): answered 200 with a null body. The service
+	 * stub and the repository query it would need were never implemented, and
+	 * both are now deleted rather than left as a promise. It needs real
+	 * repository support for "top products" before it can answer anything
+	 * honest; until then the path must not exist.
 	 */
 	@PostMapping("/run")
 	public void run() {
