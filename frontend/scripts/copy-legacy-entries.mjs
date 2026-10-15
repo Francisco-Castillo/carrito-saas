@@ -9,8 +9,13 @@
  * Because Vite emits absolute asset URLs (base: "/" → /assets/<hash>...),
  * copying index.html into subdirectories resolves the exact same bundle, so a
  * plain byte copy is enough — no rewriting needed.
+ *
+ * Stale hashed bundles are swept first: the build keeps `emptyOutDir: false`
+ * (the classpath directory is shared with the rest of the backend resources),
+ * so without this sweep every rebuild would leave the previous hashes behind
+ * forever. Only assets the freshly built shell does not reference are removed.
  */
-import { copyFile, mkdir } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,6 +31,20 @@ const LEGACY_ENTRIES = [
 ];
 
 const source = join(staticDir, "index.html");
+const shell = await readFile(source, "utf8");
+
+/** Names under /assets/ that the built shell actually references. */
+const referenced = new Set(
+  [...shell.matchAll(/\/assets\/([^"'\s)]+)/g)].map((match) => match[1]),
+);
+
+const assetsDir = join(staticDir, "assets");
+const present = await readdir(assetsDir, { withFileTypes: true }).catch(() => []);
+for (const item of present) {
+  if (referenced.has(item.name)) continue;
+  await rm(join(assetsDir, item.name), { recursive: true, force: true });
+  console.log(`removed stale static/assets/${item.name}`);
+}
 
 for (const entry of LEGACY_ENTRIES) {
   const target = join(staticDir, entry);

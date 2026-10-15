@@ -44,9 +44,6 @@ jobs:
           java-version: "21"
           cache: maven
 
-      - name: Verify
-        run: mvn -B --no-transfer-progress verify
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -54,9 +51,11 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
+      - name: Verify
+        # The `frontend` profile installs the frontend dependencies and builds
+        # the SPA into the static classpath (generate-resources) before the
+        # backend tests run, because the generated bundle is not versioned.
+        run: mvn -B --no-transfer-progress -Pfrontend verify
 
       - name: Frontend contract tests
         # The three legacy Node contract runners (menu-app, page-guard,
@@ -66,16 +65,7 @@ jobs:
         # menu failure contract (missing slug / unloadable restaurant / failed
         # or malformed menu fetch all stop with a readable message), the session
         # guard and the login redirect chain (including dead tokens, blocked
-        # storage and a missing roles claim), and the rule that no shipped
-        # client hardcodes the application origin.
-        run: npm test
-
-      - name: Committed bundle is up to date
-        # The built bundle is committed into the Spring static classpath, so a
-        # stale artifact would ship old code while the sources say otherwise.
-        # Rebuilding must reproduce exactly what is committed.
+        # storage and a missing roles claim), the first-screen menu behaviour
+        # and the rule that no shipped client hardcodes the application origin.
         working-directory: frontend
-        run: |
-          npm run build:spring
-          cd ..
-          git diff --exit-code -- api/src/main/resources/static
+        run: npm test

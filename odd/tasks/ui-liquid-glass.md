@@ -36,10 +36,17 @@
 - [x] 12. Actualizar `.github/workflows/ci.yml`: suite Vitest + guard de bundle no obsoleto.
 - [x] 13. Limpieza del legacy HTML/CSS/JS y de los runners Node reemplazados, con re-verificación e2e posterior.
 
-## Pendiente de decisión del usuario
+## Cierre
 
-- Review nativo (RDD on) sobre este candidato: el preflight ofrece el diff completo del workspace (150+ paths, incluye trabajo ajeno a este feature). Propuesta: revisar un slice acotado o dejarlo explícitamente sin revisar.
-- Seed de desarrollo: `/tmp/seed.sql` es temporal; se puede commitear como fixture (`odd/` o `docs/dev-seed.sql`).
+**Decisión final del usuario:** aceptar el cierre **sin review nativo**. El candidato (y su versión sin bundle) excede el budget del reviewer acotado: ~7.2k líneas cambiadas en 43 paths. No se creó autoridad en ninguno de los dos intentos, así que no queda estado de review pendiente ni autoridad que abandonar. La verificación real se sostiene en `mvn -Pfrontend verify` (57/57), Vitest (20/20), el e2e de navegador (5/5, sin errores de consola ni HTTP≥400) y la prueba de mutación de los contratos portados.
+
+Reproducir el entorno: `pg_ctl -D /home/linuxbrew/.linuxbrew/var/postgresql@17 -l /tmp/pg.log start`, `psql -U admin -h 127.0.0.1 -d carrito_db -f docs/dev-seed.sql`, `mvn -Pfrontend package`, `java -jar api/target/api-0.0.1-SNAPSHOT.jar`.
+
+## Decisiones del usuario (cierre)
+
+- Review nativo: revisar un **slice acotado** (integración + CI + limpieza), no el diff completo del workspace.
+- Seed de desarrollo: **versionado** en `docs/dev-seed.sql` (con advertencia de no correrlo en producción; los ids fijos chocan con los fixtures de los tests Java sobre schema limpio).
+- UX del menú: **la primera categoría arranca abierta** (antes todas colapsadas), con test propio `frontend/tests/menu-categories.test.tsx` (RED observado antes de implementar) y el happy path portado actualizado al nuevo flujo sin perder aserciones.
 
 ## Restricción de entorno (resuelta)
 
@@ -88,3 +95,27 @@ Branch: `feature/ui-liquid-glass` (desde `develop`).
 ### Commits (branch `feature/ui-liquid-glass`, 12 en total)
 
 `c2a617c` scaffold+login · `3813d68` menú · `95e3e27` dashboard · `51cc885` admin · `58f84df` kds · `c6bc61d` build→static+rutas · `c81e24e` permitAll de assets · `7693484` assets buildados · `7d62448` docs · `f3dc280` contratos a Vitest · `c7faee6` CI · `959c8ac` limpieza legacy · `4c015ea` docs finales.
+
+### Review nativo (RDD on): stop por budget
+
+Preflight acotado al slice elegido (integración + CI + limpieza, `baseRef=58f84df`): el lineage se creó (`review-57124a42342c772e`, 47 paths) pero el START devolvió:
+
+```
+code: lens_context_budget_exceeded  (phase: preflight, mutation_outcome: not_started)
+```
+
+Sin autoridad creada: nada que abandonar ni reparar. Causa medible: los **assets generados commiteados** (`api/src/main/resources/static/assets/*.js`, ~470 KB minificados ≈ 150k tokens) entran en cualquier rango que termine en HEAD, así que el candidato no entra en el budget de las 4 lenses.
+
+Continuación documentada por el propio stop: reducir el alcance del candidato (una secuencia encadenada de commits más chicos) o deshabilitar el switch (`D`). Con el bundle versionado, un candidato source-only no es contiguo: la única forma real de restaurar la revisabilidad es sacar los artefactos generados de Git y buildearlos al empaquetar (decisión de entrega, del usuario).
+
+### Segundo intento de review: tampoco entra (y la lección es otra)
+
+Tras desversionar el bundle (commit `613072c`), el candidato quedó **source-only** (43 paths) y el START volvió a frenar igual:
+
+```
+code: lens_context_budget_exceeded  (mutation_outcome: not_started, lineage review-80897a67b13caf11)
+```
+
+Es decir: **el bundle no era la causa principal**. El slice source-only tiene ~2.161 líneas agregadas + ~5.044 borradas (≈7.2k líneas) y no entra en el budget de la política acotada del reviewer. También probé seleccionar lenses por el input del START (`lenses: "risk"`) y el facade lo rechaza limpio: `native-start-input-invalid / unknown-field / lineage_created: false`.
+
+Consecuencia estructural: como el candidato es siempre `[baseRef, HEAD]`, con HEAD fijo sólo se puede revisar la **cola** de la rama; el trabajo grande no puede partirse retroactivamente. La continuación documentada por el propio stop es entregar esto como una **secuencia encadenada de commits/PRs chicos, cada uno bajo el budget** — es un cambio de modelo de entrega, no un retoque.

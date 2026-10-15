@@ -178,10 +178,9 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
     // The happy path must not show the error message.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 
-    // Customer opens the category and picks a product, then submits the order:
-    // this flow must not change.
-    const category = await screen.findByRole('button', { name: /Platos/ })
-    await user.click(category)
+    // La primera categoria ya viene abierta, asi que el cliente ve los
+    // productos sin tocar nada: se mantienen el resto del flujo y todas las
+    // aserciones (carrito y payload del pedido no cambian).
     await screen.findByText('Milanesa')
 
     await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))

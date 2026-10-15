@@ -319,8 +319,10 @@ export default function Menu() {
   const categories = useMemo(() => groupByCategory(products), [products]);
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
-  function toggleCategory(key: string) {
-    setOpenCategories((prev) => ({ ...prev, [key]: !prev[key] }));
+  function toggleCategory(key: string, currentlyOpen: boolean) {
+    // Se pasa el estado EFECTIVO: la primera categoria esta abierta por defecto
+    // sin entrada en el mapa, asi que !prev[key] la dejaria siempre abierta.
+    setOpenCategories((prev) => ({ ...prev, [key]: !currentlyOpen }));
   }
 
   const cartVisible = Object.keys(cart).length > 0;
@@ -359,7 +361,10 @@ export default function Menu() {
             <div className="menu-categories stagger">
               {categories.map((cat, index) => {
                 const key = String(index);
-                const open = Boolean(openCategories[key]);
+                // La primera categoria arranca abierta: con todas colapsadas la
+                // carta se ve vacia en la primera pantalla. El resto sigue
+                // colapsado y cualquier header togglea (paridad con el legacy).
+                const open = key in openCategories ? Boolean(openCategories[key]) : index === 0;
                 return (
                   <section
                     key={key}
@@ -368,7 +373,7 @@ export default function Menu() {
                     <button
                       type="button"
                       className="category-header"
-                      onClick={() => toggleCategory(key)}
+                      onClick={() => toggleCategory(key, open)}
                       aria-expanded={open}
                     >
                       <span>{cat.name}</span>
