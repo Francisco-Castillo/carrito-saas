@@ -1,6 +1,6 @@
 # Excepciones por fecha (feriados y horarios especiales)
 
-**Estado:** en curso
+**Estado:** cerrado (2026-10-15)
 **Rama:** `feat/date-exceptions`
 **Origen:** el modelo sabe de la semana repetida y de nada más. Un feriado (25/12 cerrado) o un día especial (24/12 hasta las 18:00) no se pueden representar, así que el local queda abierto según su horario habitual justo el día que no atiende.
 
@@ -71,12 +71,28 @@ Sección **"Fechas especiales"** en la pantalla Local: agregar una fecha (select
 
 - [x] 1. Feature doc y plan (este documento)
 - [x] 2. Backend: tabla, entidad, DTO, reglas 1-6 y endpoints
-- [ ] 3. Carta: `effectiveShifts` en `openStatus` (hoy, derrame de ayer y próxima apertura)
-- [ ] 4. Panel: sección "Fechas especiales"
-- [ ] 5. Verificación en navegador (panel → carta con un feriado) y cierre
+- [x] 3. Carta: `effectiveShifts` en `openStatus` (hoy, derrame de ayer y próxima apertura) — commit `32503d4`
+- [x] 4. Panel: sección "Fechas especiales" — commit `7c01874`
+- [x] 5. Verificación en navegador (panel → carta con un feriado) y cierre
 
 ## Dos decisiones que tomó el paso 2
 
 **Un feriado cerrado se guarda como una fila marcadora** (`position = 0`, horarios `NULL`), no como ausencia de filas. La diferencia con un día de la semana es la clave: en `business_hours`, *no tener filas* significa "cerrado", pero en las fechas excepcionales la ausencia significa **"día normal"**, así que "cerrado" tiene que estar guardado. La lectura mapea la fila marcadora a una lista vacía y el DTO vuelve a viajar igual que se cargó.
 
 **La regla del derrame de un día de la semana sigue comparando semana contra semana**, y es deliberado: la plantilla semanal se repite todas las semanas, así que un derrame del viernes que choca con la apertura del sábado es un problema de la plantilla (choca casi todas las semanas) y rechazarlo es correcto. El caso puntual —una sola semana donde el sábado es feriado— se modela cargando una excepción **en el viernes**, que sí resuelve su derrame contra las fechas reales. Las excepciones, en cambio, resuelven su derrame contra los **turnos efectivos** del día siguiente (su propia excepción si la tiene, si no el día de la semana).
+
+## Verificación de cierre
+
+**Backend 197/197, frontend 122/122**, y en el navegador (`~/.local/opt/e2e/date-exceptions.mjs`, **7/7**), que es donde la feature se entiende:
+
+| Paso | Qué se midió |
+| --- | --- |
+| La sección arranca vacía | estado vacío explícito, no un espacio en blanco |
+| Día con horario especial (20/10, martes) | la carta `Hoy: 11:00–15:00` **y a las 16:00 cerrada**, aunque la plantilla del martes diga 11:00–23:00 |
+| Una fecha sin excepción (lunes) | sigue la plantilla intacta: la excepción no se derrama a otros días |
+| Feriado cerrado (21/10, miércoles) | **12:00 en punto: Cerrado**, contra la plantilla que dice abierto |
+| Quitar las excepciones | el miércoles vuelve a regirse por el horario semanal |
+
+Capturas: `/tmp/e2e-menu/32-panel-fechas.png` y `33-carta-feriado.png`.
+
+La tabla la creó Hibernate al arrancar sobre la base real: `business_date_exception` con sus columnas y la constraint nombrada. **No necesita migración manual** (una tabla nueva es lo que `ddl-auto: update` hace de forma confiable; lo que no hace bien es alterar una existente, y por eso los turnos sí llevaron script).
