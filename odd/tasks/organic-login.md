@@ -142,6 +142,39 @@ Agreed conflict resolutions with the sibling admin session:
 icons, VIEW_LABELS, separator, logout icon on the button) with OUR logout block
 (bare redirect, button keeps its icon).
 
+### Post-rebase state and verification
+
+Integrated `develop` (abdbf27, which carries the sibling session's PRs #38..#41)
+by REBASING this branch, so develop can fast-forward to it. Nine commits on top
+of abdbf27, head `7b75617`. The rebase rewrote ids; the map is:
+
+| Before (reviewed) | After (rebased) |
+| --- | --- |
+| a5609e9 feat(auth) | 3ef9c3f |
+| 5676490 feat(login) | 4d93d85 |
+| 113d6ed feat(panels) | 7316d12 |
+| 35d5270 docs(odd) track | c771e2f |
+| 041898b docs(odd) lineage | 1351689 |
+| b6f4a9f docs(odd) skew | 1207630 |
+| 67cd066 docs(odd) ordering | d7ec8d0 |
+| 2d7496e fix(panels) | 7e6ce06 |
+| 93d7556 docs(odd) reconcile | 7b75617 |
+
+Conflicts were resolved exactly as agreed with the sibling session (see
+"Integration" above): `Admin.tsx` kept their shell with our bare logout
+redirect, and `admin-panel.test.tsx` kept our point 1 plus their points 3 and 4.
+
+Verification after integration: frontend vitest **18 files / 161 tests
+passed**, `npx tsc -b` exit 0; Java reactor **230 tests, 0 failures, BUILD
+SUCCESS** against the disposable `carrito_ci` base (44 s).
+
+Caveat worth remembering: the review lineage was approved and its authority
+burned BEFORE this rebase, so the reviewed candidate tree was the pre-rebase
+one. The rebase changed content only in the two conflict-resolved files (plus
+the documentation commits); the reviewed code of commits 1-4 is otherwise
+identical. No new review is owed for a mechanical rebase, but a fresh review
+would be the honest call if the resolutions are ever revised.
+
 ## Notes
 
 - Base branch: develop. Feature branch: feat/organic-login (unpushed).
