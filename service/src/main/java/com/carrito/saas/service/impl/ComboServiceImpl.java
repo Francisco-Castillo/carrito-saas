@@ -12,8 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.carrito.saas.dto.ComboCreateDTO;
 import com.carrito.saas.dto.ComboDTO;
-import com.carrito.saas.dto.ComboProductDTO;
-import com.carrito.saas.exception.BusinessException;
+import com.carrito.saas.dto.ComboProductDTO;import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.repository.entity.Combo;
@@ -72,10 +71,34 @@ public class ComboServiceImpl implements IComboService {
 		nuevoCombo.setCategory(category);
 		nuevoCombo.setActive(true);
 
-		// Productos acotados al negocio del JWT: los ids viajan por un
-		// namespace global, así que un id ajeno no puede colarse con un
-		// findById desnudo.
-		Set<Long> requestedIds = combo.getProducts().stream()
+		// Productos acotados al negocio del JWT: mismo finder que actualiza
+		// (ver ownProductsById). Un id ajeno resuelve 404 nombrándolo.
+		Map<Long, Product> ownProductsById = ownProductsById(combo.getProducts(), businessId);
+
+		Combo comboSaved = comboRepository.save(nuevoCombo);
+
+		List<ComboProduct> productos = combo.getProducts().stream().map(dto -> {
+			ComboProduct cp = new ComboProduct();
+			cp.setCombo(comboSaved);
+			cp.setProduct(ownProductsById.get(dto.getProductId()));
+			cp.setQuantity(BigDecimal.valueOf(dto.getQuantity()));
+			return comboProductRepository.save(cp);
+		}).toList();
+
+		comboSaved.setItems(productos);
+
+		return iComboMapper.toDTO(comboSaved);
+	}
+
+	/**
+	 * Resuelve los productos del payload con un finder acotado al negocio del
+	 * JWT: los ids viajan por un namespace global, así que un id ajeno no
+	 * puede colarse con un findById desnudo. Compartido por crear y actualizar
+	 * para que la misma garantía valga en las dos rutas.
+	 */
+	private Map<Long, Product> ownProductsById(List<ComboProductDTO> requested, Long businessId) {
+
+		Set<Long> requestedIds = requested.stream()
 				.map(ComboProductDTO::getProductId)
 				.collect(Collectors.toSet());
 
@@ -92,19 +115,62 @@ public class ComboServiceImpl implements IComboService {
 					"Producto no encontrado para este negocio: " + offendingId, ErrorType.NOT_FOUND);
 		}
 
-		Combo comboSaved = comboRepository.save(nuevoCombo);
+		return ownProductsById;
+	}
 
-		List<ComboProduct> productos = combo.getProducts().stream().map(dto -> {
+	@Override
+	@Transactional
+	public ComboDTO actualizarCombo(Long id, ComboCreateDTO combo) {
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		// Validación de forma ANTES de cualquier lookup o mutación: un payload
+		// rechazado no puede aplicar ni parcialmente (y un NPE o una violación
+		// de constraint serían 500, no 400).
+		if (combo.getName() == null || combo.getName().isBlank())
+			throw new BusinessException("El nombre del combo es obligatorio", ErrorType.VALIDATION);
+
+		if (combo.getPrice() == null || combo.getPrice().signum() < 0)
+			throw new BusinessException("El precio del combo no puede ser negativo", ErrorType.VALIDATION);
+
+		if (combo.getCategoryId() == null)
+			throw new BusinessException("La categoría es obligatoria", ErrorType.VALIDATION);
+
+		if (combo.getProducts() == null || combo.getProducts().isEmpty())
+			throw new BusinessException("El combo requiere al menos un producto", ErrorType.VALIDATION);
+
+		// El tenant ancla en el JWT: un id de combo ajeno al negocio resuelve
+		// como 404, nunca como un éxito silencioso, y la fila ajena queda
+		// exactamente igual.
+		Combo comboExistente = comboRepository.findByIdAndBusinessId(id, businessId)
+				.orElseThrow(() -> new BusinessException(
+						"Combo no encontrado: " + id, ErrorType.NOT_FOUND));
+
+		// Categoría acotada al negocio del JWT: un id ajeno o inexistente
+		// resuelve exactamente igual — 404, nunca un éxito silencioso.
+		Category category = categoryRepository.findByIdAndBusinessId(combo.getCategoryId(), businessId)
+				.orElseThrow(() -> new BusinessException(
+						"Categoria no encontrada: " + combo.getCategoryId(), ErrorType.NOT_FOUND));
+
+		Map<Long, Product> ownProductsById = ownProductsById(combo.getProducts(), businessId);
+
+		comboExistente.setName(combo.getName().trim());
+		comboExistente.setPrice(combo.getPrice());
+		comboExistente.setCategory(category);
+
+		// La lista de items se REEMPLAZA: cascade = ALL + orphanRemoval = true
+		// sobre Combo.items persiste el alta de los nuevos y la baja de los
+		// viejos dentro de la misma transacción.
+		comboExistente.getItems().clear();
+		for (ComboProductDTO dto : combo.getProducts()) {
 			ComboProduct cp = new ComboProduct();
-			cp.setCombo(comboSaved);
+			cp.setCombo(comboExistente);
 			cp.setProduct(ownProductsById.get(dto.getProductId()));
 			cp.setQuantity(BigDecimal.valueOf(dto.getQuantity()));
-			return comboProductRepository.save(cp);
-		}).toList();
+			comboExistente.getItems().add(cp);
+		}
 
-		comboSaved.setItems(productos);
-
-		return iComboMapper.toDTO(comboSaved);
+		return iComboMapper.toDTO(comboRepository.save(comboExistente));
 	}
 
 	@Override
