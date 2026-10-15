@@ -39,7 +39,6 @@ public class CategoryController {
 		categoryService.ordenarCategorias(idsOrdenados);
 	}
 
-	// FIXME: AQUI SOLO SE DEBEN VER LAS CATEGORIAS PROPIAS DEL LOCAL.
 	@GetMapping
 	public List<CategoryDTO> obtenerTodasLasCategorias() {
 		return categoryService.findAllByBusinessId();

@@ -1,12 +1,10 @@
 package com.carrito.saas.api;
 
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.carrito.saas.dto.HourlyDTO;
@@ -38,26 +36,25 @@ public class PredictionController {
 		return predictionService.getHourly();
 	}
 
-	@GetMapping("/products")
-	public List<Map<String, Object>> products() {
-		//return predictionService.getProducts(businessId);
-		return null;
-	}
-	
+	/**
+	 * REMOVED (was GET /products): answered 200 with a null body — the service
+	 * stub (PredictionServiceImpl.getProducts) has no implementation and the
+	 * predictionRepository.getTopProducts query it needs is commented out. It
+	 * needs real repository support for "top products" before it can answer
+	 * anything honest; until then the path must not exist.
+	 */
 	@PostMapping("/run")
 	public void run() {
 	    useCase.execute();
 	}
-	
-	@GetMapping("/admin/hourly")
-	public List<HourlyDTO> hourly(@RequestParam Long businessId) {
-		/*
-	    if (!securityUtils.isAdmin()) {
-	        throw new ForbiddenException();
-	    }
 
-	    return predictionService.getHourlyForBusiness(businessId);*/
-		return null;
-	}
+	/**
+	 * REMOVED (was GET /admin/hourly?businessId=): answered 200 with a null
+	 * body, and it cannot be made honest today — the securityUtils.isAdmin()
+	 * guard it needs does not exist anywhere in the codebase (no role checking
+	 * at all), and the businessId parameter would let any caller read another
+	 * business' hourly distribution. It needs an admin authorization design
+	 * that scopes or rejects cross-business reads before it can come back.
+	 */
 
 }
