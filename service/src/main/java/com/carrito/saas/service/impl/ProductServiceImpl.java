@@ -128,7 +128,10 @@ public class ProductServiceImpl implements IProductService {
 
 		validarProducto(dto.getName(), dto.getDescription(), dto.getPrice(), dto.getCost(), dto.getCategoryId());
 
-		Category categoria = categoryRepository.findById(dto.getCategoryId())
+		// El tenant ancla en el JWT: crear dentro de una categoría ajena al
+		// negocio resuelve como 404, nunca como un éxito silencioso.
+		Category categoria = categoryRepository
+				.findByIdAndBusinessId(dto.getCategoryId(), securityService.getCurrentBusinessId())
 				.orElseThrow(() -> new BusinessException("Categoria no encontrada", ErrorType.NOT_FOUND));
 
 		// Normalizar nombre
@@ -155,9 +158,23 @@ public class ProductServiceImpl implements IProductService {
 	}
 
 	@Override
+	@Transactional
 	public ProductDTO actualizarProducto(Long id, ProductDTO dto) {
-		Product p = productRepository.findById(id).orElseThrow();
-		p.setCategory(categoryRepository.findById(dto.getCategoryId()).orElseThrow());
+
+		// El tenant ancla en el JWT: un id de producto ajeno al negocio resuelve
+		// como 404, nunca como un éxito silencioso, y la fila ajena queda
+		// exactamente igual.
+		Long businessId = securityService.getCurrentBusinessId();
+
+		Product p = productRepository.findByIdAndCategory_Business_Id(id, businessId)
+				.orElseThrow(() -> new BusinessException("Producto no encontrado", ErrorType.NOT_FOUND));
+
+		// La categoría destino también debe ser propia: re-apuntar el producto
+		// a la categoría de otro negocio resuelve como 404 y no toca la fila.
+		Category categoria = categoryRepository.findByIdAndBusinessId(dto.getCategoryId(), businessId)
+				.orElseThrow(() -> new BusinessException("Categoria no encontrada", ErrorType.NOT_FOUND));
+
+		p.setCategory(categoria);
 		p.setName(dto.getName().toString());
 
 		p.setDescription(dto.getDescription());

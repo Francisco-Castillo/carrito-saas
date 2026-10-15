@@ -1,7 +1,10 @@
 /**
- * Puerto 1:1 del legacy dashboard/apiClient.js (mismas rutas, mismo
- * Authorization — el legacy no manda header, confía en la cookie/servidor —
- * y mismo manejo de errores: cualquier !ok lanza "API error").
+ * Puerto 1:1 del legacy dashboard/apiClient.js (mismas rutas — el legacy no
+ * mandaba header, confiaba en la cookie/servidor) con un ajuste: los
+ * endpoints de negocio exigen JWT, así que cada request lleva
+ * Authorization: Bearer + token de localStorage leído en caliente, igual
+ * que src/pages/admin/api.ts. Manejo de errores igual que el legacy:
+ * cualquier !ok lanza "API error" y la UI conserva sus valores iniciales.
  */
 
 export interface DashboardToday {
@@ -36,8 +39,13 @@ if (!restaurantSlug) {
 
 const API_BASE = `/api/restaurants/${restaurantSlug}`;
 
+/** Header Authorization: Bearer + token de localStorage en caliente. */
+function authHeader(): Record<string, string> {
+  return { Authorization: "Bearer " + localStorage.getItem("token") };
+}
+
 async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`);
+  const res = await fetch(`${API_BASE}${path}`, { headers: authHeader() });
 
   if (!res.ok) {
     throw new Error("API error");

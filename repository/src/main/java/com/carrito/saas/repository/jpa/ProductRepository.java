@@ -1,5 +1,6 @@
 package com.carrito.saas.repository.jpa;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +31,14 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 	 * ancla es {@code category.business.id}.
 	 */
 	Optional<Product> findByIdAndCategory_Business_Id(Long id, Long businessId);
+
+	/**
+	 * Conjunto de productos propios: la creación de combos resuelve los ids
+	 * referenciados con este finder acotado al negocio del JWT, así que un id
+	 * ajeno o inexistente simplemente no aparece en el resultado (el servicio
+	 * lo convierte en 404 nombrando el id ofensor).
+	 */
+	List<Product> findAllByIdInAndCategory_Business_Id(Collection<Long> ids, Long businessId);
 
 	/**
 	 * {@code combo_products.producto_id} lleva una FK real (RESTRICT), así
