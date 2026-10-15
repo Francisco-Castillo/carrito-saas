@@ -96,7 +96,7 @@ function seedStorage() {
   localStorage.setItem('expiresAt', '2030-01-01T00:00:00Z')
 }
 
-async function openAdminView(label: '🍔 Productos' | '🔥 Combos') {
+async function openAdminView(label: 'Productos' | 'Combos') {
   render(<Admin />)
   await screen.findByText('PRODUCTOS', {}, { timeout: 2000 }).catch(() => undefined)
   const user = userEvent.setup()
@@ -120,7 +120,7 @@ afterEach(() => {
 describe('Admin products list', () => {
   it('requests GET /api/products with the Bearer header and no businessId query parameter', async () => {
     stubFetch()
-    await openAdminView('🍔 Productos')
+    await openAdminView('Productos')
 
     expect(await screen.findByText('Pizza Margherita')).toBeInTheDocument()
 
@@ -135,7 +135,7 @@ describe('Admin product toggle (ON/OFF)', () => {
   it('sends activo=true for an inactive product and activo=false for an active one, then reloads the list', async () => {
     stubFetch()
     const user = userEvent.setup()
-    await openAdminView('🍔 Productos')
+    await openAdminView('Productos')
 
     expect(await screen.findByText('Combo Cantor')).toBeInTheDocument()
 
@@ -159,7 +159,7 @@ describe('Admin product delete confirmation', () => {
   it('cancelling the modal (Escape) issues no DELETE, confirming issues DELETE /api/products/{id} with the auth header', async () => {
     stubFetch()
     const user = userEvent.setup()
-    await openAdminView('🍔 Productos')
+    await openAdminView('Productos')
 
     expect(await screen.findByText('Pizza Margherita')).toBeInTheDocument()
 
@@ -189,7 +189,7 @@ describe('Admin product delete confirmation', () => {
       json: async () => ({ message: 'No se puede eliminar: el producto pertenece a un combo' }),
     }))
     const user = userEvent.setup()
-    await openAdminView('🍔 Productos')
+    await openAdminView('Productos')
 
     expect(await screen.findByText('Pizza Margherita')).toBeInTheDocument()
 
@@ -207,7 +207,7 @@ describe('Admin product delete confirmation', () => {
 describe('Admin combos list', () => {
   it('requests GET /api/combos with the Bearer header', async () => {
     stubFetch()
-    await openAdminView('🔥 Combos')
+    await openAdminView('Combos')
 
     expect(await screen.findByText('Combo Familiar')).toBeInTheDocument()
 
