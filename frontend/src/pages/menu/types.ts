@@ -65,6 +65,14 @@ export interface BusinessHours {
 export interface DateException {
   date: string;
   shifts: BusinessHoursShift[];
+  /**
+   * `true`: la excepción rige ese DÍA Y MES en todos los años (Navidad es 25/12
+   * todos los años); `false` o ausente: sólo esa fecha exacta. Opcional a
+   * propósito — payloads anteriores y filas de una sola vez no lo traen, y su
+   * ausencia significa `false`. Una fecha exacta gana sobre una anual que
+   * comparta mes/día, que es una combinación válida del modelo.
+   */
+  yearly?: boolean;
 }
 
 /**

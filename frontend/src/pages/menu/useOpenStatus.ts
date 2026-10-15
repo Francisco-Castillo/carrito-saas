@@ -24,6 +24,14 @@ import type { BusinessHours, DateException } from "./types";
  */
 const FALLBACK_RECHECK_MS = 60_000;
 
+// Por qué hace falta este recheck ADEMÁS del borde exacto: el timeout agenda con
+// la diferencia entre dos instantes absolutos (`at - Date.now()`), así que un
+// cambio de horario de verano no lo desvía. El único punto sensible es sumar
+// minutos a la medianoche LOCAL el día de la transición, donde el borde puede
+// quedar una hora corrido. Este recheck vuelve a evaluar el estado cada 60 s, así
+// que el peor caso es un badge hasta un minuto viejo — nunca una hora — y por eso
+// el DST no necesita código propio. No lo quites sin resolver eso antes.
+
 export function useOpenStatus(
   hours: BusinessHours[] | null | undefined,
   dateExceptions?: DateException[] | null,

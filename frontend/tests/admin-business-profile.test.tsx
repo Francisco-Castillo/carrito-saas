@@ -50,6 +50,15 @@ const PROFILE = {
   ],
 }
 
+/** Igual que PROFILE pero con la Navidad cargada como EXCEPCIÓN ANUAL (yearly: true). */
+const PROFILE_WITH_YEARLY = {
+  ...PROFILE,
+  dateExceptions: [
+    { date: '2024-12-25', yearly: true, shifts: [] },
+    { date: '2026-12-24', shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
+  ],
+}
+
 interface RecordedCall {
   url: string
   method: string
@@ -124,6 +133,7 @@ function putHours(): Array<{ dayOfWeek: number; shifts: Array<{ opensAt: string 
 
 function putDateExceptions(): Array<{
   date: string
+  yearly: boolean
   shifts: Array<{ opensAt: string | null; closesAt: string | null }>
 }> {
   return JSON.parse(putCall().body ?? '{}').dateExceptions
@@ -237,8 +247,8 @@ describe('Admin "Local" view — business profile editor', () => {
       address: 'Av. Siempreviva 742, Springfield',
       instagramUrl: 'https://instagram.com/foodtruckdemo',
       dateExceptions: [
-        { date: '2026-12-24', shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
-        { date: '2026-12-25', shifts: [] },
+        { date: '2026-12-24', yearly: false, shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
+        { date: '2026-12-25', yearly: false, shifts: [] },
       ],
       hours: [
         { dayOfWeek: 1, shifts: [{ opensAt: '10:30:00', closesAt: '15:00:00' }, { opensAt: '19:00:00', closesAt: '23:00:00' }] },
@@ -343,9 +353,9 @@ describe('Admin "Local" view — fechas especiales (date exceptions)', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(putDateExceptions()).toEqual([
-      { date: '2026-12-24', shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
-      { date: '2026-12-25', shifts: [] },
-      { date: '2027-01-01', shifts: [] },
+      { date: '2026-12-24', yearly: false, shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
+      { date: '2026-12-25', yearly: false, shifts: [] },
+      { date: '2027-01-01', yearly: false, shifts: [] },
     ])
   })
 
@@ -367,10 +377,11 @@ describe('Admin "Local" view — fechas especiales (date exceptions)', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(putDateExceptions()).toEqual([
-      { date: '2026-12-24', shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
-      { date: '2026-12-25', shifts: [] },
+      { date: '2026-12-24', yearly: false, shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
+      { date: '2026-12-25', yearly: false, shifts: [] },
       {
         date: '2027-01-01',
+        yearly: false,
         shifts: [
           { opensAt: '12:00:00', closesAt: '15:00:00' },
           { opensAt: '20:00:00', closesAt: '23:00:00' },
@@ -389,7 +400,7 @@ describe('Admin "Local" view — fechas especiales (date exceptions)', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(putDateExceptions()).toEqual([
-      { date: '2026-12-24', shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
+      { date: '2026-12-24', yearly: false, shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
     ])
   })
 
@@ -435,5 +446,80 @@ describe('Admin "Local" view — fechas especiales (date exceptions)', () => {
     // The user's work is not dropped: the added date is still in the form.
     expect(screen.getByText('1/1 (viernes)')).toBeInTheDocument()
     expect(screen.getByLabelText('Nueva fecha especial')).toBeEnabled()
+  })
+})
+
+describe('Admin "Local" view — fechas especiales ANUALES (yearly)', () => {
+  it('a loaded yearly exception renders as "25/12 (cada año)", distinct from the one-off weekday label', async () => {
+    stubFetch(undefined, PROFILE_WITH_YEARLY)
+    await openLocalView()
+
+    // The yearly row (saved under 2024) shows the recurring wording, not a
+    // weekday that would only be true for one year.
+    expect(screen.getByText('25/12 (cada año)')).toBeInTheDocument()
+    expect(screen.getByText('Cerrado 25/12 (cada año)')).toBeInTheDocument()
+    // The one-off keeps its weekday label, so both wordings coexist.
+    expect(screen.getByText('24/12 (jueves)')).toBeInTheDocument()
+  })
+
+  it('the "Se repite cada año" checkbox round-trips: checking it sends yearly: true for that date only', async () => {
+    stubFetch()
+    const user = await openLocalView()
+
+    await user.click(screen.getByLabelText('Se repite cada año 25/12 (viernes)'))
+
+    // The row's label flips to the yearly wording immediately.
+    expect(screen.getByText('25/12 (cada año)')).toBeInTheDocument()
+    expect(screen.queryByText('25/12 (viernes)')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    // yearly travels for EVERY row: true for the checked one, false otherwise.
+    expect(putDateExceptions()).toEqual([
+      { date: '2026-12-24', yearly: false, shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
+      { date: '2026-12-25', yearly: true, shifts: [] },
+    ])
+  })
+
+  it('a second yearly date with the same month/day (even in another year) is refused locally with the backend message', async () => {
+    stubFetch(undefined, PROFILE_WITH_YEARLY)
+    const user = await openLocalView()
+
+    // 2027-12-25 is a DIFFERENT date from the yearly 2024-12-25, so adding it
+    // as a one-off is allowed; ticking "cada año" makes it a second yearly
+    // row for 25/12, which the form refuses with the backend's own message.
+    await user.type(screen.getByLabelText('Nueva fecha especial'), '2027-12-25')
+    await user.click(screen.getByRole('button', { name: 'Agregar fecha' }))
+    expect(screen.getByText('25/12 (sábado)')).toBeInTheDocument() // 2027-12-25 is a Saturday
+
+    await user.click(screen.getByLabelText('Se repite cada año 25/12 (sábado)'))
+
+    expect(screen.getByText('Ya hay una excepción anual para ese día y mes')).toBeInTheDocument()
+    // Still only ONE yearly row for 25/12, and the refusal is local: no PUT needed.
+    expect(screen.getAllByText('25/12 (cada año)')).toHaveLength(1)
+
+    // The refused row stays a one-off in the payload.
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    const rows = putDateExceptions()
+    expect(rows.find((r) => r.date === '2027-12-25')?.yearly).toBe(false)
+    expect(rows.filter((r) => r.yearly)).toHaveLength(1)
+  })
+
+  it('a yearly and a one-off sharing the same month/day are both accepted', async () => {
+    stubFetch(undefined, PROFILE_WITH_YEARLY)
+    const user = await openLocalView()
+
+    // Same month/day as the yearly 2024-12-25, but left as a one-off:
+    // the backend allows it (the exact date wins its year) so the form does too.
+    await user.type(screen.getByLabelText('Nueva fecha especial'), '2027-12-25')
+    await user.click(screen.getByRole('button', { name: 'Agregar fecha' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(await screen.findByText('Perfil actualizado')).toBeInTheDocument()
+    expect(putDateExceptions()).toEqual([
+      { date: '2024-12-25', yearly: true, shifts: [] },
+      { date: '2026-12-24', yearly: false, shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
+      { date: '2027-12-25', yearly: false, shifts: [] },
+    ])
   })
 })

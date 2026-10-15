@@ -678,6 +678,30 @@
   background: rgba(248, 113, 113, 0.12);
 }
 
+/* Fecha anual: el checkbox de repetición va en la cabecera de la fila y la
+   fila se distingue de una one-off con una barra lateral acentuada. */
+.admin-profile-exception-yearly {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.admin-profile-exception-yearly input {
+  margin: 0;
+  accent-color: var(--accent-violet);
+  cursor: pointer;
+}
+
+.admin-profile-day--yearly {
+  border-left: 3px solid var(--accent-violet);
+  padding-left: var(--space-2);
+}
+
 .admin-profile-error {
   margin: 0;
   padding: var(--space-2) var(--space-3);

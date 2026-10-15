@@ -29,6 +29,17 @@ import type { BusinessHours, DateException } from "../menu/types";
  *     fechas especiales"). Una fecha presente con `shifts: []` ES un
  *     feriado cerrado; una fecha AUSENTE es un día normal. El reemplazo es
  *     total, igual que el resto del perfil.
+ *   - El flag YEARLY ("Se repite cada año") viaja en cada fila: `true` = la
+ *     excepción rige ese mes/día en TODOS los años (Navidad 25/12); `false` =
+ *     sólo esa fecha exacta. En la lista se distingue por su rótulo —
+ *     "25/12 (cada año)" contra "20/10/2026 (lunes)" del one-off — y por el
+ *     borde acentuado de su fila. Un payload viejo sin el flag carga como
+ *     `false` y se reenvía igual.
+ *   - El guard local de duplicados replica al backend: dos one-off con la
+ *     misma fecha chocan ("Ya hay una excepción para esa fecha") y dos
+ *     ANUALES con el mismo día y mes también, aunque los años difieran
+ *     ("Ya hay una excepción anual para ese día y mes"). Una anual y una
+ *     one-off que compartan día/mes están permitidas: la exacta gana su año.
  *   - Una fecha "YYYY-MM-DD" NUNCA se construye con `new Date(string)`: ese
  *     parse es UTC y en una zona de offset negativo cae en el día anterior
  *     (el rótulo diría "jueves" para un viernes). Se divide en partes y se
@@ -65,6 +76,8 @@ interface ShiftRow {
 /** Una fecha especial en el estado del formulario. */
 interface ExceptionRow {
   date: string;
+  /** `true`: rige ese mes/día en todos los años; `false`: sólo esa fecha. */
+  yearly: boolean;
   shifts: ShiftRow[];
 }
 
@@ -80,10 +93,23 @@ function parseLocalDate(date: string): Date | null {
 }
 
 /** "2026-12-25" → "25/12 (viernes)": fecha y día de semana por partes locales. */
-function exceptionLabel(date: string): string {
+function oneOffLabel(date: string): string {
   const dt = parseLocalDate(date);
   if (!dt) return date;
   return `${dt.getDate()}/${dt.getMonth() + 1} (${WEEKDAYS[dt.getDay()].toLowerCase()})`;
+}
+
+/**
+ * Rótulo de la fila: una ANUAL es "25/12 (cada año)" — un día de semana sería
+ * mentira para los demás años — y una one-off lleva su día de semana. Ambas
+ * por partes locales, nunca con un parse UTC de la fecha.
+ */
+function exceptionLabel(exc: ExceptionRow): string {
+  if (exc.yearly) {
+    const dt = parseLocalDate(exc.date);
+    if (dt) return `${dt.getDate()}/${dt.getMonth() + 1} (cada año)`;
+  }
+  return oneOffLabel(exc.date);
 }
 
 /** Ordenadas por fecha: así viajan y así se muestran. */
@@ -173,7 +199,13 @@ export default function LocalSection() {
         setDays(DAYS.map((_, i) => dayFromEntry(byDay.get(i + 1))));
         setExceptions(
           sortedExceptionRows(
-            (data.dateExceptions ?? []).map((e) => ({ date: e.date, shifts: dayFromEntry(e) })),
+            // `yearly` es opcional en el payload (filas viejas y one-off no
+            // la traen): ausente carga como `false`, y así viaja de vuelta.
+            (data.dateExceptions ?? []).map((e) => ({
+              date: e.date,
+              yearly: e.yearly === true,
+              shifts: dayFromEntry(e),
+            })),
           ),
         );
       } catch (e) {
@@ -229,9 +261,32 @@ export default function LocalSection() {
     setExceptions((prev) => prev.filter((exc) => exc.date !== date));
   }
 
+  function setExceptionYearly(date: string, yearly: boolean) {
+    if (yearly) {
+      // Mismo guard que el backend (mismo mensaje): dos anuales con el mismo
+      // día y mes chocan aunque los años difieran; una anual y una one-off
+      // que compartan día/mes están permitidas (la exacta gana su año).
+      const monthDay = date.slice(5); // "YYYY-MM-DD" → "MM-DD"
+      if (
+        exceptions.some(
+          (exc) => exc.yearly && exc.date !== date && exc.date.slice(5) === monthDay,
+        )
+      ) {
+        setError("Ya hay una excepción anual para ese día y mes");
+        return;
+      }
+    }
+    setError(null);
+    setExceptions((prev) =>
+      prev.map((exc) => (exc.date === date ? { ...exc, yearly } : exc)),
+    );
+  }
+
   function addException() {
     if (!newExceptionDate) return;
-    // Los límites conocidos no viajan en silencio: mismo mensaje del backend.
+    // Duplicados exactos, como el backend: la comparación anual por día/mes
+    // corre al marcar "cada año" (setExceptionYearly), porque acá la fila
+    // nueva nace one-off y una anual + one-off del mismo día/mes es válida.
     if (exceptions.some((exc) => exc.date === newExceptionDate)) {
       setError("Ya hay una excepción para esa fecha");
       return;
@@ -241,7 +296,9 @@ export default function LocalSection() {
       return;
     }
     setError(null);
-    setExceptions((prev) => sortedExceptionRows([...prev, { date: newExceptionDate, shifts: [] }]));
+    setExceptions((prev) =>
+      sortedExceptionRows([...prev, { date: newExceptionDate, yearly: false, shifts: [] }]),
+    );
     setNewExceptionDate("");
   }
 
@@ -269,10 +326,12 @@ export default function LocalSection() {
           })),
           // `dateExceptions` SIEMPRE viaja, incluso vacía: el backend la
           // exige (400 si falta) y una lista vacía significa "no hay
-          // fechas especiales". Los turnos van ordenados por apertura,
+          // fechas especiales". Cada fila lleva `yearly` SIEMPRE (el flag
+          // anual del backend) y los turnos van ordenados por apertura,
           // convertidos a "HH:mm:ss".
           dateExceptions: exceptions.map((exc) => ({
             date: exc.date,
+            yearly: exc.yearly,
             shifts: sortedShiftRows(exc.shifts).map((s) => ({
               opensAt: toBackendTime(s.opensAt),
               closesAt: toBackendTime(s.closesAt),
@@ -435,17 +494,29 @@ export default function LocalSection() {
             </p>
           ) : (
             sortedExceptions.map((exc) => {
-              const label = exceptionLabel(exc.date);
+              const label = exceptionLabel(exc);
               return (
                 <div
                   key={exc.date}
-                  className={`admin-profile-day${exc.shifts.length === 0 ? " admin-profile-day--closed" : ""}`}
+                  className={`admin-profile-day${
+                    exc.shifts.length === 0 ? " admin-profile-day--closed" : ""
+                  }${exc.yearly ? " admin-profile-day--yearly" : ""}`}
                 >
                   <div className="admin-profile-day-head">
                     <span className="admin-profile-day-name">{label}</span>
                     {exc.shifts.length === 0 && (
                       <span className="admin-profile-day-closed">Cerrado {label}</span>
                     )}
+                    <label className="admin-profile-exception-yearly">
+                      <input
+                        type="checkbox"
+                        className="admin-profile-exception-yearly-check"
+                        aria-label={`Se repite cada año ${label}`}
+                        checked={exc.yearly}
+                        onChange={(e) => setExceptionYearly(exc.date, e.target.checked)}
+                      />
+                      Se repite cada año
+                    </label>
                     <button
                       type="button"
                       className="btn-ghost admin-profile-day-add"
