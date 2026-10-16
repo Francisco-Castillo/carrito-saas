@@ -10,6 +10,10 @@
 --    NOTHING or is guarded by NOT EXISTS). Nothing is dropped or truncated.
 --  * Collision-free: it uses ids in the 99xxxx range, well above the ids the
 --    project's own tests and demo rows use, so it cannot clash with them.
+--  * Safe on a fresh database too: the rows that belong to the OWNER's own
+--    business (id 900000001, `demo-pizzeria`) are guarded by EXISTS, so a
+--    database that does not hold that business skips them instead of failing
+--    the foreign key and rolling back the whole seed.
 --  * Roles are reused by name when they exist (the roles table is seeded by
 --    other flows and may already contain duplicates); KITCHEN is added only if
 --    the name is missing.
@@ -145,7 +149,9 @@ SET opens_at = EXCLUDED.opens_at, closes_at = EXCLUDED.closes_at;
 -- cierra después de medianoche (convención documentada en
 -- IBusinessProfileService) y ninguno de esos cierres se solapa con la apertura
 -- del día siguiente: 00:30 del viernes contra las 12:00 del sábado, por ejemplo.
-INSERT INTO business_hours (business_id, day_of_week, position, opens_at, closes_at) VALUES
+INSERT INTO business_hours (business_id, day_of_week, position, opens_at, closes_at)
+SELECT v.business_id, v.day_of_week, v.position, v.opens_at::time, v.closes_at::time
+FROM (VALUES
   (900000001, 2, 0, '19:00', '00:00'),
   (900000001, 3, 0, '19:00', '00:00'),
   (900000001, 4, 0, '19:00', '00:00'),
@@ -154,6 +160,11 @@ INSERT INTO business_hours (business_id, day_of_week, position, opens_at, closes
   (900000001, 6, 0, '12:00', '15:00'),
   (900000001, 6, 1, '19:00', '00:30'),
   (900000001, 7, 0, '19:00', '23:30')
+) AS v(business_id, day_of_week, position, opens_at, closes_at)
+-- El negocio del dueño existe sólo en su base: en una base nueva (CI, otra
+-- máquina, un contenedor) esta sección se saltea en vez de violar la FK y
+-- hacer rollback de TODO el seed.
+WHERE EXISTS (SELECT 1 FROM businesses b WHERE b.id = 900000001)
 ON CONFLICT (business_id, day_of_week, position) DO NOTHING;
 
 -- Fechas especiales de la pizzería, con la bandera `yearly`: son fechas del
@@ -167,10 +178,15 @@ ON CONFLICT (business_id, day_of_week, position) DO NOTHING;
 --     la fila significa día normal.
 -- Mismo criterio que los horarios de arriba: DO NOTHING, porque este negocio es
 -- del dueño y el seed no pisa lo que él cargue desde Panel → Local.
-INSERT INTO business_date_exception (business_id, date, position, opens_at, closes_at, yearly) VALUES
-  (900000001, DATE '2026-12-24', 0, '20:00', '23:00', true),
-  (900000001, DATE '2026-12-25', 0, NULL, NULL, true),
-  (900000001, DATE '2027-01-01', 0, NULL, NULL, true)
+INSERT INTO business_date_exception (business_id, date, position, opens_at, closes_at, yearly)
+SELECT v.business_id, v.date, v.position, v.opens_at, v.closes_at, v.yearly
+FROM (VALUES
+  (900000001, DATE '2026-12-24', 0, '20:00'::time, '23:00'::time, true),
+  (900000001, DATE '2026-12-25', 0, NULL::time, NULL::time, true),
+  (900000001, DATE '2027-01-01', 0, NULL::time, NULL::time, true)
+) AS v(business_id, date, position, opens_at, closes_at, yearly)
+-- Mismo guard que los horarios: el negocio del dueño puede no existir.
+WHERE EXISTS (SELECT 1 FROM businesses b WHERE b.id = 900000001)
 ON CONFLICT (business_id, date, position) DO NOTHING;
 
 -- Cancellation reasons used by the KDS cancel modal
