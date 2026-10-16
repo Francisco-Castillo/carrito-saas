@@ -137,17 +137,26 @@ class PublicMenuComboActiveFilterTests {
 	}
 
 	private Combo combo(String name, boolean active) {
+		return combo(name, active, List.of(component));
+	}
+
+	/** Variant for multi-item coverage: each component joins with quantity 1. */
+	private Combo combo(String name, boolean active, List<Product> components) {
 		Combo c = new Combo();
 		c.setName(name);
 		c.setPrice(COMBO_PRICE);
 		c.setCategory(category);
 		c.setActive(active);
 
-		ComboProduct cp = new ComboProduct();
-		cp.setCombo(c);
-		cp.setProduct(component);
-		cp.setQuantity(BigDecimal.ONE);
-		c.setItems(new ArrayList<>(List.of(cp)));
+		List<ComboProduct> items = new ArrayList<>();
+		for (Product p : components) {
+			ComboProduct cp = new ComboProduct();
+			cp.setCombo(c);
+			cp.setProduct(p);
+			cp.setQuantity(BigDecimal.ONE);
+			items.add(cp);
+		}
+		c.setItems(items);
 
 		return comboRepository.saveAndFlush(c);
 	}
@@ -192,6 +201,38 @@ class PublicMenuComboActiveFilterTests {
 				.andExpect(jsonPath("$[*].name", Matchers.containsInAnyOrder(
 						"Combo Visible", "Combo Apagado")))
 				.andExpect(jsonPath("$[?(@.name == 'Combo Apagado')].active", Matchers.contains(false)));
+	}
+
+	/**
+	 * Multi-item variant of the visibility contract: a combo with MORE THAN
+	 * ONE component obeys the same active filter — the inactive one disappears
+	 * from the carta ENTIRELY (not just its inactive items), while the active
+	 * one stays fully mapped with both components.
+	 */
+	@Test
+	void publicMenuHidesWholeInactiveMultiItemCombo() throws Exception {
+		Product second = new Product();
+		second.setCategory(category);
+		second.setName("Combo Active Filter Second");
+		second.setPrice(new BigDecimal("80.00"));
+		second.setCost(new BigDecimal("10.00"));
+		second.setStock(3);
+		second.setActive(true);
+		second = productRepository.saveAndFlush(second);
+
+		combo("Combo Doble Visible", true, List.of(component, second));
+		combo("Combo Doble Apagado", false, List.of(component, second));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		mockMvc.perform(get("/api/menu/" + SLUG)
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.combos[*].name", Matchers.contains("Combo Doble Visible")))
+				.andExpect(jsonPath("$.combos[0].items", Matchers.hasSize(2)))
+				.andExpect(jsonPath("$.combos[0].items[*].productName", Matchers.containsInAnyOrder(
+						"Combo Active Filter Component", "Combo Active Filter Second")));
 	}
 
 	/**

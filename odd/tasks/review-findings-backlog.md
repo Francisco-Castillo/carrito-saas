@@ -100,3 +100,22 @@ L3. Corrección de L2 al implementar: el cleanup de desmonte de S3 YA existía
     sin test. El valor real del fix fue deduplicar en `useConfirmDialog` y
     fijar el comportamiento con RED observado (sin cleanup la promesa queda
     colgada).
+L4. "hacelos ahora" (2026-10-17): segunda pasada sobre las 14 no-acciones.
+    Accionadas (T5-T7): R3-unmount-dup-settle (dedup de releasePending),
+    R3-003 de #44 (extensor eliminado, active en AdminComboFull), R3-001 de
+    #51 (trim una vez), R3-intl-env de #50 (formatter a módulo), R3-cov de
+    #47 (test multi-item nuevo). No-acción DEFINITIVA, con motivo:
+    - R3-006 de #46 (helpers de test): los builders product/category/combo
+      están copiados en 8+ suites; deduplicarlos es un refactor transversal
+      de tests-only con diff grande — unidad propia si alguna vez vale la
+      pena, no un agregado acá.
+    - R3-002 de #54 y R3-placement de #56 (orden de validaciones en
+      ProductServiceImpl): reordenar cambia qué mensaje 400 gana cuando hay
+      varios campos inválidos — es comportamiento observable ya pinneado;
+      cambiarlo por estética sería churn.
+    - R3-001 de #44, R3-003/004 de #46, R3-scope de #47, R3-002 de #51,
+      R3-001 de #54: warning cuyo texto es irrecuperable y cuya ubicación
+      muestra el patrón ya correcto y testeado; tocar sin el texto del
+      revisor sería adivinar.
+    - R3-import-complete de #50: ya resuelto por PR #50 (verificado: nadie
+      importa formatARS desde dashboard/format).
