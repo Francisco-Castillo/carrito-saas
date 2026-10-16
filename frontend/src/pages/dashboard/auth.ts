@@ -92,7 +92,10 @@ function isTokenExpired(token: string): boolean {
 }
 
 export function logout(): void {
+  // La sesión incluye el slug del restaurante (fase 2, login orgánico): se
+  // limpia junto con el token.
   localStorage.removeItem("token");
+  localStorage.removeItem("restaurantSlug");
   window.location.href = LOGIN_PAGE;
 }
 

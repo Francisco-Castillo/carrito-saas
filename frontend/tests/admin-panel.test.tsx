@@ -2,9 +2,10 @@
  * Admin panel contracts inherited from the legacy admin/admin.js port:
  *
  *   1. Logout must clear ONLY the session keys the login writes (token,
- *      businessId, role, username, expiresAt) and must keep every other
- *      same-origin key intact — in particular `savedUser`, the remember-me
- *      username stored by the login screen. The redirect is a bare
+ *      businessId, role, username, expiresAt, restaurantSlug — the Phase 2
+ *      session slug) and must keep every other same-origin key intact — in
+ *      particular `savedUser`, the remember-me username stored by the login
+ *      screen. The redirect is a bare
  *      /login/login.html: since Phase 2 (organic login) the slug lives in the
  *      session and the redirect no longer carries ?restaurant=, even when the
  *      URL still has one.
@@ -26,7 +27,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Admin from '../src/pages/Admin'
 
-const SESSION_KEYS = ['token', 'businessId', 'role', 'username', 'expiresAt'] as const
+const SESSION_KEYS = ['token', 'businessId', 'role', 'username', 'expiresAt', 'restaurantSlug'] as const
 
 /** JWT-shaped token with a far-future exp so the dashboard's checkAuth() keeps the page up. */
 function futureJwt(): string {

@@ -58,38 +58,6 @@
 }
 
 /* ------------------------------------------------------------
-   Restaurant chip
-   ------------------------------------------------------------ */
-
-.restaurant-chip {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-5);
-  border-radius: var(--radius-sm);
-  background: var(--glass-bg-subtle);
-  border: 1px solid var(--glass-border-subtle);
-  box-shadow: var(--glass-inset-highlight);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-}
-
-.restaurant-chip-label {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-text-faint);
-}
-
-.restaurant-chip-name {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-}
-
-/* ------------------------------------------------------------
    Form
    ------------------------------------------------------------ */
 

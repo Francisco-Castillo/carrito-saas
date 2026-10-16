@@ -184,7 +184,7 @@ export default function Admin() {
   // legacy, que hoy borraría también savedUser del remember-me) + redirect
   // al login limpio (fase 2: sin ?restaurant=, el slug vive en la sesión).
   function logout() {
-    for (const key of ["token", "businessId", "role", "username", "expiresAt"]) {
+    for (const key of ["token", "businessId", "role", "username", "expiresAt", "restaurantSlug"]) {
       localStorage.removeItem(key);
     }
 

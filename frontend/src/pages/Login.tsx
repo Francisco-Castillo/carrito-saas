@@ -1,16 +1,5 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import "./Login.css";
-
-/** Neutral chip label shown when no restaurant slug is present in the URL
- * (organic login): the user logs in without a restaurant context and the
- * backend resolves membership. */
-const ORGANIC_LOGIN_LABEL = "Ingreso general";
-
-function titleCaseSlug(slug: string): string {
-  return slug
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (l) => l.toUpperCase());
-}
 
 function redirectPathForRole(role: string, slug?: string | null): string | null {
   const suffix = slug ? `?restaurant=${slug}` : "";
@@ -71,61 +60,11 @@ export default function Login() {
     []
   );
 
-  const [restaurantName, setRestaurantName] = useState<string | null>(null);
-  const [restaurantLoading, setRestaurantLoading] = useState<boolean>(Boolean(slug));
-
   const [username, setUsername] = useState<string>(() => localStorage.getItem("savedUser") ?? "");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState<boolean>(() => Boolean(localStorage.getItem("savedUser")));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!slug) {
-      // Organic login: no restaurant context in the URL, show a neutral
-      // chip and do not fire a slug lookup.
-      setRestaurantName(ORGANIC_LOGIN_LABEL);
-      setRestaurantLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    const cacheKey = `restaurantName_${slug}`;
-
-    async function loadRestaurantInfo() {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        setRestaurantName(cached);
-        setRestaurantLoading(false);
-        return;
-      }
-
-      try {
-        const res = await fetch(`/api/restaurants/slug/${slug}`);
-        if (!res.ok) throw new Error("Restaurante no encontrado");
-
-        const data = await res.json();
-        const name: string = data.name || slug!;
-
-        if (!cancelled) {
-          setRestaurantName(name);
-          setRestaurantLoading(false);
-        }
-        localStorage.setItem(cacheKey, name);
-      } catch (e) {
-        console.error("Error cargando restaurante:", e);
-        if (!cancelled) {
-          setRestaurantName(titleCaseSlug(slug!));
-          setRestaurantLoading(false);
-        }
-      }
-    }
-
-    loadRestaurantInfo();
-    return () => {
-      cancelled = true;
-    };
-  }, [slug]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -218,15 +157,6 @@ export default function Login() {
             <h1 className="login-title">Carrito SaaS</h1>
             <p className="login-subtitle">Panel de gestión para foodtrucks</p>
           </header>
-
-          <div className="restaurant-chip" data-loading={restaurantLoading || undefined}>
-            <span className="restaurant-chip-label">Restaurante</span>
-            <span className="restaurant-chip-name">
-              {restaurantLoading
-                ? "Cargando..."
-                : restaurantName ?? ORGANIC_LOGIN_LABEL}
-            </span>
-          </div>
 
           <form className="login-form stagger" onSubmit={handleSubmit} noValidate>
             <div className="field">
