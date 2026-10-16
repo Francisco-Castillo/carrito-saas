@@ -73,14 +73,18 @@ public class ComboServiceImpl implements IComboService {
 
 		// Duplicado dentro del MISMO negocio: finder acotado al tenant, misma
 		// forma que CategoryServiceImpl.crearCategoria. El mismo nombre en
-		// otro negocio es otro tenant y se permite.
-		if (comboRepository.existsByNameIgnoreCaseAndBusiness(combo.getName().trim(), businessId)) {
+		// otro negocio es otro tenant y se permite. El nombre se trimea UNA
+		// vez acá: la validación de forma ya garantizó no-blank, y el valor
+		// guardado y el chequeado son el mismo (finding R3-001 del review de
+		// #51: no repetir el trim en dos lugares).
+		String nombre = combo.getName().trim();
+		if (comboRepository.existsByNameIgnoreCaseAndBusiness(nombre, businessId)) {
 			throw new BusinessException(
 					"Ya existe un combo con ese nombre para este negocio", ErrorType.CONFLICT);
 		}
 
 		Combo nuevoCombo = new Combo();
-		nuevoCombo.setName(combo.getName().trim());
+		nuevoCombo.setName(nombre);
 		nuevoCombo.setPrice(combo.getPrice());
 		nuevoCombo.setCategory(category);
 		nuevoCombo.setActive(true);

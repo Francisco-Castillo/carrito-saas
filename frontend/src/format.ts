@@ -8,13 +8,17 @@
  * Es el mismo `Intl.NumberFormat` que ya venía del legacy: "$ 3.200,00". La
  * carta mostraba el número crudo ("$3200", y al multiplicar por cantidad
  * "$3200.5"), distinto de lo que el dueño ve en su panel.
+ *
+ * El formatter se instancia UNA vez a nivel de módulo con locale explícito:
+ * construirlo en cada llamada es trabajo repetido por precio renderizado y
+ * el resultado es idéntico (finding R3-intl-env del review de #50; el dorado
+ * de menu-prices.test.tsx fija el output).
  */
+const arsFormatter = new Intl.NumberFormat("es-AR", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 export function formatARS(value: number): string {
-  return (
-    "$ " +
-    new Intl.NumberFormat("es-AR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value)
-  );
+  return "$ " + arsFormatter.format(value);
 }
