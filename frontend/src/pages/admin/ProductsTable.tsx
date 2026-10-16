@@ -1,14 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { API, authHeader, type AdminProduct } from "./api";
 import { showSuccessToast } from "./toast";
 import ConfirmModal from "./ConfirmModal";
 import ProductModal, { type AdminProductFull } from "./ProductModal";
 import { formatARS } from "../../format";
-
-interface ConfirmState {
-  message: string;
-  resolve: (ok: boolean) => void;
-}
+import { useConfirmDialog } from "./useConfirmDialog";
 
 /** Modal abierto: crear (sin producto) o editar (prefill desde la fila). */
 type ProductModalState = { mode: "create" } | { mode: "edit"; product: AdminProductFull };
@@ -46,8 +42,10 @@ export default function ProductsTable() {
   const [products, setProducts] = useState<AdminProductFull[] | null>(null);
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState<ProductModalState | null>(null);
-  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
-  const confirmResolveRef = useRef<((ok: boolean) => void) | null>(null);
+  /** Confirmación de delete: hook compartido por las tres tablas (la promesa
+   * resuelve false también si el componente se desmonta con el confirm
+   * abierto). */
+  const { confirmState, confirmAsync, settleConfirm } = useConfirmDialog();
 
   async function loadProducts() {
     try {
@@ -63,25 +61,6 @@ export default function ProductsTable() {
   useEffect(() => {
     void loadProducts();
   }, []);
-
-  useEffect(() => {
-    // Si el componente se desmonta con una confirmación pendiente, resolverla.
-    return () => confirmResolveRef.current?.(false);
-  }, []);
-
-  /** showToastModal del legacy: promesa que responde true solo con "Confirmar". */
-  function confirmAsync(message: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      confirmResolveRef.current = resolve;
-      setConfirmState({ message, resolve });
-    });
-  }
-
-  function settleConfirm(ok: boolean) {
-    confirmResolveRef.current?.(ok);
-    confirmResolveRef.current = null;
-    setConfirmState(null);
-  }
 
   async function toggleProduct(p: AdminProduct) {
     const activo = !p.active;

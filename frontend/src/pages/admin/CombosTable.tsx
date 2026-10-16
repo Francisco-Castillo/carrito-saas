@@ -1,14 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { API, authHeader } from "./api";
 import ComboModal, { type AdminComboFull } from "./ComboModal";
 import { showSuccessToast } from "./toast";
 import ConfirmModal from "./ConfirmModal";
 import { formatARS } from "../../format";
-
-interface ConfirmState {
-  message: string;
-  resolve: (ok: boolean) => void;
-}
+import { useConfirmDialog } from "./useConfirmDialog";
 
 /**
  * El catálogo es en español: el buscador tiene que encontrar "César" cuando
@@ -53,9 +49,10 @@ export default function CombosTable() {
   const [combos, setCombos] = useState<AdminComboRow[] | null>(null);
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState<ComboModalState | null>(null);
-  /** Confirmación de delete: mismo patrón que ProductsTable y CategoriesTable. */
-  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
-  const confirmResolveRef = useRef<((ok: boolean) => void) | null>(null);
+  /** Confirmación de delete: hook compartido por las tres tablas (la promesa
+   * resuelve false también si el componente se desmonta con el confirm
+   * abierto). */
+  const { confirmState, confirmAsync, settleConfirm } = useConfirmDialog();
 
   async function loadCombos() {
     try {
@@ -71,25 +68,6 @@ export default function CombosTable() {
   useEffect(() => {
     void loadCombos();
   }, []);
-
-  useEffect(() => {
-    // Si el componente se desmonta con una confirmación pendiente, resolverla.
-    return () => confirmResolveRef.current?.(false);
-  }, []);
-
-  /** showToastModal del legacy: promesa que responde true solo con "Confirmar". */
-  function confirmAsync(message: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      confirmResolveRef.current = resolve;
-      setConfirmState({ message, resolve });
-    });
-  }
-
-  function settleConfirm(ok: boolean) {
-    confirmResolveRef.current?.(ok);
-    confirmResolveRef.current = null;
-    setConfirmState(null);
-  }
 
   async function toggleCombo(c: AdminComboRow) {
     const activar = !c.active;

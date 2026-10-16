@@ -2,11 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { API, authHeader, type AdminCategory } from "./api";
 import { showSuccessToast } from "./toast";
 import ConfirmModal from "./ConfirmModal";
-
-interface ConfirmState {
-  message: string;
-  resolve: (ok: boolean) => void;
-}
+import { useConfirmDialog } from "./useConfirmDialog";
 
 interface CategoriesTableProps {
   /** Bump para recargar categorías (tras crear una, como el loadCategories() del legacy). */
@@ -67,10 +63,10 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
   /** Guardia de blur: mientras el PUT está en vuelo el input no se cierra, si
    * el 400 tiene dónde mostrarse. */
   const savingRef = useRef(false);
-  /** Confirmación de delete: mismo patrón que ProductsTable (promesa que
-   * responde true sólo con "Confirmar"). */
-  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
-  const confirmResolveRef = useRef<((ok: boolean) => void) | null>(null);
+  /** Confirmación de delete: hook compartido por las tres tablas (la promesa
+   * resuelve false también si el componente se desmonta con el confirm
+   * abierto). */
+  const { confirmState, confirmAsync, settleConfirm } = useConfirmDialog();
 
   async function loadCategories() {
     try {
@@ -95,25 +91,6 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
   useEffect(() => {
     void loadCategories();
   }, [refreshKey]);
-
-  useEffect(() => {
-    // Si el componente se desmonta con una confirmación pendiente, resolverla.
-    return () => confirmResolveRef.current?.(false);
-  }, []);
-
-  /** showToastModal del legacy: promesa que responde true solo con "Confirmar". */
-  function confirmAsync(message: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      confirmResolveRef.current = resolve;
-      setConfirmState({ message, resolve });
-    });
-  }
-
-  function settleConfirm(ok: boolean) {
-    confirmResolveRef.current?.(ok);
-    confirmResolveRef.current = null;
-    setConfirmState(null);
-  }
 
   async function deleteCategory(c: AdminCategory) {
     const ok = await confirmAsync(`¿Seguro que deseas eliminar la categoría "${c.name}"?`);
