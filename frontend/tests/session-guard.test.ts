@@ -7,7 +7,7 @@
  * used by the Dashboard, KDS and Admin pages, so there is a single guard to
  * pin instead of one per page. The pinned access contract is unchanged:
  *
- *   - A page without a usable session must land on the bare /login/login.html
+ *   - A page without a usable session must land on the bare /login
  *     and must stop there (nothing else may run or throw). Phase 2 (organic
  *     login): the redirect no longer carries ?restaurant= — the slug lives in
  *     the session (localStorage `restaurantSlug`, written by the login) and
@@ -36,7 +36,7 @@ import { render } from '@testing-library/react'
 import { enforceSession, getSessionRestaurantSlug, hasPanelSession, hasUsableSession, logout } from '../src/pages/dashboard/auth'
 import { logoutKds } from '../src/pages/kds/api'
 
-const LOGIN_TARGET = '/login/login.html'
+const LOGIN_TARGET = '/login'
 const RESTAURANT_SLUG = 'demo-pizzeria'
 
 /** A real-looking JWT whose payload carries no `roles` claim: role enforcement
@@ -82,7 +82,7 @@ beforeEach(() => {
 })
 
 describe('page guard (ported from api/src/test/js/page-guard.test.mjs — backs dashboard/, kds/ and admin/ pages)', () => {
-  it('no token and a restaurant slug in the URL lands on the bare /login/login.html and stops', () => {
+  it('no token and a restaurant slug in the URL lands on the bare /login and stops', () => {
     // Phase 2: the slug in the URL is ignored — the redirect must not carry it.
     const location = stubLocation(`?restaurant=${RESTAURANT_SLUG}`)
     setToken(null)
@@ -92,7 +92,7 @@ describe('page guard (ported from api/src/test/js/page-guard.test.mjs — backs 
     expect(hasUsableSession()).toBe(false)
   })
 
-  it('no token and no slug lands on the bare /login/login.html and stops', () => {
+  it('no token and no slug lands on the bare /login and stops', () => {
     const location = stubLocation('')
     setToken(null)
 
@@ -101,7 +101,7 @@ describe('page guard (ported from api/src/test/js/page-guard.test.mjs — backs 
     expect(location.href).toBe(LOGIN_TARGET)
   })
 
-  it('a failing localStorage.getItem still redirects to the bare /login/login.html and stops (AC10)', () => {
+  it('a failing localStorage.getItem still redirects to the bare /login and stops (AC10)', () => {
     const location = stubLocation(`?restaurant=${RESTAURANT_SLUG}`)
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('localStorage is blocked (storage disabled or private mode)')
@@ -115,7 +115,7 @@ describe('page guard (ported from api/src/test/js/page-guard.test.mjs — backs 
     expectBareLoginRedirect(location)
   })
 
-  it('dead token strings land on the bare /login/login.html (AC11)', () => {
+  it('dead token strings land on the bare /login (AC11)', () => {
     for (const dead of ['null', 'undefined', '', '   ', ' null ', 'null\n', '\tnull\t', ' undefined ']) {
       const location = stubLocation(`?restaurant=${RESTAURANT_SLUG}`)
       setToken(dead)
@@ -279,7 +279,7 @@ describe('page guard (ported from api/src/test/js/page-guard.test.mjs — backs 
       return location
     }
 
-    it('Dashboard with a token but NO slug redirects to the bare /login/login.html and renders nothing', async () => {
+    it('Dashboard with a token but NO slug redirects to the bare /login and renders nothing', async () => {
       stubPageEnvironment()
       setToken(jwtWithoutRoles())
       localStorage.removeItem('restaurantSlug')
@@ -294,7 +294,7 @@ describe('page guard (ported from api/src/test/js/page-guard.test.mjs — backs 
       expect(container).toBeEmptyDOMElement()
     })
 
-    it('KDS with a token but NO slug redirects to the bare /login/login.html and renders nothing', async () => {
+    it('KDS with a token but NO slug redirects to the bare /login and renders nothing', async () => {
       stubPageEnvironment()
       setToken(jwtWithoutRoles())
       localStorage.removeItem('restaurantSlug')

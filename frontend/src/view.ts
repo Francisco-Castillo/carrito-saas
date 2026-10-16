@@ -1,16 +1,20 @@
 export type AppView = "login" | "menu" | "dashboard" | "admin" | "kds";
 
 /**
- * Route table for real navigation: the legacy app ships as separate HTML pages
- * into Spring static (menu/index.html, login/login.html, …), so each path
- * renders its view. Suffixes like /menu/index.html resolve too.
+ * Route table for real navigation: the SPA ships as separate entry paths —
+ * the legacy static files (menu/index.html, login/login.html, admin/admin.html,
+ * ...) that QR codes and old bookmarks use, and the clean paths (/menu,
+ * /dashboard, /admin, /kds, /login) the app itself redirects to. Both
+ * families resolve here, with and without the trailing slash (Spring MVC no
+ * longer matches it implicitly, so this table owns it). Suffixes like
+ * /menu/index.html resolve too.
  */
 const PATH_ROUTES: Array<[RegExp, AppView]> = [
-  [/^\/menu\/(?:index\.html)?$/, "menu"],
-  [/^\/dashboard\/(?:index\.html)?$/, "dashboard"],
-  [/^\/admin\/(?:admin\.html)?$/, "admin"],
-  [/^\/kds\/(?:index\.html)?$/, "kds"],
-  [/^\/login\/(?:login\.html)?$/, "login"],
+  [/^\/menu(?:\/index\.html)?\/?$/, "menu"],
+  [/^\/dashboard(?:\/index\.html)?\/?$/, "dashboard"],
+  [/^\/admin(?:\/admin\.html)?\/?$/, "admin"],
+  [/^\/kds(?:\/index\.html)?\/?$/, "kds"],
+  [/^\/login(?:\/login\.html)?\/?$/, "login"],
 ];
 
 /**

@@ -188,7 +188,7 @@ export default function Admin() {
       localStorage.removeItem(key);
     }
 
-    window.location.href = "/login/login.html";
+    window.location.href = "/login";
   }
 
   // El legacy determinaba el orden al final leyendo el tbody: filas + 1

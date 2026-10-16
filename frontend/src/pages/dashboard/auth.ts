@@ -21,7 +21,9 @@
  * página (Dashboard/Kds gated por hasPanelSession + enforceSession).
  */
 
-const LOGIN_PAGE = "/login/login.html";
+// Login limpio: la ruta limpia sirve la misma shell (view controller en el
+// backend), así que el redirect no necesita el sufijo del archivo estático.
+const LOGIN_PAGE = "/login";
 
 /** Sesión usable según el guard del legacy: token recortado no vacío y no "null"/"undefined". */
 export function hasUsableSession(): boolean {

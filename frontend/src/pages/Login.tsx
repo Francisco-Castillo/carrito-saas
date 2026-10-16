@@ -1,11 +1,13 @@
 import { useMemo, useState, type FormEvent } from "react";
 import "./Login.css";
 
-function redirectPathForRole(role: string, slug?: string | null): string | null {
-  const suffix = slug ? `?restaurant=${slug}` : "";
-  if (role.includes("OWNER")) return `/dashboard/index.html${suffix}`;
-  if (role.includes("KITCHEN")) return `/kds/index.html${suffix}`;
-  if (role.includes("ADMIN")) return `/admin/admin.html${suffix}`;
+// Clean SPA paths: the panels resolve the slug from the session and the
+// admin's endpoints are JWT-scoped, so the redirect carries neither the
+// legacy file suffix nor a ?restaurant= query.
+function redirectPathForRole(role: string): string | null {
+  if (role.includes("OWNER")) return "/dashboard";
+  if (role.includes("KITCHEN")) return "/kds";
+  if (role.includes("ADMIN")) return "/admin";
   return null;
 }
 
@@ -128,7 +130,7 @@ export default function Login() {
         localStorage.removeItem("restaurantSlug");
       }
 
-      const target = redirectPathForRole(data.role, data.restaurantSlug ?? slug);
+      const target = redirectPathForRole(data.role);
       if (!target) throw new Error("Rol no permitido");
 
       window.location.href = target;

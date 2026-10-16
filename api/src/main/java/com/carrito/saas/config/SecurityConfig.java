@@ -67,11 +67,19 @@ public class SecurityConfig {
 	                "/api/auth/**",
 	                "/login/**",
 	                "/login.html",
+	                // Rutas limpias del SPA (SpaRoutingConfig las sirve con forward
+	                // a los mismos archivos estáticos): el path exacto no matchea
+	                // /xxx/** con la semántica de PathPattern, así que se nombran
+	                // explícitamente para quedarse públicas como sus .html.
+	                "/login",
 	                "/css/**",
 	                "/js/**",
 	                "/kds/**",
+	                "/kds",
 	                "/admin/**",
-	                "/dashboard/**"
+	                "/admin",
+	                "/dashboard/**",
+	                "/dashboard"
 	            ).permitAll()
 
 	            // Shell de la SPA (Vite) y assets publicos que referencia:
@@ -97,6 +105,7 @@ public class SecurityConfig {
 	            // Carta digital pública
 	            .requestMatchers("/api/menu/**").permitAll()
 	            .requestMatchers("/menu/**").permitAll()
+	            .requestMatchers("/menu", "/menu/").permitAll()
 
 	            // Restaurante público (slug lookup del menú público y login;
 	            // el slug es público porque va impreso en el QR)
