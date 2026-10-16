@@ -41,12 +41,22 @@ export interface SalesByHour {
   revenue: number;
 }
 
-// Lectura simple del slug de sesión, SIN efectos secundarios: la página
-// (Dashboard gated por hasPanelSession) garantiza que no hay fetch sin slug;
-// aquí solo se resuelve el valor para construir la base de la API.
-const restaurantSlug = getSessionRestaurantSlug();
+/**
+ * Base de la API del panel. El slug de sesión es obligatorio y se resuelve
+ * por request, no en una constante de módulo: así ningún camino arma una base
+ * con "null" (que parecería una URL real en la red) y el valor sigue a la
+ * sesión. La página lo garantiza con hasPanelSession(); esto es la red de
+ * seguridad.
+ */
+function apiBase(): string {
+  const slug = getSessionRestaurantSlug();
 
-const API_BASE = `/api/restaurants/${restaurantSlug}`;
+  if (slug === null) {
+    throw new Error("Restaurant slug missing in session");
+  }
+
+  return `/api/restaurants/${slug}`;
+}
 
 /** Header Authorization: Bearer + token de localStorage en caliente. */
 function authHeader(): Record<string, string> {
@@ -54,7 +64,7 @@ function authHeader(): Record<string, string> {
 }
 
 async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { headers: authHeader() });
+  const res = await fetch(`${apiBase()}${path}`, { headers: authHeader() });
 
   if (!res.ok) {
     throw new Error("API error");
