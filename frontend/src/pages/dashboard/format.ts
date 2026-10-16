@@ -1,13 +1,7 @@
-/** Puerto 1:1 del formatARS del legacy dashboard/dashboard.js. */
-export function formatARS(value: number): string {
-  return (
-    "$ " +
-    new Intl.NumberFormat("es-AR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value)
-  );
-}
+/**
+ * Lo que es exclusivo del dashboard. El formato de plata se mudó a
+ * `src/format.ts`: lo comparten el dashboard, el panel y la carta.
+ */
 
 /** Puerto 1:1 del avgPrep del legacy: "Xm" con minutos redondeados hacia abajo. */
 export function formatPrepTime(avgPrepTimeSeconds: number): string {

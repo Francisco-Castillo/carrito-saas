@@ -1,3 +1,4 @@
+import { formatARS } from "../../format";
 import FoodImage from "./FoodImage";
 import type { Product } from "./types";
 
@@ -29,7 +30,7 @@ export default function ProductCard({ product, qty, onAdd, onRemove, onOpen }: P
       </button>
 
       <div className="product-footer">
-        <span className="product-price">${product.price}</span>
+        <span className="product-price">{formatARS(product.price)}</span>
         {qty === 0 ? (
           <button
             type="button"

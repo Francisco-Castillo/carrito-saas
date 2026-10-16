@@ -91,3 +91,7 @@ El script de e2e empezó a fallar de forma intermitente (2 de 4 corridas) en pas
 ### Nota de higiene
 
 El borrado de `frontend/src/pages/menu/useMediaQuery.ts` (que quedó sin uso con el cambio del carrito) quedó incluido en `fa66405`, el commit de la fuga de CSS, en vez de en el del carrito: se había hecho `git rm` antes y el primer `git add` de la serie lo arrastró. No se reescribió la historia por un archivo; el estado del código es el correcto.
+
+## Formato de plata (posterior)
+
+Los precios de la carta se muestran con `formatARS` (`$ 3.200,00`), el mismo formato que el panel y el dashboard, en **las cinco superficies**: tarjeta, hoja de detalle, línea del carrito (multiplica por cantidad), total del carrito y barra pegada de abajo — más el total del mensaje de WhatsApp, que es el número que el local lee en el teléfono. El formateador vive en `frontend/src/format.ts`, mudado desde `pages/dashboard/format` (la carta no debería depender de la carpeta del dashboard para mostrar un precio; las tablas del panel ya lo importaban). Guardas: `frontend/tests/menu-prices.test.tsx` y `~/.local/opt/e2e/menu-prices.mjs`.

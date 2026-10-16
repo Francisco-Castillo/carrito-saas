@@ -3,7 +3,7 @@ import { API, authHeader, type AdminProduct } from "./api";
 import { showSuccessToast } from "./toast";
 import ConfirmModal from "./ConfirmModal";
 import ProductModal, { type AdminProductFull } from "./ProductModal";
-import { formatARS } from "../dashboard/format";
+import { formatARS } from "../../format";
 
 interface ConfirmState {
   message: string;

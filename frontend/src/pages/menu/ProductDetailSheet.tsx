@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatARS } from "../../format";
 import FoodImage from "./FoodImage";
 import type { Product } from "./types";
 import { useModalSheet } from "./useModalSheet";
@@ -48,7 +49,7 @@ export default function ProductDetailSheet({ product, onClose, onAdd }: ProductD
           )}
           <h2 className="sheet-name">{product.name}</h2>
           {product.description && <p className="sheet-description">{product.description}</p>}
-          <p className="sheet-price">${product.price}</p>
+          <p className="sheet-price">{formatARS(product.price)}</p>
 
           <div className="sheet-actions">
             <div className="qty-stepper">

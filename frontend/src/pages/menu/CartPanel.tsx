@@ -1,3 +1,4 @@
+import { formatARS } from "../../format";
 import FoodImage from "./FoodImage";
 import type { Cart, OrderType, PaymentMethod } from "./types";
 
@@ -63,7 +64,9 @@ export default function CartPanel({
             />
             <div className="cart-line-info">
               <span className="cart-line-name">{item.product.name}</span>
-              <span className="cart-line-total">${item.qty * item.product.price}</span>
+              <span className="cart-line-total">
+                {formatARS(item.qty * item.product.price)}
+              </span>
             </div>
             <div className="qty-stepper">
               <button
@@ -94,7 +97,7 @@ export default function CartPanel({
         ))}
       </ul>
 
-      <p className="cart-total">Total: ${total}</p>
+      <p className="cart-total">Total: {formatARS(total)}</p>
 
       <div className="order-form">
         <input

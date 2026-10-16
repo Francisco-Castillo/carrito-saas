@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { formatARS } from "../format";
 import "./Menu.css";
 import CartPanel from "./menu/CartPanel";
 import ProductCard from "./menu/ProductCard";
@@ -361,7 +362,7 @@ export default function Menu() {
       total += item.qty * item.product.price;
     });
 
-    message += `%0A*Total:* $${total}%0A`;
+    message += `%0A*Total:* ${formatARS(total)}%0A`;
     message += "----------------%0A";
     message += `*Nombre:* ${customerName}%0A`;
     message += `*Tipo de pedido:* ${orderType}%0A`;
@@ -619,7 +620,7 @@ export default function Menu() {
                 <span className="cart-bar-count">
                   {totalUnits} {totalUnits === 1 ? "ítem" : "ítems"}
                 </span>
-                <span className="cart-bar-total">${total}</span>
+                <span className="cart-bar-total">{formatARS(total)}</span>
               </div>
               <button
                 type="button"
