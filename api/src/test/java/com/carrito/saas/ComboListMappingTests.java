@@ -198,6 +198,29 @@ class ComboListMappingTests {
 	}
 
 	/**
+	 * {@code GET /api/combos} must expose {@code productId} on every item (on
+	 * top of the existing productName and quantity): the admin panel prefills
+	 * the edit picker by id because two products can share a name.
+	 */
+	@Test
+	void combosEndpointExposesProductIdPerItemWithNamesAndQuantitiesPreserved() throws Exception {
+
+		Product component = product(categoryA, "Combo List ProductId Product");
+		Combo ownCombo = combo(categoryA, "Combo List ProductId Combo", component);
+
+		mockMvc.perform(get("/api/combos")
+					.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+					.accept(org.springframework.http.MediaType.APPLICATION_JSON))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[?(@.id == " + ownCombo.getId() + ")].items[0].productId",
+					Matchers.hasItem(component.getId().intValue())))
+			.andExpect(jsonPath("$[?(@.id == " + ownCombo.getId() + ")].items[0].productName",
+					Matchers.hasItem("Combo List ProductId Product")))
+			.andExpect(jsonPath("$[?(@.id == " + ownCombo.getId() + ")].items[0].quantity",
+					Matchers.hasItem(1)));
+	}
+
+	/**
 	 * {@code GET /api/combos} must return both own combos through the list
 	 * mapper, scoped to the caller's business, each carrying its items and a
 	 * non-null categoryId.

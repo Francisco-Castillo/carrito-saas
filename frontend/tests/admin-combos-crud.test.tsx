@@ -60,6 +60,19 @@ const PRODUCTS = [
     categoryId: 990013,
     unitMeasure: 'UNIDAD',
   },
+  {
+    // Mismo nombre que el id 3, otra categoría: el prefill por nombre no
+    // puede distinguirlos — el item del combo tiene que viajar con productId.
+    id: 4,
+    name: 'Ensalada César',
+    price: 7000,
+    cost: 3000,
+    description: 'Lechuga y pollo (lleno)',
+    stock: 8,
+    active: true,
+    categoryId: 990014,
+    unitMeasure: 'UNIDAD',
+  },
 ]
 
 /** Full ComboDTO shape the backend returns on GET /api/combos (items included). */
@@ -69,14 +82,14 @@ const COMBOS = [
     name: 'Combo Familiar',
     price: 15000,
     categoryId: 990012,
-    items: [{ productName: 'Pizza Margherita', quantity: 2 }],
+    items: [{ productId: 1, productName: 'Pizza Margherita', quantity: 2 }],
   },
   {
     id: 8,
     name: 'Combo César',
     price: 9900,
     categoryId: 3628,
-    items: [{ productName: 'Ensalada César', quantity: 1 }],
+    items: [{ productId: 3, productName: 'Ensalada César', quantity: 1 }],
   },
 ]
 
@@ -276,6 +289,25 @@ describe('Admin combo edit (modal)', () => {
 
     await waitForModalToClose()
     expect(calls.filter((c) => c.url === '/api/combos' && c.method === 'GET').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('resolves the picker by productId when two products share a name', async () => {
+    stubFetch()
+    const user = userEvent.setup()
+    await openCombosView()
+
+    expect(await screen.findByText('Combo César')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Editar Combo César' }))
+    const dialog = await screen.findByRole('dialog')
+
+    // Dos productos se llaman "Ensalada César" (ids 3 y 4, categorías
+    // distintas). El item del combo apunta al id 3: el prefill tiene que
+    // usar ese productId y no el primer (o último) match por nombre.
+    const productSelect = within(dialog).getByLabelText('Producto del combo')
+    expect(productSelect).toHaveValue('3')
+    // La cantidad viaja intacta con el item.
+    expect(within(dialog).getByLabelText('Cantidad')).toHaveValue(1)
   })
 })
 
