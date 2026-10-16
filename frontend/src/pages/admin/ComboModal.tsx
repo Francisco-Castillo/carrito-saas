@@ -8,17 +8,17 @@ import { showSuccessToast } from "./toast";
  * para el prefill. Vive acá (y no en api.ts) por la misma razón que
  * AdminProductFull: sólo el modal lo consume por ahora.
  *
- * Ojo: ComboItemDTO del backend no trae productId (sólo productName y
- * quantity), así que el prefill de items cruza por nombre contra
- * GET /api/products. Cuando el backend sume productId al item DTO, este
- * matcheo por nombre se reemplaza por el id directo.
+ * El ComboItemDTO del backend trae productId además de productName y
+ * quantity, así que el prefill de items cruza por id (dos productos pueden
+ * compartir nombre: el id es lo único que los distingue). Si una respuesta
+ * vieja no trae productId, se cae al cruce por nombre.
  */
 export interface AdminComboFull {
   id: number;
   name: string;
   price: number;
   categoryId?: number | null;
-  items?: Array<{ productName: string; quantity: number }> | null;
+  items?: Array<{ productId?: number; productName: string; quantity: number }> | null;
 }
 
 /** Una fila del picker de productos: producto elegido + cantidad. */
@@ -100,14 +100,17 @@ export default function ComboModal({ combo, onClose, onSaved }: ComboModalProps)
 
   useEffect(() => {
     // Prefill de items UNA vez que la lista de productos está disponible:
-    // ComboItemDTO no trae productId, así que el cruce es por nombre.
+    // el cruce es por productId (el ComboDTO del backend lo trae por item);
+    // el cruce por nombre queda sólo como fallback para payloads sin id.
     if (prefilled || products.length === 0 || !combo?.items?.length) return;
     const byName = new Map(products.map((p) => [p.name, p.id]));
     const seeded: PickerRow[] = [];
     for (const item of combo.items) {
-      const productId = byName.get(item.productName);
-      if (productId != null) {
-        seeded.push({ productId: String(productId), quantity: String(item.quantity ?? 1) });
+      // productId es el id real del producto: va directo. El cruce por nombre
+      // queda sólo para payloads que todavía no traen el id.
+      const resolved = item.productId ?? byName.get(item.productName);
+      if (resolved != null) {
+        seeded.push({ productId: String(resolved), quantity: String(item.quantity ?? 1) });
       }
     }
     setRows(seeded);
