@@ -341,7 +341,7 @@ describe('Admin combo backend error', () => {
       putCombo: () => ({
         ok: false,
         status: 400,
-        json: async () => ({ message: 'El precio del combo no puede ser negativo' }),
+        json: async () => ({ message: 'El precio del combo debe ser mayor que cero' }),
       }),
     })
     const user = userEvent.setup()
@@ -357,7 +357,7 @@ describe('Admin combo backend error', () => {
     // The backend's Spanish message appears inline inside the modal, NOT as
     // a dismissible toast, and the modal stays open.
     const dialogAfter = screen.getByRole('dialog')
-    expect(within(dialogAfter).getByText('El precio del combo no puede ser negativo')).toBeInTheDocument()
+    expect(within(dialogAfter).getByText('El precio del combo debe ser mayor que cero')).toBeInTheDocument()
   })
 })
 
