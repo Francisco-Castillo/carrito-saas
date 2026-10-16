@@ -10,11 +10,14 @@ out of scope and keeps its URL contract.
 
 ## Decisions (user-confirmed)
 
-- Users are assumed to belong to exactly one business. If a user has zero
-  memberships -> 403. If more than one -> clear backend error (no selector
-  in this iteration; a selector is future work).
-- Slug sent explicitly in the login request stays supported (backward
-  compatible, useful for the multi-business future).
+- A user belongs to exactly one business, always (product decision,
+  2026-10-16: multi-business will never exist, so no selector is built). Zero
+  memberships -> 403. More than one is impossible by that rule, and the
+  backend still fails loudly if the data ever shows it: that branch is a data
+  integrity guard, not a user-facing path.
+- Slug sent explicitly in the login request stays supported for backward
+  compatibility with links that already carry `?restaurant=` (bookmarks, QR,
+  deep links), not for choosing among businesses.
 - Scope: full removal, phased. Phase 1 = backend + login page.
   Phase 2 = panels read slug from session.
 - Work executed in dedicated worktree /home/rodrigo/work/carrito-saas-organic
@@ -192,13 +195,14 @@ Scope of this slice — the two advisory findings that touch the login:
   the POST body, the session write/clear of the response slug, remember-me,
   the role-based redirect, and the bare logout redirect.
 
-Out of scope for this slice: the multi-business selector, `R3-null-slug-api-base`
-(`dashboard/api.ts` still builds its base before the redirect fires) and
-`R2-002` (`PanelErrorStatusHttpTests.java:154`, backend).
+Out of scope for this slice: `R3-null-slug-api-base` and `R2-002`, both
+applied in the same `fix/review-followups` branch.
 
 ## Notes
 
-- Base branch: develop. Feature branch: feat/organic-login (unpushed).
+- Base branch: develop. Both PRs of this feature are merged: #42 (c1deae0)
+  and its chained slice #45 (eb5e100).
 - Public menu URL contract (`/?restaurant=`) is explicitly NOT changed.
-- Future work: multi-business selector in the login (backend already
-  returns a clear error when a user has several memberships).
+- Multi-business will never exist (product decision): the login resolves the
+  business from the session user's membership and there is no selector to
+  build. The explicit-slug path exists only for links that still carry one.
