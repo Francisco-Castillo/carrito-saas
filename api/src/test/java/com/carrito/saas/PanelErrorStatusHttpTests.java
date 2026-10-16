@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.Set;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -122,6 +124,29 @@ class PanelErrorStatusHttpTests {
 		businessRepository.saveAndFlush(business);
 	}
 
+	/** Seeds a role by name. */
+	private Role seedRole(String name) {
+
+		Role role = new Role();
+		role.setName(name);
+		return roleRepository.saveAndFlush(role);
+	}
+
+	/**
+	 * Seeds a user with a REAL encoded password (so login probes exercise the
+	 * actual {@code AuthenticationManager} path) and exactly one role. Whether
+	 * that user gets a membership is the caller's business: one probe needs a
+	 * user the membership resolution must reject.
+	 */
+	private User seedUserWithRole(String username, String password, Role role) {
+
+		User user = new User();
+		user.setUsername(username);
+		user.setPassword(passwordEncoder.encode(password));
+		user.setRoles(Set.of(role));
+		return userRepository.saveAndFlush(user);
+	}
+
 	/**
 	 * Seeds the owner with a REAL encoded password so the login probes can
 	 * exercise the actual {@code AuthenticationManager} path.
@@ -130,21 +155,8 @@ class PanelErrorStatusHttpTests {
 
 		seedBusiness(id, slug);
 
-		Role role = new Role();
-		role.setName("OWNER");
-		role = roleRepository.saveAndFlush(role);
-
-		User user = new User();
-		user.setUsername(USERNAME);
-		user.setPassword(passwordEncoder.encode(PASSWORD));
-		user.setRoles(java.util.Set.of(role));
-		user = userRepository.saveAndFlush(user);
-
-		BusinessUser businessUser = new BusinessUser();
-		businessUser.setUser(user);
-		businessUser.setBusiness(businessRepository.findById(id).orElseThrow());
-		businessUser.setRole(role);
-		businessUserRepository.saveAndFlush(businessUser);
+		Role role = seedRole("OWNER");
+		seedMembership(seedUserWithRole(USERNAME, PASSWORD, role), id, role);
 	}
 
 	/**
@@ -153,15 +165,7 @@ class PanelErrorStatusHttpTests {
 	 */
 	private User seedUserWithoutMembership(String username, String password) {
 
-		Role role = new Role();
-		role.setName("OWNER-" + username);
-		role = roleRepository.saveAndFlush(role);
-
-		User user = new User();
-		user.setUsername(username);
-		user.setPassword(passwordEncoder.encode(password));
-		user.setRoles(java.util.Set.of(role));
-		return userRepository.saveAndFlush(user);
+		return seedUserWithRole(username, password, seedRole("OWNER-" + username));
 	}
 
 	private void seedMembership(User user, long businessId, Role role) {
