@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 import "./Dashboard.css";
-import { hasUsableSession, enforceSession, logout } from "./dashboard/auth";
+import { hasPanelSession, enforceSession, logout } from "./dashboard/auth";
 import { useDashboardData } from "./dashboard/useDashboardData";
 import KpiCards from "./dashboard/KpiCards";
 import OrderStatusCards from "./dashboard/OrderStatusCards";
@@ -9,8 +9,11 @@ import TopProducts from "./dashboard/TopProducts";
 
 export default function Dashboard() {
   // Guard del legacy (index.html <head>): corre antes del primer paint y
-  // nunca deja la página corriendo sin sesión usable.
-  const [sessionUsable] = useState(hasUsableSession);
+  // nunca deja la página corriendo sin sesión usable. Fase 2 (login
+  // orgánico): el panel también exige el slug de sesión (hasPanelSession) —
+  // una sesión con token pero sin slug vuelve al login por enforceSession
+  // antes de renderizar o fetchear, nunca con paneles vacíos en silencio.
+  const [sessionUsable] = useState(hasPanelSession);
 
   useLayoutEffect(() => {
     if (!sessionUsable) {

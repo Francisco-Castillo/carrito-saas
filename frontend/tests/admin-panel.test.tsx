@@ -4,9 +4,10 @@
  *   1. Logout must clear ONLY the session keys the login writes (token,
  *      businessId, role, username, expiresAt) and must keep every other
  *      same-origin key intact — in particular `savedUser`, the remember-me
- *      username stored by the login screen. The redirect is unchanged:
- *      /login/login.html?restaurant=<slug> with the slug preserved when the
- *      URL carries one, and the bare login path when it does not.
+ *      username stored by the login screen. The redirect is a bare
+ *      /login/login.html: since Phase 2 (organic login) the slug lives in the
+ *      session and the redirect no longer carries ?restaurant=, even when the
+ *      URL still has one.
  *
  *   2. The "+ Nuevo" button belongs to the categories view: it must be absent
  *      in dashboard, products and combos, and present in categories, where it
@@ -75,6 +76,7 @@ function seedStorage() {
   localStorage.setItem('role', 'ADMIN')
   localStorage.setItem('username', 'demo')
   localStorage.setItem('expiresAt', '2030-01-01T00:00:00Z')
+  localStorage.setItem('restaurantSlug', 'demo-pizzeria')
   localStorage.setItem('savedUser', 'demo')
   localStorage.setItem('theme', 'dark')
 }
@@ -138,8 +140,9 @@ describe('View title: Spanish label instead of the internal key', () => {
   })
 })
 
-describe('Admin logout (session-only clear, slug-preserving redirect)', () => {
-  it('with a restaurant slug: clears exactly the session keys, keeps savedUser and the rest, and lands on /login/login.html?restaurant=<slug>', async () => {
+describe('Admin logout (session-only clear, bare login redirect)', () => {
+  it('with a restaurant slug still in the URL: clears exactly the session keys, keeps savedUser and the rest, and lands on the bare /login/login.html', async () => {
+    // Phase 2: the URL slug is ignored — the redirect must not carry ?restaurant=.
     const user = userEvent.setup()
     const location = renderAdmin('?restaurant=demo-pizzeria')
 
@@ -151,7 +154,7 @@ describe('Admin logout (session-only clear, slug-preserving redirect)', () => {
     expect(localStorage.getItem('savedUser')).toBe('demo')
     expect(localStorage.getItem('theme')).toBe('dark')
 
-    expect(location.href).toBe('/login/login.html?restaurant=demo-pizzeria')
+    expect(location.href).toBe('/login/login.html')
   })
 
   it('without a restaurant slug: same session-only clear and a bare /login/login.html redirect', async () => {

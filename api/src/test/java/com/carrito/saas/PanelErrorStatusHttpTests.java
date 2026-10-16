@@ -42,10 +42,12 @@ import com.carrito.saas.security.JwtUtil;
  * to show the customer "Ocurrió un error inesperado" and left a stack trace
  * at ERROR level on every failed attempt. Wrong password and unknown username
  * must both answer 401 with the SAME neutral message (no username
- * enumeration); valid credentials for a business the user does not belong to
- * answer 403 (they already proved they hold the password, so naming the
- * reason leaks nothing); a blank or missing {@code restaurantSlug} is a 400,
- * not a server fault.</p>
+ * enumeration). Without an explicit {@code restaurantSlug} (organic login)
+ * the business resolves from the user's membership: one membership → 200,
+ * zero memberships → 403, more than one → 400 asking the client to indicate
+ * the business (no selector exists yet); an explicit slug keeps the old
+ * per-business behavior, so valid credentials for a business the user does
+ * not belong to still answer 403.</p>
  *
  * <p>MockMvc is assembled manually with
  * {@link MockMvcBuilders#webAppContextSetup} plus the real security
@@ -67,6 +69,10 @@ class PanelErrorStatusHttpTests {
 	private static final String OTHER_SLUG = "panel-error-status-other-business";
 
 	private static final String USERNAME = "panel-error-status-owner";
+
+	private static final String NO_MEMBERSHIP_USERNAME = "panel-error-status-no-membership";
+
+	private static final String MULTI_BUSINESS_USERNAME = "panel-error-status-multi-business";
 
 	private static final String PASSWORD = "panel-error-status-password";
 
@@ -137,6 +143,32 @@ class PanelErrorStatusHttpTests {
 		BusinessUser businessUser = new BusinessUser();
 		businessUser.setUser(user);
 		businessUser.setBusiness(businessRepository.findById(id).orElseThrow());
+		businessUser.setRole(role);
+		businessUserRepository.saveAndFlush(businessUser);
+	}
+
+	/**
+	 * Seeds a user with a REAL encoded password (so login probes exercise the
+	 * actual {@code AuthenticationManager} path) but NO business membership.
+	 */
+	private User seedUserWithoutMembership(String username, String password) {
+
+		Role role = new Role();
+		role.setName("OWNER-" + username);
+		role = roleRepository.saveAndFlush(role);
+
+		User user = new User();
+		user.setUsername(username);
+		user.setPassword(passwordEncoder.encode(password));
+		user.setRoles(java.util.Set.of(role));
+		return userRepository.saveAndFlush(user);
+	}
+
+	private void seedMembership(User user, long businessId, Role role) {
+
+		BusinessUser businessUser = new BusinessUser();
+		businessUser.setUser(user);
+		businessUser.setBusiness(businessRepository.findById(businessId).orElseThrow());
 		businessUser.setRole(role);
 		businessUserRepository.saveAndFlush(businessUser);
 	}
@@ -231,11 +263,32 @@ class PanelErrorStatusHttpTests {
 	}
 
 	// ==================================================================
-	// Login: blank / missing restaurantSlug → 400
+	// Login orgánico: sin restaurantSlug el negocio se resuelve por la
+	// membresía del usuario (una → 200, cero → 403, varias → 400)
 	// ==================================================================
 
 	@Test
-	void loginWithBlankRestaurantSlugReturns400() throws Exception {
+	void loginWithoutRestaurantSlugWithSingleMembershipSucceeds() throws Exception {
+
+		String body = """
+				{
+				  "username": "%s",
+				  "password": "%s"
+				}
+				""".formatted(USERNAME, PASSWORD);
+
+		mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.token").isNotEmpty())
+				.andExpect(jsonPath("$.username").value(USERNAME))
+				.andExpect(jsonPath("$.businessId").value(BUSINESS_ID))
+				.andExpect(jsonPath("$.restaurantSlug").value(SLUG));
+	}
+
+	@Test
+	void loginWithBlankRestaurantSlugWithSingleMembershipSucceeds() throws Exception {
 
 		String body = """
 				{
@@ -248,24 +301,72 @@ class PanelErrorStatusHttpTests {
 		mockMvc.perform(post("/api/auth/login")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.status").value(400));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.businessId").value(BUSINESS_ID))
+				.andExpect(jsonPath("$.restaurantSlug").value(SLUG));
 	}
 
 	@Test
-	void loginWithMissingRestaurantSlugReturns400() throws Exception {
+	void loginWithoutRestaurantSlugWithZeroMembershipsReturns403() throws Exception {
+
+		seedUserWithoutMembership(NO_MEMBERSHIP_USERNAME, PASSWORD);
 
 		String body = """
 				{
 				  "username": "%s",
 				  "password": "%s"
 				}
-				""".formatted(USERNAME, PASSWORD);
+				""".formatted(NO_MEMBERSHIP_USERNAME, PASSWORD);
 
 		mockMvc.perform(post("/api/auth/login")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.status").value(403))
+				.andExpect(jsonPath("$.message").value("El usuario no pertenece a ningún negocio"));
+	}
+
+	@Test
+	void loginWithoutRestaurantSlugWithMultipleMembershipsAsksForTheBusiness() throws Exception {
+
+		User multi = seedUserWithoutMembership(MULTI_BUSINESS_USERNAME, PASSWORD);
+		Role role = multi.getRoles().iterator().next();
+		seedMembership(multi, BUSINESS_ID, role);
+		seedMembership(multi, OTHER_BUSINESS_ID, role);
+
+		String body = """
+				{
+				  "username": "%s",
+				  "password": "%s"
+				}
+				""".formatted(MULTI_BUSINESS_USERNAME, PASSWORD);
+
+		mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.message").value("El usuario pertenece a varios negocios. Debe indicar el negocio"));
+	}
+
+	@Test
+	void loginWithWrongPasswordAndNoSlugReturns401NeutralMessage() throws Exception {
+
+		// Orden del contrato: primero se autentica, después se resuelve la
+		// membresía. Sin slug y con credenciales malas, la respuesta es el
+		// 401 neutro — no el error de membresía ni un 400 por falta de slug.
+		String body = """
+				{
+				  "username": "%s",
+				  "password": "contrasena-equivocada"
+				}
+				""".formatted(USERNAME);
+
+		mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.message").value("Usuario o contraseña incorrectos"));
 	}
 
 	// ==================================================================

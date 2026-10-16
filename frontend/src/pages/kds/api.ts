@@ -2,7 +2,13 @@
  * Puerto 1:1 de las llamadas al backend del legacy kds/kds.js (mismas rutas,
  * mismos headers Authorization Bearer con el token localStorage "token",
  * mismo manejo de errores).
+ *
+ * Fase 2 (login orgánico): el slug del restaurante se resuelve desde la
+ * sesión (localStorage "restaurantSlug", escrito por el login), no de la
+ * URL, y el logout vuelve al login limpio (sin ?restaurant=).
  */
+
+import { getSessionRestaurantSlug } from "../dashboard/auth";
 
 export interface KdsOrderItem {
   quantity: number;
@@ -33,13 +39,14 @@ export class RestaurantNotFoundError extends Error {
   }
 }
 
-const params = new URLSearchParams(window.location.search);
-const restaurantSlug = params.get("restaurant");
-
 // kds.js:3-9: sin slug el legacy reemplaza el body con
-// "Restaurante no especificado" y corta la ejecución.
+// "Restaurante no especificado" y corta la ejecución. En el puerto el slug
+// viene de la sesión y se lee SIN efectos secundarios (sin navegación en el
+// scope de módulo: el bundle SPA importa estáticamente todos los módulos de
+// página). El redirect del panel sin slug vive en la página (Kds gated por
+// hasPanelSession + enforceSession).
 export function getRestaurantSlug(): string | null {
-  return restaurantSlug;
+  return getSessionRestaurantSlug();
 }
 
 function authHeaders(): Record<string, string> {
@@ -123,15 +130,10 @@ export async function cancelOrder(
 }
 
 /**
- * kds.js:313-320 — logout(): borra "token" y vuelve al login conservando
- * el restaurante (a diferencia del logout del dashboard, este SÍ conserva
- * el slug del legacy).
+ * kds.js:313-320 — logout(): borra "token" y vuelve al login. Fase 2: SIN
+ * ?restaurant= — el slug vive en la sesión y el login orgánico lo resuelve.
  */
 export function logoutKds(): void {
   localStorage.removeItem("token");
-  if (restaurantSlug) {
-    window.location.href = `/login/login.html?restaurant=${restaurantSlug}`;
-  } else {
-    window.location.href = "/login/login.html";
-  }
+  window.location.href = "/login/login.html";
 }
