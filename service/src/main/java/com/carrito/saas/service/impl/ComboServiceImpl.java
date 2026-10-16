@@ -54,7 +54,7 @@ public class ComboServiceImpl implements IComboService {
 		Long businessId = securityService.getCurrentBusinessId();
 
 		// Misma validación de forma que actualizar (una sola copia, ver
-		// validarForma): nombre obligatorio y precio no negativo son 400
+		// validarForma): nombre obligatorio y precio > 0 son 400
 		// ANTES de cualquier lookup o mutación.
 		validarForma(combo);
 
@@ -105,16 +105,17 @@ public class ComboServiceImpl implements IComboService {
 
 	/**
 	 * Validación de forma compartida por crear y actualizar (una sola copia):
-	 * nombre obligatorio (trim después) y precio no negativo, con los mismos
-	 * mensajes y el mismo 400 que actualizar ya aplicaba. El precio 0 se
-	 * acepta: un combo gratuito es una decisión de producto, no de validación.
+	 * nombre obligatorio (trim después) y precio estrictamente mayor que
+	 * cero — null, 0 y negativo son 400 con el mismo mensaje y el mismo
+	 * código en las dos rutas. Un combo nunca es gratuito: es una regla de
+	 * validación, no una decisión de producto.
 	 */
 	private void validarForma(ComboCreateDTO combo) {
 		if (combo.getName() == null || combo.getName().isBlank())
 			throw new BusinessException("El nombre del combo es obligatorio", ErrorType.VALIDATION);
 
-		if (combo.getPrice() == null || combo.getPrice().signum() < 0)
-			throw new BusinessException("El precio del combo no puede ser negativo", ErrorType.VALIDATION);
+		if (combo.getPrice() == null || combo.getPrice().signum() <= 0)
+			throw new BusinessException("El precio del combo debe ser mayor que cero", ErrorType.VALIDATION);
 	}
 
 	/**

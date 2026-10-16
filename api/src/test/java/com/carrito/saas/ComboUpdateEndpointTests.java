@@ -53,8 +53,8 @@ import jakarta.persistence.PersistenceContext;
  * list is REPLACED (the old {@code combo_products} rows go away, the new ones
  * are stored). Validation runs BEFORE any lookup or mutation so a rejected
  * request cannot even partially apply: name required (trimmed before
- * persisting) and price not negative, with the Spanish message style of the
- * rest of the service.</p>
+ * persisting) and price greater than zero (null, zero and negative all
+ * rejected), with the Spanish message style of the rest of the service.</p>
  *
  * <p>MockMvc is assembled manually with
  * {@link MockMvcBuilders#webAppContextSetup} plus the real security
@@ -356,7 +356,9 @@ class ComboUpdateEndpointTests {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(comboBody(categoryA.getId(), "Combo Precio Negro", "-1.00",
 								ownProductTwo.getId())))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message")
+						.value("El precio del combo debe ser mayor que cero"));
 
 		entityManager.flush();
 		entityManager.clear();
@@ -367,6 +369,39 @@ class ComboUpdateEndpointTests {
 				.isEqualTo("Combo Original");
 		assertThat(ownAfter.getPrice())
 				.isEqualByComparingTo(ORIGINAL_PRICE);
+	}
+
+	/**
+	 * A combo is never free: updating the price to 0 is a 400 shape problem,
+	 * same rule as create, and the stored price must stay untouched.
+	 */
+	@Test
+	void updatingOwnComboWithZeroPriceReturns400AndChangesNothing() throws Exception {
+
+		Combo own = combo(categoryA, "Combo Original", ownProductOne, 1);
+
+		mockMvc.perform(put("/api/combos/" + own.getId())
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(comboBody(categoryA.getId(), "Combo Renombrado", "0",
+								ownProductTwo.getId())))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message")
+						.value("El precio del combo debe ser mayor que cero"));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		Combo ownAfter = comboRepository.findById(own.getId()).orElseThrow();
+		assertThat(ownAfter.getName())
+				.as("a rejected zero-price update must not touch the own combo")
+				.isEqualTo("Combo Original");
+		assertThat(ownAfter.getPrice())
+				.as("the stored price must stay exactly as it was")
+				.isEqualByComparingTo(ORIGINAL_PRICE);
+		assertThat(ownAfter.getItems())
+				.as("a rejected update must not touch the own combo's items")
+				.hasSize(1);
 	}
 
 	/**

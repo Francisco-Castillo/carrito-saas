@@ -53,10 +53,9 @@ import jakarta.persistence.PersistenceContext;
  *       {@code ProductServiceImpl.crearProducto}; the same name in ANOTHER
  *       business must still be created (tenant scoping of the duplicate
  *       finder);</li>
- *   <li>price: null or negative is a 400 shape problem ("El precio del combo
- *       no puede ser negativo", as in {@code actualizarCombo}); price 0 is
- *       accepted (a free/promo combo is a product decision, not a validation
- *       one) — pinned here so create and update agree on it.</li>
+ *   <li>price: null, zero or negative is a 400 shape problem ("El precio
+ *       del combo debe ser mayor que cero") — a combo is never free, the
+ *       rule lives once in {@code validarForma} so create and update agree.</li>
  * </ul>
  *
  * <p>MockMvc is assembled manually with the real security
@@ -282,7 +281,7 @@ class ComboCreateValidationEndpointTests {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(comboBody("Combo Barato", "-1.00", categoryA.getId(), ownProductOne.getId())))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.message").value("El precio del combo no puede ser negativo"));
+				.andExpect(jsonPath("$.message").value("El precio del combo debe ser mayor que cero"));
 
 		assertThat(countCombosForTestBusinesses())
 				.as("a rejected payload must not persist any combo")
@@ -290,32 +289,22 @@ class ComboCreateValidationEndpointTests {
 	}
 
 	/**
-	 * Price 0 is accepted (a free/promo combo is a product decision): pinned
-	 * so create and update agree — neither path may start rejecting 0.
+	 * A combo is never free: price must be greater than zero, so 0 is a 400
+	 * shape problem too — no combo may be created.
 	 */
 	@Test
-	void creatingComboWithPriceZeroIsCreatedAndStoredAsZero() throws Exception {
+	void creatingComboWithPriceZeroReturns400AndCreatesNoCombo() throws Exception {
 
-		String responseBody = mockMvc.perform(post("/api/combos")
-						.header(HttpHeaders.AUTHORIZATION, ownerA.authorizationHeader())
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(comboBody("Combo Gratis", "0", categoryA.getId(), ownProductOne.getId())))
-				.andExpect(status().isOk())
-				.andReturn()
-				.getResponse()
-				.getContentAsString();
+		mockMvc.perform(post("/api/combos")
+					.header(HttpHeaders.AUTHORIZATION, ownerA.authorizationHeader())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(comboBody("Combo Gratis", "0", categoryA.getId(), ownProductOne.getId())))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.message").value("El precio del combo debe ser mayor que cero"));
 
-		long comboId = new com.fasterxml.jackson.databind.ObjectMapper()
-				.readTree(responseBody).path("id").asLong();
-
-		entityManager.flush();
-		entityManager.clear();
-
-		Combo persisted = comboRepository.findById(comboId).orElseThrow();
-
-		assertThat(persisted.getPrice())
-				.as("a zero price must be stored as zero, not rejected")
-				.isEqualByComparingTo("0");
+		assertThat(countCombosForTestBusinesses())
+				.as("a rejected zero-price payload must not persist any combo")
+				.isEqualTo(0L);
 	}
 
 	/** Happy path: the created row is what the caller sent. */
