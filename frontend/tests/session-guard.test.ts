@@ -31,7 +31,9 @@
  * read (which is what AC12 exercised) is still in place in auth.ts.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { enforceSession, getSessionRestaurantSlug, hasUsableSession } from '../src/pages/dashboard/auth'
+import { createElement } from 'react'
+import { render } from '@testing-library/react'
+import { enforceSession, getSessionRestaurantSlug, hasPanelSession, hasUsableSession } from '../src/pages/dashboard/auth'
 
 const LOGIN_TARGET = '/login/login.html'
 const RESTAURANT_SLUG = 'demo-pizzeria'
@@ -186,6 +188,149 @@ describe('page guard (ported from api/src/test/js/page-guard.test.mjs — backs 
 
       expect(() => getSessionRestaurantSlug()).not.toThrow()
       expect(getSessionRestaurantSlug()).toBeNull()
+    })
+  })
+
+  describe('hasPanelSession (page gate: usable token AND a readable session slug)', () => {
+    it('is true with a usable token AND a readable slug', () => {
+      stubLocation('')
+      setToken(jwtWithoutRoles())
+      localStorage.setItem('restaurantSlug', RESTAURANT_SLUG)
+
+      expect(hasPanelSession()).toBe(true)
+    })
+
+    it('is false with a token but NO slug (the slug-less session is not a panel session)', () => {
+      stubLocation('')
+      setToken(jwtWithoutRoles())
+
+      expect(hasUsableSession()).toBe(true)
+      expect(hasPanelSession()).toBe(false)
+    })
+
+    it('is false with a token and a dead slug string (same hardening as the slug read)', () => {
+      stubLocation('')
+      setToken(jwtWithoutRoles())
+      for (const dead of ['null', 'undefined', '', '   ', ' null ', 'null\n']) {
+        localStorage.setItem('restaurantSlug', dead)
+        expect(hasPanelSession(), `the dead slug ${JSON.stringify(dead)} must not count as a panel session`).toBe(false)
+      }
+    })
+
+    it('is false without a token even when a slug is present', () => {
+      stubLocation('')
+      setToken(null)
+      localStorage.setItem('restaurantSlug', RESTAURANT_SLUG)
+
+      expect(hasPanelSession()).toBe(false)
+    })
+  })
+
+  describe('page-level redirect for a slug-less session (module scope must stay side-effect-free)', () => {
+    /** Minimal fake WebSocket: the KDS page opens a STOMP connection when it
+     * renders with a full session; the tests only care about the render/redirect
+     * decision, not the live feed. */
+    class FakeWebSocket {
+      static readonly CONNECTING = 0
+      static readonly OPEN = 1
+      static readonly CLOSING = 2
+      static readonly CLOSED = 3
+      binaryType = 'blob'
+      bufferedAmount = 0
+      extensions = ''
+      protocol = ''
+      readyState = 0
+      url: string
+      onopen: unknown = null
+      onclose: unknown = null
+      onmessage: unknown = null
+      onerror: unknown = null
+      constructor(url: string) {
+        this.url = url
+      }
+      addEventListener(): void {}
+      removeEventListener(): void {}
+      dispatchEvent(): boolean {
+        return false
+      }
+      send(): void {}
+      close(): void {}
+    }
+
+    function stubPageEnvironment() {
+      const location = {
+        href: 'http://localhost:5173/dashboard/index.html',
+        search: '',
+        protocol: 'http:',
+        host: 'localhost:5173',
+        replace: vi.fn((target: string) => {
+          location.href = target
+        }),
+      }
+      vi.stubGlobal('location', location)
+      vi.stubGlobal('WebSocket', FakeWebSocket as unknown as typeof WebSocket)
+      const fetchMock = vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ([]),
+      }))
+      vi.stubGlobal('fetch', fetchMock)
+      return location
+    }
+
+    it('Dashboard with a token but NO slug redirects to the bare /login/login.html and renders nothing', async () => {
+      stubPageEnvironment()
+      setToken(jwtWithoutRoles())
+      localStorage.removeItem('restaurantSlug')
+      vi.resetModules()
+      const { default: Dashboard } = await import('../src/pages/Dashboard')
+
+      const { container } = render(createElement(Dashboard))
+
+      expect(location.replace).toHaveBeenCalledWith(LOGIN_TARGET)
+      expect(location.href).toBe(LOGIN_TARGET)
+      // Redirect in progress: no panel markup reaches the DOM.
+      expect(container).toBeEmptyDOMElement()
+    })
+
+    it('KDS with a token but NO slug redirects to the bare /login/login.html and renders nothing', async () => {
+      stubPageEnvironment()
+      setToken(jwtWithoutRoles())
+      localStorage.removeItem('restaurantSlug')
+      vi.resetModules()
+      const { default: Kds } = await import('../src/pages/Kds')
+
+      const { container } = render(createElement(Kds))
+
+      expect(location.replace).toHaveBeenCalledWith(LOGIN_TARGET)
+      expect(location.href).toBe(LOGIN_TARGET)
+      expect(container).toBeEmptyDOMElement()
+    })
+
+    it('Dashboard with a token AND a slug renders the panel and does not redirect', async () => {
+      const location = stubPageEnvironment()
+      setToken(jwtWithoutRoles())
+      localStorage.setItem('restaurantSlug', RESTAURANT_SLUG)
+      vi.resetModules()
+      const { default: Dashboard } = await import('../src/pages/Dashboard')
+
+      const { container } = render(createElement(Dashboard))
+
+      expect(location.replace).not.toHaveBeenCalled()
+      expect(container.querySelector('.dashboard-screen')).not.toBeNull()
+    })
+
+    it('KDS with a token AND a slug renders the board and does not redirect', async () => {
+      const location = stubPageEnvironment()
+      setToken(jwtWithoutRoles())
+      localStorage.setItem('restaurantSlug', RESTAURANT_SLUG)
+      vi.resetModules()
+      const { default: Kds } = await import('../src/pages/Kds')
+
+      const { container } = render(createElement(Kds))
+
+      expect(location.replace).not.toHaveBeenCalled()
+      expect(container.querySelector('.kds-screen')).not.toBeNull()
     })
   })
 })

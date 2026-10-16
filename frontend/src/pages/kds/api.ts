@@ -8,7 +8,7 @@
  * URL, y el logout vuelve al login limpio (sin ?restaurant=).
  */
 
-import { sessionRestaurantSlugOrRedirect } from "../dashboard/auth";
+import { getSessionRestaurantSlug } from "../dashboard/auth";
 
 export interface KdsOrderItem {
   quantity: number;
@@ -41,10 +41,12 @@ export class RestaurantNotFoundError extends Error {
 
 // kds.js:3-9: sin slug el legacy reemplaza el body con
 // "Restaurante no especificado" y corta la ejecución. En el puerto el slug
-// viene de la sesión; sin slug legible el helper redirige al login limpio
-// (el hueco de paneles vacíos en silencio) y devuelve null — nunca lanza.
+// viene de la sesión y se lee SIN efectos secundarios (sin navegación en el
+// scope de módulo: el bundle SPA importa estáticamente todos los módulos de
+// página). El redirect del panel sin slug vive en la página (Kds gated por
+// hasPanelSession + enforceSession).
 export function getRestaurantSlug(): string | null {
-  return sessionRestaurantSlugOrRedirect();
+  return getSessionRestaurantSlug();
 }
 
 function authHeaders(): Record<string, string> {

@@ -13,10 +13,16 @@
  * tests run against a clean URL (no ?restaurant=).
  *
  * Missing-slug contract: a session without a readable slug must NOT keep
- * rendering silently empty panels — the module still imports (never throws)
- * and asks for the redirect to the bare login page (/login/login.html, no
- * ?restaurant=), where the organic login writes the slug on the next
- * authentication.
+ * rendering silently empty panels, but the API modules must stay importable
+ * in ANY session state — module scope has no side effects (no redirect, no
+ * navigation, no throw). The SPA bundle statically imports every page
+ * module, including the login page, so a module-scope redirect from the
+ * dashboard/kds api modules would reload /login/login.html forever (95
+ * reloads in 3s in the browser). The slug-less session is handled at PAGE
+ * level instead: the pages gate on hasPanelSession() and send the session
+ * back to the bare login page (/login/login.html, no ?restaurant=) through
+ * the existing enforceSession() path, where the organic login writes the
+ * slug on the next authentication.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -68,15 +74,44 @@ describe('dashboard api auth header', () => {
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`/api/restaurants/${SLUG}/dashboard/today`)
   })
+})
 
-  it('a missing session slug redirects to the bare login page and the module still imports', async () => {
+describe('module-scope side effects (browser regression: /login/login.html reloaded itself forever)', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it('importing the dashboard api module with a token but NO slug does not navigate (side-effect-free import)', async () => {
     localStorage.removeItem('restaurantSlug')
     const replace = vi.fn()
-    vi.stubGlobal('location', { href: '/dashboard/index.html', search: '', replace })
-    vi.resetModules()
+    vi.stubGlobal('location', { href: '/login/login.html', search: '', replace })
 
     await expect(import('../src/pages/dashboard/api')).resolves.toBeDefined()
 
-    expect(replace).toHaveBeenCalledWith('/login/login.html')
+    // A module import must never call location.replace: the SPA bundle
+    // statically imports every page module, so a module-scope redirect from
+    // here reloaded the login page in an infinite loop.
+    expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('importing the kds api module with a token but NO slug does not navigate (side-effect-free import)', async () => {
+    localStorage.removeItem('restaurantSlug')
+    const replace = vi.fn()
+    vi.stubGlobal('location', { href: '/login/login.html', search: '', replace })
+
+    await expect(import('../src/pages/kds/api')).resolves.toBeDefined()
+
+    expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('importing the kds api module with a token but NO slug still resolves getRestaurantSlug() to null without navigating', async () => {
+    localStorage.removeItem('restaurantSlug')
+    const replace = vi.fn()
+    vi.stubGlobal('location', { href: '/login/login.html', search: '', replace })
+
+    const { getRestaurantSlug } = await import('../src/pages/kds/api')
+
+    expect(getRestaurantSlug()).toBeNull()
+    expect(replace).not.toHaveBeenCalled()
   })
 })

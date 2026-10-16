@@ -8,12 +8,15 @@
  *
  * Fase 2 (login orgánico): el slug del restaurante se resuelve desde la
  * sesión (localStorage "restaurantSlug", escrito por el login), no de la
- * URL — el panel funciona con una URL limpia. Sin slug legible el módulo
- * redirige al login limpio (sessionRestaurantSlugOrRedirect) en vez de
- * seguir con paneles vacíos en silencio; nunca lanza y siempre importa.
+ * URL — el panel funciona con una URL limpia. La lectura en el scope de
+ * módulo es solo LECTURA (getSessionRestaurantSlug): sin efectos secundarios
+ * y sin navegación — el bundle SPA importa estáticamente todos los módulos
+ * de página (incluido el login), así que un redirect en el scope de módulo
+ * re-cargaba /login/login.html en bucle infinito. El redirect del panel sin
+ * slug vive en la página (hasPanelSession + enforceSession).
  */
 
-import { sessionRestaurantSlugOrRedirect } from "./auth";
+import { getSessionRestaurantSlug } from "./auth";
 
 export interface DashboardToday {
   revenue: number;
@@ -38,9 +41,10 @@ export interface SalesByHour {
   revenue: number;
 }
 
-// Sin slug legible el helper ya pidió el redirect al login limpio: la sesión
-// sin slug no sigue mandando requests sin la ruta del restaurante.
-const restaurantSlug = sessionRestaurantSlugOrRedirect();
+// Lectura simple del slug de sesión, SIN efectos secundarios: la página
+// (Dashboard gated por hasPanelSession) garantiza que no hay fetch sin slug;
+// aquí solo se resuelve el valor para construir la base de la API.
+const restaurantSlug = getSessionRestaurantSlug();
 
 const API_BASE = `/api/restaurants/${restaurantSlug}`;
 

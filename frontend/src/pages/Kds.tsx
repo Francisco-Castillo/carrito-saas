@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import "./Kds.css";
-import { enforceSession, hasUsableSession } from "./dashboard/auth";
+import { enforceSession, hasPanelSession } from "./dashboard/auth";
 import { getRestaurantSlug, logoutKds, type KdsOrder } from "./kds/api";
 import { attachAudioUnlockListeners } from "./kds/audio";
 import { useKdsOrders } from "./kds/useKdsOrders";
@@ -13,7 +13,7 @@ import KdsToastHost from "./kds/KdsToastHost";
  * (index.html + kds.js + kds.css + toast.js) sobre el lenguaje liquid glass.
  *
  * - Guard de sesión: el bloque inline del <head> del legacy index.html:16-38,
- *   aquí reutilizando hasUsableSession/enforceSession de dashboard/auth.
+ *   aquí reutilizando hasPanelSession/enforceSession de dashboard/auth.
  * - Bucle principal: WebSocket STOMP + carga inicial (useKdsOrders).
  * - Reloj: updateClock cada 1s (kds.js:279-290, 310).
  * - Desbloqueo de audio y fullscreen en la primera interacción (kds.js:292-303).
@@ -35,8 +35,12 @@ function titleCaseSlug(slug: string): string {
 
 export default function Kds() {
   // Guard del legacy (index.html <head>): corre antes del primer paint y
-  // nunca deja la página corriendo sin sesión usable.
-  const [sessionUsable] = useState(hasUsableSession);
+  // nunca deja la página corriendo sin sesión usable. Fase 2 (login
+  // orgánico): el panel también exige el slug de sesión (hasPanelSession) —
+  // una sesión con token pero sin slug vuelve al login por enforceSession
+  // antes de renderizar o fetchear, nunca con "Restaurante no especificado"
+  // ni paneles vacíos en silencio.
+  const [sessionUsable] = useState(hasPanelSession);
 
   useLayoutEffect(() => {
     if (!sessionUsable) {

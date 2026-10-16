@@ -13,6 +13,12 @@
  * redirect al login ya no lleva ?restaurant=. La lectura del slug aplica el
  * mismo endurecimiento que el token: almacenamiento bloqueado y valores
  * muertos ("null", "undefined", vacío, espacios) no son un slug legible.
+ *
+ * El slug de sesión NO se resuelve en el scope de ningún módulo: el bundle
+ * SPA importa estáticamente todos los módulos de página (incluido el login),
+ * así que una navegación en el scope de módulo re-cargaba /login/login.html
+ * en bucle infinito. El redirect del panel sin slug vive en el nivel de
+ * página (Dashboard/Kds gated por hasPanelSession + enforceSession).
  */
 
 const LOGIN_PAGE = "/login/login.html";
@@ -52,28 +58,25 @@ export function getSessionRestaurantSlug(): string | null {
   }
 }
 
+/**
+ * Predicado de panel (Dashboard/Kds), sin efectos secundarios: sesión usable
+ * (token recortado no vacío y no "null"/"undefined") Y slug de sesión
+ * legible. Cierra el hueco de los paneles silenciosamente vacíos: una sesión
+ * autenticada sin slug legible (sesiones creadas antes del login orgánico, o
+ * deep links/bookmarks que solo traían la query) no renderiza el panel ni
+ * manda requests sin la ruta del restaurante — la página llama a
+ * enforceSession() y vuelve al login limpio (sin ?restaurant=), donde el
+ * login orgánico escribe el slug en la próxima autenticación. Nunca lanza y
+ * nunca navega: decidir y actuar queda en manos de la página.
+ */
+export function hasPanelSession(): boolean {
+  return hasUsableSession() && getSessionRestaurantSlug() !== null;
+}
+
 /** Redirect del guard: siempre al login limpio, sin ?restaurant= — el login
  * orgánico resuelve el restaurante desde la sesión. */
 export function enforceSession(): void {
   window.location.replace(LOGIN_PAGE);
-}
-
-/**
- * Slug de sesión o redirect al login: cierra el hueco de los paneles
- * silenciosamente vacíos. Una sesión autenticada sin slug legible (sesiones
- * creadas antes del login orgánico, o deep links/bookmarks que solo traían
- * la query) ya no sigue construyendo una base de API sin slug con todos los
- * requests fallando en silencio: vuelve al login limpio (sin ?restaurant=),
- * donde el login orgánico escribe el slug en la próxima autenticación.
- * Nunca lanza: sin slug legible pide el redirect y devuelve null.
- */
-export function sessionRestaurantSlugOrRedirect(): string | null {
-  const slug = getSessionRestaurantSlug();
-  if (slug === null) {
-    enforceSession();
-    return null;
-  }
-  return slug;
 }
 
 function isTokenExpired(token: string): boolean {
