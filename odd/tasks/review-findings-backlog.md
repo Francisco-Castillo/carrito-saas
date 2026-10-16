@@ -26,13 +26,16 @@ S2. El prefill del editor de combos (`frontend/src/pages/admin/ComboModal.tsx`)
     sigue pasando; se agrega un caso: item sin `productId` no genera pick
     por nombre.
 
-S3. Los modales de confirmación de `CategoriesTable.tsx` y `CombosTable.tsx`
-    liberan su promesa pendiente al desmontar: si el componente se desmonta
-    con un confirm abierto, la promesa resuelve `false` en lugar de quedar
-    colgada (hallazgos `R3-002` de #46 sobre `CategoriesTable.tsx:121` y
-    `R3-005` de #46 sobre `CombosTable.tsx:88-90`). Cobertura: test de
-    frontend que desmonta con confirm pendiente y no deja promesa colgada
-    (resuelta `false`).
+S3. La confirmación de delete del panel vive en un solo lugar: el hook
+    compartido `frontend/src/pages/admin/useConfirmDialog.ts`, usado por las
+    tres tablas (Productos, Categorías, Combos). La promesa responde true
+    SOLO con "Confirmar" y resuelve false con Cancelar, clic fuera, Escape
+    o cuando el componente dueño se desmonta con el confirm abierto
+    (hallazgos `R3-002` de #46 sobre `CategoriesTable.tsx:121` y `R3-005` de
+    #46 sobre `CombosTable.tsx:88-90`). El cleanup de desmonte ya existía
+    inline y duplicado en las tres tablas sin test que lo fije; el fix es la
+    deduplicación más el test (`confirm-dialog.test.tsx`, RED observado sin
+    cleanup: la promesa quedaba colgada).
 
 S4. Hallazgos restantes (10) quedan en no-acción con motivo registrada en la
     tabla de abajo: la ubicación muestra el patrón ya correcto y testeado, o
@@ -41,10 +44,10 @@ S4. Hallazgos restantes (10) quedan en no-acción con motivo registrada en la
 
 ## Tareas
 
-T1 (S1) fix: limpiar los dos defectos de imports — commit `fix: clean up duplicated and jammed imports flagged by native review`.
-T2 (S2) fix+test: prefill de combos sólo por productId — commit `fix: the combo editor never pre-fills by product name`.
-T3 (S3) fix+test: cleanup de promesas de confirm al desmontar — commit `fix: pending confirm dialogs resolve false on unmount`.
-T4 (S4) docs: registrar las no-acciones — mismo commit que este documento.
+T1 (S1) fix: limpiar los dos defectos de imports — commit `da3bee7`.
+T2 (S2) fix+test: prefill de combos sólo por productId — commit `86532b4` (RED observado: el pick por nombre elegía el id 4, el último match).
+T3 (S3) fix+test: hook `useConfirmDialog` compartido + tests — commit (ver Log L3).
+T4 (S4) docs: registrar las no-acciones — este documento.
 
 ## Tabla de no-acciones (S4)
 
@@ -73,3 +76,8 @@ L2. Inventario: 21 findings (4-5 por PR; #48, #49, #53, #55 sin hallazgos).
     de código en cada ubicación. Resultado: 3 fixes (S1, S2, S3) y 13
     ubicaciones en no-acción con motivo (S4), que cubren los 21 findings
     (S2 atiende tres, S3 atiende dos).
+L3. Corrección de L2 al implementar: el cleanup de desmonte de S3 YA existía
+    inline y triplicado (ProductsTable también, no sólo las dos señaladas),
+    sin test. El valor real del fix fue deduplicar en `useConfirmDialog` y
+    fijar el comportamiento con RED observado (sin cleanup la promesa queda
+    colgada).
