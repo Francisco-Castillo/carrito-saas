@@ -272,8 +272,26 @@ public class ProductServiceImpl implements IProductService {
 		if (dto.getPrice() == null)
 			throw new BusinessException("El precio es obligatorio", ErrorType.VALIDATION);
 
+		// El precio PRESENTE pasa por la regla compartida (ver validarPrecio):
+		// un producto nunca es gratuito, igual que un combo.
+		validarPrecio(dto.getPrice());
+
 		if (dto.getCost() == null)
 			throw new BusinessException("El costo es obligatorio", ErrorType.VALIDATION);
+	}
+
+	/**
+	 * Regla del precio, una sola copia compartida por crear y actualizar
+	 * (espejo de validarForma en ComboServiceImpl): un producto nunca es
+	 * gratuito, así que un precio PRESENTE debe ser estrictamente mayor que
+	 * cero — 0 y negativo son 400 con el mismo mensaje en las dos rutas. El
+	 * null no se juzga acá: cada ruta ya lo rechaza antes con su contrato
+	 * propio ("El precio es obligatorio"), y un precio ausente no es un
+	 * precio de cero.
+	 */
+	private void validarPrecio(BigDecimal precio) {
+		if (precio != null && precio.signum() <= 0)
+			throw new BusinessException("El precio del producto debe ser mayor que cero", ErrorType.VALIDATION);
 	}
 
 	private void validarProducto(String nombre, String descripcion, BigDecimal precio, BigDecimal cost,
@@ -284,8 +302,13 @@ public class ProductServiceImpl implements IProductService {
 		if (descripcion == null || descripcion.isBlank())
 			throw new BusinessException("Descripcion requerido", ErrorType.VALIDATION);
 
-		if (precio == null || precio.compareTo(BigDecimal.ZERO) < 0)
-			throw new BusinessException("Precio inválido", ErrorType.VALIDATION);
+		// El null es ausencia de dato (contrato "El precio es obligatorio",
+		// mismo mensaje que actualizar); el valor PRESENTE pasa por la regla
+		// compartida de validarPrecio.
+		if (precio == null)
+			throw new BusinessException("El precio es obligatorio", ErrorType.VALIDATION);
+
+		validarPrecio(precio);
 
 		if (cost == null || cost.compareTo(BigDecimal.ZERO) < 0)
 			throw new BusinessException("Costo inválido", ErrorType.VALIDATION);
