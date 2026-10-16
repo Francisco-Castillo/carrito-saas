@@ -100,18 +100,18 @@ export default function ComboModal({ combo, onClose, onSaved }: ComboModalProps)
 
   useEffect(() => {
     // Prefill de items UNA vez que la lista de productos está disponible:
-    // el cruce es por productId (el ComboDTO del backend lo trae por item);
-    // el cruce por nombre queda sólo como fallback para payloads sin id.
+    // el cruce es EXCLUSIVAMENTE por productId, que el backend manda siempre
+    // (ComboItemDTO desde admin-combo-item-product-id). Un item sin id no se
+    // adivina por nombre: con nombres repetidos el pick silencioso puede
+    // caer en el producto equivocado y el operador no se enteraría. La fila
+    // nace vacía y el operador elige.
     if (prefilled || products.length === 0 || !combo?.items?.length) return;
-    const byName = new Map(products.map((p) => [p.name, p.id]));
     const seeded: PickerRow[] = [];
     for (const item of combo.items) {
-      // productId es el id real del producto: va directo. El cruce por nombre
-      // queda sólo para payloads que todavía no traen el id.
-      const resolved = item.productId ?? byName.get(item.productName);
-      if (resolved != null) {
-        seeded.push({ productId: String(resolved), quantity: String(item.quantity ?? 1) });
-      }
+      seeded.push({
+        productId: item.productId != null ? String(item.productId) : "",
+        quantity: String(item.quantity ?? 1),
+      });
     }
     setRows(seeded);
     setPrefilled(true);

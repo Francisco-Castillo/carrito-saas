@@ -91,6 +91,18 @@ const COMBOS = [
     categoryId: 3628,
     items: [{ productId: 3, productName: 'Ensalada César', quantity: 1 }],
   },
+  {
+    // Payload sin productId: el contrato del backend (ComboItemDTO desde el
+    // PR #52) siempre lo trae, así que este caso sólo puede venir de un
+    // payload viejo o corrupto. El prefill no puede adivinar por nombre:
+    // la fila nace vacía y el operador elige, en lugar de un pick silencioso
+    // que puede caer en el producto equivocado cuando el nombre se repite.
+    id: 9,
+    name: 'Combo Sin Id',
+    price: 5000,
+    categoryId: 3628,
+    items: [{ productName: 'Ensalada César', quantity: 2 }],
+  },
 ]
 
 const CATEGORIES = [
@@ -308,6 +320,23 @@ describe('Admin combo edit (modal)', () => {
     expect(productSelect).toHaveValue('3')
     // La cantidad viaja intacta con el item.
     expect(within(dialog).getByLabelText('Cantidad')).toHaveValue(1)
+  })
+
+  it('never pre-fills by product name when an item carries no productId', async () => {
+    stubFetch()
+    const user = userEvent.setup()
+    await openCombosView()
+
+    expect(await screen.findByText('Combo Sin Id')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Editar Combo Sin Id' }))
+    const dialog = await screen.findByRole('dialog')
+
+    // El item viaja sin productId y "Ensalada César" existe dos veces (ids 3
+    // y 4): el cruce por nombre podría elegir cualquiera y el operador no se
+    // enteraría. El prefill deja la fila vacía; el operador elige.
+    expect(within(dialog).getByLabelText('Producto del combo')).toHaveValue('')
+    expect(within(dialog).getByLabelText('Cantidad')).toHaveValue(2)
   })
 })
 
