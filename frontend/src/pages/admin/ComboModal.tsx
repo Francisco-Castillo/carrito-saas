@@ -18,6 +18,9 @@ export interface AdminComboFull {
   name: string;
   price: number;
   categoryId?: number | null;
+  /** Estado on/off del combo: lo mapea IComboMapperImpl desde el backend;
+   * la tabla lo muestra en el switch y el modal no lo consume. */
+  active?: boolean;
   items?: Array<{ productId?: number; productName: string; quantity: number }> | null;
 }
 

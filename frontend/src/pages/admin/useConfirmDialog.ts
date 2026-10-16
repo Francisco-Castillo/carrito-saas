@@ -18,13 +18,18 @@ export function useConfirmDialog() {
 
   useEffect(() => {
     // El dueño se desmonta con una confirmación pendiente: resolver false
-    // y soltar la referencia, para que el flujo que espera la promesa
-    // continúe (como un Cancelar) y nada quede colgado.
-    return () => {
-      resolveRef.current?.(false);
-      resolveRef.current = null;
-    };
+    // y soltar la referencia (misma liberación que un Cancelar), para que
+    // el flujo que espera la promesa continúe y nada quede colgado.
+    return () => releasePending(false);
   }, []);
+
+  /** Libera la promesa pendiente exactamente una vez: resolver y soltar la
+   * referencia es la mitad común de settleConfirm y del cleanup de desmonte
+   * (finding R3-unmount-dup-settle del review del backlog). */
+  function releasePending(ok: boolean) {
+    resolveRef.current?.(ok);
+    resolveRef.current = null;
+  }
 
   function confirmAsync(message: string): Promise<boolean> {
     return new Promise((resolve) => {
@@ -34,8 +39,7 @@ export function useConfirmDialog() {
   }
 
   function settleConfirm(ok: boolean) {
-    resolveRef.current?.(ok);
-    resolveRef.current = null;
+    releasePending(ok);
     setConfirmState(null);
   }
 

@@ -47,7 +47,26 @@ S4. Hallazgos restantes (10) quedan en no-acción con motivo registrada en la
 T1 (S1) fix: limpiar los dos defectos de imports — commit `da3bee7`.
 T2 (S2) fix+test: prefill de combos sólo por productId — commit `86532b4` (RED observado: el pick por nombre elegía el id 4, el último match).
 T3 (S3) fix+test: hook `useConfirmDialog` compartido + tests — commit (ver Log L3).
-T4 (S4) docs: registrar las no-acciones — este documento.
+T4 (S4) docs: registrar las no-acciones — este documento (commit `72aaf42`).
+
+### Segunda pasada (L4, "hacelos ahora")
+
+S5. Segunda pasada sobre las no-acciones, con los textos de los revisores
+    confirmados como irrecuperables: se implementan las 6 mejoras derivables
+    de la ubicación (T5-T7) y el resto queda en no-acción definitiva con su
+    motivo (tabla S4 más el anexo de L4 en el Log).
+
+T5 (S5a) fix: deduplicar la liberación de la promesa en `useConfirmDialog`
+    (`R3-unmount-dup-settle` del review del backlog) y mover `active` a
+    `AdminComboFull` para eliminar el extensor de `CombosTable`
+    (`R3-003` de #44) — frontend.
+T6 (S5b) fix: trim una sola vez en `crearCombo` (`R3-001` de #51) y formatter
+    de `Intl.NumberFormat` elevado a módulo en `format.ts` (`R3-intl-env` de
+    #50) — mixto.
+T7 (S5c) test: cobertura extra en `PublicMenuComboActiveFilterTests` (combo
+    multi-item apagado desaparece de la carta, `R3-cov` de #47) y helpers de
+    seed compartidos en `CategoryDeleteAndComboLifecycleEndpointTests`
+    (`R3-006` de #46) — tests.
 
 ## Tabla de no-acciones (S4)
 

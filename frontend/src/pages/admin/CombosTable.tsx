@@ -23,14 +23,6 @@ function normalize(text: string): string {
 type ComboModalState = { mode: "create" } | { mode: "edit"; combo: AdminComboFull };
 
 /**
- * Fila de la tabla: el ComboDTO del backend lleva `active` desde
- * admin-delete-and-toggle (mapeado por IComboMapperImpl), campo que el modal
- * no consume. El tipo extensor vive acá porque ComboModal.tsx no es superficie
- * de edición de esta unidad.
- */
-type AdminComboRow = AdminComboFull & { active?: boolean };
-
-/**
  * Lista de combos del panel admin contra los endpoints owner: GET /api/combos
  * (scoped por el negocio del JWT, con items), POST /api/combos para crear,
  * PUT /api/combos/{id} para editar, PUT /api/combos/{id}/activar para el
@@ -46,7 +38,7 @@ type AdminComboRow = AdminComboFull & { active?: boolean };
  * responde 400, el modal queda abierto con su mensaje en español.
  */
 export default function CombosTable() {
-  const [combos, setCombos] = useState<AdminComboRow[] | null>(null);
+  const [combos, setCombos] = useState<AdminComboFull[] | null>(null);
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState<ComboModalState | null>(null);
   /** Confirmación de delete: hook compartido por las tres tablas (la promesa
@@ -69,7 +61,7 @@ export default function CombosTable() {
     void loadCombos();
   }, []);
 
-  async function toggleCombo(c: AdminComboRow) {
+  async function toggleCombo(c: AdminComboFull) {
     const activar = !c.active;
 
     try {
@@ -96,7 +88,7 @@ export default function CombosTable() {
     }
   }
 
-  async function deleteCombo(c: AdminComboRow) {
+  async function deleteCombo(c: AdminComboFull) {
     const ok = await confirmAsync(`¿Seguro que deseas eliminar el combo "${c.name}"?`);
     if (!ok) return;
 
