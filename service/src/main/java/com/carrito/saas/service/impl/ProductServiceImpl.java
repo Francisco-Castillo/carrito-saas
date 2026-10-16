@@ -154,7 +154,8 @@ public class ProductServiceImpl implements IProductService {
 	@Transactional
 	public ProductDTO crearProducto(ProductCreateDTO dto) {
 
-		validarProducto(dto.getName(), dto.getDescription(), dto.getPrice(), dto.getCost(), dto.getCategoryId());
+		validarProducto(dto.getName(), dto.getDescription(), dto.getPrice(), dto.getCost(), dto.getStock(),
+				dto.getCategoryId());
 
 		// El tenant ancla en el JWT: crear dentro de una categoría ajena al
 		// negocio resuelve como 404, nunca como un éxito silencioso.
@@ -276,6 +277,8 @@ public class ProductServiceImpl implements IProductService {
 		// un producto nunca es gratuito, igual que un combo.
 		validarPrecio(dto.getPrice());
 
+		validarStock(dto.getStock());
+
 		if (dto.getCost() == null)
 			throw new BusinessException("El costo es obligatorio", ErrorType.VALIDATION);
 
@@ -285,6 +288,11 @@ public class ProductServiceImpl implements IProductService {
 		// en las dos rutas.
 		if (dto.getCost().signum() < 0)
 			throw new BusinessException("Costo inválido", ErrorType.VALIDATION);
+	}
+
+	private void validarStock(Integer stock) {
+		if (stock != null && stock < 0)
+			throw new BusinessException("Stock inválido", ErrorType.VALIDATION);
 	}
 
 	/**
@@ -302,7 +310,7 @@ public class ProductServiceImpl implements IProductService {
 	}
 
 	private void validarProducto(String nombre, String descripcion, BigDecimal precio, BigDecimal cost,
-			Long categoriaId) {
+			Integer stock, Long categoriaId) {
 		if (nombre == null || nombre.isBlank())
 			throw new BusinessException("El nombre es obligatorio", ErrorType.VALIDATION);
 
@@ -319,6 +327,8 @@ public class ProductServiceImpl implements IProductService {
 
 		if (cost == null || cost.compareTo(BigDecimal.ZERO) < 0)
 			throw new BusinessException("Costo inválido", ErrorType.VALIDATION);
+
+		validarStock(stock);
 
 		if (categoriaId == null)
 			throw new BusinessException("Categoria requerida", ErrorType.VALIDATION);
