@@ -2,12 +2,14 @@
  * Login redirect chain, ported from api/src/test/js/page-guard.test.mjs
  * (which executed the real legacy login/login.js in a vm sandbox).
  *
- * After login, every role must land on its own page with the restaurant slug
- * (taken from the login response, as in the legacy login.js):
+ * After login, every role must land on its own clean SPA path. Since the
+ * panel URLs stopped leaking the static file names (clean URLs task), the
+ * redirect carries no file suffix and no ?restaurant= query: the panels
+ * resolve the slug from the session, not the URL.
  *
- *   OWNER   -> /dashboard/index.html?restaurant=<slug>
- *   KITCHEN -> /kds/index.html?restaurant=<slug>
- *   ADMIN   -> /admin/admin.html?restaurant=<slug>
+ *   OWNER   -> /dashboard
+ *   KITCHEN -> /kds
+ *   ADMIN   -> /admin
  */
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -56,25 +58,27 @@ async function submitLogin(role: string, restaurantSlug = RESTAURANT_SLUG) {
 }
 
 describe('login redirect chain (ported from api/src/test/js/page-guard.test.mjs)', () => {
-  it('OWNER lands on /dashboard/index.html?restaurant=demo-pizzeria', async () => {
+  it('OWNER lands on /dashboard', async () => {
     const { location } = await submitLogin('OWNER')
-    await waitFor(() => expect(location.href).toBe(`/dashboard/index.html?restaurant=${RESTAURANT_SLUG}`))
+    await waitFor(() => expect(location.href).toBe('/dashboard'))
   })
 
-  it('KITCHEN lands on /kds/index.html?restaurant=demo-pizzeria', async () => {
+  it('KITCHEN lands on /kds', async () => {
     const { location } = await submitLogin('KITCHEN')
-    await waitFor(() => expect(location.href).toBe(`/kds/index.html?restaurant=${RESTAURANT_SLUG}`))
+    await waitFor(() => expect(location.href).toBe('/kds'))
   })
 
-  it('ADMIN lands on /admin/admin.html?restaurant=demo-pizzeria', async () => {
+  it('ADMIN lands on /admin', async () => {
     const { location } = await submitLogin('ADMIN')
-    await waitFor(() => expect(location.href).toBe(`/admin/admin.html?restaurant=${RESTAURANT_SLUG}`))
+    await waitFor(() => expect(location.href).toBe('/admin'))
   })
 
-  it('the restaurant slug from the login response is preserved verbatim in the redirect', async () => {
-    // The legacy login.js uses data.restaurantSlug as-is (no re-encoding), and
-    // the React port must keep doing exactly that.
+  it('the restaurant slug from the login response is stored verbatim in the session', async () => {
+    // The old contract pinned the slug verbatim in the redirect URL; the URL
+    // no longer carries it. The session now does, so the "verbatim" rule
+    // (no re-encoding, no trimming) moves there.
     const { location } = await submitLogin('OWNER', 'demo pizzeria norte')
-    await waitFor(() => expect(location.href).toBe('/dashboard/index.html?restaurant=demo pizzeria norte'))
+    await waitFor(() => expect(location.href).toBe('/dashboard'))
+    expect(localStorage.getItem('restaurantSlug')).toBe('demo pizzeria norte')
   })
 })

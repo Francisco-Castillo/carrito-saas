@@ -137,5 +137,5 @@ export async function cancelOrder(
 export function logoutKds(): void {
   localStorage.removeItem("token");
   localStorage.removeItem("restaurantSlug");
-  window.location.href = "/login/login.html";
+  window.location.href = "/login";
 }

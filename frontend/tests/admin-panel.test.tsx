@@ -6,7 +6,7 @@
  *      session slug) and must keep every other same-origin key intact — in
  *      particular `savedUser`, the remember-me username stored by the login
  *      screen. The redirect is a bare
- *      /login/login.html: since Phase 2 (organic login) the slug lives in the
+ *      /login: since Phase 2 (organic login) the slug lives in the
  *      session and the redirect no longer carries ?restaurant=, even when the
  *      URL still has one.
  *
@@ -142,7 +142,7 @@ describe('View title: Spanish label instead of the internal key', () => {
 })
 
 describe('Admin logout (session-only clear, bare login redirect)', () => {
-  it('with a restaurant slug still in the URL: clears exactly the session keys, keeps savedUser and the rest, and lands on the bare /login/login.html', async () => {
+  it('with a restaurant slug still in the URL: clears exactly the session keys, keeps savedUser and the rest, and lands on the bare /login', async () => {
     // Phase 2: the URL slug is ignored — the redirect must not carry ?restaurant=.
     const user = userEvent.setup()
     const location = renderAdmin('?restaurant=demo-pizzeria')
@@ -155,10 +155,10 @@ describe('Admin logout (session-only clear, bare login redirect)', () => {
     expect(localStorage.getItem('savedUser')).toBe('demo')
     expect(localStorage.getItem('theme')).toBe('dark')
 
-    expect(location.href).toBe('/login/login.html')
+    expect(location.href).toBe('/login')
   })
 
-  it('without a restaurant slug: same session-only clear and a bare /login/login.html redirect', async () => {
+  it('without a restaurant slug: same session-only clear and a bare /login redirect', async () => {
     const user = userEvent.setup()
     const location = renderAdmin('')
 
@@ -170,7 +170,7 @@ describe('Admin logout (session-only clear, bare login redirect)', () => {
     expect(localStorage.getItem('savedUser')).toBe('demo')
     expect(localStorage.getItem('theme')).toBe('dark')
 
-    expect(location.href).toBe('/login/login.html')
+    expect(location.href).toBe('/login')
   })
 })
 

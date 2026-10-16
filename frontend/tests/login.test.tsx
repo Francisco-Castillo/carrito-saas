@@ -11,8 +11,9 @@
  *   - The page renders NO restaurant chip and fires NO
  *     /api/restaurants/slug/ lookup, with or without a slug in the URL: the
  *     login screen carries no restaurant context on screen.
- *   - The redirect target keeps using data.restaurantSlug from the response
- *     even when the URL had no slug.
+ *   - The redirect lands each role on its clean SPA path (/dashboard, /kds,
+ *     /admin): no static file suffix and no ?restaurant= query, because the
+ *     panels resolve the slug from the session, not the URL.
  *   - Phase 2: a successful login stores the response slug in localStorage
  *     under `restaurantSlug` (next to token, businessId, role, username,
  *     expiresAt) so dashboard/kds/admin resolve it from the session; without
@@ -70,7 +71,7 @@ describe('organic login (login without ?restaurant=)', () => {
   it('login without a slug succeeds and the POST body has no restaurantSlug', async () => {
     const { fetchMock, location } = await submitLogin({ search: '' })
 
-    await waitFor(() => expect(location.href).toBe('/dashboard/index.html?restaurant=demo-pizzeria'))
+    await waitFor(() => expect(location.href).toBe('/dashboard'))
 
     const loginCall = fetchMock.mock.calls.find(([u]) => String(u) === '/api/auth/login')
     expect(loginCall).toBeDefined()
@@ -82,7 +83,7 @@ describe('organic login (login without ?restaurant=)', () => {
   it('login with a slug keeps posting restaurantSlug in the body', async () => {
     const { fetchMock, location } = await submitLogin({ search: '?restaurant=demo-pizzeria' })
 
-    await waitFor(() => expect(location.href).toBe('/dashboard/index.html?restaurant=demo-pizzeria'))
+    await waitFor(() => expect(location.href).toBe('/dashboard'))
 
     const loginCall = fetchMock.mock.calls.find(([u]) => String(u) === '/api/auth/login')
     expect(loginCall).toBeDefined()
@@ -111,7 +112,7 @@ describe('organic login (login without ?restaurant=)', () => {
     cleanup()
   })
 
-  it('the redirect target uses data.restaurantSlug from the response even without a slug in the URL', async () => {
+  it('a KITCHEN login with a response slug and no URL slug lands on /kds', async () => {
     const { location } = await submitLogin({
       search: '',
       loginResponse: {
@@ -124,13 +125,13 @@ describe('organic login (login without ?restaurant=)', () => {
       },
     })
 
-    await waitFor(() => expect(location.href).toBe('/kds/index.html?restaurant=otra-sucursal'))
+    await waitFor(() => expect(location.href).toBe('/kds'))
   })
 
   it('a successful login stores the response slug in localStorage under "restaurantSlug" (Phase 2)', async () => {
     const { location } = await submitLogin({ search: '' })
 
-    await waitFor(() => expect(location.href).toBe('/dashboard/index.html?restaurant=demo-pizzeria'))
+    await waitFor(() => expect(location.href).toBe('/dashboard'))
 
     expect(localStorage.getItem('restaurantSlug')).toBe('demo-pizzeria')
   })
@@ -147,7 +148,7 @@ describe('organic login (login without ?restaurant=)', () => {
       },
     })
 
-    await waitFor(() => expect(location.href).toBe('/dashboard/index.html?restaurant=de-la-url'))
+    await waitFor(() => expect(location.href).toBe('/dashboard'))
 
     expect(localStorage.getItem('restaurantSlug')).toBe('de-la-url')
   })
@@ -166,7 +167,7 @@ describe('organic login (login without ?restaurant=)', () => {
       },
     })
 
-    await waitFor(() => expect(location.href).toBe('/kds/index.html'))
+    await waitFor(() => expect(location.href).toBe('/kds'))
 
     expect(localStorage.getItem('restaurantSlug')).toBeNull()
   })
