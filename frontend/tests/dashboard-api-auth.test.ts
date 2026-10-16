@@ -23,6 +23,12 @@
  * back to the bare login page (/login/login.html, no ?restaurant=) through
  * the existing enforceSession() path, where the organic login writes the
  * slug on the next authentication.
+ *
+ * Missing-slug at REQUEST time: resolving the slug per request (instead of a
+ * module-level constant) keeps the base honest — without a readable slug the
+ * call fails with a clear message and never requests
+ * `/api/restaurants/null/...`, which would look like a real URL to the caller
+ * and to the network tab.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -73,6 +79,21 @@ describe('dashboard api auth header', () => {
     await api.getDashboardToday()
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`/api/restaurants/${SLUG}/dashboard/today`)
+  })
+})
+
+describe('missing session slug at request time', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    localStorage.removeItem('restaurantSlug')
+  })
+
+  it('a dashboard request without a session slug fails with a clear error instead of requesting /api/restaurants/null', async () => {
+    const fetchMock = stubRecordingFetch()
+    const { api } = await import('../src/pages/dashboard/api')
+
+    await expect(api.getDashboardToday()).rejects.toThrow('Restaurant slug missing in session')
+    expect(fetchMock, 'no request may be sent without a restaurant slug').not.toHaveBeenCalled()
   })
 })
 
