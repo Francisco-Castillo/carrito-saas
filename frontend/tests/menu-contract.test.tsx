@@ -192,8 +192,10 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
     // The cart line shows the product, its quantity and the line total.
     expect(within(cart).getByText('Milanesa')).toBeInTheDocument()
     expect(within(cart).getByLabelText('Cantidad de Milanesa')).toHaveTextContent('1')
-    expect(within(cart).getByText('$100')).toBeInTheDocument()
-    expect(within(cart).getByText('Total: $100')).toBeInTheDocument()
+    // Los precios de la carta se muestran en el formato de plata de la app
+    // ("$ 100,00"), el mismo que el dueño ve en su panel. El monto no cambia.
+    expect(within(cart).getByText('$ 100,00')).toBeInTheDocument()
+    expect(within(cart).getByText('Total: $ 100,00')).toBeInTheDocument()
 
     await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Test')
     // The customer's phone is now part of the pinned contract: it must reach

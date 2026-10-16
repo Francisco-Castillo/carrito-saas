@@ -1,5 +1,6 @@
 import type { DashboardToday } from "./api";
-import { formatARS, formatPrepTime } from "./format";
+import { formatARS } from "../../format";
+import { formatPrepTime } from "./format";
 
 interface KpiCardsProps {
   /** null = sin datos aún: la card muestra los valores iniciales del legacy (0 / $0 / 0m). */
