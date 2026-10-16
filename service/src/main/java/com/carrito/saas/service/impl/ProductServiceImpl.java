@@ -278,6 +278,13 @@ public class ProductServiceImpl implements IProductService {
 
 		if (dto.getCost() == null)
 			throw new BusinessException("El costo es obligatorio", ErrorType.VALIDATION);
+
+		// El costo PRESENTE pasa por la regla compartida con crear (ver
+		// validarProducto): cost no es price, así que 0 es legítimo (producto
+		// sin costo registrado); solo el NEGATIVO es 400, con el mismo mensaje
+		// en las dos rutas.
+		if (dto.getCost().signum() < 0)
+			throw new BusinessException("Costo inválido", ErrorType.VALIDATION);
 	}
 
 	/**
