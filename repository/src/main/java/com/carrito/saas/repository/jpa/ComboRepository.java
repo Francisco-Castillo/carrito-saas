@@ -61,6 +61,23 @@ public interface ComboRepository extends JpaRepository<Combo, Long> {
 	Optional<Combo> findByIdAndBusinessId(@Param("id") Long id, @Param("businessId") Long businessId);
 
 	/**
+	 * Finder de duplicados acotado al negocio (el nombre vive en el combo, el
+	 * negocio en su categoría): misma forma que
+	 * {@code CategoryRepository.existsByNameIgnoreCaseAndBusiness}. La ruta
+	 * de creación lo usa para rechazar un nombre repetido dentro del MISMO
+	 * negocio con 409; el mismo nombre en otro negocio es otro tenant y debe
+	 * seguir creándose.
+	 */
+	@Query("""
+			    SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END
+			    FROM Combo c
+			    WHERE LOWER(TRIM(c.name)) = LOWER(TRIM(:name))
+			    AND c.category.business.id = :businessId
+			""")
+	boolean existsByNameIgnoreCaseAndBusiness(@Param("name") String name,
+			@Param("businessId") Long businessId);
+
+	/**
 	 * Esta consulta trae los comboProducts (items) y por cada item sus Productos, todo en una sola consulta.
 	 * @param ids
 	 * @param businessId

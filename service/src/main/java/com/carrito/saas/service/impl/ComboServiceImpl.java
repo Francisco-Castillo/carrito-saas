@@ -53,6 +53,11 @@ public class ComboServiceImpl implements IComboService {
 
 		Long businessId = securityService.getCurrentBusinessId();
 
+		// Misma validación de forma que actualizar (una sola copia, ver
+		// validarForma): nombre obligatorio y precio no negativo son 400
+		// ANTES de cualquier lookup o mutación.
+		validarForma(combo);
+
 		if (combo.getCategoryId() == null)
 			throw new BusinessException("La categoría es obligatoria", ErrorType.VALIDATION);
 
@@ -65,8 +70,16 @@ public class ComboServiceImpl implements IComboService {
 				.orElseThrow(() -> new BusinessException(
 						"Categoria no encontrada: " + combo.getCategoryId(), ErrorType.NOT_FOUND));
 
+		// Duplicado dentro del MISMO negocio: finder acotado al tenant, misma
+		// forma que CategoryServiceImpl.crearCategoria. El mismo nombre en
+		// otro negocio es otro tenant y se permite.
+		if (comboRepository.existsByNameIgnoreCaseAndBusiness(combo.getName().trim(), businessId)) {
+			throw new BusinessException(
+					"Ya existe un combo con ese nombre para este negocio", ErrorType.CONFLICT);
+		}
+
 		Combo nuevoCombo = new Combo();
-		nuevoCombo.setName(combo.getName());
+		nuevoCombo.setName(combo.getName().trim());
 		nuevoCombo.setPrice(combo.getPrice());
 		nuevoCombo.setCategory(category);
 		nuevoCombo.setActive(true);
@@ -88,6 +101,20 @@ public class ComboServiceImpl implements IComboService {
 		comboSaved.setItems(productos);
 
 		return iComboMapper.toDTO(comboSaved);
+	}
+
+	/**
+	 * Validación de forma compartida por crear y actualizar (una sola copia):
+	 * nombre obligatorio (trim después) y precio no negativo, con los mismos
+	 * mensajes y el mismo 400 que actualizar ya aplicaba. El precio 0 se
+	 * acepta: un combo gratuito es una decisión de producto, no de validación.
+	 */
+	private void validarForma(ComboCreateDTO combo) {
+		if (combo.getName() == null || combo.getName().isBlank())
+			throw new BusinessException("El nombre del combo es obligatorio", ErrorType.VALIDATION);
+
+		if (combo.getPrice() == null || combo.getPrice().signum() < 0)
+			throw new BusinessException("El precio del combo no puede ser negativo", ErrorType.VALIDATION);
 	}
 
 	/**
@@ -126,12 +153,9 @@ public class ComboServiceImpl implements IComboService {
 
 		// Validación de forma ANTES de cualquier lookup o mutación: un payload
 		// rechazado no puede aplicar ni parcialmente (y un NPE o una violación
-		// de constraint serían 500, no 400).
-		if (combo.getName() == null || combo.getName().isBlank())
-			throw new BusinessException("El nombre del combo es obligatorio", ErrorType.VALIDATION);
-
-		if (combo.getPrice() == null || combo.getPrice().signum() < 0)
-			throw new BusinessException("El precio del combo no puede ser negativo", ErrorType.VALIDATION);
+		// de constraint serían 500, no 400). Misma copia que la creación — ver
+		// validarForma.
+		validarForma(combo);
 
 		if (combo.getCategoryId() == null)
 			throw new BusinessException("La categoría es obligatoria", ErrorType.VALIDATION);
