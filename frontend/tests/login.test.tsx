@@ -80,7 +80,7 @@ describe('organic login (login without ?restaurant=)', () => {
     expect('restaurantSlug' in body).toBe(false)
   })
 
-  it('login with a slug keeps posting restaurantSlug in the body', async () => {
+  it('a URL slug is ignored: the POST body carries no restaurantSlug either way', async () => {
     const { fetchMock, location } = await submitLogin({ search: '?restaurant=demo-pizzeria' })
 
     await waitFor(() => expect(location.href).toBe('/dashboard'))
@@ -88,7 +88,8 @@ describe('organic login (login without ?restaurant=)', () => {
     const loginCall = fetchMock.mock.calls.find(([u]) => String(u) === '/api/auth/login')
     expect(loginCall).toBeDefined()
     const body = JSON.parse(String(loginCall![1]?.body))
-    expect(body.restaurantSlug).toBe('demo-pizzeria')
+    expect(body).toEqual({ username: 'demo', password: 'secret' })
+    expect('restaurantSlug' in body).toBe(false)
   })
 
   it('the submit button is enabled without a slug', () => {
@@ -136,7 +137,9 @@ describe('organic login (login without ?restaurant=)', () => {
     expect(localStorage.getItem('restaurantSlug')).toBe('demo-pizzeria')
   })
 
-  it('a login with a URL slug but no slug in the response stores the URL slug in "restaurantSlug" (Phase 2)', async () => {
+  it('a URL slug without a slug in the response is NOT stored in "restaurantSlug" (Phase 2)', async () => {
+    localStorage.setItem('restaurantSlug', 'local-viejo')
+
     const { location } = await submitLogin({
       search: '?restaurant=de-la-url',
       loginResponse: {
@@ -150,10 +153,10 @@ describe('organic login (login without ?restaurant=)', () => {
 
     await waitFor(() => expect(location.href).toBe('/dashboard'))
 
-    expect(localStorage.getItem('restaurantSlug')).toBe('de-la-url')
+    expect(localStorage.getItem('restaurantSlug')).toBeNull()
   })
 
-  it('without a response slug and without a URL slug no stale "restaurantSlug" is kept (Phase 2)', async () => {
+  it('without a response slug no stale "restaurantSlug" is kept (Phase 2)', async () => {
     localStorage.setItem('restaurantSlug', 'local-viejo')
 
     const { location } = await submitLogin({

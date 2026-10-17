@@ -1,13 +1,10 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import "./Login.css";
 
-// Clean SPA paths: the panels resolve the slug from the session and the
-// admin's endpoints are JWT-scoped, so the redirect carries neither the
-// legacy file suffix nor a ?restaurant= query.
 function redirectPathForRole(role: string): string | null {
-  if (role.includes("OWNER")) return "/dashboard";
-  if (role.includes("KITCHEN")) return "/kds";
-  if (role.includes("ADMIN")) return "/admin";
+  if (role.includes("OWNER")) return `/dashboard`;
+  if (role.includes("KITCHEN")) return `/kds`;
+  if (role.includes("ADMIN")) return `/admin`;
   return null;
 }
 
@@ -57,10 +54,8 @@ function LockIcon() {
 }
 
 export default function Login() {
-  const slug = useMemo(
-    () => new URLSearchParams(window.location.search).get("restaurant"),
-    []
-  );
+  // El slug NO se lee de la URL (fase 3): viaja sólo en la sesión, escrito
+  // desde la respuesta del login. La página no lleva contexto de restaurante.
 
   const [username, setUsername] = useState<string>(() => localStorage.getItem("savedUser") ?? "");
   const [password, setPassword] = useState("");
@@ -87,9 +82,8 @@ export default function Login() {
       username: username.trim(),
       password: password.trim(),
     };
-    // Organic login: only include the restaurant slug when the URL provided
-    // one; otherwise the backend resolves the business from membership.
-    if (slug) body.restaurantSlug = slug;
+    // Login siempre orgánico: el backend resuelve el negocio por membresía.
+    // El slug nunca entra por la URL ni por el body.
 
     try {
       setLoading(true);
@@ -119,13 +113,11 @@ export default function Login() {
       localStorage.setItem("username", data.username);
       localStorage.setItem("expiresAt", data.expiresAt);
 
-      // Fase 2 (login orgánico): el slug de la respuesta (o, en su defecto, el
-      // de la URL) queda en la sesión para que dashboard/kds/admin lo
-      // resuelvan sin depender de ?restaurant= en la URL. Sin slug en la
-      // respuesta ni en la URL se descarta cualquier valor viejo.
-      const sessionSlug = data.restaurantSlug ?? slug;
-      if (sessionSlug) {
-        localStorage.setItem("restaurantSlug", sessionSlug);
+      // Fase 2/3: el slug de la respuesta queda en la sesión para que
+      // dashboard/kds/admin lo resuelvan — la URL nunca lleva el slug. Sin
+      // slug en la respuesta se descarta cualquier valor viejo.
+      if (data.restaurantSlug) {
+        localStorage.setItem("restaurantSlug", data.restaurantSlug);
       } else {
         localStorage.removeItem("restaurantSlug");
       }
