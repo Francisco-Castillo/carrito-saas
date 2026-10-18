@@ -29,6 +29,9 @@ public class BusinessDTO {
 
     private String instagramUrl;
 
+    /** Brand color del local como hex {@code #RRGGBB}, o null si no cargó uno. */
+    private String primaryColor;
+
     private List<BusinessHoursDTO> hours;
 
     /** Fechas especiales (feriados y horarios especiales), ordenadas por fecha;

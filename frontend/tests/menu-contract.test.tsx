@@ -18,7 +18,7 @@ import Menu from '../src/pages/Menu'
 const SLUG = 'ok-local'
 const RESTAURANT = { name: 'Local OK', whatsappNumber: '' }
 const MENU_PAYLOAD = {
-  business: { name: 'Local Sin Slug', whatsappNumber: '541155500011', logoUrl: null },
+  business: { name: 'Local Sin Slug', whatsappNumber: '541155500011', logoUrl: null, primaryColor: '#7C3AED' },
   products: [
     {
       id: 101,
@@ -156,6 +156,9 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     // The product from the slugless menu payload renders.
     await screen.findByText('Milanesa')
+    // The storefront color from the menu payload themes the page: the CSS
+    // variable the stylesheet reads must be set from business.primaryColor.
+    expect(document.documentElement.style.getPropertyValue('--primary-color')).toBe('#7C3AED')
   })
 
   it('no ?restaurant= (single business): order goes to POST /api/orders/menu with no slug', async () => {

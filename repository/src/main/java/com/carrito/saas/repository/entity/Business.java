@@ -137,4 +137,13 @@ public class Business {
     @Column(length = 500)
     private String instagramUrl;
 
+    /**
+     * Brand color of the business as a {@code #RRGGBB} hex string, or NULL
+     * when the owner has not set one (the menu falls back to its default
+     * palette). Validated by {@code BusinessProfileServiceImpl}; the public
+     * menu carries it as {@code business.primaryColor}.
+     */
+    @Column(length = 7)
+    private String primaryColor;
+
 }

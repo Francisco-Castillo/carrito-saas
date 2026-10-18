@@ -246,6 +246,7 @@ describe('Admin "Local" view — business profile editor', () => {
       bannerUrl: '/dev-media/banner-local.jpg',
       address: 'Av. Siempreviva 742, Springfield',
       instagramUrl: 'https://instagram.com/foodtruckdemo',
+      primaryColor: null,
       dateExceptions: [
         { date: '2026-12-24', yearly: false, shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
         { date: '2026-12-25', yearly: false, shifts: [] },

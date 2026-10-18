@@ -31,6 +31,10 @@ public class BusinessProfileDTO {
 
     private String instagramUrl;
 
+    /** Color de marca del local como hex {@code #RRGGBB}. null = no tocar
+     *  (actualización parcial); vacío limpia; inválido es 400. */
+    private String primaryColor;
+
     private List<BusinessHoursDTO> hours;
 
     /** Fechas especiales, ordenadas por fecha; vacío cuando no hay ninguna. */

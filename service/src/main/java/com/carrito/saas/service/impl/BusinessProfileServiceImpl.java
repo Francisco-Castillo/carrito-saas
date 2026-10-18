@@ -89,6 +89,8 @@ import com.carrito.saas.service.interfaces.IBusinessProfileService;
 public class BusinessProfileServiceImpl implements IBusinessProfileService {
 
 	private static final int MAX_URL_LENGTH = 500;
+	/** Color de marca: exactamente #RRGGBB (6 dígitos hexadecimales). */
+	private static final java.util.regex.Pattern HEX_COLOR = java.util.regex.Pattern.compile("^#[0-9a-fA-F]{6}$");
 	private static final int MAX_ADDRESS_LENGTH = 300;
 	/** Máximo de turnos por día: holgado para cualquier local real. */
 	private static final int MAX_SHIFTS_PER_DAY = 4;
@@ -122,6 +124,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		dto.setBannerUrl(business.getBannerUrl());
 		dto.setAddress(business.getAddress());
 		dto.setInstagramUrl(business.getInstagramUrl());
+		dto.setPrimaryColor(business.getPrimaryColor());
 		dto.setHours(toHoursDTOs(business.getId()));
 		dto.setDateExceptions(toDateExceptionDTOs(business.getId()));
 
@@ -143,6 +146,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		validateUrl("bannerUrl", dto.getBannerUrl(), MAX_URL_LENGTH);
 		validateUrl("instagramUrl", dto.getInstagramUrl(), MAX_URL_LENGTH);
 		validateAddress(dto.getAddress());
+		validatePrimaryColor(dto.getPrimaryColor());
 
 		// Horas efectivas, resueltas UNA sola vez: las del payload cuando
 		// viaja, las almacenadas cuando no. La validación de derrame de las
@@ -181,6 +185,11 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		}
 		if (dto.getInstagramUrl() != null) {
 			business.setInstagramUrl(normalize(dto.getInstagramUrl()));
+		}
+		if (dto.getPrimaryColor() != null) {
+			// Mismo contrato parcial que los demás textos: ausente conserva lo
+			// guardado, vacío limpia (null en la base), presente ya vino validado.
+			business.setPrimaryColor(normalize(dto.getPrimaryColor()));
 		}
 		businessRepository.save(business);
 
@@ -244,6 +253,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		result.setBannerUrl(business.getBannerUrl());
 		result.setAddress(business.getAddress());
 		result.setInstagramUrl(business.getInstagramUrl());
+		result.setPrimaryColor(business.getPrimaryColor());
 		result.setHours(toHoursDTOs(business.getId()));
 		result.setDateExceptions(toDateExceptionDTOs(business.getId()));
 
@@ -264,6 +274,25 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 	 * URL absoluta {@code http(s)://} o ruta relativa que empieza con
 	 * {@code /}; nulo o vacío significa "sin valor" y es válido.
 	 */
+	/**
+	 * El color de marca es opcional: null (ausente) no valida nada — es "no
+	 * tocar" en la actualización parcial; vacío limpia y se acepta; presente
+	 * tiene que ser exactamente {@code #RRGGBB} (6 dígitos hexadecimales),
+	 * cualquier otra cosa es 400 con mensaje en español y NADA se guarda
+	 * (la validación corre antes de cualquier mutación).
+	 */
+	private void validatePrimaryColor(String value) {
+
+		if (value == null || value.isBlank()) {
+			return;
+		}
+
+		if (!HEX_COLOR.matcher(value.trim()).matches()) {
+			throw new BusinessException("El color debe ser un código hexadecimal (#RRGGBB)",
+					ErrorType.VALIDATION);
+		}
+	}
+
 	private void validateUrl(String field, String value, int maxLength) {
 
 		if (value == null || value.isBlank()) {

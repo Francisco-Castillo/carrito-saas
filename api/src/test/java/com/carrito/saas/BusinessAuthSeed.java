@@ -49,9 +49,15 @@ final class BusinessAuthSeed {
 
 		Business business = seedBusiness(businessRepository, businessId, slug);
 
-		Role role = new Role();
-		role.setName("OWNER");
-		role = roleRepository.saveAndFlush(role);
+		// Reuse the role when it already exists (shared dev databases keep the
+		// seeded OWNER row; the unique uq_roles_name would reject a second
+		// insert). A fresh CI database simply takes the insert branch.
+		Role role = roleRepository.findByName("OWNER")
+				.orElseGet(() -> {
+					Role created = new Role();
+					created.setName("OWNER");
+					return roleRepository.saveAndFlush(created);
+				});
 
 		User user = new User();
 		user.setUsername(username);

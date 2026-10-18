@@ -195,13 +195,20 @@ export default function Menu() {
         if (cancelled) return;
 
         // Sin slug, el negocio del deployment suple al endpoint de restaurante:
-        // nombre, logo y WhatsApp llegan en data.business.
+        // nombre, logo, WhatsApp y color de marca llegan en data.business.
         if (!slug && data.business) {
           setRestaurant({
             name: data.business.name,
             logoUrl: data.business.logoUrl ?? undefined,
             whatsappNumber: data.business.whatsappNumber ?? undefined,
+            primaryColor: data.business.primaryColor ?? undefined,
           });
+          if (data.business.primaryColor) {
+            document.documentElement.style.setProperty(
+              "--primary-color",
+              data.business.primaryColor
+            );
+          }
         }
 
         // La portada viaja en el payload del menú; si el local no tiene datos

@@ -55,6 +55,7 @@ export interface BusinessProfile {
   bannerUrl?: string | null;
   address?: string | null;
   instagramUrl?: string | null;
+  primaryColor?: string | null;
   hours?: BusinessHours[] | null;
   dateExceptions?: DateException[] | null;
 }
@@ -175,6 +176,7 @@ export default function LocalSection() {
   const [bannerUrl, setBannerUrl] = useState("");
   const [address, setAddress] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
+  const [primaryColor, setPrimaryColor] = useState("");
   const [days, setDays] = useState<ShiftRow[][]>(emptyDays);
   const [exceptions, setExceptions] = useState<ExceptionRow[]>([]);
   const [newExceptionDate, setNewExceptionDate] = useState("");
@@ -195,6 +197,7 @@ export default function LocalSection() {
         setBannerUrl(data.bannerUrl ?? "");
         setAddress(data.address ?? "");
         setInstagramUrl(data.instagramUrl ?? "");
+        setPrimaryColor(data.primaryColor ?? "");
         const byDay = new Map((data.hours ?? []).map((h) => [h.dayOfWeek, h]));
         setDays(DAYS.map((_, i) => dayFromEntry(byDay.get(i + 1))));
         setExceptions(
@@ -315,6 +318,9 @@ export default function LocalSection() {
           bannerUrl,
           address,
           instagramUrl,
+          // Color de marca: vacío viaja como null para que el backend lo
+          // limpie (el "" del input significa "sin color", no "no tocar").
+          primaryColor: primaryColor === "" ? null : primaryColor,
           // Los siete días SIEMPRE van, cada uno con su lista de turnos
           // (un día cerrado viaja como `[]`): el backend reemplaza todo.
           hours: days.map((shifts, i) => ({
@@ -425,6 +431,18 @@ export default function LocalSection() {
               aria-label="URL de Instagram"
               value={instagramUrl}
               onChange={(e) => setInstagramUrl(e.target.value)}
+            />
+          </div>
+
+          <div className="admin-profile-field">
+            <label htmlFor="profile-primary-color">Color de la carta (#RRGGBB)</label>
+            <input
+              id="profile-primary-color"
+              className="admin-input"
+              aria-label="Color de la carta (#RRGGBB)"
+              placeholder="#7C3AED"
+              value={primaryColor}
+              onChange={(e) => setPrimaryColor(e.target.value)}
             />
           </div>
         </div>
