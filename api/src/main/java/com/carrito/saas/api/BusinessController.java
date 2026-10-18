@@ -1,8 +1,10 @@
 package com.carrito.saas.api;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -11,11 +13,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.carrito.saas.dto.BusinessDTO;
 import com.carrito.saas.dto.BusinessProfileDTO;
 import com.carrito.saas.dto.OrderKitchenDTO;
+import com.carrito.saas.dto.OrderManagementDTO;
 import com.carrito.saas.exception.ErrorResponse;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.jpa.BusinessRepository;
@@ -61,6 +65,18 @@ public class BusinessController {
 	@GetMapping("/orders/active")
 	public List<OrderKitchenDTO> getActiveOrders() {
 		return orderService.getActiveOrders();
+	}
+
+	/**
+	 * Vista de gestión de pedidos del día (mostrador): TODOS los estados,
+	 * incluidos Entregados y Cancelados con motivo — a diferencia del KDS
+	 * ({@code /orders/active}). El negocio sale del JWT, nunca del request;
+	 * {@code date} es opcional (YYYY-MM-DD, default hoy).
+	 */
+	@GetMapping("/orders")
+	public List<OrderManagementDTO> getOrdersByDay(
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+		return orderService.getOrdersByDay(date);
 	}
 
 	@GetMapping("/slug/{slug}")

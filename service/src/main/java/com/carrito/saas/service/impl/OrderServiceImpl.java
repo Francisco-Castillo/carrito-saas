@@ -1,6 +1,7 @@
 package com.carrito.saas.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import com.carrito.saas.dto.OrderDTO;
 import com.carrito.saas.dto.OrderItemDTO;
 import com.carrito.saas.dto.OrderKitchenDTO;
+import com.carrito.saas.dto.OrderManagementDTO;
 import com.carrito.saas.dto.OrderRequestDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
@@ -23,6 +25,7 @@ import com.carrito.saas.repository.entity.ComboProduct;
 import com.carrito.saas.repository.entity.Order;
 import com.carrito.saas.repository.entity.OrderItem;
 import com.carrito.saas.repository.entity.Product;
+import com.carrito.saas.repository.entity.RestaurantTable;
 import com.carrito.saas.repository.enums.OrderStatus;
 import com.carrito.saas.repository.enums.OrderType;
 import com.carrito.saas.repository.jpa.BusinessRepository;
@@ -30,9 +33,11 @@ import com.carrito.saas.repository.jpa.CancellationReasonRepository;
 import com.carrito.saas.repository.jpa.ComboRepository;
 import com.carrito.saas.repository.jpa.OrderRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
+import com.carrito.saas.repository.jpa.TableRepository;
 import com.carrito.saas.security.SecurityService;
 import com.carrito.saas.service.interfaces.IOrderService;
 import com.carrito.saas.service.mapper.interfaces.IOrderKitchenMapper;
+import com.carrito.saas.service.mapper.interfaces.IOrderManagementMapper;
 import com.carrito.saas.service.mapper.interfaces.IOrderMapper;
 
 import org.springframework.transaction.annotation.Transactional;
@@ -46,24 +51,28 @@ public class OrderServiceImpl implements IOrderService {
 	private final ComboRepository comboRepository;
 	private final CancellationReasonRepository cancellationReasonRepository;
 	private final IOrderKitchenMapper iOrderKitchenMapper;
+	private final IOrderManagementMapper iOrderManagementMapper;
 	private final IOrderMapper iOrderMapper;
 	private final SecurityService securityService;
 	private final SingleBusinessResolver singleBusinessResolver;
+	private final TableRepository tableRepository;
 
 	public OrderServiceImpl(OrderRepository orderRepository, BusinessRepository businessRepository,
 			ProductRepository productRepository, ComboRepository comboRepository,
 			CancellationReasonRepository cancellationReasonRepository, IOrderKitchenMapper iOrderKitchenMapper,
-			IOrderMapper iOrderMapper, SecurityService securityService,
-			SingleBusinessResolver singleBusinessResolver) {
+			IOrderManagementMapper iOrderManagementMapper, IOrderMapper iOrderMapper, SecurityService securityService,
+			SingleBusinessResolver singleBusinessResolver, TableRepository tableRepository) {
 		this.orderRepository = orderRepository;
 		this.businessRepository = businessRepository;
 		this.productRepository = productRepository;
 		this.comboRepository = comboRepository;
 		this.cancellationReasonRepository = cancellationReasonRepository;
 		this.iOrderKitchenMapper = iOrderKitchenMapper;
+		this.iOrderManagementMapper = iOrderManagementMapper;
 		this.iOrderMapper = iOrderMapper;
 		this.securityService = securityService;
 		this.singleBusinessResolver = singleBusinessResolver;
+		this.tableRepository = tableRepository;
 	}
 
 	@Override
@@ -113,6 +122,22 @@ public class OrderServiceImpl implements IOrderService {
 		order.setCustomerAddress(request.getCustomerAddress());
 		order.setPaymentMethod(request.getPaymentMethod());
 		order.setNotes(request.getNotes());
+
+		// Mesa: solo SALON la lleva. SALON la exige y valida que pertenezca al
+		// negocio resuelto (un id ajeno NO se resuelve: 404 sin filtrar
+		// existencia). RETIRO/DELIVERY ignoran cualquier tableId del request.
+		if (request.getOrderType() == OrderType.SALON) {
+
+			if (request.getTableId() == null) {
+				throw new BusinessException("Debe indicar una mesa para pedidos en salón", ErrorType.VALIDATION);
+			}
+
+			RestaurantTable table = tableRepository
+					.findByIdAndBusinessId(request.getTableId(), business.getId())
+					.orElseThrow(() -> new BusinessException("Mesa no encontrada", ErrorType.NOT_FOUND));
+
+			order.setRestaurantTable(table);
+		}
 
 		List<OrderItem> items = new ArrayList<>();
 		BigDecimal total = BigDecimal.ZERO;
@@ -322,6 +347,24 @@ public class OrderServiceImpl implements IOrderService {
 		List<Order> orders = orderRepository.findActiveOrders(businessId);
 
 		return iOrderKitchenMapper.toListDTO(orders);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<OrderManagementDTO> getOrdersByDay(LocalDate date) {
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		LocalDate day = date != null ? date : LocalDate.now();
+
+		// Ventana [inicio del día, inicio del día siguiente): cubre el día
+		// completo sin depender de DATE() sobre la columna.
+		LocalDateTime start = day.atStartOfDay();
+		LocalDateTime end = day.plusDays(1).atStartOfDay();
+
+		List<Order> orders = orderRepository.findOrdersByDay(businessId, start, end);
+
+		return iOrderManagementMapper.toListDTO(orders);
 	}
 
 	@Override

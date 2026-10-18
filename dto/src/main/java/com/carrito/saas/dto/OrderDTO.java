@@ -45,4 +45,13 @@ public class OrderDTO {
 
 	private LocalDateTime completedAt;
 
+	/**
+	 * Mesa del pedido (solo SALON). Id siempre; nombre solo cuando la
+	 * referencia a la mesa está cargada (la sesión abierta del createOrder
+	 * la trae; los caminos de lectura livianos exponen solo el id).
+	 */
+	private Long tableId;
+
+	private String tableName;
+
 }

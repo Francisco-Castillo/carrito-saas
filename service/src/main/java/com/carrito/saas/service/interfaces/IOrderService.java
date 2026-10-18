@@ -1,9 +1,11 @@
 package com.carrito.saas.service.interfaces;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import com.carrito.saas.dto.OrderDTO;
 import com.carrito.saas.dto.OrderKitchenDTO;
+import com.carrito.saas.dto.OrderManagementDTO;
 import com.carrito.saas.dto.OrderRequestDTO;
 import com.carrito.saas.repository.enums.OrderStatus;
 
@@ -14,6 +16,19 @@ public interface IOrderService {
 	List<OrderKitchenDTO> getActiveOrders(Long businessId);
 
 	List<OrderKitchenDTO> getActiveOrders();
+
+	/**
+	 * <h2>Pedidos del día para la gestión del mostrador</h2>
+	 *
+	 * <p>Devuelve los pedidos del negocio del JWT en la fecha indicada,
+	 * con TODOS los estados (incluidos DELIVERED y CANCELLED, con su motivo):
+	 * es la vista completa del día que el KDS no da. La fecha es opcional;
+	 * null significa hoy (el mismo "hoy" server-local del dashboard).</p>
+	 *
+	 * @param date fecha a consultar (null = hoy)
+	 * @return pedidos del día con el payload rico de gestión
+	 */
+	List<OrderManagementDTO> getOrdersByDay(LocalDate date);
 
 	OrderDTO updateStatus(Long orderId, OrderStatus status);
 
