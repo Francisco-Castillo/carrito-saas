@@ -38,20 +38,20 @@ function renderCard(order: KdsOrder) {
 describe("KDS order card — customer phone", () => {
   afterEach(cleanup);
 
-  it("renders the phone as a formatted tel: link when the payload has it", () => {
-    // El menú manda los dígitos normalizados (1155551234).
+  // El KDS prioriza la información del pedido (S6 de odd/tasks/orders-console.md):
+  // el teléfono ya no se muestra — el contacto con el cliente vive en la consola
+  // de /pedidos, que abre WhatsApp. La cocina no llama ni chatea.
+
+  it("renders no phone element even when the payload has a phone", () => {
     renderCard(buildOrder({ customerPhone: "1155551234" }));
 
-    const link = screen.getByRole("link", { name: /11 5555-1234/ });
-    // En el href van sólo los dígitos: el dialer de la tablet tiene que marcar.
-    expect(link).toHaveAttribute("href", "tel:1155551234");
+    expect(document.querySelector(".order-phone")).not.toBeInTheDocument();
   });
 
-  it("keeps an unknown-length number readable instead of mangling it", () => {
-    renderCard(buildOrder({ customerPhone: "123456789012" }));
+  it("renders no link at all on the card", () => {
+    renderCard(buildOrder({ customerPhone: "1155551234" }));
 
-    const link = screen.getByRole("link", { name: /123456789012/ });
-    expect(link).toHaveAttribute("href", "tel:123456789012");
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("renders no phone element when the phone is null", () => {
