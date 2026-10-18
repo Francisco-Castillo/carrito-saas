@@ -18,6 +18,7 @@ import Menu from '../src/pages/Menu'
 const SLUG = 'ok-local'
 const RESTAURANT = { name: 'Local OK', whatsappNumber: '' }
 const MENU_PAYLOAD = {
+  business: { name: 'Local Sin Slug', whatsappNumber: '541155500011', logoUrl: null },
   products: [
     {
       id: 101,
@@ -78,6 +79,28 @@ function makeFetch(opts: { menuFailure?: 'http-500' | 'bad-json' | 'network' } =
       }
       return okJson({ products: [], combos: [] })
     }
+    if (u === '/api/menu') {
+      // Slugless mode (single-business deployment): failure injection applies too.
+      if (opts.menuFailure === 'network') {
+        throw new TypeError('Failed to fetch')
+      }
+      if (opts.menuFailure === 'bad-json') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => {
+            throw new SyntaxError("Unexpected token '<' is not valid JSON")
+          },
+        }
+      }
+      if (opts.menuFailure === 'http-500') {
+        return { ok: false, status: 500, json: async () => ({}) }
+      }
+      return okJson(MENU_PAYLOAD)
+    }
+    if (u === '/api/orders/menu') {
+      return okJson({ orderId: 42, status: 'NEW' })
+    }
     if (u.startsWith('/api/orders/menu/')) {
       return okJson({ orderId: 42, status: 'NEW' })
     }
@@ -116,20 +139,57 @@ function expectNoFetch(calls: FetchCall[], fragment: string) {
 }
 
 describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.mjs)', () => {
-  it('missing restaurant parameter: shows a customer-readable message and stops before any fetch', async () => {
+  it('no ?restaurant= (single business): loads /api/menu and the storefront comes from the menu payload', async () => {
     const { calls, fetchMock } = makeFetch()
     setSearch('')
     renderMenu(fetchMock)
 
-    await expectLoadError()
-    // Strongest form of the legacy assertion: the page must fetch NOTHING.
-    expect(calls).toEqual([])
-    // In particular it must never reach /api/menu/undefined or /api/menu/null.
+    await waitFor(() =>
+      expect(calls.some((call) => call.url === '/api/menu')).toBe(true)
+    )
+    // Slugless mode makes exactly ONE fetch: no /api/restaurants/slug/... call,
+    // no slug appended anywhere (never /api/menu/undefined or /api/menu/null).
+    expectNoFetch(calls, '/api/restaurants/')
     expectNoFetch(calls, '/api/menu/undefined')
     expectNoFetch(calls, '/api/menu/null')
-    expectNoFetch(calls, '/api/restaurants/')
-    // The order panel must be hidden so a broken link can never submit an order.
+    // The happy path must not show the error message.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    // The product from the slugless menu payload renders.
+    await screen.findByText('Milanesa')
+  })
+
+  it('no ?restaurant= (single business): order goes to POST /api/orders/menu with no slug', async () => {
+    const user = userEvent.setup()
+    const { calls, fetchMock } = makeFetch()
+    setSearch('')
+    renderMenu(fetchMock)
+
+    await screen.findByText('Milanesa')
+    await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+    await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
+    await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Sin Slug')
+    await user.type(screen.getByPlaceholderText('Celular (ej. 11 5555 1234)'), '11 5555 1234')
+    await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
+
+    await waitFor(() => {
+      const orderCall = calls.find((call) => call.url.startsWith('/api/orders'))
+      expect(orderCall).toBeDefined()
+      // The slugless deployment submits to the slugless endpoint, exactly.
+      expect(orderCall!.url).toBe('/api/orders/menu')
+      expect(orderCall!.method).toBe('POST')
+      expect(JSON.parse(orderCall!.body!).items).toEqual([{ productId: 101, quantity: 1 }])
+    })
+  })
+
+  it('no ?restaurant= (single business): menu fetch failure still shows a customer-readable message and stops', async () => {
+    const { calls, fetchMock } = makeFetch({ menuFailure: 'http-500' })
+    setSearch('')
+    renderMenu(fetchMock)
+
+    await expectLoadError()
+    // The unhappy path must never reach the order submit.
     expectNoOrderPanel()
+    expectNoFetch(calls, '/api/orders/')
   })
 
   it('restaurant cannot be loaded (404): shows a customer-readable message and stops', async () => {

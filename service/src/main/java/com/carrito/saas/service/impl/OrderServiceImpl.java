@@ -48,11 +48,13 @@ public class OrderServiceImpl implements IOrderService {
 	private final IOrderKitchenMapper iOrderKitchenMapper;
 	private final IOrderMapper iOrderMapper;
 	private final SecurityService securityService;
+	private final SingleBusinessResolver singleBusinessResolver;
 
 	public OrderServiceImpl(OrderRepository orderRepository, BusinessRepository businessRepository,
 			ProductRepository productRepository, ComboRepository comboRepository,
 			CancellationReasonRepository cancellationReasonRepository, IOrderKitchenMapper iOrderKitchenMapper,
-			IOrderMapper iOrderMapper, SecurityService securityService) {
+			IOrderMapper iOrderMapper, SecurityService securityService,
+			SingleBusinessResolver singleBusinessResolver) {
 		this.orderRepository = orderRepository;
 		this.businessRepository = businessRepository;
 		this.productRepository = productRepository;
@@ -61,6 +63,7 @@ public class OrderServiceImpl implements IOrderService {
 		this.iOrderKitchenMapper = iOrderKitchenMapper;
 		this.iOrderMapper = iOrderMapper;
 		this.securityService = securityService;
+		this.singleBusinessResolver = singleBusinessResolver;
 	}
 
 	@Override
@@ -71,10 +74,10 @@ public class OrderServiceImpl implements IOrderService {
 			throw new BusinessException("Pedido inválido", ErrorType.VALIDATION);
 		}
 
-		if (slug == null || slug.isBlank()) {
-			throw new BusinessException("Restaurante es obligatorio", ErrorType.VALIDATION);
-		}
-
+		// Slugless mode (single-business deployment): the public QR URL no longer
+		// carries ?restaurant=<slug>, so a null/blank slug resolves the deployment's
+		// only business (fail-closed when there is not exactly one). A present slug
+		// keeps the legacy path untouched.
 		if (request.getCustomerName() == null || request.getCustomerName().isBlank()) {
 			throw new BusinessException("El nombre del cliente es obligatorio", ErrorType.VALIDATION);
 		}
@@ -96,8 +99,10 @@ public class OrderServiceImpl implements IOrderService {
 			throw new BusinessException("El pedido debe contener al menos un producto", ErrorType.VALIDATION);
 		}
 
-		Business business = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new BusinessException("No se encontró restaurante", ErrorType.NOT_FOUND));
+		Business business = (slug == null || slug.isBlank())
+				? singleBusinessResolver.requireSingle()
+				: businessRepository.findBySlug(slug)
+						.orElseThrow(() -> new BusinessException("No se encontró restaurante", ErrorType.NOT_FOUND));
 
 		Order order = new Order();
 		order.setStatus(OrderStatus.NEW);

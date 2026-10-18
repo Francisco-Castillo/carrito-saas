@@ -39,7 +39,7 @@ import com.google.zxing.qrcode.QRCodeReader;
  *
  * <p>The QR is the owner's print material for the pickup/delivery channel, so
  * it must encode EXACTLY the URL the anonymous public menu expects:
- * {@code <base>/menu/index.html?restaurant=<slug>}. The business identity must
+ * {@code <base>/menu/} (slugless: the single business is resolved server-side). The business identity must
  * come from the JWT (via {@code ISecurityService.getCurrentBusinessId()}); no
  * request parameter may ever select the business, otherwise one owner could
  * fetch or poison another's QR. The returned body must be a real PNG — verified
@@ -142,7 +142,7 @@ class BusinessQrEndpointTests {
 		assertThat(decoded)
 				.as("the QR must encode the authenticated owner's public menu URL, "
 						+ "not any client-supplied business identity")
-				.isEqualTo("http://localhost:9090/menu/index.html?restaurant=" + OWNER_SLUG);
+				.isEqualTo("http://localhost:9090/menu/");
 	}
 
 	@Test

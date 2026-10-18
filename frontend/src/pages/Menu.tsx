@@ -18,10 +18,6 @@ import type {
   StorefrontBusiness,
 } from "./menu/types";
 
-const ERROR_NO_SLUG =
-  "No pudimos abrir la carta: el enlace del QR está incompleto o no es válido. " +
-  "Pedile al local un nuevo QR o hacé tu pedido directamente en el mostrador.";
-
 const ERROR_RESTAURANT =
   "No pudimos cargar la carta de este local. Revisá tu conexión y volvé a escanear el QR; " +
   "si el problema continúa, avisale al local para que te dé un enlace nuevo.";
@@ -148,14 +144,6 @@ export default function Menu() {
   }, []);
 
   useEffect(() => {
-    if (!slug) {
-      // Enlace QR truncado: mensaje legible y fin, sin pedidos rotos.
-      setLoadError(ERROR_NO_SLUG);
-      setCart({});
-      setLoading(false);
-      return;
-    }
-
     let cancelled = false;
 
     async function init() {
@@ -172,33 +160,49 @@ export default function Menu() {
       setLoadError(null);
       setLoading(true);
 
-      try {
-        const res = await fetch(`/api/restaurants/slug/${slug}`);
-        if (!res.ok) {
-          throw new Error("Restaurant request failed with HTTP " + res.status);
-        }
-        const data: Restaurant = await res.json();
-        if (cancelled) return;
-        setRestaurant(data);
+      // Datos del local para la portada y el fallback de WhatsApp. Con slug es
+      // el endpoint legacy; sin slug (deployment de un solo negocio) los datos
+      // del local viajan en el payload del menú y no hace falta una segunda
+      // llamada.
+      if (slug) {
+        try {
+          const res = await fetch(`/api/restaurants/slug/${slug}`);
+          if (!res.ok) {
+            throw new Error("Restaurant request failed with HTTP " + res.status);
+          }
+          const data: Restaurant = await res.json();
+          if (cancelled) return;
+          setRestaurant(data);
 
-        if (data.primaryColor) {
-          document.documentElement.style.setProperty(
-            "--primary-color",
-            data.primaryColor
-          );
+          if (data.primaryColor) {
+            document.documentElement.style.setProperty(
+              "--primary-color",
+              data.primaryColor
+            );
+          }
+        } catch {
+          if (!cancelled) setLoadError(ERROR_RESTAURANT);
+          return;
         }
-      } catch {
-        if (!cancelled) setLoadError(ERROR_RESTAURANT);
-        return;
       }
 
       try {
-        const res = await fetch(`/api/menu/${slug}`);
+        const res = await fetch(slug ? `/api/menu/${slug}` : "/api/menu");
         if (!res.ok) {
           throw new Error("Menu request failed with HTTP " + res.status);
         }
         const data: MenuResponse = await res.json();
         if (cancelled) return;
+
+        // Sin slug, el negocio del deployment suple al endpoint de restaurante:
+        // nombre, logo y WhatsApp llegan en data.business.
+        if (!slug && data.business) {
+          setRestaurant({
+            name: data.business.name,
+            logoUrl: data.business.logoUrl ?? undefined,
+            whatsappNumber: data.business.whatsappNumber ?? undefined,
+          });
+        }
 
         // La portada viaja en el payload del menú; si el local no tiene datos
         // de storefront, `business` queda null y no se renderiza nada nuevo.
@@ -435,7 +439,7 @@ export default function Menu() {
     setSending(true);
 
     try {
-      const response = await fetch(`/api/orders/menu/${slug}`, {
+      const response = await fetch(slug ? `/api/orders/menu/${slug}` : "/api/orders/menu", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

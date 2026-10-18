@@ -43,7 +43,7 @@ import com.google.zxing.qrcode.QRCodeReader;
  *
  * <ul>
  * <li>{@code GET /api/tables/{id}/qr} — the printed PNG must encode the PUBLIC
- * menu URL of the business ({@code <base>/menu/index.html?restaurant=<slug>}),
+ * menu URL of the deployment ({@code <base>/menu/}, slugless single-business contract),
  * never a bare {@code /<qrToken>} path and never an internal backend host.</li>
  * <li>{@code POST /api/tables} — the created {@code TableResponseDTO.qrUrl}
  * must carry that same public URL, because the phone camera is the only client
@@ -133,7 +133,7 @@ class TableQrServiceLinkTests {
 
 		assertThat(decoded)
 				.as("the table QR PNG must encode the suite's public menu URL literal")
-				.isEqualTo("http://localhost:9090/menu/index.html?restaurant=" + SLUG);
+				.isEqualTo("http://localhost:9090/menu/");
 
 		assertThat(decoded)
 				.as("the table QR PNG must never point at the abandoned frontend port 3030")
@@ -161,7 +161,7 @@ class TableQrServiceLinkTests {
 
 		assertThat(qrUrl)
 				.as("the created table's qrUrl must equal the suite's public menu URL literal")
-				.isEqualTo("http://localhost:9090/menu/index.html?restaurant=" + SLUG);
+				.isEqualTo("http://localhost:9090/menu/");
 
 		assertThat(qrUrl)
 				.as("the created table's qrUrl must never point at the abandoned frontend port 3030")

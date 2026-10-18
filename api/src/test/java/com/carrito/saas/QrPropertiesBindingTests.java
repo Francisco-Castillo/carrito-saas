@@ -48,6 +48,6 @@ class QrPropertiesBindingTests {
 	void menuUrlBuilderUsesTheBoundValue() {
 
 		assertThat(menuUrlBuilder.buildMenuUrl("binding-check-slug"))
-				.isEqualTo(NON_DEFAULT_BASE + "/menu/index.html?restaurant=binding-check-slug");
+				.isEqualTo(NON_DEFAULT_BASE + "/menu/");
 	}
 }

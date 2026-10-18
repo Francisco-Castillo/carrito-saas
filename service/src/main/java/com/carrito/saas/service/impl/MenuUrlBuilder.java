@@ -7,11 +7,14 @@ import com.carrito.saas.service.interfaces.IMenuUrlBuilder;
 
 /**
  * The SINGLE place in the codebase that builds a customer menu URL:
- * {@code <base>/menu/index.html?restaurant=<slug>}.
+ * {@code <base>/menu/}.
  *
- * <p>The static menu page reads the business from the query string
- * ({@code app.js#getRestaurantSlug}), and the anonymous security rules permit
- * {@code /menu/**}, so this URL works for anyone scanning the printed QR.</p>
+ * <p>The project no longer carries the business slug in the customer URL: the
+ * deployment hosts exactly one business, so the menu resolves it server-side
+ * ({@code GET /api/menu}, {@code POST /api/orders/menu}) and the anonymous
+ * security rules permit {@code /menu/**}. The {@code slug} argument is kept
+ * for signature compatibility with the QR/table templates but is no longer
+ * encoded into the URL.</p>
  */
 @Service
 public class MenuUrlBuilder implements IMenuUrlBuilder {
@@ -30,6 +33,8 @@ public class MenuUrlBuilder implements IMenuUrlBuilder {
 		// A trailing slash on the configured origin would produce a double one.
 		String normalizedBase = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
 
-		return normalizedBase + "/menu/index.html?restaurant=" + slug;
+		// Slugless contract: the printed QR points at a plain /menu/ and the
+		// single business is resolved by the backend, never by the URL.
+		return normalizedBase + "/menu/";
 	}
 }

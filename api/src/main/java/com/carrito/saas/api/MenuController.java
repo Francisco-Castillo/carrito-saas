@@ -21,8 +21,16 @@ public class MenuController {
 		this.iMenuService = iMenuService;
 	}
 
+	@GetMapping
+	public MenuDTO getMenu() {
+		// Slugless menu (single-business deployment): the public QR URL no longer
+		// carries ?restaurant=<slug>; the service resolves the deployment's only
+		// business and fails closed when there is not exactly one.
+		return iMenuService.getMenu(null);
+	}
+
 	@GetMapping("/{slug}")
-	public MenuDTO getMenu(@PathVariable String slug) {
+	public MenuDTO getMenuBySlug(@PathVariable String slug) {
 		return iMenuService.getMenu(slug);
 	}
 

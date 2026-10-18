@@ -51,7 +51,7 @@ import com.lowagie.text.pdf.parser.PdfTextExtractor;
 /**
  * The URL every per-table QR PDF template hands to the QR encoder (and, when
  * {@code showUrl=true}, prints as text) must be the configured PUBLIC menu URL
- * {@code <base>/menu/index.html?restaurant=<slug>}, never the dead
+ * {@code <base>/menu/} (slugless: the single business is resolved server-side), never the dead
  * {@code http://localhost:3030/<qrToken>} path.
  *
  * <p>The {@code qr.public-menu-url} override points at a host that appears
@@ -75,7 +75,7 @@ class QrPdfTemplateUrlTests {
 
 	private static final String USERNAME = "qr-pdf-url-owner";
 
-	private static final String EXPECTED_URL = "https://qr.example.test/menu/index.html?restaurant=" + SLUG;
+	private static final String EXPECTED_URL = "https://qr.example.test/menu/";
 
 	@Autowired
 	private PdfTemplateFactory pdfTemplateFactory;

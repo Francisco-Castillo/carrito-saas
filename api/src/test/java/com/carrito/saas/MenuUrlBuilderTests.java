@@ -10,11 +10,11 @@ import com.carrito.saas.service.interfaces.IMenuUrlBuilder;
 
 /**
  * Unit contract of the SINGLE place that builds a customer menu URL:
- * {@code <base>/menu/index.html?restaurant=<slug>}.
+ * {@code <base>/menu/}.
  *
- * <p>This URL shape is the contract between the printed QR and the static
- * menu page ({@code app.js} reads {@code ?restaurant=<slug>}); nothing else in
- * the codebase may assemble it.</p>
+ * <p>Slugless contract: the deployment hosts exactly one business, the printed
+ * QR points at a plain /menu/ and the backend resolves the business itself;
+ * nothing else in the codebase may assemble this URL.</p>
  */
 class MenuUrlBuilderTests {
 
@@ -25,7 +25,7 @@ class MenuUrlBuilderTests {
 		IMenuUrlBuilder builder = new MenuUrlBuilder(properties);
 
 		assertThat(builder.buildMenuUrl("my-restaurant"))
-				.isEqualTo("http://localhost:9090/menu/index.html?restaurant=my-restaurant");
+				.isEqualTo("http://localhost:9090/menu/");
 	}
 
 	@Test
@@ -37,7 +37,7 @@ class MenuUrlBuilderTests {
 		IMenuUrlBuilder builder = new MenuUrlBuilder(properties);
 
 		assertThat(builder.buildMenuUrl("my-restaurant"))
-				.isEqualTo("https://carta.midominio.com/menu/index.html?restaurant=my-restaurant");
+				.isEqualTo("https://carta.midominio.com/menu/");
 	}
 
 	@Test
@@ -49,6 +49,6 @@ class MenuUrlBuilderTests {
 		IMenuUrlBuilder builder = new MenuUrlBuilder(properties);
 
 		assertThat(builder.buildMenuUrl("my-restaurant"))
-				.isEqualTo("https://carta.midominio.com/menu/index.html?restaurant=my-restaurant");
+				.isEqualTo("https://carta.midominio.com/menu/");
 	}
 }

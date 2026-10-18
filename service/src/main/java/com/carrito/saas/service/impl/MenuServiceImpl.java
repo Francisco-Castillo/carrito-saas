@@ -52,10 +52,13 @@ public class MenuServiceImpl implements IMenuService {
 	private final IProductMapper iProductMapper;
 	private final IComboMapper iComboMapper;
 
+	private final SingleBusinessResolver singleBusinessResolver;
+
 	public MenuServiceImpl(BusinessRepository businessRepository, BusinessHoursRepository businessHoursRepository,
 			BusinessDateExceptionRepository businessDateExceptionRepository, CategoryRepository categoryRepository,
 			ProductRepository productRepository, ComboRepository comboRepository, IBusinessMapper iBusinessMapper,
-			ICategoryMapper iCategoryMapper, IProductMapper iProductMapper, IComboMapper iComboMapper) {
+			ICategoryMapper iCategoryMapper, IProductMapper iProductMapper, IComboMapper iComboMapper,
+			SingleBusinessResolver singleBusinessResolver) {
 		this.businessRepository = businessRepository;
 		this.businessHoursRepository = businessHoursRepository;
 		this.businessDateExceptionRepository = businessDateExceptionRepository;
@@ -66,12 +69,18 @@ public class MenuServiceImpl implements IMenuService {
 		this.iCategoryMapper = iCategoryMapper;
 		this.iProductMapper = iProductMapper;
 		this.iComboMapper = iComboMapper;
+		this.singleBusinessResolver = singleBusinessResolver;
 	}
 
 	@Override
 	public MenuDTO getMenu(String slug) {
-		Business business = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
+		// Slugless mode (single-business deployment): the public QR URL no longer
+		// carries ?restaurant=<slug>, so a null/blank slug resolves the deployment's
+		// only business. A present slug keeps the legacy path untouched.
+		Business business = (slug == null || slug.isBlank())
+				? singleBusinessResolver.requireSingle()
+				: businessRepository.findBySlug(slug)
+						.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 		List<Category> categories = categoryRepository.findByBusinessId(business.getId());
 
