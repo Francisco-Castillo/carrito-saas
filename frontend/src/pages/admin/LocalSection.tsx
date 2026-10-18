@@ -318,9 +318,10 @@ export default function LocalSection() {
           bannerUrl,
           address,
           instagramUrl,
-          // Color de marca: vacío viaja como null para que el backend lo
-          // limpie (el "" del input significa "sin color", no "no tocar").
-          primaryColor: primaryColor === "" ? null : primaryColor,
+          // Color de marca tal cual: "" limpia (el backend interpreta la
+          // cadena vacía como borrado) y un valor presente reemplaza. Enviar
+          // null significaría "no tocar" y el color viejo seguiría activo.
+          primaryColor,
           // Los siete días SIEMPRE van, cada uno con su lista de turnos
           // (un día cerrado viaja como `[]`): el backend reemplaza todo.
           hours: days.map((shifts, i) => ({
