@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { KDS_TOAST_EVENT, type KdsToastDetail, type KdsToastType } from "./toast";
 
 interface ToastItem extends KdsToastDetail {
@@ -52,15 +52,24 @@ function KdsToast({
 }) {
   const [leaving, setLeaving] = useState(false);
 
+  // Los timers NO dependen de onDone: el Kds re-renderiza cada segundo (el
+  // reloj) y cada render crea un closure onDone nuevo — con [onDone] en las
+  // deps los timers se reseteaban cada tick y el toast quedaba en pantalla
+  // para siempre. El callback vive en un ref y el efecto corre una sola vez.
+  const onDoneRef = useRef(onDone);
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  });
+
   useEffect(() => {
     // toast.js:19-21 — hide a los 3000ms, remove 300ms después (toastOut).
     const hideTimer = window.setTimeout(() => setLeaving(true), 3000);
-    const removeTimer = window.setTimeout(onDone, 3300);
+    const removeTimer = window.setTimeout(() => onDoneRef.current(), 3300);
     return () => {
       window.clearTimeout(hideTimer);
       window.clearTimeout(removeTimer);
     };
-  }, [onDone]);
+  }, []);
 
   return (
     <div className={`toast ${type}${leaving ? " toast-out" : ""}`} role="status">
