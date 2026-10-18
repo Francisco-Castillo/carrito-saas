@@ -38,15 +38,4 @@ public enum OrderStatus {
 			return "";
 		}
 	}
-	
-	public void validateTransition(OrderStatus next){
-
-	    if(!canTransitionTo(next)){
-	        throw new IllegalStateException(
-	            "Transición inválida: " + this + " -> " + next
-	        );
-	    }
-
-	}
-
 }

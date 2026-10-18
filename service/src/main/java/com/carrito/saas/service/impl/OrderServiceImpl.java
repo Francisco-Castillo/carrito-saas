@@ -269,8 +269,15 @@ public class OrderServiceImpl implements IOrderService {
 
 		OrderStatus currentStatus = order.getStatus();
 
-		// Validar transición
-		currentStatus.validateTransition(status);
+		// Validar transición: un salto de estado inválido (board desactualizado,
+		// doble click, llamada directa) es un CONFLICTO de estado — 409 — no un
+		// error del servidor. El enum no lanza: la decisión de negocio es del
+		// servicio.
+		if (!currentStatus.canTransitionTo(status)) {
+			throw new BusinessException(
+					"Transición inválida: " + currentStatus + " -> " + status,
+					ErrorType.CONFLICT);
+		}
 
 		// Actualizar estado
 		order.setStatus(status);
@@ -321,7 +328,11 @@ public class OrderServiceImpl implements IOrderService {
 		Order order = orderRepository.findByIdAndBusinessId(orderId, businessId)
 				.orElseThrow(() -> new BusinessException("Pedido no encontrado", ErrorType.NOT_FOUND));
 
-		order.getStatus().validateTransition(OrderStatus.CANCELLED);
+		if (!order.getStatus().canTransitionTo(OrderStatus.CANCELLED)) {
+			throw new BusinessException(
+					"Transición inválida: " + order.getStatus() + " -> CANCELLED",
+					ErrorType.CONFLICT);
+		}
 
 		// devolver stock si corresponde
 		if (order.getStatus() == OrderStatus.NEW) {
