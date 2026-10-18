@@ -27,6 +27,7 @@ public class SpaRoutingConfig implements WebMvcConfigurer {
 		forward(registry, "/admin", "/admin/admin.html");
 		forward(registry, "/dashboard", "/dashboard/index.html");
 		forward(registry, "/kds", "/kds/index.html");
+		forward(registry, "/pedidos", "/pedidos/index.html");
 		forward(registry, "/login", "/login/login.html");
 		forward(registry, "/menu", "/menu/index.html");
 	}

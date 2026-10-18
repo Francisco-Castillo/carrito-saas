@@ -61,7 +61,7 @@ class SpaRoutingHttpTests {
 
 	@ParameterizedTest
 	@ValueSource(strings = { "/admin", "/admin/", "/dashboard", "/dashboard/", "/kds", "/kds/", "/login", "/login/",
-			"/menu", "/menu/" })
+			"/menu", "/menu/", "/pedidos", "/pedidos/" })
 	void cleanPathsForwardToTheLegacyShell(String path) throws Exception {
 		mockMvc.perform(get(path))
 				.andExpect(status().isOk())
@@ -70,7 +70,7 @@ class SpaRoutingHttpTests {
 
 	@ParameterizedTest
 	@ValueSource(strings = { "/admin/admin.html", "/dashboard/index.html", "/kds/index.html", "/login/login.html",
-			"/menu/index.html" })
+			"/menu/index.html", "/pedidos/index.html" })
 	void legacyPathsServeTheSpaShellAnonymously(String path) throws Exception {
 		mockMvc.perform(get(path))
 				.andExpect(status().isOk())
@@ -85,6 +85,7 @@ class SpaRoutingHttpTests {
 			case "/kds" -> "/kds/index.html";
 			case "/login" -> "/login/login.html";
 			case "/menu" -> "/menu/index.html";
+			case "/pedidos" -> "/pedidos/index.html";
 			default -> throw new IllegalArgumentException("unexpected path: " + cleanPath);
 		};
 	}

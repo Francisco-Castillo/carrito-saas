@@ -79,7 +79,9 @@ public class SecurityConfig {
 	                "/admin/**",
 	                "/admin",
 	                "/dashboard/**",
-	                "/dashboard"
+	                "/dashboard",
+	                "/pedidos/**",
+	                "/pedidos"
 	            ).permitAll()
 
 	            // Shell de la SPA (Vite) y assets publicos que referencia:
