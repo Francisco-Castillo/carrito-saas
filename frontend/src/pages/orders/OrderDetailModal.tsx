@@ -5,6 +5,7 @@ import {
   PAYMENT_LABELS,
   type ManagementOrder,
 } from "./api";
+import { whatsappUrl } from "./wa";
 
 interface OrderDetailModalProps {
   order: ManagementOrder;
@@ -53,7 +54,14 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
             <div>
               <dt>Celular</dt>
               <dd>
-                <a href={`tel:${order.customerPhone}`}>{formatPhone(order.customerPhone)}</a>
+                <a
+                  href={whatsappUrl(order.customerPhone) ?? `tel:${order.customerPhone}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Abrir chat de WhatsApp con el cliente"
+                >
+                  {formatPhone(order.customerPhone)}
+                </a>
               </dd>
             </div>
           )}

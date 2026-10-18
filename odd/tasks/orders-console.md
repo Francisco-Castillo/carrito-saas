@@ -64,6 +64,8 @@ Pantalla de gestión de pedidos (mostrador): visión de todos los estados del d�
 - **L14** — Hallazgo de datos (ambiental, no del código): la DB local driftó — el usuario `demo`/`demo1234` ya no existe (login 403 «El usuario no pertenece a ningún negocio»), el slug `demo-pizzeria` no existe (404), productId 1 no existe. Los datos vigentes vienen de `docs/dev-seed.sql`: negocio `demo-e2e` (id 990000001), productos 990051+, usuarios `e2e-owner`/`e2e-kitchen`/`e2e-admin` con contraseña `admin123`. No hay cliente psql en la instalación local de PG; las consultas de verificación se hicieron con jshell + driver JDBC (`~/.m2/.../postgresql-42.7.10.jar`).
 - **L15** — La vista de gestión no tiene gate de rol en cliente ni en servidor distinto del resto de paneles (igual que Dashboard/KDS: la autorización real es el 403 server-side de la API). Si el producto quiere «solo OWNER ve pedidos», es un slice aparte con authorities.
 
+- **L16** — Agregado posterior (2026-10-18): el teléfono del cliente en la consola de `/pedidos` (tarjeta y detalle) abre chat de WhatsApp en vez de marcar (`wa.me`, pestaña nueva, fallback `tel:` si no hay dígitos). Normalizador puro en `pages/orders/wa.ts` con test RED-first (`orders-wa.test.ts`: 5 casos — 54 ya presente, prefijo 54 local, guiones/formato, cero troncal, sin dígitos). Suite 258/258, tsc limpio. Alcance: solo la consola; el KDS no se tocó.
+
 ## Open gaps and decisions
 
 1. **Constraint `order_type` local (L4)**: migración formal vs eliminación — decisión del equipo.

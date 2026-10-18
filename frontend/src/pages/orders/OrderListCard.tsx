@@ -6,6 +6,7 @@ import {
   type ManagementOrder,
   type OrderStatus,
 } from "./api";
+import { whatsappUrl } from "./wa";
 
 interface OrderListCardProps {
   order: ManagementOrder;
@@ -50,7 +51,13 @@ export default function OrderListCard({
       <p className="orders-card-customer">
         {order.customerName}
         {order.customerPhone && (
-          <a className="orders-card-phone" href={`tel:${order.customerPhone}`}>
+          <a
+            className="orders-card-phone"
+            href={whatsappUrl(order.customerPhone) ?? `tel:${order.customerPhone}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Abrir chat de WhatsApp con el cliente"
+          >
             {" "}
             {formatPhone(order.customerPhone)}
           </a>
