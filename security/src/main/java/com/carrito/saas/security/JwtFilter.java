@@ -19,6 +19,8 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(JwtFilter.class);
+
 	private final JwtUtil jwtUtil;
 	private final UserDetailsService userDetailsService;
 
@@ -87,6 +89,10 @@ public class JwtFilter extends OncePerRequestFilter {
 			}
 
 		} catch (Exception e) {
+			// Un fallo de autenticación silenciado responde 401 sin ningún
+			// rastro de la causa (token inválido, DB caída, datos duplicados):
+			// sin este log se vuelve indebuggable. WARN, no stack completo.
+			log.warn("Fallo autenticando el JWT: {}", e.getMessage());
 			SecurityContextHolder.clearContext();
 		}
 
