@@ -5,6 +5,7 @@ function redirectPathForRole(role: string): string | null {
   if (role.includes("OWNER")) return `/dashboard`;
   if (role.includes("KITCHEN")) return `/kds`;
   if (role.includes("ADMIN")) return `/admin`;
+  if (role.includes("PEDIDOS")) return `/pedidos`;
   return null;
 }
 
