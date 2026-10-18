@@ -489,6 +489,14 @@
   transition: none;
 }
 
+/* Mientras una tarjeta arrastra, su containing block (la columna de vidrio,
+   que por su backdrop-filter es el containing block del position:fixed) deja
+   de recortar: sin esto la tarjeta no puede cruzar hacia otra columna. */
+.column.drag-container-active,
+.column.drag-container-active .column-body {
+  overflow: visible;
+}
+
 .order-card.transition {
   transition: transform 0.3s ease;
 }

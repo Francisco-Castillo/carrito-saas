@@ -11,6 +11,32 @@ const DRAG_THRESHOLD = 80;
 /** kds.js:379 — duración de la presión larga en ms. */
 const LONG_PRESS_MS = 1500;
 
+/**
+ * Containing block real de un elemento position:fixed: el ancestro más
+ * cercano con transform, filter, backdrop-filter, perspective o will-change
+ * de transform/filter lo reubica — sus coordenadas dejan de ser relativas
+ * al viewport. Devuelve null si el containing block es el viewport.
+ */
+function findFixedContainingBlock(el: HTMLElement): HTMLElement | null {
+  let node: HTMLElement | null = el.parentElement;
+  while (node) {
+    const s = window.getComputedStyle(node);
+    const backdrop = s.getPropertyValue("backdrop-filter");
+    if (
+      s.transform !== "none" ||
+      s.perspective !== "none" ||
+      s.filter !== "none" ||
+      (backdrop !== "" && backdrop !== "none") ||
+      s.willChange.includes("transform") ||
+      s.willChange.includes("filter")
+    ) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
 interface OrderCardProps {
   order: KdsOrder;
   now: Date;
@@ -76,6 +102,7 @@ export default function OrderCard({
     if (!card) return;
 
     let dragged = false; // el legacy usaba draggedCard = card; aquí la card ES el nodo
+    let dragContainer: HTMLElement | null = null;
     let startX = 0;
     let startY = 0;
     let currentX = 0;
@@ -93,6 +120,8 @@ export default function OrderCard({
         card!.style.height = "";
         card!.style.left = "";
         card!.style.top = "";
+        dragContainer?.classList.remove("drag-container-active");
+        dragContainer = null;
         dragged = false;
       }, 300);
     }
@@ -106,12 +135,31 @@ export default function OrderCard({
       moved = false;
 
       const rect = card!.getBoundingClientRect();
+
+      // position:fixed NO siempre es viewport-relativo: un ancestro con
+      // backdrop-filter (las columnas de vidrio), transform, filter o
+      // perspective se vuelve su containing block, y las coordenadas de
+      // viewport aterrizan desplazadas — la tarjeta saltaba al agarrarla,
+      // el puntero quedaba fuera y el mouseleave cancelaba el drag solo.
+      // Se calcula el origen real del containing block y se neutraliza el
+      // overflow de ese ancestro mientras dura el gesto.
+      dragContainer = findFixedContainingBlock(card!);
+      let originLeft = 0;
+      let originTop = 0;
+      if (dragContainer) {
+        const cbRect = dragContainer.getBoundingClientRect();
+        const cs = window.getComputedStyle(dragContainer);
+        originLeft = cbRect.left + parseFloat(cs.borderLeftWidth || "0");
+        originTop = cbRect.top + parseFloat(cs.borderTopWidth || "0");
+        dragContainer.classList.add("drag-container-active");
+      }
+
       // kds.js:360-365
       card!.classList.add("dragging", "rotate");
       card!.style.width = rect.width + "px";
       card!.style.height = rect.height + "px";
-      card!.style.left = rect.left + "px";
-      card!.style.top = rect.top + "px";
+      card!.style.left = rect.left - originLeft + "px";
+      card!.style.top = rect.top - originTop + "px";
 
       // kds.js:367-374
       startX = "touches" in e ? e.touches[0].clientX : e.clientX;
