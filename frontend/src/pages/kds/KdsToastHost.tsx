@@ -19,7 +19,10 @@ export default function KdsToastHost() {
   useEffect(() => {
     function onToast(e: Event) {
       const detail = (e as CustomEvent<KdsToastDetail>).detail;
-      setToasts((prev) => [...prev, { id: nextId++, ...detail }]);
+      // Tope de 3 en pantalla: un arranque de servicio dispara un toast por
+      // pedido nuevo y sin tope la pila tapa media columna. Se descarta el
+      // más viejo inmediatamente (no se encola).
+      setToasts((prev) => [...prev, { id: nextId++, ...detail }].slice(-3));
     }
     window.addEventListener(KDS_TOAST_EVENT, onToast);
     return () => window.removeEventListener(KDS_TOAST_EVENT, onToast);

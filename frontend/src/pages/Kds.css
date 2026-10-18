@@ -260,16 +260,40 @@
    ------------------------------------------------------------ */
 
 .order-card {
+  position: relative;
+  overflow: hidden; /* la franja de urgencia respeta el radio de la tarjeta */
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-4);
+  padding: calc(var(--space-4) + 4px) var(--space-4) var(--space-4);
   background: rgba(13, 18, 32, 0.8);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), var(--glass-inset-highlight);
   cursor: grab;
+}
+
+/* Barra de progreso = acento superior de la tarjeta: su ancho es el avance
+   hacia los 15 min (var --progress) y su color es la urgencia. Reemplaza la
+   barra decorativa del footer. */
+.order-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 5px;
+  width: var(--progress, 0%);
+  background: #4ade80;
+  transition: width 1s linear, background-color 0.4s linear;
+}
+
+.order-card.urgency-orange::before {
+  background: #fbbf24;
+}
+
+.order-card.urgency-red::before {
+  background: #f87171;
 }
 
 .order-card:active {
@@ -280,9 +304,17 @@
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.7), 0 0 18px rgba(239, 68, 68, 0.45);
 }
 
+/* Encabezado: número + chip de tipo en una sola línea, para ganar densidad */
+.order-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
 /* Número de pedido: lo más legible de la tarjeta */
 .order-number {
-  font-size: 2.5rem;
+  font-size: 2.25rem;
   font-weight: var(--font-weight-bold);
   line-height: 1.1;
   letter-spacing: 0.5px;
@@ -291,7 +323,7 @@
 .customer {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
+  color: var(--color-text);
   margin-top: var(--space-1);
 }
 
@@ -299,11 +331,12 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  margin-top: var(--space-2);
-  padding: 4px 12px;
+  flex-shrink: 0;
+  padding: 2px 10px;
   border-radius: var(--radius-full);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
 }
 
 .order-type.pickup {
@@ -359,17 +392,21 @@
   flex-shrink: 0;
 }
 
-/* Timer + progreso — kds.js:141-155 */
+/* Timer + botón en una fila: el timer es el dato que la cocina mira de
+   reojo, así que va grande y monoespaciado; el botón ocupa el resto. */
 .order-card-footer {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  align-items: center;
+  gap: var(--space-3);
 }
 
 .timer {
-  font-size: 1.75rem;
+  font-size: 2rem;
   font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  flex-shrink: 0;
+  min-width: 3.2ch;
 }
 
 .timer.green {
@@ -384,24 +421,16 @@
   color: #f87171;
 }
 
-.progress {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-
+.progress,
 .progress-bar {
-  height: 100%;
-  border-radius: var(--radius-full);
-  background: linear-gradient(90deg, #4ade80, #16a34a);
-  transition: width 1s linear;
+  /* Reemplazadas por el acento superior de la tarjeta (.order-card::before). */
+  display: none;
 }
 
 /* Botones de acción grandes (targets >=48px) */
 .btn {
   min-height: 52px;
-  margin-top: var(--space-2);
+  flex: 1;
   padding: var(--space-3) var(--space-4);
   border: none;
   border-radius: var(--radius-sm);
@@ -603,27 +632,31 @@ select option {
 
 .toast-container {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  top: calc(var(--space-5) + 8px);
+  right: var(--space-5);
+  z-index: 1100;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  z-index: 100;
+  gap: var(--space-2);
+  max-width: 320px;
+  pointer-events: none;
 }
 
 .toast {
-  min-width: 260px;
-  max-width: 340px;
-  padding: 14px 18px;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 10px 14px;
   border-radius: var(--radius-sm);
   color: var(--color-text);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
   background: rgba(13, 18, 32, 0.94);
   border: 1px solid var(--glass-border-subtle);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   opacity: 0;
   transform: translateY(16px);
   animation: toast-in 0.3s var(--ease-out-soft) forwards;
+  word-break: break-word;
 }
 
 .toast.toast-out {

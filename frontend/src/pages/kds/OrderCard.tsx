@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import type { KdsOrder } from "./api";
 import { formatPhone } from "./format";
 
@@ -53,6 +53,7 @@ export default function OrderCard({
 
   let progress = (seconds / MAX_TIME) * 100;
   if (progress > 100) progress = 100;
+  const progressPct = progress.toFixed(2);
 
   /* TIPO DE PEDIDO — kds.js:184-200 */
   const isDelivery = order.orderType === "DELIVERY";
@@ -210,19 +211,21 @@ export default function OrderCard({
   return (
     <div
       ref={cardRef}
-      className={`order-card glass-panel${timerClass === "red" ? " urgent" : ""}${
-        animateAtMount ? " fade-in" : ""
-      }`}
+      className={`order-card glass-panel urgency-${timerClass}${
+        timerClass === "red" ? " urgent" : ""
+      }${animateAtMount ? " fade-in" : ""}`}
+      style={{ "--progress": `${progressPct}%` } as CSSProperties}
       data-id={order.orderId}
       data-status={order.status}
     >
       <div className="order-card-main">
-        <div className="order-number">#{order.orderNumber}</div>
-        <div className="customer">{order.customerName}</div>
-
-        <div className={`order-type ${isDelivery ? "delivery" : "pickup"}`}>
-          <span aria-hidden="true">{typeIcon}</span> {typeLabel}
+        <div className="order-head">
+          <div className="order-number">#{order.orderNumber}</div>
+          <div className={`order-type ${isDelivery ? "delivery" : "pickup"}`}>
+            <span aria-hidden="true">{typeIcon}</span> {typeLabel}
+          </div>
         </div>
+        <div className="customer">{order.customerName}</div>
 
         {/* CELULAR — tap-to-call: el cocinero puede llamar al cliente desde la
             tablet. El texto va formateado para leerlo de un vistazo, pero el
@@ -264,9 +267,6 @@ export default function OrderCard({
       <div className="order-card-footer">
         <div className={`timer ${timerClass}`}>
           {minutes}:{String(seconds % 60).padStart(2, "0")}
-        </div>
-        <div className="progress">
-          <div className="progress-bar" style={{ width: `${progress}%` }} />
         </div>
         {button && (
           <button
