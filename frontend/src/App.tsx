@@ -3,6 +3,7 @@ import Menu from "./pages/Menu";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import Kds from "./pages/Kds";
+import Orders from "./pages/Orders";
 import { getView } from "./view";
 
 export default function App() {
@@ -11,5 +12,6 @@ export default function App() {
   if (view === "dashboard") return <Dashboard />;
   if (view === "admin") return <Admin />;
   if (view === "kds") return <Kds />;
+  if (view === "orders") return <Orders />;
   return <Login />;
 }

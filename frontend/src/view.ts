@@ -1,4 +1,4 @@
-export type AppView = "login" | "menu" | "dashboard" | "admin" | "kds";
+export type AppView = "login" | "menu" | "dashboard" | "admin" | "kds" | "orders";
 
 /**
  * Route table for real navigation: the SPA ships as separate entry paths —
@@ -14,6 +14,7 @@ const PATH_ROUTES: Array<[RegExp, AppView]> = [
   [/^\/dashboard(?:\/index\.html)?\/?$/, "dashboard"],
   [/^\/admin(?:\/admin\.html)?\/?$/, "admin"],
   [/^\/kds(?:\/index\.html)?\/?$/, "kds"],
+  [/^\/pedidos(?:\/index\.html)?\/?$/, "orders"],
   [/^\/login(?:\/login\.html)?\/?$/, "login"],
 ];
 
@@ -21,9 +22,10 @@ const PATH_ROUTES: Array<[RegExp, AppView]> = [
  * Resolves the screen to render:
  * 1. from `window.location.pathname` when it matches a known route
  *    (`/menu/` → digital menu, `/dashboard/` → owner dashboard,
- *    `/admin/` → admin panel, `/kds/` → kitchen display);
+ *    `/admin/` → admin panel, `/kds/` → kitchen display,
+ *    `/pedidos/` → orders console);
  * 2. otherwise from the dev-only `view` query param escape hatch
- *    (`?view=menu`, etc. — works for all five views);
+ *    (`?view=menu`, etc. — works for all six views);
  * 3. anything else → login.
  */
 export function getView(): AppView {
@@ -37,5 +39,6 @@ export function getView(): AppView {
   if (view === "dashboard") return "dashboard";
   if (view === "admin") return "admin";
   if (view === "kds") return "kds";
+  if (view === "pedidos") return "orders";
   return "login";
 }

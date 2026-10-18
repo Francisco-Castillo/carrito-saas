@@ -47,6 +47,12 @@ export default function Dashboard() {
         </div>
 
         <div className="actions">
+          {/* Entrada a la consola de pedidos (orders-console S3): mismo patrón
+              que el botón de salir — un enlace de la topbar, sin rediseñar la
+              navegación existente. */}
+          <a href="/pedidos" className="topbar-link">
+            Pedidos
+          </a>
           <button
             type="button"
             onClick={logout}
