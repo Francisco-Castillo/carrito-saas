@@ -92,11 +92,11 @@ class PrimaryColorTests {
 
 		// The slugless menu contract requires EXACTLY ONE business in the
 		// deployment; the shared dev database keeps seed rows from other
-		// sessions. TRUNCATE ... CASCADE clears every table referencing
-		// businesses in one transactional statement (Postgres TRUNCATE is
-		// transactional, so the rollback restores everything) and the fixture
-		// re-seeds its own single business right after.
-		entityManager.createNativeQuery("TRUNCATE TABLE businesses CASCADE").executeUpdate();
+		// sessions. The isolation helper deletes the OTHER businesses and
+		// their dependents in FK-safe order (narrower than TRUNCATE CASCADE)
+		// inside this test transaction, and the fixture re-seeds its own
+		// single business right after.
+		SingleBusinessTestIsolation.keepOnlyBusiness(entityManager, BUSINESS_ID);
 
 		owner = BusinessAuthSeed.seedOwner(businessRepository, userRepository, roleRepository,
 				businessUserRepository, jwtUtil, BUSINESS_ID, SLUG, OWNER_USERNAME);

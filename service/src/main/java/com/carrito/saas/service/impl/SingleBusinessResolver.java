@@ -2,6 +2,7 @@ package com.carrito.saas.service.impl;
 
 import java.util.List;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import com.carrito.saas.exception.BusinessException;
@@ -41,7 +42,9 @@ public class SingleBusinessResolver {
 	 */
 	public Business requireSingle() {
 
-		List<Business> all = businessRepository.findAll();
+		// At most two rows: enough to tell 0 from 1 from many without a full
+		// table scan — the decision only needs "exactly one".
+		List<Business> all = businessRepository.findAll(PageRequest.of(0, 2)).getContent();
 
 		if (all.size() == 1) {
 			return all.get(0);

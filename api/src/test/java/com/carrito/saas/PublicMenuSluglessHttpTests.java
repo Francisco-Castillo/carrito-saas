@@ -92,10 +92,10 @@ class PublicMenuSluglessHttpTests {
 	private Business seedSingleBusiness() {
 
 		// The dev database may hold seed rows from other sessions; a single-business
-		// deployment test needs exactly one. TRUNCATE ... CASCADE clears every
-		// table referencing businesses in one transactional statement (Postgres
-		// TRUNCATE is transactional, so the rollback restores everything).
-		entityManager.createNativeQuery("TRUNCATE TABLE businesses CASCADE").executeUpdate();
+		// deployment test needs exactly one. The isolation helper deletes the
+		// OTHER businesses and their dependents in FK-safe order (narrower than
+		// TRUNCATE CASCADE) inside this test transaction.
+		SingleBusinessTestIsolation.keepOnlyBusiness(entityManager, BUSINESS_ID);
 
 		Business business = new Business();
 		business.setId(BUSINESS_ID);
@@ -168,7 +168,7 @@ class PublicMenuSluglessHttpTests {
 		// No business seeded: the deployment has nothing to serve. Other rows may
 		// live in the shared dev database, so truncate first (transactional) to
 		// model an empty deployment.
-		entityManager.createNativeQuery("TRUNCATE TABLE businesses CASCADE").executeUpdate();
+		SingleBusinessTestIsolation.keepOnlyBusiness(entityManager, BUSINESS_ID);
 
 		mockMvc.perform(get("/api/menu"))
 				.andExpect(status().isNotFound());
