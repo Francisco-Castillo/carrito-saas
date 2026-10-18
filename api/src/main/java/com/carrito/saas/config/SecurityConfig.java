@@ -135,7 +135,15 @@ public class SecurityConfig {
 	            // resuelto en odd/tasks/http-error-contract.md); un AUTENTICADO
 	            // sin OWNER/ADMIN recibe 403, que es el caso que esta regla
 	            // castiga.
-	            .requestMatchers(HttpMethod.POST, "/api/predictions/run").hasAnyRole("OWNER", "ADMIN")
+	            // Consola de pedidos (S5 de odd/tasks/orders-console.md): la vista
+            // del día con todos los estados es la pantalla que el KDS NO usa,
+            // así que exige el rol propio de mostrador. PEDIDOS es el rol
+            // dedicado; OWNER/ADMIN conservan su acceso; los contratos del KDS
+            // (orders/active, status, cancel) siguen abiertos a cualquier
+            // usuario autenticado del negocio — gatearlos es otro slice.
+            .requestMatchers(HttpMethod.GET, "/api/business/orders").hasAnyRole("PEDIDOS", "OWNER", "ADMIN")
+
+            .requestMatchers(HttpMethod.POST, "/api/predictions/run").hasAnyRole("OWNER", "ADMIN")
 
 	            .anyRequest().authenticated()
 	        )
