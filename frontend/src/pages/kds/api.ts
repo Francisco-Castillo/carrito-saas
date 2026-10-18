@@ -9,6 +9,7 @@
  */
 
 import { getSessionRestaurantSlug } from "../dashboard/auth";
+import { showToast } from "./toast";
 
 export interface KdsOrderItem {
   quantity: number;
@@ -80,16 +81,36 @@ export async function loadOrders(): Promise<KdsOrder[]> {
  * El legacy ignora la respuesta y reproduce el sonido de listo solo al
  * pasar a READY (kds.js:270-271); ese sonido lo maneja el llamador.
  */
+/**
+ * kds.js:264-277 — advanceOrder(orderId, status): PATCH del estado.
+ *
+ * El backend responde 409 con el detalle cuando la transición es inválida
+ * (fix fb07a32: board desactualizado, doble click). El fallo NO se traga:
+ * llega a la cocina como toast warning con el mensaje del servidor, y la
+ * función reporta false para que el caller re-sincronice la tarjeta.
+ */
 export async function advanceOrder(orderId: number, status: string): Promise<boolean> {
   try {
-    await fetch(`/api/orders/${orderId}/status?status=${status}`, {
+    const response = await fetch(`/api/orders/${orderId}/status?status=${status}`, {
       method: "PATCH",
       headers: authHeaders(),
     });
+    if (!response.ok) {
+      let message = "No se pudo actualizar el pedido";
+      try {
+        const data = (await response.json()) as { message?: string };
+        if (data.message && data.message.trim() !== "") message = data.message;
+      } catch {
+        // cuerpo sin JSON: queda el mensaje genérico
+      }
+      showToast(message, "warning");
+      return false;
+    }
     return true;
   } catch (e) {
     // kds.js:276
     console.error("Error actualizando estado", e);
+    showToast("No se pudo actualizar el pedido", "warning");
     return false;
   }
 }
