@@ -45,6 +45,14 @@ function rowOf(businessName: string): HTMLElement {
   return row
 }
 
+/** Helper tipado para acotar una fila dentro de un contenedor (modal). */
+function getByTextWithin(container: HTMLElement, text: string): HTMLElement {
+  const cell = within(container).getByText(text)
+  const row = cell.closest('tr')
+  if (!row) throw new Error('row not found for ' + text)
+  return row
+}
+
 function stubSession() {
   localStorage.setItem('token', 'header.payload.signature')
   localStorage.setItem('role', 'PLATFORM_ADMIN')
@@ -347,5 +355,146 @@ describe('platform operator view', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'La contraseña debe tener al menos 8 caracteres',
     )
+  })
+
+  it('opens the users section of a client and lists its users', async () => {
+    const USERS = [
+      { username: 'owner-uno', email: 'owner-uno@test.dev', role: 'OWNER', active: true },
+      { username: 'kitchen-uno', email: 'kitchen-uno@test.dev', role: 'KITCHEN', active: false },
+    ]
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001/users') {
+        return okJson(USERS)
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(CLIENTS)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /usuarios/i }))
+
+    // The users section answers with the client's users: role and state
+    // visible per row — scoped to the modal (the listing behind it also
+    // shows the owner username).
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/platform/clients/1000000001/users',
+      expect.anything(),
+    ))
+    const modal = await screen.findByRole('dialog')
+    expect(within(modal).getByText('owner-uno')).toBeTruthy()
+    expect(within(modal).getByText('kitchen-uno')).toBeTruthy()
+    // The badge is on the deactivated user's row — exact text, because the
+    // active owner's row carries a "Dar de baja" button that also matches
+    // /de baja/i.
+    const kitchenRow = getByTextWithin(modal, 'kitchen-uno')
+    expect(within(kitchenRow).getByText('de baja', { exact: true })).toBeTruthy()
+  })
+
+  it('registers a locale user through the users section form', async () => {
+    const USERS = [
+      { username: 'owner-uno', email: 'owner-uno@test.dev', role: 'OWNER', active: true },
+    ]
+    const created = {
+      username: 'cajero-uno',
+      email: 'cajero-uno@test.dev',
+      role: 'KITCHEN',
+      active: true,
+    }
+    let userCalls = 0
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001/users' && init?.method === 'POST') {
+        return { ok: true, status: 201, json: async () => created }
+      }
+      if (u === '/api/platform/clients/1000000001/users') {
+        userCalls += 1
+        return userCalls === 1 ? okJson(USERS) : okJson([...USERS, created])
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(CLIENTS)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /usuarios/i }))
+    await user.type(await screen.findByPlaceholderText('Usuario'), 'cajero-uno')
+    await user.type(screen.getByPlaceholderText('Email'), 'cajero-uno@test.dev')
+    await user.type(screen.getByPlaceholderText('Contraseña'), 'cajero-pass-123')
+    await user.selectOptions(screen.getByLabelText(/rol/i), 'KITCHEN')
+    await user.click(screen.getByRole('button', { name: /crear usuario/i }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/platform/clients/1000000001/users',
+      expect.objectContaining({ method: 'POST' }),
+    ))
+
+    const postCall = fetchMock.mock.calls.find(
+      ([u, init]) => (init as RequestInit).method === 'POST',
+    )
+    expect(JSON.parse(String((postCall![1] as RequestInit).body))).toEqual({
+      username: 'cajero-uno',
+      email: 'cajero-uno@test.dev',
+      password: 'cajero-pass-123',
+      role: 'KITCHEN',
+    })
+
+    // The list refreshes with the new user.
+    expect(await screen.findByText('cajero-uno')).toBeTruthy()
+  })
+
+  it('deactivates a locale user through the users section', async () => {
+    const USERS = [
+      { username: 'owner-uno', email: 'owner-uno@test.dev', role: 'OWNER', active: true },
+      { username: 'kitchen-uno', email: 'kitchen-uno@test.dev', role: 'KITCHEN', active: true },
+    ]
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001/users/kitchen-uno' && init?.method === 'DELETE') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ ...USERS[1], active: false }),
+        }
+      }
+      if (u === '/api/platform/clients/1000000001/users') {
+        return okJson(USERS)
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(CLIENTS)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /usuarios/i }))
+    const modal = await screen.findByRole('dialog')
+    // Scope to the kitchen user's row inside the modal: the owner row has
+    // its own "Dar de baja" button.
+    const kitchenRow = getByTextWithin(modal, 'kitchen-uno')
+    await user.click(within(kitchenRow).getByRole('button', { name: /dar de baja/i }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/platform/clients/1000000001/users/kitchen-uno',
+      expect.objectContaining({ method: 'DELETE' }),
+    ))
   })
 })

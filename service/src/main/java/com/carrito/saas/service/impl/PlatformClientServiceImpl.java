@@ -228,12 +228,17 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 		}
 
 		String roleName = blankToNull(request.getRole());
-		Role role = roleName == null ? null
-				: roleRepository.findByName(roleName)
-						.orElseThrow(() -> new BusinessException("El rol indicado no existe", ErrorType.VALIDATION));
-		if (role == null) {
+		if (roleName == null) {
 			throw new BusinessException("El rol es obligatorio", ErrorType.VALIDATION);
 		}
+		// Find-or-create (el catálogo puede estar vacío en una DB fresca de
+		// CI — no hay seed de roles): el nombre ES el contrato del rol.
+		Role role = roleRepository.findByName(roleName)
+				.orElseGet(() -> {
+					Role created = new Role();
+					created.setName(roleName);
+					return roleRepository.saveAndFlush(created);
+				});
 
 		try {
 			User user = new User();

@@ -54,4 +54,14 @@ public interface IComboService {
 	 */
 	List<ComboDTO> findAllByBusinessId();
 
+	/**
+	 * Sube (o reemplaza) la imagen propia del combo: multipart validado por
+	 * ImageStorageService, tenant anclado al JWT (combo ajeno → 404). La URL
+	 * pública vive bajo /api/images/combos/.
+	 */
+	ComboDTO actualizarImagen(Long id, byte[] data, String contentType);
+
+	/** Quita la imagen del combo; si no tiene, no cambia nada. */
+	ComboDTO eliminarImagen(Long id);
+
 }

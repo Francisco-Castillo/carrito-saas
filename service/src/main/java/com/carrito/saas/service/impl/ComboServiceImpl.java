@@ -36,16 +36,18 @@ public class ComboServiceImpl implements IComboService {
 	private final CategoryRepository categoryRepository;
 	private final IComboMapper iComboMapper;
 	private final SecurityService securityService;
+	private final ImageStorageService imageStorageService;
 
 	public ComboServiceImpl(ComboRepository comboRepository, ProductRepository productRepository,
 			ComboProductRepository comboProductRepository, CategoryRepository categoryRepository,
-			IComboMapper iComboMapper, SecurityService securityService) {
+			IComboMapper iComboMapper, SecurityService securityService, ImageStorageService imageStorageService) {
 		this.comboRepository = comboRepository;
 		this.productRepository = productRepository;
 		this.comboProductRepository = comboProductRepository;
 		this.categoryRepository = categoryRepository;
 		this.iComboMapper = iComboMapper;
 		this.securityService = securityService;
+		this.imageStorageService = imageStorageService;
 	}
 
 	@Transactional
@@ -260,6 +262,50 @@ public class ComboServiceImpl implements IComboService {
 		// productos en una sola consulta. El mapeo completo vive en
 		// IComboMapperImpl.toListDTO, con la misma lógica que toDTO por item.
 		return iComboMapper.toListDTO(comboRepository.findFullMenuCombos(businessId));
+	}
+
+	@Transactional
+	@Override
+	public ComboDTO actualizarImagen(Long id, byte[] data, String contentType) {
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		// Mismo ancla de tenant que cambiarEstadoActivo: un id de combo ajeno
+		// al negocio resuelve como 404, nunca como un éxito silencioso.
+		Combo combo = comboRepository.findByIdAndBusinessId(id, businessId)
+				.orElseThrow(() -> new BusinessException(
+						"Combo no encontrado: " + id, ErrorType.NOT_FOUND));
+
+		// Reemplazo = guardar la nueva primero (falla en disco no toca la fila)
+		// y recién después borrar la vieja si existía.
+		String oldUrl = combo.getImageUrl();
+		String newUrl = imageStorageService.storeCombo(data, contentType);
+		combo.setImageUrl(newUrl);
+
+		if (oldUrl != null && !oldUrl.equals(newUrl)) {
+			imageStorageService.deleteComboByUrl(oldUrl);
+		}
+
+		return iComboMapper.toDTO(comboRepository.save(combo));
+	}
+
+	@Transactional
+	@Override
+	public ComboDTO eliminarImagen(Long id) {
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		Combo combo = comboRepository.findByIdAndBusinessId(id, businessId)
+				.orElseThrow(() -> new BusinessException(
+						"Combo no encontrado: " + id, ErrorType.NOT_FOUND));
+
+		String url = combo.getImageUrl();
+		combo.setImageUrl(null);
+		if (url != null) {
+			imageStorageService.deleteComboByUrl(url);
+		}
+
+		return iComboMapper.toDTO(comboRepository.save(combo));
 	}
 
 }

@@ -38,4 +38,8 @@ public class Combo {
 	
 	private Boolean active = true;
 
+	/** Imagen propia del combo (opcional). URL pública bajo /api/images/combos/. */
+	@Column(name = "image_url")
+	private String imageUrl;
+
 }
