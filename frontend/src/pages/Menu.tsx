@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { formatARS } from "../format";
 import "./Menu.css";
 import CartPanel from "./menu/CartPanel";
+import MenuToast, { type MenuToastType } from "./menu/MenuToast";
 import ProductCard from "./menu/ProductCard";
 import ProductDetailSheet from "./menu/ProductDetailSheet";
 import Sheet from "./menu/Sheet";
@@ -70,7 +71,9 @@ function mapCombosToProducts(combos: Combo[], baseProducts: Product[]): Product[
       price: c.price,
       categoryId: String(c.categoryId),
       categoryName: "Combos",
-      imageUrl: main?.imageUrl,
+      // La imagen propia del combo manda; la derivación por componente
+      // más caro queda como fallback para combos sin imagen propia.
+      imageUrl: c.imageUrl ?? main?.imageUrl,
       isCombo: true,
     };
   });
@@ -136,6 +139,41 @@ export default function Menu() {
   const [sending, setSending] = useState(false);
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+
+  // Aviso in-app (toast) del flujo del pedido en lugar de alert() nativo.
+  // Un solo toast en pantalla: el último aviso pisa al anterior, que es lo que
+  // espera un cliente que corrige un dato y vuelve a confirmar.
+  const [toast, setToast] = useState<{
+    message: string;
+    type: MenuToastType;
+    key: number;
+  } | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
+  const toastKey = useRef(0);
+
+  /** Éxito se va solo enseguida; los errores largos dan más tiempo y el toast
+   *  siempre se puede cerrar a mano. */
+  const TOAST_AUTO_DISMISS_MS: Record<MenuToastType, number> = {
+    success: 4_500,
+    error: 9_000,
+  };
+
+  function showToast(message: string, type: MenuToastType) {
+    window.clearTimeout(toastTimer.current);
+    toastKey.current += 1;
+    setToast({ message, type, key: toastKey.current });
+    toastTimer.current = window.setTimeout(
+      () => setToast(null),
+      TOAST_AUTO_DISMISS_MS[type],
+    );
+  }
+
+  function dismissToast() {
+    window.clearTimeout(toastTimer.current);
+    setToast(null);
+  }
+
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   // Navegación de categorías: píldora activa por scroll-spy.
   const [activeCategory, setActiveCategory] = useState(0);
@@ -362,9 +400,10 @@ export default function Menu() {
 
   function sendOrderByWhatsApp() {
     if (!hasWhatsappNumber()) {
-      alert(
+      showToast(
         "No pudimos enviar tu pedido al local y este local no tiene WhatsApp configurado. " +
-        "Por favor confirmá tu pedido directamente con el local."
+        "Por favor confirmá tu pedido directamente con el local.",
+        "error",
       );
       return;
     }
@@ -404,12 +443,12 @@ export default function Menu() {
       return;
     }
     if (Object.keys(cart).length === 0) {
-      alert("Agrega productos primero");
+      showToast("Agrega productos primero", "error");
       return;
     }
 
     if (customerName.trim() === "") {
-      alert("Por favor ingresa tu nombre");
+      showToast("Por favor ingresa tu nombre", "error");
       return;
     }
 
@@ -418,16 +457,16 @@ export default function Menu() {
     // teléfonos de los negocios.
     const normalizedPhone = normalizePhone(customerPhone);
     if (normalizedPhone === "") {
-      alert("El celular es obligatorio");
+      showToast("El celular es obligatorio", "error");
       return;
     }
     if (!PHONE_SHAPE.test(normalizedPhone)) {
-      alert("Ingresá un número de celular válido");
+      showToast("Ingresá un número de celular válido", "error");
       return;
     }
 
     if (orderType === "DELIVERY" && address.trim() === "") {
-      alert("Por favor ingresa la dirección para el delivery");
+      showToast("Por favor ingresa la dirección para el delivery", "error");
       return;
     }
 
@@ -466,20 +505,24 @@ export default function Menu() {
         throw new Error("El local rechazó el pedido (HTTP " + response.status + ")");
       }
 
-      alert("¡Pedido recibido! Ya lo enviamos a la cocina.");
+      showToast("¡Pedido recibido! Ya lo enviamos a la cocina.", "success");
       resetOrderState();
       return;
     } catch {
       // Fallback: el pedido no se pierde, pero nunca prometemos un canal que no existe.
       if (hasWhatsappNumber()) {
-        alert("No pudimos enviar tu pedido al local. Vamos a confirmarlo por WhatsApp.");
+        showToast(
+          "No pudimos enviar tu pedido al local. Vamos a confirmarlo por WhatsApp.",
+          "error",
+        );
         sendOrderByWhatsApp();
       } else {
-        alert(
+        showToast(
           "No pudimos enviar tu pedido al local. " +
           "Este local no tiene un número de WhatsApp configurado para confirmarlo automáticamente. " +
           "Por favor confirmá tu pedido directamente con el local " +
-          "(en el mostrador o por cualquier otro medio de contacto que tenga publicado)."
+          "(en el mostrador o por cualquier otro medio de contacto que tenga publicado).",
+          "error",
         );
       }
     } finally {
@@ -705,6 +748,17 @@ export default function Menu() {
             addItem(detailProduct, qty);
             setDetailProduct(null);
           }}
+        />
+      )}
+
+      {/* Sobre el sheet del carrito (z-index 60): los avisos de validación
+          ocurren con el pedido abierto, así que el toast tiene que verse ahí. */}
+      {toast && (
+        <MenuToast
+          key={toast.key}
+          message={toast.message}
+          type={toast.type}
+          onDismiss={dismissToast}
         />
       )}
     </div>

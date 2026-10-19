@@ -291,8 +291,10 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
       expect(payload.customerPhone).toBe('1155551234')
     })
 
-    // The customer must still get the order confirmation.
-    expect(alertMock.mock.calls.some(([message]) => String(message).includes('Pedido recibido'))).toBe(true)
+    // The customer must still get the order confirmation — now as an in-app
+    // success toast (role="status"), not a native browser alert.
+    expect(screen.getByRole('status')).toHaveTextContent('¡Pedido recibido! Ya lo enviamos a la cocina.')
+    expect(alertMock).not.toHaveBeenCalled()
 
     // The success reset is still full: cart UI gone and localStorage cleaned.
     expect(screen.queryByRole('complementary', { name: 'Tu pedido' })).not.toBeInTheDocument()
@@ -314,7 +316,10 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
     // No phone at all.
     await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
 
-    expect(alertMock).toHaveBeenCalledWith('El celular es obligatorio')
+    // Validation feedback is an in-app error toast (role="alert"), not a
+    // native browser alert.
+    expect(screen.getByRole('alert')).toHaveTextContent('El celular es obligatorio')
+    expect(alertMock).not.toHaveBeenCalled()
     // Validation failed: no order may reach the API.
     expect(calls.some((call) => call.url.startsWith('/api/orders/menu/'))).toBe(false)
     // The cart sheet stays open with the form intact.
@@ -336,7 +341,8 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
     await user.type(screen.getByPlaceholderText('Celular (ej. 11 5555 1234)'), '123')
     await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
 
-    expect(alertMock).toHaveBeenCalledWith('Ingresá un número de celular válido')
+    expect(screen.getByRole('alert')).toHaveTextContent('Ingresá un número de celular válido')
+    expect(alertMock).not.toHaveBeenCalled()
     expect(calls.some((call) => call.url.startsWith('/api/orders/menu/'))).toBe(false)
     expect(screen.getByRole('complementary', { name: 'Tu pedido' })).toBeInTheDocument()
   })

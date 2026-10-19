@@ -82,4 +82,11 @@ public interface IPlatformClientService {
 	 * unknown user answers 404.
 	 */
 	PlatformUserDTO deactivateUser(Long businessId, String username);
+
+	/**
+	 * Resets ANY locale user's password (S3): bcrypt, ≥8 rule same as the
+	 * alta. 404 for a user not in that locale (slug-scoped) and for an
+	 * unknown client; 400 shorter than 8 leaves the hash untouched.
+	 */
+	PlatformUserDTO resetUserPassword(Long businessId, String username, String newPassword);
 }

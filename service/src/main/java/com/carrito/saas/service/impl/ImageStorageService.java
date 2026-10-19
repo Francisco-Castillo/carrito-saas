@@ -44,11 +44,13 @@ public class ImageStorageService {
 	private static final String BUSINESS_URL_PREFIX = "/api/images/business/";
 
 	private final Path productsDir;
+	private final Path combosDir;
 
 	private final Path businessDir;
 
 	public ImageStorageService(@Value("${app.uploads.dir:./uploads}") String uploadsDir) {
 		this.productsDir = Path.of(uploadsDir, "products").toAbsolutePath().normalize();
+		this.combosDir = Path.of(uploadsDir, "combos").toAbsolutePath().normalize();
 		this.businessDir = Path.of(uploadsDir, "business").toAbsolutePath().normalize();
 	}
 
@@ -60,17 +62,25 @@ public class ImageStorageService {
 	 *                          INTERNAL_ERROR si falla la escritura en disco.
 	 */
 	public String store(byte[] data, String contentType) {
+		return storeTo(productsDir, "/api/images/products/", data, contentType, "producto");
+	}
+
+	public String storeCombo(byte[] data, String contentType) {
+		return storeTo(combosDir, "/api/images/combos/", data, contentType, "combo");
+	}
+
+	private String storeTo(Path dir, String urlPrefix, byte[] data, String contentType, String kind) {
 
 		String extension = extensionOf(contentType, data.length);
 
 		try {
-			Files.createDirectories(productsDir);
-			Path target = productsDir.resolve(UUID.randomUUID() + extension);
+			Files.createDirectories(dir);
+			Path target = dir.resolve(UUID.randomUUID() + extension);
 			Files.write(target, data);
-			log.info("Imagen de producto guardada: {}", target);
-			return "/api/images/products/" + target.getFileName();
+			log.info("Imagen de {} guardada: {}", kind, target);
+			return urlPrefix + target.getFileName();
 		} catch (IOException e) {
-			log.error("No se pudo guardar la imagen de producto", e);
+			log.error("No se pudo guardar la imagen de {}", kind, e);
 			throw new BusinessException("No se pudo guardar la imagen", ErrorType.INTERNAL_ERROR);
 		}
 	}
@@ -81,19 +91,7 @@ public class ImageStorageService {
 	 * {@link #store}: nombre UUID, tipo y tamaño validados.
 	 */
 	public String storeBusinessImage(byte[] data, String contentType) {
-
-		String extension = extensionOf(contentType, data.length);
-
-		try {
-			Files.createDirectories(businessDir);
-			Path target = businessDir.resolve(UUID.randomUUID() + extension);
-			Files.write(target, data);
-			log.info("Imagen de negocio guardada: {}", target);
-			return BUSINESS_URL_PREFIX + target.getFileName();
-		} catch (IOException e) {
-			log.error("No se pudo guardar la imagen de negocio", e);
-			throw new BusinessException("No se pudo guardar la imagen", ErrorType.INTERNAL_ERROR);
-		}
+		return storeTo(businessDir, BUSINESS_URL_PREFIX, data, contentType, "negocio");
 	}
 
 	/**
@@ -103,25 +101,28 @@ public class ImageStorageService {
 	 * el flujo de guardado.
 	 */
 	public void deleteByUrl(String url) {
-
-		if (url == null || url.isBlank()) {
-			return;
-		}
-
-		if (url.startsWith(PRODUCTS_URL_PREFIX)) {
-			deleteManaged(productsDir, PRODUCTS_URL_PREFIX, url);
-		} else if (url.startsWith(BUSINESS_URL_PREFIX)) {
-			deleteManaged(businessDir, BUSINESS_URL_PREFIX, url);
+		if (url != null && url.startsWith(BUSINESS_URL_PREFIX)) {
+			deleteFrom(businessDir, BUSINESS_URL_PREFIX, url);
+		} else {
+			deleteFrom(productsDir, PRODUCTS_URL_PREFIX, url);
 		}
 	}
 
-	/** Borra dentro de un dir gestionado el archivo nombrado por la URL; errores logueados, nunca lanzados. */
-	private void deleteManaged(Path dir, String prefix, String url) {
-		String fileName = Path.of(url.substring(prefix.length())).getFileName().toString();
+	public void deleteComboByUrl(String url) {
+		deleteFrom(combosDir, "/api/images/combos/", url);
+	}
+
+	private void deleteFrom(Path dir, String urlPrefix, String url) {
+
+		if (url == null || url.isBlank() || !url.startsWith(urlPrefix)) {
+			return;
+		}
+
+		String fileName = Path.of(url.substring(urlPrefix.length())).getFileName().toString();
 		try {
 			Files.deleteIfExists(dir.resolve(fileName).normalize());
 		} catch (IOException e) {
-			// Queda un huérfano en disco: no bloquea la operación del negocio.
+			// Queda un huérfano en disco: no bloquea la operación.
 			log.warn("No se pudo borrar la imagen {}: {}", url, e.getMessage());
 		}
 	}

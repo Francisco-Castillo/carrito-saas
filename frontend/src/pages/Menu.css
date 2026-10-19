@@ -708,6 +708,66 @@
 }
 
 /* ------------------------------------------------------------
+   Toast in-app del pedido — reemplaza los alert() nativos
+
+   Flota sobre todo (sheet incluido: los errores de validación ocurren con
+   el pedido abierto) y queda arriba de la barra de carrito cuando hay una.
+   ------------------------------------------------------------ */
+
+.menu-toast {
+  position: fixed;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: min(560px, calc(100% - var(--space-4) * 2));
+  /* Encima de la barra de carrito, que flota en el mismo borde inferior. */
+  bottom: calc(var(--space-3) + 76px + env(safe-area-inset-bottom, 0px));
+  z-index: 70;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: rgba(2, 6, 23, 0.85);
+  box-shadow: var(--glass-shadow);
+  animation: fade-up var(--duration-fast) var(--ease-out-soft) both;
+}
+
+.menu-toast-message {
+  flex: 1;
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.menu-toast--success .menu-toast-message {
+  color: var(--color-success, #4ade80);
+}
+
+.menu-toast--error .menu-toast-message {
+  color: var(--color-danger, #f87171);
+}
+
+.menu-toast-close {
+  flex-shrink: 0;
+  width: var(--touch-target-sm, 32px);
+  height: var(--touch-target-sm, 32px);
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.menu-toast-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+/* ------------------------------------------------------------
    Barra de carrito flotante — siempre visible cuando hay ítems
 
    El carrito ya no se muestra al costado: agregar un producto sólo actualiza

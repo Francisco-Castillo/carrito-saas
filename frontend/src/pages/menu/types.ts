@@ -9,6 +9,8 @@ export interface Combo {
   price: number;
   categoryId?: number | string;
   items?: ComboItem[];
+  /** Imagen propia del combo (opcional); el menú cae al derivado si es null. */
+  imageUrl?: string | null;
 }
 
 export interface Product {

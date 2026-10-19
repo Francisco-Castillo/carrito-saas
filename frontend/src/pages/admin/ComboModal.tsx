@@ -1,4 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+
+/** Formato de imagen aceptado por el backend (ImageStorageService). */
+const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp";
+/** Techo duro de archivo: el mismo límite que fija multipart en application.yml. */
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 import { API, authHeader, type AdminCategory, type AdminProduct } from "./api";
 import { showSuccessToast } from "./toast";
 
@@ -22,6 +27,8 @@ export interface AdminComboFull {
    * la tabla lo muestra en el switch y el modal no lo consume. */
   active?: boolean;
   items?: Array<{ productId?: number; productName: string; quantity: number }> | null;
+  /** Imagen propia del combo: la sirve el ComboDTO del backend (T1). */
+  imageUrl?: string | null;
 }
 
 /** Una fila del picker de productos: producto elegido + cantidad. */
@@ -62,7 +69,76 @@ export default function ComboModal({ combo, onClose, onSaved }: ComboModalProps)
   const [missingFields, setMissingFields] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(combo?.imageUrl ?? null);
+  /** true cuando el usuario pidió quitar la imagen existente. */
+  const [imageRemoved, setImageRemoved] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+  }, [onClose, imagePreview]);
+
+  function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+
+    if (!IMAGE_ACCEPT.split(",").includes(file.type)) {
+      setImageError("Formato no soportado: usá JPG, PNG o WebP");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > IMAGE_MAX_BYTES) {
+      setImageError("La imagen supera el máximo de 5 MB");
+      e.target.value = "";
+      return;
+    }
+
+    setImageError(null);
+    setImageRemoved(false);
+    setImageFile(file);
+    setImagePreview((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  }
+
+  function handleImageRemove() {
+    setImagePreview((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setImageFile(null);
+    setImageRemoved(true);
+    setImageError(null);
+  }
+
+  /** Sube (POST multipart) o borra (DELETE) la imagen del combo ya guardado. */
+  async function syncComboImage(comboId: number): Promise<void> {
+    const url = `${API}/combos/${comboId}/image`;
+    try {
+      const res = imageFile
+        ? await fetch(url, {
+            method: "POST",
+            headers: authHeader(),
+            body: toComboFormData(imageFile),
+          })
+        : await fetch(url, { method: "DELETE", headers: authHeader() });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { message?: string } | null;
+        setImageError(data?.message || "No se pudo guardar la imagen");
+      }
+    } catch {
+      setImageError("No se pudo guardar la imagen");
+    }
+  }
+
+  function toComboFormData(file: File): FormData {
+    const fd = new FormData();
+    fd.append("file", file);
+    return fd;
+  }
 
   useEffect(() => {
     nameRef.current?.focus();
@@ -179,6 +255,14 @@ export default function ComboModal({ combo, onClose, onSaved }: ComboModalProps)
         return;
       }
 
+      const saved = (await res.json()) as AdminComboFull;
+
+      // La imagen viaja después del guardado (mismo flujo que ProductModal).
+      // Un fallo de imagen no revierte el guardado: se avisa inline.
+      if (imageFile || imageRemoved) {
+        await syncComboImage(saved.id);
+      }
+
       showSuccessToast(creating ? "Combo creado con éxito" : "Combo actualizado con éxito");
       onSaved();
     } catch (e) {
@@ -293,6 +377,35 @@ export default function ComboModal({ combo, onClose, onSaved }: ComboModalProps)
           <button type="button" className="btn-ghost combo-picker-add" onClick={addRow}>
             + Agregar producto
           </button>
+        </div>
+
+        <div className="admin-product-image">
+          {imagePreview && (
+            <img className="admin-product-image--preview" src={imagePreview} alt="Imagen del combo" />
+          )}
+          <div className="admin-product-image--controls">
+            <label className="btn-ghost admin-product-image--pick">
+              <span className="admin-product-image--pick-icon" aria-hidden="true">🖼️</span>
+              {imagePreview ? "Cambiar imagen" : "Agregar imagen"}
+              <input
+                type="file"
+                accept={IMAGE_ACCEPT}
+                aria-label="Imagen del combo"
+                onChange={handleImageChange}
+              />
+            </label>
+            {imagePreview && (
+              <button type="button" className="btn-ghost" onClick={handleImageRemove}>
+                Quitar imagen
+              </button>
+            )}
+          </div>
+          <p className="admin-product-image--hint">JPG, PNG o WebP · hasta 5 MB</p>
+          {imageError && (
+            <p className="name-error" role="alert">
+              {imageError}
+            </p>
+          )}
         </div>
 
         <div className="toast-modal-actions admin-product-form-actions">

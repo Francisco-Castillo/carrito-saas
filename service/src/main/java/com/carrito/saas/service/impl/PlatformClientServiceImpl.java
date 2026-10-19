@@ -228,12 +228,17 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 		}
 
 		String roleName = blankToNull(request.getRole());
-		Role role = roleName == null ? null
-				: roleRepository.findByName(roleName)
-						.orElseThrow(() -> new BusinessException("El rol indicado no existe", ErrorType.VALIDATION));
-		if (role == null) {
+		if (roleName == null) {
 			throw new BusinessException("El rol es obligatorio", ErrorType.VALIDATION);
 		}
+		// Find-or-create (el catálogo puede estar vacío en una DB fresca de
+		// CI — no hay seed de roles): el nombre ES el contrato del rol.
+		Role role = roleRepository.findByName(roleName)
+				.orElseGet(() -> {
+					Role created = new Role();
+					created.setName(roleName);
+					return roleRepository.saveAndFlush(created);
+				});
 
 		try {
 			User user = new User();
@@ -318,6 +323,26 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 
 		User user = membership.getUser();
 		user.setActive(Boolean.FALSE);
+		userRepository.saveAndFlush(user);
+
+		return toUserDTO(membership);
+	}
+
+	@Override
+	public PlatformUserDTO resetUserPassword(Long businessId, String username, String newPassword) {
+
+		String password = blankToNull(newPassword);
+		if (password == null || password.length() < 8) {
+			throw new BusinessException("La contraseña debe tener al menos 8 caracteres", ErrorType.VALIDATION);
+		}
+
+		BusinessUser membership = membershipOf(businessId, username)
+				.orElseThrow(() -> new BusinessException("Usuario no encontrado en este local", ErrorType.NOT_FOUND));
+
+		// Reset de la clave de un usuario del local (S3): bcrypt, igual que
+		// el alta; el usuario se loguea con la nueva enseguida.
+		User user = membership.getUser();
+		user.setPassword(passwordEncoder.encode(password));
 		userRepository.saveAndFlush(user);
 
 		return toUserDTO(membership);
