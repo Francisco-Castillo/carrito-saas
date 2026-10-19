@@ -124,9 +124,13 @@ class TableEndpointsHttpTests {
 
 		seedBusiness(id, slug);
 
-		Role role = new Role();
-		role.setName("OWNER");
-		role = roleRepository.saveAndFlush(role);
+		// Reuse the role when the environment's dev seed already created it
+		// (uq_roles_name): a blind insert fails against a seeded database.
+		Role role = roleRepository.findByName("OWNER").orElseGet(() -> {
+			Role r = new Role();
+			r.setName("OWNER");
+			return roleRepository.saveAndFlush(r);
+		});
 
 		User user = new User();
 		user.setUsername(USERNAME);

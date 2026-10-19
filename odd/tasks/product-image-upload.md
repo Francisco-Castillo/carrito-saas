@@ -25,3 +25,4 @@ el modal de crear/editar del panel admin. El menú público ya renderiza
 - L1: "quiero que trabajes en el crud de los productos, ahora mismo al crear un producto no se hay opcion de añadir una imagen para ese producto. Vamos a permitirle al cliente que pueda subir una imagen de su pruducto."
 - L2: Decisión de usuario: subida de archivo al servidor (elegido entre archivo/url/nube).
 - L3: Verificado: ProductImageEndpointTests 8/8 verdes; tsc + vite build limpios; suite completa del api module con 50 errores PREEXISTENTES (clases que insertan rol OWNER directo contra la BD de dev con seed; verificado idéntico en HEAD limpio con git stash).
+- L4: Commit 7d5321a (feature product-image-upload) y 5d60133 (tests reusan rol OWNER existente; suite 307/307 verde) en la rama worktree/calm-meadow-7fa9.

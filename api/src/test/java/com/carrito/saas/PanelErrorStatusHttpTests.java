@@ -127,9 +127,13 @@ class PanelErrorStatusHttpTests {
 	/** Seeds a role by name. */
 	private Role seedRole(String name) {
 
-		Role role = new Role();
-		role.setName(name);
-		return roleRepository.saveAndFlush(role);
+		// Reuse the role when the environment's dev seed already created it
+		// (uq_roles_name): a blind insert fails against a seeded database.
+		return roleRepository.findByName(name).orElseGet(() -> {
+			Role r = new Role();
+			r.setName(name);
+			return roleRepository.saveAndFlush(r);
+		});
 	}
 
 	/**

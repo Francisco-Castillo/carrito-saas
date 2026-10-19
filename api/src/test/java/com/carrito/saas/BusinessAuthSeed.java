@@ -49,9 +49,13 @@ final class BusinessAuthSeed {
 
 		Business business = seedBusiness(businessRepository, businessId, slug);
 
-		Role role = new Role();
-		role.setName("OWNER");
-		role = roleRepository.saveAndFlush(role);
+		// Reuse the OWNER role when the environment's dev seed already created
+		// it (uq_roles_name): only insert when this test database is clean.
+		Role role = roleRepository.findByName("OWNER").orElseGet(() -> {
+			Role r = new Role();
+			r.setName("OWNER");
+			return roleRepository.saveAndFlush(r);
+		});
 
 		User user = new User();
 		user.setUsername(username);

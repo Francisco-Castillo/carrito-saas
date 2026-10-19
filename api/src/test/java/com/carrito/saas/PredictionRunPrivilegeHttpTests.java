@@ -223,9 +223,13 @@ class PredictionRunPrivilegeHttpTests {
 		business.setSlug(slug);
 		businessRepository.saveAndFlush(business);
 
-		Role role = new Role();
-		role.setName(roleName);
-		role = roleRepository.saveAndFlush(role);
+		// Reuse the role when the environment's dev seed already created it
+		// (uq_roles_name): a blind insert fails against a seeded database.
+		Role role = roleRepository.findByName(roleName).orElseGet(() -> {
+			Role r = new Role();
+			r.setName(roleName);
+			return roleRepository.saveAndFlush(r);
+		});
 
 		User user = new User();
 		user.setUsername(username);
