@@ -33,9 +33,14 @@ export default function ConfirmModal({ message, onConfirm, onCancel }: ConfirmMo
     >
       <div className="toast-modal" role="alertdialog" aria-modal="true" aria-label={message}>
         <p>{message}</p>
-        <button ref={confirmRef} type="button" className="btn-primary" onClick={onConfirm}>
-          Confirmar
-        </button>
+        <div className="toast-modal-actions">
+          <button type="button" className="btn-ghost" onClick={onCancel}>
+            Cancelar
+          </button>
+          <button ref={confirmRef} type="button" className="btn-primary" onClick={onConfirm}>
+            Confirmar
+          </button>
+        </div>
       </div>
     </div>
   );
