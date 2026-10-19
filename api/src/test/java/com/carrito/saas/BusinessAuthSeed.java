@@ -3,6 +3,7 @@ package com.carrito.saas;
 import java.util.Set;
 
 import com.carrito.saas.repository.entity.Business;
+import com.carrito.saas.repository.entity.BusinessHours;
 import com.carrito.saas.repository.entity.BusinessUser;
 import com.carrito.saas.repository.entity.Role;
 import com.carrito.saas.repository.entity.User;
@@ -41,6 +42,39 @@ final class BusinessAuthSeed {
 		business.setName("Business " + slug);
 		business.setSlug(slug);
 		return businessRepository.saveAndFlush(business);
+	}
+
+	/**
+	 * Semana completa abierta (00:00–12:00 y 12:00–00:00 cruzando la
+	 * medianoche) para un negocio: los fixtures de suites que crean pedidos la
+	 * necesitan porque createOrder respeta el horario efectivo del local
+	 * (negocio sin filas = cerrado, regla del badge). Sin hueco de borde: el
+	 * turno de la tarde cruza la medianoche, así que cada minuto del día
+	 * (y la madrugada del día siguiente) está cubierto. Idempotente: los
+	 * fixtures siembran por test, y uq_business_hours_business_day_position
+	 * rechazaría un segundo sembrado.
+	 */
+	static void seedAlwaysOpenWeek(com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository,
+			BusinessRepository businessRepository, long businessId) {
+		if (!businessHoursRepository.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(businessId).isEmpty()) {
+			return;
+		}
+		Business business = businessRepository.findById(businessId).orElseThrow();
+		for (int day = 1; day <= 7; day++) {
+			seedShift(businessHoursRepository, business, day, 0, java.time.LocalTime.of(0, 0), java.time.LocalTime.of(12, 0));
+			seedShift(businessHoursRepository, business, day, 1, java.time.LocalTime.of(12, 0), java.time.LocalTime.of(0, 0));
+		}
+	}
+
+	private static void seedShift(com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository,
+			Business business, int dayOfWeek, int position, java.time.LocalTime opensAt, java.time.LocalTime closesAt) {
+		BusinessHours shift = new BusinessHours();
+		shift.setBusiness(business);
+		shift.setDayOfWeek(dayOfWeek);
+		shift.setPosition(position);
+		shift.setOpensAt(opensAt);
+		shift.setClosesAt(closesAt);
+		businessHoursRepository.saveAndFlush(shift);
 	}
 
 	static AuthenticatedBusiness seedOwner(BusinessRepository businessRepository, UserRepository userRepository,

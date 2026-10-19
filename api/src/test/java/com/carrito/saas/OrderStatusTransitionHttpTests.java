@@ -75,6 +75,9 @@ class OrderStatusTransitionHttpTests {
 	@Autowired
 	private ProductRepository productRepository;
 
+	@Autowired
+	private com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository;
+
 	private MockMvc mockMvc;
 
 	private BusinessAuthSeed.AuthenticatedBusiness auth;
@@ -88,6 +91,7 @@ class OrderStatusTransitionHttpTests {
 
 		auth = BusinessAuthSeed.seedOwner(businessRepository, userRepository, roleRepository,
 				businessUserRepository, jwtUtil, 880001L, "transition-probe-business", "transition-probe-owner");
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, 880001L);
 	}
 
 	/** Crea un producto y un pedido real, y lo avanza por los estados dados. */

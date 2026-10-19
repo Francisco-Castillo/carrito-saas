@@ -54,6 +54,9 @@ class CreateOrderWithoutTableTests {
 	private static final String SLUG = "no-table-order-test-business";
 
 	@Autowired
+	private com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository;
+
+	@Autowired
 	private IOrderService orderService;
 
 	@Autowired
@@ -74,6 +77,7 @@ class CreateOrderWithoutTableTests {
 		business.setName("No Table Order Test Business");
 		business.setSlug(SLUG);
 		businessRepository.saveAndFlush(business);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, business.getId());
 
 		// --- Seed: category owned by the business (product load is business-scoped) ---
 		Category category = new Category();

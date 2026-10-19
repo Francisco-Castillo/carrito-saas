@@ -91,6 +91,9 @@ class CrossTenantStockIsolationTests {
 	@Autowired
 	private FilterChainProxy springSecurityFilterChain;
 
+	@Autowired
+	private com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository;
+
 	private MockMvc mockMvc;
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
@@ -134,12 +137,14 @@ class CrossTenantStockIsolationTests {
 		businessA.setName("Cross Tenant Iso A");
 		businessA.setSlug(SLUG_A);
 		businessRepository.saveAndFlush(businessA);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, businessA.getId());
 
 		Business businessB = new Business();
 		businessB.setId(BUSINESS_B_ID);
 		businessB.setName("Cross Tenant Iso B");
 		businessB.setSlug(SLUG_B);
 		businessRepository.saveAndFlush(businessB);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, businessB.getId());
 
 		Category categoryA = new Category();
 		categoryA.setBusiness(businessA);

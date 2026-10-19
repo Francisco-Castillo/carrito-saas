@@ -98,6 +98,9 @@ class SalonOrderTableTests {
 	@Autowired
 	private OrderRepository orderRepository;
 
+	@Autowired
+	private com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository;
+
 	private MockMvc mockMvc;
 
 	private long productIdA;
@@ -114,6 +117,8 @@ class SalonOrderTableTests {
 				businessUserRepository, jwtUtil, BUSINESS_A_ID, SLUG_A, "salon-owner-a");
 		BusinessAuthSeed.seedOwner(businessRepository, userRepository, roleRepository,
 				businessUserRepository, jwtUtil, BUSINESS_B_ID, SLUG_B, "salon-owner-b");
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, BUSINESS_A_ID);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, BUSINESS_B_ID);
 
 		productIdA = seedProduct(SLUG_A, "Producto Salón");
 	}

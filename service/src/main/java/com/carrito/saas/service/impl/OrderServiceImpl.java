@@ -1,6 +1,7 @@
 package com.carrito.saas.service.impl;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import com.carrito.saas.repository.jpa.OrderRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
 import com.carrito.saas.repository.jpa.TableRepository;
 import com.carrito.saas.security.SecurityService;
+import com.carrito.saas.service.interfaces.IBusinessOpenService;
 import com.carrito.saas.service.interfaces.IOrderService;
 import com.carrito.saas.service.mapper.interfaces.IOrderKitchenMapper;
 import com.carrito.saas.service.mapper.interfaces.IOrderManagementMapper;
@@ -56,12 +58,15 @@ public class OrderServiceImpl implements IOrderService {
 	private final SecurityService securityService;
 	private final SingleBusinessResolver singleBusinessResolver;
 	private final TableRepository tableRepository;
+	private final IBusinessOpenService businessOpenService;
+	private final Clock clock;
 
 	public OrderServiceImpl(OrderRepository orderRepository, BusinessRepository businessRepository,
 			ProductRepository productRepository, ComboRepository comboRepository,
 			CancellationReasonRepository cancellationReasonRepository, IOrderKitchenMapper iOrderKitchenMapper,
 			IOrderManagementMapper iOrderManagementMapper, IOrderMapper iOrderMapper, SecurityService securityService,
-			SingleBusinessResolver singleBusinessResolver, TableRepository tableRepository) {
+			SingleBusinessResolver singleBusinessResolver, TableRepository tableRepository,
+			IBusinessOpenService businessOpenService, Clock clock) {
 		this.orderRepository = orderRepository;
 		this.businessRepository = businessRepository;
 		this.productRepository = productRepository;
@@ -73,6 +78,8 @@ public class OrderServiceImpl implements IOrderService {
 		this.securityService = securityService;
 		this.singleBusinessResolver = singleBusinessResolver;
 		this.tableRepository = tableRepository;
+		this.businessOpenService = businessOpenService;
+		this.clock = clock;
 	}
 
 	@Override
@@ -112,6 +119,14 @@ public class OrderServiceImpl implements IOrderService {
 				? singleBusinessResolver.requireSingle()
 				: businessRepository.findBySlug(slug)
 						.orElseThrow(() -> new BusinessException("No se encontró restaurante", ErrorType.NOT_FOUND));
+
+		// Local cerrado: el pedido público no entra fuera del horario efectivo
+		// del negocio — mismas reglas que el badge de la portada (turnos
+		// ordenados, cruce de medianoche, excepciones por fecha). Una unidad
+		// propia: el badge es decoración, esta es la regla real.
+		if (!businessOpenService.isOpen(business.getId(), LocalDateTime.now(clock))) {
+			throw new BusinessException("El local está cerrado", ErrorType.VALIDATION);
+		}
 
 		Order order = new Order();
 		order.setStatus(OrderStatus.NEW);

@@ -65,6 +65,9 @@ class PublicMenuSluglessHttpTests {
 	@Autowired
 	private FilterChainProxy springSecurityFilterChain;
 
+	@Autowired
+	private com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository;
+
 	private MockMvc mockMvc;
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
@@ -102,6 +105,7 @@ class PublicMenuSluglessHttpTests {
 		business.setName("Slugless Menu Test Business");
 		business.setSlug(SLUG);
 		business = businessRepository.saveAndFlush(business);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, business.getId());
 
 		Category category = new Category();
 		category.setBusiness(business);
