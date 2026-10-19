@@ -91,3 +91,11 @@ CREATE TABLE IF NOT EXISTS hourly_predictions (
 CREATE SEQUENCE IF NOT EXISTS businesses_id_seq
     START WITH 1000000000
     INCREMENT BY 1;
+
+-- Baja lógica de locales (docs/migrations/2026-10-19-businesses-active.sql,
+-- documento hermano; odd/tasks/plataforma-editar-baja.md S3/S5). ddl-auto
+--:update NO agregó la columna a la DB existente al arrancar (verificado:
+-- "column b1_0.active does not exist"), así que el ALTER idempotente va
+-- acá, como la secuencia: corre en cada startup, antes de Hibernate.
+-- Baja = active=false; REVERSIBLE; el historial no se toca.
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;

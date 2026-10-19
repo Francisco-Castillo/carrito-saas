@@ -43,6 +43,16 @@ public class Business {
     private String name;
 
     /**
+     * Baja lógica del local (odd/tasks/plataforma-editar-baja.md, S3/S5):
+     * {@code false} = dado de baja. Reversible (reactivar es volver a
+     * {@code true}); el historial (pedidos, ventas) no se toca. Los lookups
+     * PÚBLICOS por slug tratan {@code false} como no encontrado (404); los
+     * scopes internos del panel del dueño quedan intactos.
+     */
+    @Column(nullable = false)
+    private Boolean active = Boolean.TRUE;
+
+    /**
      * Public identity of the business: the menu is addressed by it
      * ({@code /menu/index.html?restaurant=<slug>}, {@code /api/orders/menu/{slug}})
      * and {@code BusinessRepository.findBySlug} assumes at most one row per
