@@ -223,10 +223,12 @@ class PredictionRunPrivilegeHttpTests {
 		business.setSlug(slug);
 		businessRepository.saveAndFlush(business);
 
-		Role role = new Role();
-		role.setName(roleName);
-		role = roleRepository.saveAndFlush(role);
-
+		Role role = roleRepository.findByName(roleName)
+				.orElseGet(() -> {
+					Role created = new Role();
+					created.setName(roleName);
+					return roleRepository.saveAndFlush(created);
+				});
 		User user = new User();
 		user.setUsername(username);
 		user.setPassword("test-password");
