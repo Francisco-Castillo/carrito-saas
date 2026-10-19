@@ -110,6 +110,9 @@ describe('Menu × QR de mesa (?table=<id>)', () => {
     expect(screen.queryByLabelText('Tipo de pedido')).not.toBeInTheDocument()
     // S4: a table order is paid at the table — no payment method UI at all.
     expect(screen.queryByRole('group', { name: 'Forma de pago' })).not.toBeInTheDocument()
+    // Verifier probe 3: no payment buttons may exist either, not just the group.
+    expect(screen.queryByRole('button', { name: 'Efectivo' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Transferencia' })).not.toBeInTheDocument()
 
     await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente de Mesa')
     await user.type(screen.getByPlaceholderText('Celular (ej. 11 5555 1234)'), '11 5555 1234')
