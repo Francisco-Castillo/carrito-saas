@@ -31,4 +31,12 @@ public interface IPlatformClientService {
 	 * — it is the public identity (printed QRs, menu URLs).
 	 */
 	PlatformClientDTO editClient(Long businessId, UpdatePlatformClientRequestDTO request);
+
+	/**
+	 * LOGICAL deactivation (S3): the row, the owner account and the
+	 * membership survive (active=false); history is untouched — physical
+	 * DELETE is forbidden. Idempotent: deactivating an already-deactivated
+	 * client answers 200 without changes; unknown id answers 404.
+	 */
+	PlatformClientDTO deactivateClient(Long businessId);
 }

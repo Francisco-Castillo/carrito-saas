@@ -2,6 +2,7 @@ package com.carrito.saas.api;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,5 +52,12 @@ public class PlatformClientController {
 			@RequestBody UpdatePlatformClientRequestDTO request) {
 
 		return platformClientService.editClient(id, request);
+	}
+
+	@DeleteMapping("/clients/{id}")
+	public PlatformClientDTO deactivateClient(@PathVariable("id") Long id) {
+
+		// Baja LÓGICA (no physical): el row sobrevive con active=false.
+		return platformClientService.deactivateClient(id);
 	}
 }

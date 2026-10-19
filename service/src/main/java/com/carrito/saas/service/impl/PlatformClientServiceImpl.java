@@ -136,6 +136,21 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 				.orElse(null);
 	}
 
+	@Override
+	public PlatformClientDTO deactivateClient(Long businessId) {
+
+		Business business = businessRepository.findById(businessId)
+				.orElseThrow(() -> new BusinessException("Cliente no encontrado", ErrorType.NOT_FOUND));
+
+		// Baja LÓGICA (S3): la fila, el dueño y la membresía sobreviven con
+		// active=false; el historial no se toca — el borrado físico está
+		// prohibido. Idempotente: bajar un local ya de baja es un no-op 200.
+		business.setActive(Boolean.FALSE);
+		businessRepository.saveAndFlush(business);
+
+		return toDTO(business, ownerOf(businessId));
+	}
+
 	private static final Pattern SLUG_SHAPE = Pattern.compile("^[a-z0-9-]+$");
 
 	/** Mirrors businesses_phone_shape: digits, 8-14, leading 1-9. */
