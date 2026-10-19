@@ -29,6 +29,16 @@ public class User {
 	
 	@Column(unique = true)
 	private String email;
+
+	/**
+	 * Baja lógica del usuario (odd/tasks/plataforma-usuarios.md, S4):
+	 * {@code false} = no puede loguearse. El CustomUserDetailsService lo
+	 * marca disabled — el error es indistinguible de una clave incorrecta
+	 * (no revela el estado de la cuenta). Historial intacto; el borrado
+	 * físico está prohibido. Igual patrón que businesses.active.
+	 */
+	@Column(nullable = false)
+	private Boolean active = Boolean.TRUE;
 	
 	@ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

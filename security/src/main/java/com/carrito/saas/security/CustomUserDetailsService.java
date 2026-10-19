@@ -31,6 +31,12 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .builder()
                 .username(user.getUsername())
                 .password(user.getPassword())
+                // Baja lógica del usuario (plataforma-usuarios.md, S4): un
+                // usuario INACTIVO no puede loguearse. Disabled account → el
+                // AuthenticationManager responde BadCredentials (401 con el
+                // mensaje único del SecurityService), indistinguible de una
+                // clave incorrecta — no revela el estado de la cuenta.
+                .disabled(!Boolean.TRUE.equals(user.getActive()))
                 .authorities(
                         user.getRoles()
                                 .stream()
