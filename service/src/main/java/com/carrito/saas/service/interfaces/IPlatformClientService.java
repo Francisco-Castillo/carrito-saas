@@ -39,4 +39,13 @@ public interface IPlatformClientService {
 	 * client answers 200 without changes; unknown id answers 404.
 	 */
 	PlatformClientDTO deactivateClient(Long businessId);
+
+	/**
+	 * Resets the OWNER's password (S4 — the client forgot it): the new
+	 * password is stored bcrypt-hashed and the owner logs in with it right
+	 * after. ≥8 rule same as the alta; unknown id answers 404, a business
+	 * without an owner answers 404 (nothing to reset), shorter than 8
+	 * answers 400 and leaves the stored hash untouched.
+	 */
+	PlatformClientDTO resetOwnerPassword(Long businessId, String newPassword);
 }

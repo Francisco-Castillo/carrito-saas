@@ -151,6 +151,30 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 		return toDTO(business, ownerOf(businessId));
 	}
 
+	@Override
+	public PlatformClientDTO resetOwnerPassword(Long businessId, String newPassword) {
+
+		String password = blankToNull(newPassword);
+		if (password == null || password.length() < 8) {
+			throw new BusinessException("La contraseña debe tener al menos 8 caracteres", ErrorType.VALIDATION);
+		}
+
+		Business business = businessRepository.findById(businessId)
+				.orElseThrow(() -> new BusinessException("Cliente no encontrado", ErrorType.NOT_FOUND));
+
+		User owner = ownerOf(businessId);
+		if (owner == null) {
+			throw new BusinessException("El local no tiene dueño", ErrorType.NOT_FOUND);
+		}
+
+		// S4 (el cliente olvidó su clave): la nueva contraseña se guarda
+		// bcrypt (igual que el alta) y el dueño se loguea con ella enseguida.
+		owner.setPassword(passwordEncoder.encode(password));
+		userRepository.saveAndFlush(owner);
+
+		return toDTO(business, owner);
+	}
+
 	private static final Pattern SLUG_SHAPE = Pattern.compile("^[a-z0-9-]+$");
 
 	/** Mirrors businesses_phone_shape: digits, 8-14, leading 1-9. */

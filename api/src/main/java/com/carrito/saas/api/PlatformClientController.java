@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.carrito.saas.dto.CreatePlatformClientRequestDTO;
 import com.carrito.saas.dto.PlatformClientDTO;
+import com.carrito.saas.dto.ResetOwnerPasswordRequestDTO;
 import com.carrito.saas.dto.UpdatePlatformClientRequestDTO;
 import com.carrito.saas.service.interfaces.IPlatformClientService;
 
@@ -59,5 +60,13 @@ public class PlatformClientController {
 
 		// Baja LÓGICA (no physical): el row sobrevive con active=false.
 		return platformClientService.deactivateClient(id);
+	}
+
+	@PostMapping("/clients/{id}/password")
+	public PlatformClientDTO resetOwnerPassword(@PathVariable("id") Long id,
+			@RequestBody ResetOwnerPasswordRequestDTO request) {
+
+		// Reset de la clave del dueño (S4): bcrypt, igual que el alta.
+		return platformClientService.resetOwnerPassword(id, request.getPassword());
 	}
 }
