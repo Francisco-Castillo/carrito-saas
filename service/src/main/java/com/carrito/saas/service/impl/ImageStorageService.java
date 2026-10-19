@@ -38,9 +38,11 @@ public class ImageStorageService {
 	static final long MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
 	private final Path productsDir;
+	private final Path combosDir;
 
 	public ImageStorageService(@Value("${app.uploads.dir:./uploads}") String uploadsDir) {
 		this.productsDir = Path.of(uploadsDir, "products").toAbsolutePath().normalize();
+		this.combosDir = Path.of(uploadsDir, "combos").toAbsolutePath().normalize();
 	}
 
 	/**
@@ -51,17 +53,25 @@ public class ImageStorageService {
 	 *                          INTERNAL_ERROR si falla la escritura en disco.
 	 */
 	public String store(byte[] data, String contentType) {
+		return storeTo(productsDir, "/api/images/products/", data, contentType, "producto");
+	}
+
+	public String storeCombo(byte[] data, String contentType) {
+		return storeTo(combosDir, "/api/images/combos/", data, contentType, "combo");
+	}
+
+	private String storeTo(Path dir, String urlPrefix, byte[] data, String contentType, String kind) {
 
 		String extension = extensionOf(contentType, data.length);
 
 		try {
-			Files.createDirectories(productsDir);
-			Path target = productsDir.resolve(UUID.randomUUID() + extension);
+			Files.createDirectories(dir);
+			Path target = dir.resolve(UUID.randomUUID() + extension);
 			Files.write(target, data);
-			log.info("Imagen de producto guardada: {}", target);
-			return "/api/images/products/" + target.getFileName();
+			log.info("Imagen de {} guardada: {}", kind, target);
+			return urlPrefix + target.getFileName();
 		} catch (IOException e) {
-			log.error("No se pudo guardar la imagen de producto", e);
+			log.error("No se pudo guardar la imagen de {}", kind, e);
 			throw new BusinessException("No se pudo guardar la imagen", ErrorType.INTERNAL_ERROR);
 		}
 	}
@@ -72,16 +82,24 @@ public class ImageStorageService {
 	 * en silencio: borrar nunca rompe el flujo de guardado.
 	 */
 	public void deleteByUrl(String url) {
+		deleteFrom(productsDir, "/api/images/products/", url);
+	}
 
-		if (url == null || url.isBlank() || !url.startsWith("/api/images/products/")) {
+	public void deleteComboByUrl(String url) {
+		deleteFrom(combosDir, "/api/images/combos/", url);
+	}
+
+	private void deleteFrom(Path dir, String urlPrefix, String url) {
+
+		if (url == null || url.isBlank() || !url.startsWith(urlPrefix)) {
 			return;
 		}
 
-		String fileName = Path.of(url.substring("/api/images/products/".length())).getFileName().toString();
+		String fileName = Path.of(url.substring(urlPrefix.length())).getFileName().toString();
 		try {
-			Files.deleteIfExists(productsDir.resolve(fileName).normalize());
+			Files.deleteIfExists(dir.resolve(fileName).normalize());
 		} catch (IOException e) {
-			// Queda un huérfano en disco: no bloquea la operación del producto.
+			// Queda un huérfano en disco: no bloquea la operación.
 			log.warn("No se pudo borrar la imagen {}: {}", url, e.getMessage());
 		}
 	}

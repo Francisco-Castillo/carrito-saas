@@ -22,4 +22,7 @@ public class ComboDTO {
 
     private List<ComboItemDTO> items; // opcional (para detalle)
 
+    /** Imagen propia del combo (opcional); el menú cae al derivado por componentes si es null. */
+    private String imageUrl;
+
 }
