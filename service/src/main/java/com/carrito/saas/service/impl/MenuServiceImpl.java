@@ -82,6 +82,13 @@ public class MenuServiceImpl implements IMenuService {
 				: businessRepository.findBySlug(slug)
 						.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
+		// Baja lógica (S5 de odd/tasks/plataforma-editar-baja.md): la carta
+		// de un local dado de baja no existe — 404, tanto por slug como en el
+		// modo slugless de un solo negocio. Es la superficie pública.
+		if (!Boolean.TRUE.equals(business.getActive())) {
+			throw new BusinessException("Local no encontrado", ErrorType.NOT_FOUND);
+		}
+
 		List<Category> categories = categoryRepository.findByBusinessId(business.getId());
 
 		// Buscamos los productos del negocio que esten activos y ofrecibles:

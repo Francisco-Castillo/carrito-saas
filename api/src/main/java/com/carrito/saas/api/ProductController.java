@@ -105,6 +105,14 @@ public class ProductController {
 		Business restaurant = businessRepository.findBySlug(slug)
 				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
+		// Baja lógica (S5 de odd/tasks/plataforma-editar-baja.md): un local
+		// dado de baja NO existe públicamente — 404. Es la ruta pública del
+		// login/carta (permitAll); los scopes internos del dueño no pasan por
+		// acá y quedan intactos.
+		if (!Boolean.TRUE.equals(restaurant.getActive())) {
+			throw new BusinessException("Local no encontrado", ErrorType.NOT_FOUND);
+		}
+
 		return iBusinessMapper.toDTO(restaurant);
 	}
 

@@ -27,6 +27,14 @@ public class BusinessServiceImpl implements IBusinessService {
 		Business business = businessRepository.findBySlug(slug)
 				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
+		// Baja lógica (S5 de odd/tasks/plataforma-editar-baja.md): un local
+		// dado de baja NO existe públicamente — 404, no 403. Es el lookup
+		// público del login/carta; los scopes internos del dueño no pasan por
+		// acá y quedan intactos.
+		if (!Boolean.TRUE.equals(business.getActive())) {
+			throw new BusinessException("Local no encontrado", ErrorType.NOT_FOUND);
+		}
+
 		return iBusinessMapper.toDTO(business);
 
 	}
