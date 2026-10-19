@@ -21,7 +21,7 @@
 
 ## Log
 
-- L4: Evidencia de cierre (2026-10-19): commits sobre `feat/platform-clients-panel` — `3d61c70` (T1 barrera+login), `76d32ef` (T2 alta), `7c46b15` (T3 listado), `a810a2c` (T4 frontend). Verificaciones: backend 9/9 `PlatformClientsHttpTests`, 5/5 `PlatformPrivilegeHttpTests`... 6/6, frontend 29/29 foco y 269/269 suite; regresión backend completa 348 tests con solo los 50 errores pre-existentes (`uq_roles_name`, entorno compartido, verificados en árbol limpio). Pendiente fuera de alcance: PR/merge (decisión del usuario).
+- L4: Evidencia de cierre (2026-10-19): commits sobre `feat/platform-clients-panel` — `3d61c70` (T1 barrera+login), `76d32ef` (T2 alta), `7c46b15` (T3 listado), `a810a2c` (T4 frontend). Verificaciones: backend 9/9 `PlatformClientsHttpTests`, 6/6 `PlatformPrivilegeHttpTests`, frontend 29/29 foco y 269/269 suite; regresión backend completa 348 tests con solo los 50 errores pre-existentes (`uq_roles_name`, entorno compartido, verificados en árbol limpio). Pendiente fuera de alcance: PR/merge (decisión del usuario).
 
 - L1: Solicitud del usuario (2026-02-14), verbatim: "necesito que crees un panel para mi donde pueda dar de alta a los clientes y sus locales".
 - L2: Decisiones del usuario (2026-02-14): (a) no, 1 local = 1 cliente como hoy; (b) rol de plataforma nuevo; (c) sí, el operador carga usuario y clave del cliente en el alta.
