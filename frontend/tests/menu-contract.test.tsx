@@ -17,8 +17,19 @@ import Menu from '../src/pages/Menu'
 
 const SLUG = 'ok-local'
 const RESTAURANT = { name: 'Local OK', whatsappNumber: '' }
+// Semana siempre abierta: createOrder respeta el horario efectivo del local
+// (negocio sin filas = cerrado), así que el payload mockeado abre 24/7. El
+// último turno cruza la medianoche: cada minuto del día está cubierto.
+const ALWAYS_OPEN_HOURS = [1, 2, 3, 4, 5, 6, 7].map((dayOfWeek) => ({
+  dayOfWeek,
+  shifts: [
+    { opensAt: '00:00', closesAt: '12:00' },
+    { opensAt: '12:00', closesAt: '00:00' },
+  ],
+}))
+
 const MENU_PAYLOAD = {
-  business: { name: 'Local Sin Slug', whatsappNumber: '541155500011', logoUrl: null, primaryColor: '#7C3AED' },
+  business: { name: 'Local Sin Slug', whatsappNumber: '541155500011', logoUrl: null, primaryColor: '#7C3AED', hours: ALWAYS_OPEN_HOURS },
   products: [
     {
       id: 101,

@@ -22,6 +22,10 @@ interface CartPanelProps {
   onAddItem: (id: string) => void;
   onRemoveItem: (id: string) => void;
   onSubmit: () => void;
+  /** Local cerrado: la confirmación se bloquea (la regla real vive en el backend). */
+  closed?: boolean;
+  /** Próxima apertura computable — se muestra junto al copy de cerrado. */
+  closedNotice?: string | null;
 }
 
 /**
@@ -48,6 +52,8 @@ export default function CartPanel({
   onAddItem,
   onRemoveItem,
   onSubmit,
+  closed = false,
+  closedNotice = null,
 }: CartPanelProps) {
   return (
     <>
@@ -168,7 +174,14 @@ export default function CartPanel({
         />
       </div>
 
-      <button type="button" className="cart-submit" onClick={onSubmit} disabled={sending}>
+      {closed && (
+        <p className="cart-closed" role="status">
+          El local está cerrado
+          {closedNotice ? ` · ${closedNotice}` : ""}
+        </p>
+      )}
+
+      <button type="button" className="cart-submit" onClick={onSubmit} disabled={sending || closed}>
         Hacer el pedido
       </button>
     </>

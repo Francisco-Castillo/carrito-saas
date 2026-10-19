@@ -34,6 +34,16 @@ const MENU_PAYLOAD = {
   combos: [],
 };
 
+// Semana siempre abierta: createOrder respeta el horario efectivo del local
+// (negocio sin filas = cerrado), así que el payload mockeado abre 24/7.
+const ALWAYS_OPEN_HOURS = [1, 2, 3, 4, 5, 6, 7].map((dayOfWeek) => ({
+  dayOfWeek,
+  shifts: [
+    { opensAt: "00:00", closesAt: "12:00" },
+    { opensAt: "12:00", closesAt: "00:00" },
+  ],
+}))
+
 const okJson = (data: unknown) => ({ ok: true, status: 200, json: async () => data });
 
 function stubFetch(opts: { orderFails?: boolean } = {}) {
@@ -47,7 +57,7 @@ function stubFetch(opts: { orderFails?: boolean } = {}) {
       if (u.startsWith("/api/menu/")) {
         return okJson({
           ...MENU_PAYLOAD,
-          business: { name: "Local OK", whatsappNumber: WHATSAPP },
+          business: { name: "Local OK", whatsappNumber: WHATSAPP, hours: ALWAYS_OPEN_HOURS },
         });
       }
       if (opts.orderFails && u.startsWith("/api/orders/menu/") && init?.method === "POST") {

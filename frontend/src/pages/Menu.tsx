@@ -6,6 +6,7 @@ import ProductCard from "./menu/ProductCard";
 import ProductDetailSheet from "./menu/ProductDetailSheet";
 import Sheet from "./menu/Sheet";
 import Storefront from "./menu/Storefront";
+import { useOpenStatus } from "./menu/useOpenStatus";
 import type {
   Cart,
   CategoryGroup,
@@ -111,6 +112,12 @@ export default function Menu() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   // Portada del local: llega en el payload del menú (`data.business`).
   const [business, setBusiness] = useState<StorefrontBusiness | null>(null);
+
+  // El estado abierto/cerrado del local — el mismo cálculo del badge, ahora
+  // también puerta de la confirmación: el backend rechaza el pedido cerrado
+  // (400 "El local está cerrado"), así que el cliente no lo envía a un 400
+  // seguro. Armar el carrito sigue permitido.
+  const openStatus = useOpenStatus(business?.hours, business?.dateExceptions);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -393,6 +400,9 @@ export default function Menu() {
   }
 
   async function handleSubmit() {
+    if (!openStatus.open) {
+      return;
+    }
     if (Object.keys(cart).length === 0) {
       alert("Agrega productos primero");
       return;
@@ -666,6 +676,8 @@ export default function Menu() {
                   notes={notes}
                   paymentMethod={paymentMethod}
                   sending={sending}
+                  closed={!openStatus.open}
+                  closedNotice={openStatus.nextOpeningLine}
                   onCustomerNameChange={setCustomerName}
                   onCustomerPhoneChange={setCustomerPhone}
                   onOrderTypeChange={setOrderType}
