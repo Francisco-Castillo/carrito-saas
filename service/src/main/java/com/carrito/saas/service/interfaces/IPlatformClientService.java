@@ -3,6 +3,7 @@ package com.carrito.saas.service.interfaces;
 import java.util.List;
 
 import com.carrito.saas.dto.CreatePlatformClientRequestDTO;
+import com.carrito.saas.dto.CreatePlatformUserRequestDTO;
 import com.carrito.saas.dto.PlatformClientDTO;
 import com.carrito.saas.dto.PlatformUserDTO;
 import com.carrito.saas.dto.UpdatePlatformClientRequestDTO;
@@ -56,4 +57,12 @@ public interface IPlatformClientService {
 	 * deactivation state. Unknown client answers 404.
 	 */
 	List<PlatformUserDTO> listUsers(Long businessId);
+
+	/**
+	 * Registers a user for a client's locale with a role (S3): bcrypt
+	 * password, ACTIVE account, membership in the role. 201 with the user;
+	 * 404 unknown client; 409 duplicate username/email; 400 unknown role,
+	 * blank fields or a password shorter than 8.
+	 */
+	PlatformUserDTO createUser(Long businessId, CreatePlatformUserRequestDTO request);
 }

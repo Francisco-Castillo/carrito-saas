@@ -54,6 +54,14 @@ public class PlatformClientController {
 		return platformClientService.listUsers(id);
 	}
 
+	@PostMapping("/clients/{id}/users")
+	public ResponseEntity<com.carrito.saas.dto.PlatformUserDTO> createUser(@PathVariable("id") Long id,
+			@RequestBody com.carrito.saas.dto.CreatePlatformUserRequestDTO request) {
+
+		return ResponseEntity.status(HttpStatus.CREATED)
+				.body(platformClientService.createUser(id, request));
+	}
+
 	@PutMapping("/clients/{id}")
 	public PlatformClientDTO editClient(@PathVariable("id") Long id,
 			@RequestBody UpdatePlatformClientRequestDTO request) {

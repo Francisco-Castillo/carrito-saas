@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.carrito.saas.dto.CreatePlatformClientRequestDTO;
+import com.carrito.saas.dto.CreatePlatformUserRequestDTO;
 import com.carrito.saas.dto.PlatformClientDTO;
 import com.carrito.saas.dto.PlatformUserDTO;
 import com.carrito.saas.dto.UpdatePlatformClientRequestDTO;
@@ -192,6 +193,73 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 			users.add(dto);
 		}
 		return users;
+	}
+
+	@Override
+	public PlatformUserDTO createUser(Long businessId, CreatePlatformUserRequestDTO request) {
+
+		if (request == null) {
+			throw new BusinessException("El alta necesita los datos del usuario", ErrorType.VALIDATION);
+		}
+
+		Business business = businessRepository.findById(businessId)
+				.orElseThrow(() -> new BusinessException("Cliente no encontrado", ErrorType.NOT_FOUND));
+
+		String username = blankToNull(request.getUsername());
+		if (username == null) {
+			throw new BusinessException("El usuario es obligatorio", ErrorType.VALIDATION);
+		}
+		if (userRepository.findByUsername(username).isPresent()) {
+			throw new BusinessException("Ya existe un usuario con ese nombre", ErrorType.CONFLICT);
+		}
+
+		String email = blankToNull(request.getEmail());
+		if (email == null) {
+			throw new BusinessException("El email es obligatorio", ErrorType.VALIDATION);
+		}
+		if (userRepository.findByEmail(email).isPresent()) {
+			throw new BusinessException("Ya existe un usuario con ese email", ErrorType.CONFLICT);
+		}
+
+		String password = blankToNull(request.getPassword());
+		if (password == null || password.length() < 8) {
+			throw new BusinessException("La contraseña debe tener al menos 8 caracteres", ErrorType.VALIDATION);
+		}
+
+		String roleName = blankToNull(request.getRole());
+		Role role = roleName == null ? null
+				: roleRepository.findByName(roleName)
+						.orElseThrow(() -> new BusinessException("El rol indicado no existe", ErrorType.VALIDATION));
+		if (role == null) {
+			throw new BusinessException("El rol es obligatorio", ErrorType.VALIDATION);
+		}
+
+		try {
+			User user = new User();
+			user.setUsername(username);
+			user.setEmail(email);
+			user.setPassword(passwordEncoder.encode(password));
+			user.setActive(Boolean.TRUE);
+			user.setRoles(java.util.Set.of(role));
+			userRepository.saveAndFlush(user);
+
+			BusinessUser membership = new BusinessUser();
+			membership.setUser(user);
+			membership.setBusiness(business);
+			membership.setRole(role);
+			businessUserRepository.saveAndFlush(membership);
+
+			PlatformUserDTO dto = new PlatformUserDTO();
+			dto.setUsername(user.getUsername());
+			dto.setEmail(user.getEmail());
+			dto.setRole(role.getName());
+			dto.setActive(user.getActive());
+			return dto;
+		} catch (DataIntegrityViolationException race) {
+			// Backstop de unicidad bajo carrera (mismo contrato que el alta de
+			// clientes).
+			throw new BusinessException("Ya existe un usuario con esos datos", ErrorType.CONFLICT);
+		}
 	}
 
 	private static final Pattern SLUG_SHAPE = Pattern.compile("^[a-z0-9-]+$");
