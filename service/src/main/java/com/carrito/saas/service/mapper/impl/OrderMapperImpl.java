@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
+import org.hibernate.Hibernate;
+
 import com.carrito.saas.dto.OrderDTO;
 import com.carrito.saas.dto.OrderItemDTO;
 import com.carrito.saas.repository.entity.Order;
@@ -34,6 +36,17 @@ public class OrderMapperImpl implements IOrderMapper {
 		orderDTO.setCreatedAt(entity.getCreatedAt());
 		orderDTO.setUpdatedAt(entity.getUpdatedAt());
 		orderDTO.setOrderNumber(entity.getOrderNumber());
+
+		// Mesa: exponer id siempre que exista; tocar el nombre solo si la
+		// referencia está cargada (createOrder la setea completa; en los caminos
+		// de lectura detached queda un proxy lazy que no se debe inicializar).
+		if (entity.getRestaurantTable() != null) {
+			orderDTO.setTableId(entity.getRestaurantTable().getId());
+			if (Hibernate.isInitialized(entity.getRestaurantTable())) {
+				orderDTO.setTableName(entity.getRestaurantTable().getTableName());
+			}
+		}
+
 		orderDTO.setPreparingAt(entity.getPreparingAt());
 		orderDTO.setReadyAt(entity.getReadyAt());
 		orderDTO.setCompletedAt(entity.getCompletedAt());

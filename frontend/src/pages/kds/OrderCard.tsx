@@ -1,6 +1,5 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 import type { KdsOrder } from "./api";
-import { formatPhone } from "./format";
 
 /** kds.js:11 — MAX_TIME = 900 (15 min para la barra de progreso). */
 const MAX_TIME = 900;
@@ -47,8 +46,10 @@ interface OrderCardProps {
 
 /**
  * Puerto de createCard del legacy kds/kds.js (líneas 133-262): número,
- * cliente, tipo (Retiro/Delivery), items "Nx producto", notas, timer con
+ * cliente, items "Nx producto", notas, timer con
  * colores por minutos transcurridos, barra de progreso y botón de avance.
+ * S6 (orders-console): sin teléfono y sin tipo de envío — el contacto con el
+ * cliente vive en la consola de /pedidos; la tarjeta prioriza el pedido.
  * Incluye el drag & swipe del legacy (kds.js:334-513): swipe derecha avanza
  * al siguiente estado, swipe izquierda cancela (NEW) o revierte (PREPARING),
  * y presión larga sobre un pedido NEW abre el modal de cancelación.
@@ -80,11 +81,6 @@ export default function OrderCard({
   let progress = (seconds / MAX_TIME) * 100;
   if (progress > 100) progress = 100;
   const progressPct = progress.toFixed(2);
-
-  /* TIPO DE PEDIDO — kds.js:184-200 */
-  const isDelivery = order.orderType === "DELIVERY";
-  const typeIcon = isDelivery ? "📦" : "🏃";
-  const typeLabel = isDelivery ? "Delivery" : "Retiro";
 
   /* BOTÓN POR ESTADO — kds.js:216-247 */
   let button: { label: string; className: string; next: string } | null = null;
@@ -269,28 +265,8 @@ export default function OrderCard({
       <div className="order-card-main">
         <div className="order-head">
           <div className="order-number">#{order.orderNumber}</div>
-          <div className={`order-type ${isDelivery ? "delivery" : "pickup"}`}>
-            <span aria-hidden="true">{typeIcon}</span> {typeLabel}
-          </div>
         </div>
         <div className="customer">{order.customerName}</div>
-
-        {/* CELULAR — tap-to-call: el cocinero puede llamar al cliente desde la
-            tablet. El texto va formateado para leerlo de un vistazo, pero el
-            href lleva sólo dígitos (`tel:`) para que el dialer funcione. Mismo
-            lenguaje de chip que las notas; sin teléfono no se renderiza nada
-            (ni chip vacío ni "null"). */}
-        {order.customerPhone && order.customerPhone.trim() !== "" && (
-          <a
-            className="order-notes order-phone"
-            href={`tel:${order.customerPhone.replace(/\D/g, "")}`}
-          >
-            <span className="order-notes-icon" aria-hidden="true">
-              📞
-            </span>
-            {formatPhone(order.customerPhone)}
-          </a>
-        )}
 
         {/* ITEMS — kds.js:167-171 */}
         <div className="order-items">

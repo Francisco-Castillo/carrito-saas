@@ -89,6 +89,7 @@ export interface StorefrontBusiness {
   bannerUrl?: string | null;
   address?: string | null;
   instagramUrl?: string | null;
+  primaryColor?: string | null;
   hours?: BusinessHours[] | null;
   dateExceptions?: DateException[] | null;
 }

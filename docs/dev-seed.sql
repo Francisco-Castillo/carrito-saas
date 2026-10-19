@@ -29,7 +29,7 @@ BEGIN;
 -- Roles (reuse by name, never duplicate)
 INSERT INTO roles (id, name)
 SELECT v.id, v.name
-FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN')) AS v(id, name)
+FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN'), (990004, 'PEDIDOS')) AS v(id, name)
 WHERE NOT EXISTS (SELECT 1 FROM roles r WHERE r.name = v.name);
 
 -- Business
@@ -41,7 +41,8 @@ ON CONFLICT (slug) DO NOTHING;
 INSERT INTO users (id, username, email, password) VALUES
   (990001, 'e2e-owner',   'e2e-owner@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
   (990002, 'e2e-kitchen', 'e2e-kitchen@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
-  (990003, 'e2e-admin',   'e2e-admin@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2')
+  (990003, 'e2e-admin',   'e2e-admin@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
+  (990004, 'e2e-pedidos', 'e2e-pedidos@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2')
 ON CONFLICT (id) DO NOTHING;
 
 -- Authorities (ROLE_ + roles.name) and business membership.
@@ -50,13 +51,13 @@ ON CONFLICT (id) DO NOTHING;
 -- one row per duplicate.
 INSERT INTO user_roles (user_id, role_id)
 SELECT v.user_id, (SELECT MIN(r.id) FROM roles r WHERE r.name = v.role)
-FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN')) AS v(user_id, role)
+FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN'), (990004, 'PEDIDOS')) AS v(user_id, role)
 WHERE EXISTS (SELECT 1 FROM roles r WHERE r.name = v.role)
 ON CONFLICT (user_id, role_id) DO NOTHING;
 
 INSERT INTO business_users (id, business_id, role_id, user_id)
 SELECT v.id, 990000001, (SELECT MIN(r.id) FROM roles r WHERE r.name = v.role), v.user_id
-FROM (VALUES (990001, 'OWNER', 990001), (990002, 'KITCHEN', 990002), (990003, 'ADMIN', 990003)) AS v(id, role, user_id)
+FROM (VALUES (990001, 'OWNER', 990001), (990002, 'KITCHEN', 990002), (990003, 'ADMIN', 990003), (990004, 'PEDIDOS', 990004)) AS v(id, role, user_id)
 WHERE EXISTS (SELECT 1 FROM roles r WHERE r.name = v.role)
 ON CONFLICT (id) DO NOTHING;
 

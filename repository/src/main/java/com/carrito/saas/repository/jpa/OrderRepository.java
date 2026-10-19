@@ -33,6 +33,28 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	List<Order> findActiveOrders(Long businessId);
 
 	/**
+	 * Pedidos del negocio en una ventana de un día, TODOS los estados
+	 * (incluidos DELIVERED y CANCELLED, que findActiveOrders excluye):
+	 * es la fuente de la vista de gestión del mostrador.
+	 *
+	 * <p>Sin filtro de estado a propósito — la consulta del KDS no se toca.
+	 * La ventana es [start, end). Items, mesa y motivo de cancelación van
+	 * fetch-joined para mapear fuera de la sesión sin lazy loading.</p>
+	 */
+	@Query("""
+			SELECT DISTINCT o
+			FROM Order o
+			LEFT JOIN FETCH o.items
+			LEFT JOIN FETCH o.restaurantTable
+			LEFT JOIN FETCH o.cancellationReason
+			WHERE o.business.id = :businessId
+			AND o.createdAt >= :start
+			AND o.createdAt < :end
+			ORDER BY o.createdAt ASC
+			""")
+	List<Order> findOrdersByDay(Long businessId, LocalDateTime start, LocalDateTime end);
+
+	/**
 	 * Contar pedidos de hoy
 	 * 
 	 * @param restaurantId

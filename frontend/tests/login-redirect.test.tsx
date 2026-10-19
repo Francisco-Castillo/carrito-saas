@@ -71,6 +71,11 @@ describe('login redirect chain (ported from api/src/test/js/page-guard.test.mjs)
     await waitFor(() => expect(location.href).toBe(`/admin`))
   })
 
+  it('PEDIDOS lands on /pedidos (the orders console is its own role)', async () => {
+    const { location } = await submitLogin('PEDIDOS')
+    await waitFor(() => expect(location.href).toBe(`/pedidos`))
+  })
+
   it('the restaurant slug from the login response is stored verbatim in the session', async () => {
     // The legacy login.js used data.restaurantSlug as-is (no re-encoding); the
     // port must keep storing it verbatim — the session is now the only place

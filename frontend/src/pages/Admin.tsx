@@ -115,6 +115,18 @@ function LogoutIcon() {
   );
 }
 
+/** Enlace al console de pedidos: lista con línea de tiempo. */
+function OrdersIcon() {
+  return (
+    <Icon>
+      <path d="M5 4.5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z" />
+      <path d="M8 9.5h8" />
+      <path d="M8 13h5" />
+      <path d="M8 16.5h8" />
+    </Icon>
+  );
+}
+
 const VIEW_ICONS: Record<AdminView, React.ReactNode> = {
   dashboard: <DashboardIcon />,
   products: <ProductsIcon />,
@@ -229,6 +241,13 @@ export default function Admin() {
               <span>{VIEW_LABELS[item]}</span>
             </button>
           ))}
+            {/* Consola de pedidos (orders-console S3): es una página propia
+              (/pedidos), no una vista del panel — un enlace del sidebar con
+              la misma presencia que los botones de navegación. */}
+          <a href="/pedidos" className="admin-nav-btn">
+            <OrdersIcon />
+            <span>Pedidos</span>
+          </a>
         </nav>
 
         <button type="button" className="admin-logout" onClick={logout}>

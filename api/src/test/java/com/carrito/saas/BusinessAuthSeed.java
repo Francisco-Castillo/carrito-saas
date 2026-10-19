@@ -47,15 +47,27 @@ final class BusinessAuthSeed {
 			RoleRepository roleRepository, BusinessUserRepository businessUserRepository, JwtUtil jwtUtil,
 			long businessId, String slug, String username) {
 
+		return seedUserWithRole(businessRepository, userRepository, roleRepository, businessUserRepository, jwtUtil,
+				businessId, slug, username, "OWNER");
+	}
+
+	/**
+	 * Same fixture with an explicit role name: the role row is reused when it
+	 * already exists (shared dev databases keep seeded roles; the unique
+	 * uq_roles_name would reject a second insert) and created on a fresh
+	 * database. The user gets the role both as a direct user-role and in the
+	 * business-user link, mirroring what the real seed does.
+	 */
+	static AuthenticatedBusiness seedUserWithRole(BusinessRepository businessRepository, UserRepository userRepository,
+			RoleRepository roleRepository, BusinessUserRepository businessUserRepository, JwtUtil jwtUtil,
+			long businessId, String slug, String username, String roleName) {
+
 		Business business = seedBusiness(businessRepository, businessId, slug);
 
-		// Reuse the role when it already exists (shared dev databases keep the
-		// seeded OWNER row; the unique uq_roles_name would reject a second
-		// insert). A fresh CI database simply takes the insert branch.
-		Role role = roleRepository.findByName("OWNER")
+		Role role = roleRepository.findByName(roleName)
 				.orElseGet(() -> {
 					Role created = new Role();
-					created.setName("OWNER");
+					created.setName(roleName);
 					return roleRepository.saveAndFlush(created);
 				});
 

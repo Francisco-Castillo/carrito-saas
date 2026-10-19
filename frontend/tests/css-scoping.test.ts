@@ -23,6 +23,7 @@ const PAGE_STYLESHEETS = [
   "Admin.css",
   "Kds.css",
   "Login.css",
+  "Orders.css",
 ];
 
 /** Elementos cuyo estilo global afecta a otra pantalla (todos los layouts usan

@@ -1,8 +1,10 @@
 /**
- * KDS order card phone chip: when the kitchen payload carries the customer's
- * phone, the card must render it as a tap-to-call `tel:` link (a cook can
- * call from a tablet); when it is null, no phone element at all — no empty
- * chip and no "null" text.
+ * KDS order card customer contact: the kitchen card renders NO phone element
+ * at all — no tel: link, no WhatsApp, no chip — whether the payload carries a
+ * phone or not (S6 of odd/tasks/orders-console.md: customer contact lives in
+ * the /pedidos console, which opens WhatsApp). Pinned here so a regression
+ * cannot reintroduce it: absence is asserted against the concrete class and
+ * against any contact link (tel:/wa.me), class or role notwithstanding.
  */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -38,20 +40,25 @@ function renderCard(order: KdsOrder) {
 describe("KDS order card — customer phone", () => {
   afterEach(cleanup);
 
-  it("renders the phone as a formatted tel: link when the payload has it", () => {
-    // El menú manda los dígitos normalizados (1155551234).
+  // El KDS prioriza la información del pedido (S6 de odd/tasks/orders-console.md):
+  // el teléfono ya no se muestra — el contacto con el cliente vive en la consola
+  // de /pedidos, que abre WhatsApp. La cocina no llama ni chatea.
+
+  it("renders no phone element even when the payload has a phone", () => {
     renderCard(buildOrder({ customerPhone: "1155551234" }));
 
-    const link = screen.getByRole("link", { name: /11 5555-1234/ });
-    // En el href van sólo los dígitos: el dialer de la tablet tiene que marcar.
-    expect(link).toHaveAttribute("href", "tel:1155551234");
+    expect(document.querySelector(".order-phone")).not.toBeInTheDocument();
+    // Sin ningún link de contacto, aunque la clase o el rol cambien: ni tel:
+    // ni WhatsApp pueden volver por una regresión de estilo.
+    expect(
+      document.querySelector('a[href^="tel:"], a[href^="wa.me"]')
+    ).not.toBeInTheDocument();
   });
 
-  it("keeps an unknown-length number readable instead of mangling it", () => {
-    renderCard(buildOrder({ customerPhone: "123456789012" }));
+  it("renders no link at all on the card", () => {
+    renderCard(buildOrder({ customerPhone: "1155551234" }));
 
-    const link = screen.getByRole("link", { name: /123456789012/ });
-    expect(link).toHaveAttribute("href", "tel:123456789012");
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("renders no phone element when the phone is null", () => {
