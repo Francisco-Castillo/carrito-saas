@@ -19,4 +19,20 @@ public interface IBusinessProfileService {
 
 	BusinessProfileDTO updateProfile(BusinessProfileDTO dto);
 
+	/**
+	 * Reemplaza el logo del negocio del JWT con una imagen subida (multipart
+	 * ya leída a bytes): guarda el archivo, borra el anterior si era del
+	 * storage propio y devuelve el perfil actualizado.
+	 */
+	BusinessProfileDTO updateLogoImage(byte[] data, String contentType);
+
+	/** Quita el logo propio del negocio del JWT; si no tiene, no cambia nada. */
+	BusinessProfileDTO clearLogoImage();
+
+	/** Igual que {@link #updateLogoImage(byte[], String)} para el banner. */
+	BusinessProfileDTO updateBannerImage(byte[] data, String contentType);
+
+	/** Igual que {@link #clearLogoImage()} para el banner. */
+	BusinessProfileDTO clearBannerImage();
+
 }

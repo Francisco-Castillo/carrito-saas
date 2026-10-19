@@ -27,10 +27,16 @@ public class UploadedImagesConfig implements WebMvcConfigurer {
 
 	@Override
 	public void addResourceHandlers(ResourceHandlerRegistry registry) {
-		String location = Path.of(uploadsDir, "products").toAbsolutePath().normalize().toUri().toString();
+		addHandler(registry, "products");
+		addHandler(registry, "business");
+	}
+
+	/** Registra /api/images/{sub}/** sobre el directorio de uploads correspondiente. */
+	private void addHandler(ResourceHandlerRegistry registry, String subdir) {
+		String location = Path.of(uploadsDir, subdir).toAbsolutePath().normalize().toUri().toString();
 		if (!location.endsWith("/")) {
 			location += "/";
 		}
-		registry.addResourceHandler("/api/images/products/**").addResourceLocations(location);
+		registry.addResourceHandler("/api/images/" + subdir + "/**").addResourceLocations(location);
 	}
 }

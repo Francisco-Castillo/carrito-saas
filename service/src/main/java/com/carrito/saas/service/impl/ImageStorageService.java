@@ -37,10 +37,19 @@ public class ImageStorageService {
 	/** Techo duro de archivo (5 MB): el mismo límite que fija multipart en application.yml. */
 	static final long MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
+	/** Prefijo público de las URLs de imagen de producto (UploadedImagesConfig). */
+	private static final String PRODUCTS_URL_PREFIX = "/api/images/products/";
+
+	/** Prefijo público de las URLs de imagen del negocio, logo y banner (UploadedImagesConfig). */
+	private static final String BUSINESS_URL_PREFIX = "/api/images/business/";
+
 	private final Path productsDir;
+
+	private final Path businessDir;
 
 	public ImageStorageService(@Value("${app.uploads.dir:./uploads}") String uploadsDir) {
 		this.productsDir = Path.of(uploadsDir, "products").toAbsolutePath().normalize();
+		this.businessDir = Path.of(uploadsDir, "business").toAbsolutePath().normalize();
 	}
 
 	/**
@@ -67,21 +76,52 @@ public class ImageStorageService {
 	}
 
 	/**
+	 * Guarda el contenido de una imagen del NEGOCIO (logo o banner) y devuelve
+	 * la URL pública relativa para persistir en el perfil. Mismas reglas que
+	 * {@link #store}: nombre UUID, tipo y tamaño validados.
+	 */
+	public String storeBusinessImage(byte[] data, String contentType) {
+
+		String extension = extensionOf(contentType, data.length);
+
+		try {
+			Files.createDirectories(businessDir);
+			Path target = businessDir.resolve(UUID.randomUUID() + extension);
+			Files.write(target, data);
+			log.info("Imagen de negocio guardada: {}", target);
+			return BUSINESS_URL_PREFIX + target.getFileName();
+		} catch (IOException e) {
+			log.error("No se pudo guardar la imagen de negocio", e);
+			throw new BusinessException("No se pudo guardar la imagen", ErrorType.INTERNAL_ERROR);
+		}
+	}
+
+	/**
 	 * Borra la imagen apuntada por una URL previamente devuelta por
-	 * {@link #store}. Un URL ajeno, vacío o fuera de productsDir se ignora
-	 * en silencio: borrar nunca rompe el flujo de guardado.
+	 * {@link #store} o {@link #storeBusinessImage}. Un URL ajeno, vacío o fuera
+	 * de los directorios gestionados se ignora en silencio: borrar nunca rompe
+	 * el flujo de guardado.
 	 */
 	public void deleteByUrl(String url) {
 
-		if (url == null || url.isBlank() || !url.startsWith("/api/images/products/")) {
+		if (url == null || url.isBlank()) {
 			return;
 		}
 
-		String fileName = Path.of(url.substring("/api/images/products/".length())).getFileName().toString();
+		if (url.startsWith(PRODUCTS_URL_PREFIX)) {
+			deleteManaged(productsDir, PRODUCTS_URL_PREFIX, url);
+		} else if (url.startsWith(BUSINESS_URL_PREFIX)) {
+			deleteManaged(businessDir, BUSINESS_URL_PREFIX, url);
+		}
+	}
+
+	/** Borra dentro de un dir gestionado el archivo nombrado por la URL; errores logueados, nunca lanzados. */
+	private void deleteManaged(Path dir, String prefix, String url) {
+		String fileName = Path.of(url.substring(prefix.length())).getFileName().toString();
 		try {
-			Files.deleteIfExists(productsDir.resolve(fileName).normalize());
+			Files.deleteIfExists(dir.resolve(fileName).normalize());
 		} catch (IOException e) {
-			// Queda un huérfano en disco: no bloquea la operación del producto.
+			// Queda un huérfano en disco: no bloquea la operación del negocio.
 			log.warn("No se pudo borrar la imagen {}: {}", url, e.getMessage());
 		}
 	}

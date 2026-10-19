@@ -102,14 +102,85 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 	private final BusinessHoursRepository businessHoursRepository;
 	private final BusinessDateExceptionRepository businessDateExceptionRepository;
 	private final ISecurityService securityService;
+	private final ImageStorageService imageStorageService;
 
 	public BusinessProfileServiceImpl(BusinessRepository businessRepository,
 			BusinessHoursRepository businessHoursRepository,
-			BusinessDateExceptionRepository businessDateExceptionRepository, ISecurityService securityService) {
+			BusinessDateExceptionRepository businessDateExceptionRepository, ISecurityService securityService,
+			ImageStorageService imageStorageService) {
 		this.businessRepository = businessRepository;
 		this.businessHoursRepository = businessHoursRepository;
 		this.businessDateExceptionRepository = businessDateExceptionRepository;
 		this.securityService = securityService;
+		this.imageStorageService = imageStorageService;
+	}
+
+	@Override
+	@Transactional
+	public BusinessProfileDTO updateLogoImage(byte[] data, String contentType) {
+		return replaceBusinessImage(data, contentType, true);
+	}
+
+	@Override
+	@Transactional
+	public BusinessProfileDTO clearLogoImage() {
+		return clearBusinessImage(true);
+	}
+
+	@Override
+	@Transactional
+	public BusinessProfileDTO updateBannerImage(byte[] data, String contentType) {
+		return replaceBusinessImage(data, contentType, false);
+	}
+
+	@Override
+	@Transactional
+	public BusinessProfileDTO clearBannerImage() {
+		return clearBusinessImage(false);
+	}
+
+	/**
+	 * Reemplazo de imagen propia del negocio (logo o banner), mismo orden que
+	 * el de productos: guardar la nueva primero (un fallo en disco no toca la
+	 * fila) y recién después borrar la vieja SI era del storage propio — una
+	 * URL externa pegada a mano nunca se borra del disco ajeno.
+	 */
+	private BusinessProfileDTO replaceBusinessImage(byte[] data, String contentType, boolean logo) {
+
+		Business business = currentBusiness();
+
+		String oldUrl = logo ? business.getLogoUrl() : business.getBannerUrl();
+		String newUrl = imageStorageService.storeBusinessImage(data, contentType);
+		setImage(business, logo, newUrl);
+
+		if (oldUrl != null && !oldUrl.equals(newUrl)) {
+			imageStorageService.deleteByUrl(oldUrl);
+		}
+
+		return toProfileDTO(businessRepository.save(business));
+	}
+
+	/** Quita la imagen propia (logo o banner); si no había, no toca nada. */
+	private BusinessProfileDTO clearBusinessImage(boolean logo) {
+
+		Business business = currentBusiness();
+
+		String url = logo ? business.getLogoUrl() : business.getBannerUrl();
+		setImage(business, logo, null);
+
+		if (url != null) {
+			imageStorageService.deleteByUrl(url);
+		}
+
+		return toProfileDTO(businessRepository.save(business));
+	}
+
+	private void setImage(Business business, boolean logo, String url) {
+		if (logo) {
+			business.setLogoUrl(url);
+		} else {
+			business.setBannerUrl(url);
+		}
 	}
 
 	@Override
@@ -118,6 +189,11 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 
 		Business business = currentBusiness();
 
+		return toProfileDTO(business);
+	}
+
+	/** Mapeo entidad → DTO del perfil: el único lugar que conoce los campos del storefront. */
+	private BusinessProfileDTO toProfileDTO(Business business) {
 		BusinessProfileDTO dto = new BusinessProfileDTO();
 		dto.setName(business.getName());
 		dto.setLogoUrl(business.getLogoUrl());
