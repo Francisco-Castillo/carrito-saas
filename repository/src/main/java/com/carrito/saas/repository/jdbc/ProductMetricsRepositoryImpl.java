@@ -1,6 +1,10 @@
 package com.carrito.saas.repository.jdbc;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import java.sql.Date;
+import java.time.LocalDate;
+import java.util.Map;
+
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import lombok.RequiredArgsConstructor;
@@ -8,14 +12,14 @@ import lombok.RequiredArgsConstructor;
 @Repository
 @RequiredArgsConstructor
 public class ProductMetricsRepositoryImpl implements ProductMetricsRepository {
-	
-	 private final JdbcTemplate jdbcTemplate;
+
+	private final NamedParameterJdbcTemplate jdbcTemplate;
 
 	@Override
-	public void aggregateToday() {
+	public void aggregateRange(LocalDate startDate, LocalDate endDate) {
 		String sql = """
 	            INSERT INTO product_daily_sales (business_id, product_id, date, quantity_sold, revenue)
-	            SELECT 
+	            SELECT
 	                o.business_id,
 	                oi.product_id,
 	                DATE(o.created_at),
@@ -23,7 +27,8 @@ public class ProductMetricsRepositoryImpl implements ProductMetricsRepository {
 	                SUM(oi.subtotal)
 	            FROM orders o
 	            JOIN order_items oi ON oi.order_id = o.id
-	            WHERE o.created_at >= CURRENT_DATE
+	            WHERE o.created_at >= :startDate
+	              AND o.created_at < CAST(:endDate AS date) + INTERVAL '1 day'
 	            GROUP BY o.business_id, oi.product_id, DATE(o.created_at)
 	            ON CONFLICT (business_id, product_id, date)
 	            DO UPDATE SET
@@ -31,8 +36,9 @@ public class ProductMetricsRepositoryImpl implements ProductMetricsRepository {
 	                revenue = EXCLUDED.revenue;
 	        """;
 
-	        jdbcTemplate.update(sql);
-		
+	        jdbcTemplate.update(sql, Map.of(
+	                "startDate", Date.valueOf(startDate),
+	                "endDate", Date.valueOf(endDate)));
 	}
 
 }

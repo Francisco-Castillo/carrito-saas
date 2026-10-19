@@ -1,0 +1,255 @@
+/* ============================================================
+   Liquid Glass — Design System Tokens
+   Glassmorphism dark theme for Carrito SaaS UI redesign sample.
+   ============================================================ */
+
+:root {
+  /* Color — base surface */
+  --color-bg: #020617;
+  --color-text: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-text-faint: #64748b;
+
+  /* Accent */
+  --accent-gradient: linear-gradient(135deg, #6366f1, #8b5cf6);
+  --accent-indigo: #6366f1;
+  --accent-violet: #8b5cf6;
+  --accent-fuchsia: #d946ef;
+  --accent-cyan: #06b6d4;
+  --focus-ring: 0 0 0 3px rgba(139, 92, 246, 0.35);
+  --focus-ring-error: 0 0 0 3px rgba(248, 113, 113, 0.3);
+
+  /* Glass — panel recipe */
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-bg-strong: rgba(255, 255, 255, 0.08);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.04);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border-subtle: rgba(255, 255, 255, 0.08);
+  --glass-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  --glass-blur: blur(24px) saturate(160%);
+  --glass-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  --glass-shadow-hover: 0 26px 70px rgba(0, 0, 0, 0.55);
+  --specular-highlight: radial-gradient(
+    120% 60% at 50% 0%,
+    rgba(255, 255, 255, 0.14),
+    rgba(255, 255, 255, 0) 60%
+  );
+
+  /* Aurora blobs (background decoration) */
+  --aurora-opacity: 0.35;
+  --aurora-blur: 110px;
+
+  /* Type */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-size-xs: 0.75rem;   /* 12px */
+  --font-size-sm: 0.8125rem; /* 13px */
+  --font-size-base: 0.875rem;/* 14px */
+  --font-size-md: 1rem;      /* 16px */
+  --font-size-lg: 1.25rem;   /* 20px */
+  --font-size-xl: 1.5rem;    /* 24px */
+  --font-size-2xl: 2rem;     /* 32px */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;  /* 4px  */
+  --space-2: 0.5rem;   /* 8px  */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.25rem;  /* 20px */
+  --space-6: 1.5rem;   /* 24px */
+  --space-8: 2rem;     /* 32px */
+
+  /* Radii */
+  --radius-sm: 0.75rem;  /* 12px */
+  --radius-md: 1rem;     /* 16px */
+  --radius-lg: 1.5rem;   /* 24px */
+  --radius-full: 9999px;
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 200ms;
+  --duration-slow: 400ms;
+
+  /* Component accents */
+  --error: #f87171;
+  --input-bg: rgba(2, 6, 23, 0.45);
+  --button-glow: 0 10px 30px rgba(99, 102, 241, 0.35);
+}
+
+/* ------------------------------------------------------------
+   Base
+   ------------------------------------------------------------ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* ------------------------------------------------------------
+   Aurora background — fixed, behind all content
+   ------------------------------------------------------------ */
+
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(var(--aurora-blur));
+  opacity: var(--aurora-opacity);
+  will-change: transform;
+  animation: aurora-drift 28s var(--ease-out-soft) infinite alternate;
+}
+
+.aurora-blob--indigo {
+  width: 55vmax;
+  height: 55vmax;
+  top: -18vmax;
+  left: -12vmax;
+  background: radial-gradient(circle, #6366f1 0%, transparent 65%);
+}
+
+.aurora-blob--violet {
+  width: 48vmax;
+  height: 48vmax;
+  top: 30%;
+  right: -16vmax;
+  background: radial-gradient(circle, #8b5cf6 0%, transparent 65%);
+  animation-duration: 36s;
+  animation-delay: -8s;
+}
+
+.aurora-blob--fuchsia {
+  width: 38vmax;
+  height: 38vmax;
+  bottom: -14vmax;
+  left: 18%;
+  background: radial-gradient(circle, #d946ef 0%, transparent 65%);
+  animation-duration: 32s;
+  animation-delay: -16s;
+}
+
+.aurora-blob--cyan {
+  width: 30vmax;
+  height: 30vmax;
+  top: 12%;
+  left: 45%;
+  background: radial-gradient(circle, #06b6d4 0%, transparent 65%);
+  opacity: calc(var(--aurora-opacity) * 0.6);
+  animation-duration: 24s;
+  animation-delay: -4s;
+}
+
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4vmax, 3vmax, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(-3vmax, -2vmax, 0) scale(0.96);
+  }
+}
+
+/* ------------------------------------------------------------
+   Glass panel recipe
+   ------------------------------------------------------------ */
+
+.glass-panel {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow), var(--glass-inset-highlight);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  overflow: hidden;
+}
+
+/* Subtle specular highlight across the top of the panel */
+.glass-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--specular-highlight);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glass-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------
+   Entrance motion — fade-up + stagger
+   ------------------------------------------------------------ */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-up {
+  animation: fade-up var(--duration-slow) var(--ease-out-soft) both;
+}
+
+.stagger > * {
+  animation: fade-up var(--duration-slow) var(--ease-out-soft) both;
+}
+
+.stagger > *:nth-child(1) { animation-delay: 80ms; }
+.stagger > *:nth-child(2) { animation-delay: 160ms; }
+.stagger > *:nth-child(3) { animation-delay: 240ms; }
+.stagger > *:nth-child(4) { animation-delay: 320ms; }
+.stagger > *:nth-child(5) { animation-delay: 400ms; }
+.stagger > *:nth-child(6) { animation-delay: 480ms; }
+
+/* ------------------------------------------------------------
+   Reduced motion
+   ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob {
+    animation: none;
+  }
+
+  .fade-up,
+  .stagger > * {
+    animation: none;
+  }
+}

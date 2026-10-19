@@ -3,7 +3,6 @@ package com.carrito.saas.service.interfaces;
 import java.util.List;
 
 import com.carrito.saas.dto.HourlyDTO;
-import com.carrito.saas.dto.ProductDTO;
 import com.carrito.saas.dto.TodayPredictionDTO;
 
 public interface IPredictionService {
@@ -30,12 +29,6 @@ public interface IPredictionService {
 	TodayPredictionDTO getTodayForBusiness(Long businessId);
 
 	List<HourlyDTO> getHourly();
-	
-	List<HourlyDTO> getHourlyForBusiness(Long businessId);
-
-	List<ProductDTO> getProducts();
-	
-	List<ProductDTO> getProductsForBusiness(Long businessId);
 	
 	/**
 	 * Obtiene el promedio histórico de pedidos diarios del negocio autenticado.

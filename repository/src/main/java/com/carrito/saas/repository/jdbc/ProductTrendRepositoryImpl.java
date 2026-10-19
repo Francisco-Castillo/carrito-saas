@@ -101,6 +101,7 @@ public class ProductTrendRepositoryImpl implements ProductTrendRepository {
 			        pt.trend_direction,
 			        pt.current_week_sales,
 			        pt.previous_week_sales,
+			        pt.updated_at,
 			        p.name AS product_name
 			    FROM product_trends pt
 			    JOIN products p ON p.id = pt.product_id

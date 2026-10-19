@@ -13,12 +13,6 @@ import com.carrito.saas.service.mapper.interfaces.ICancellationReasonMapper;
 public class ICancellationReasonMapperImpl implements ICancellationReasonMapper{
 
 	@Override
-	public CancellationReason toEntity(CancellationReasonDTO dto) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	public CancellationReasonDTO toDTO(CancellationReason entity) {
 		if (entity == null) {
 			return null;

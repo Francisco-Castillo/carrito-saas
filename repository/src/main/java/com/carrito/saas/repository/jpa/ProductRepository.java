@@ -1,6 +1,8 @@
 package com.carrito.saas.repository.jpa;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -21,6 +23,35 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
 	// Todos los productos de un negocio
     List<Product> findByCategory_Business_Id(Long businessId);
+
+	/**
+	 * Un solo producto propio: el canal de administración ancla el tenant en
+	 * el JWT, así que un id ajeno debe resolver como no encontrado y jamás
+	 * como un éxito silencioso. {@link Product} no tiene business propio: el
+	 * ancla es {@code category.business.id}.
+	 */
+	Optional<Product> findByIdAndCategory_Business_Id(Long id, Long businessId);
+
+	/**
+	 * Conjunto de productos propios: la creación de combos resuelve los ids
+	 * referenciados con este finder acotado al negocio del JWT, así que un id
+	 * ajeno o inexistente simplemente no aparece en el resultado (el servicio
+	 * lo convierte en 404 nombrando el id ofensor).
+	 */
+	List<Product> findAllByIdInAndCategory_Business_Id(Collection<Long> ids, Long businessId);
+
+	/**
+	 * {@code combo_products.producto_id} lleva una FK real (RESTRICT), así
+	 * que un producto usado por cualquier combo no puede borrarse: esta
+	 * consulta permite fallar de forma explícita (409) antes de chocar con la
+	 * FK y terminar en un 500 genérico.
+	 */
+	@Query("""
+			SELECT CASE WHEN COUNT(cp) > 0 THEN true ELSE false END
+			FROM ComboProduct cp
+			WHERE cp.product.id = :productId
+			""")
+	boolean existsInAnyCombo(@Param("productId") Long productId);
 	
 	List<Product> findByCategoryId(Long categoryId);
 
@@ -31,17 +62,20 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 	
 	List<Product> findByActiveTrue();
 
-	List<Product> findAllByIdIn(List<Long> ids);
-
 	/**
 	 * mientras una transacción usa esos productos, nadie más puede modificarlos
-	 * 
+	 *
+	 * <p>El predicado de negocio es obligatorio: el canal público de pedidos es
+	 * anónimo y su única ancla de tenant es el slug de la URL, así que un id de
+	 * producto ajeno no debe entrar al mapa de carga ni bajo lock pesimista.
+	 *
 	 * @param ids
+	 * @param businessId
 	 * @return
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
-	@Query("SELECT p FROM Product p WHERE p.id IN :ids")
-	List<Product> findAllByIdInForUpdate(@Param("ids") List<Long> ids);
+	@Query("SELECT p FROM Product p WHERE p.id IN :ids AND p.category.business.id = :businessId")
+	List<Product> findAllByIdInForUpdate(@Param("ids") List<Long> ids, @Param("businessId") Long businessId);
 
 	/**
 	 * No hace SELECT del producto para validar stock, sino que actualizas el
@@ -60,19 +94,23 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 			UPDATE Product p
 			SET p.stock = p.stock - :quantity
 			WHERE p.id = :productId
-			AND p.stock >= :quantity
+			AND p.category.business.id = :businessId
+			AND (p.stock IS NULL OR p.stock >= :quantity)
 			""")
-	int decrementStock(@Param("productId") Long productId, @Param("quantity") Integer quantity);
+	int decrementStock(@Param("productId") Long productId, @Param("quantity") Integer quantity,
+			@Param("businessId") Long businessId);
 	
 	@Modifying
 	@Query("""
 	    UPDATE Product p
 	    SET p.stock = p.stock + :quantity
 	    WHERE p.id = :productId
+	    AND p.category.business.id = :businessId
 	""")
 	int incrementStock(
 	        @Param("productId") Long productId,
-	        @Param("quantity") Integer quantity
+	        @Param("quantity") Integer quantity,
+	        @Param("businessId") Long businessId
 	);
 
 	List<Product> findByCategoryIdAndActiveTrue(Long categoriaId);
@@ -89,6 +127,19 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 		boolean existsByNameAndCategory(@Param("name") String name,
 		                                @Param("categoryId") Long categoryId);
 	
-	// Solo activos y con stock > X
-    List<Product> findByCategory_Business_IdAndActiveTrueAndStockGreaterThan(Long businessId, Integer stock);
+	/**
+	 * Public menu read path. Follows the documented {@code Product.stock}
+	 * convention: {@code null} is infinite stock and must be offered,
+	 * {@code 0} is no stock and must stay filtered out, {@code > 0} is
+	 * limited stock. In SQL {@code NULL > 0} is not true, so the null case
+	 * has to be spelled out explicitly.
+	 */
+	@Query("""
+			SELECT p
+			FROM Product p
+			WHERE p.category.business.id = :businessId
+			AND p.active = true
+			AND (p.stock IS NULL OR p.stock > 0)
+			""")
+    List<Product> findPublicMenuProducts(@Param("businessId") Long businessId);
 }

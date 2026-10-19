@@ -3,6 +3,8 @@ package com.carrito.saas.service.impl;
 import org.springframework.stereotype.Service;
 
 import com.carrito.saas.dto.BusinessDTO;
+import com.carrito.saas.exception.BusinessException;
+import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.service.interfaces.IBusinessService;
@@ -23,7 +25,7 @@ public class BusinessServiceImpl implements IBusinessService {
 	public BusinessDTO getBusinessBySlug(String slug) {
 
 		Business business = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new RuntimeException("Business not found"));
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 		return iBusinessMapper.toDTO(business);
 

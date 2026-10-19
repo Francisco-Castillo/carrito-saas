@@ -1,14 +1,18 @@
 package com.carrito.saas.config;
 
+import jakarta.servlet.DispatcherType;
+
 import org.springframework.boot.security.autoconfigure.actuate.web.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -44,17 +48,59 @@ public class SecurityConfig {
 
 	        .authorizeHttpRequests(auth -> auth
 
+	            // El contenedor re-despacha a /error las respuestas de seguridad SIN
+	            // cuerpo (el 403 del AccessDeniedHandler, el 401 del entry point). En
+	            // ese segundo paso el filtro de JWT ya no corre —actúa una vez por
+	            // request— así que el contexto es ANÓNIMO. Sin esta regla la cadena
+	            // deniega su propio renderizado de error y el entry point PISA el
+	            // status real: un 403 legítimo de un usuario autenticado salía 401.
+	            // El bug era latente mientras TODA respuesta de seguridad fue 403
+	            // (el pisotón daba el mismo código) y quedó a la vista al separar
+	            // 401 (anónimo) de 403 (autenticado sin el rol exigido). MockMvc no
+	            // pasa por el contenedor, así que no hace ese re-despacho: lo fija
+	            // SecurityErrorDispatchTests y lo verifica la prueba en vivo.
+	            .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+
 	            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
 	            .requestMatchers(
 	                "/api/auth/**",
 	                "/login/**",
 	                "/login.html",
+	                // Rutas limpias del SPA (SpaRoutingConfig las sirve con forward
+	                // a los mismos archivos estáticos): el path exacto no matchea
+	                // /xxx/** con la semántica de PathPattern, así que se nombran
+	                // explícitamente para quedarse públicas como sus .html.
+	                "/login",
 	                "/css/**",
 	                "/js/**",
 	                "/kds/**",
+	                "/kds",
 	                "/admin/**",
-	                "/dashboard/**"
+	                "/admin",
+	                "/dashboard/**",
+	                "/dashboard"
+	            ).permitAll()
+
+	            // Shell de la SPA (Vite) y assets publicos que referencia:
+	            // sin esto el bundle en /assets/** responde 403 y ninguna
+	            // pantalla carga, porque cualquier ruta no listada exige token.
+	            .requestMatchers(
+	                "/",
+	                "/index.html",
+	                "/assets/**",
+	                "/favicon.svg",
+	                "/favicon.ico",
+	                "/ding.mp3",
+	                "/ready.mp3",
+	                // Fotos de demo del seed (docs/dev-seed.sql): son assets
+	                // publicos de la carta, igual que las imagenes de producto
+	                // que subiria un negocio real.
+	                "/dev-media/**",
+	                // Imágenes de producto subidas por el negocio (uploads en
+	                // disco, servidas por UploadedImagesConfig): públicas igual
+	                // que /dev-media porque la carta digital las muestra.
+	                "/api/images/**"
 	            ).permitAll()
 
 	            // Actuator (incluye Prometheus)
@@ -63,20 +109,54 @@ public class SecurityConfig {
 	            // Carta digital pública
 	            .requestMatchers("/api/menu/**").permitAll()
 	            .requestMatchers("/menu/**").permitAll()
+	            .requestMatchers("/menu", "/menu/").permitAll()
 
-	            // Restaurante público
+	            // Restaurante público (slug lookup del menú público y login;
+	            // el slug es público porque va impreso en el QR)
 	            .requestMatchers("/api/restaurants/slug/**").permitAll()
 
-	            // Crear restaurantes
-	            .requestMatchers("/api/restaurants/**").permitAll()
+	            // Todo lo demás bajo /api/restaurants/** (dashboard, analytics,
+	            // users, QR, tables) exige token: los KPIs del negocio no pueden
+	            // ser públicos solo porque el slug lo sea.
 
 	            // Websocket
 	            .requestMatchers("/ws/**").permitAll()
 
 	            // Crear pedidos público
-	            .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
+	            .requestMatchers(HttpMethod.POST, "/api/orders", "/api/orders/menu/{slug}").permitAll()
+
+	            // Barrera de PRIVILEGIO (no de tenant): POST /api/predictions/run
+	            // dispara el recálculo GLOBAL de predicciones (todos los negocios),
+	            // no un job del negocio propio. Solo OWNER/ADMIN pueden lanzarlo.
+	            // Honestidad del alcance: el job es global, así que un OWNER del
+	            // negocio A que lo invoca sigue recalculando las predicciones de
+	            // TODOS los negocios — esta regla no aísla negocios, solo limita
+	            // quién puede accionar el recálculo.
+	            // Un anónimo recibe 401 (entry point de la cadena, contrato
+	            // resuelto en odd/tasks/http-error-contract.md); un AUTENTICADO
+	            // sin OWNER/ADMIN recibe 403, que es el caso que esta regla
+	            // castiga.
+	            .requestMatchers(HttpMethod.POST, "/api/predictions/run").hasAnyRole("OWNER", "ADMIN")
 
 	            .anyRequest().authenticated()
+	        )
+
+	        // CONTRATO DE ERRORES HTTP para toda la cadena: un anónimo (sin
+	        // credenciales) recibe 401 del entry point; un AUTENTICADO sin el
+	        // rol exigido sigue recibiendo 403 del AccessDeniedHandler (que
+	        // queda por default, no se toca). ExceptionTranslationFilter manda
+	        // al anónimo al entry point y al autenticado al handler, así que
+	        // esta única configuración separa "no tenés sesión" de "no tenés
+	        // privilegio". Se eligió HttpStatusEntryPoint (no
+	        // BearerTokenAuthenticationEntryPoint) porque ésta vive en
+	        // spring-security-oauth2-resource-server, que no está en el
+	        // classpath y agregar la dependencia está fuera de alcance. Sin
+	        // matchers por ruta: la regla es de TODA la cadena. Un intento
+	        // anterior con defaultAuthenticationEntryPointFor(matcher)
+	        // convirtió en 401 a TODO el sitio: el builder toma la primera
+	        // entrada como default global cuando no hay default declarado.
+	        .exceptionHandling(e -> e
+	            .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
 	        )
 
 	        // ORDEN DE FILTROS (correcto y sin dependencia entre ellos)

@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import com.carrito.saas.dto.reportes.DashboardTodayDTO;
 import com.carrito.saas.dto.reportes.OrderStatusSummaryDTO;
+import com.carrito.saas.exception.BusinessException;
+import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.enums.OrderStatus;
 import com.carrito.saas.repository.jpa.BusinessRepository;
@@ -30,7 +32,7 @@ public class DashboardServiceImpl implements IDashboardService {
 	public DashboardTodayDTO getTodayStats(String slug) {
 
 		Business restaurant = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new RuntimeException("Restaurant not found"));
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 	    LocalDate today = LocalDate.now();
 
@@ -65,7 +67,7 @@ public class DashboardServiceImpl implements IDashboardService {
 	public OrderStatusSummaryDTO getOrderStatusSummary(String slug){
 
 		Business restaurant = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new RuntimeException("Restaurant not found"));
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 	    List<Object[]> rows =
 	            orderRepository.countOrdersByStatus(restaurant.getId());

@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        # Must stay in sync with api/src/main/resources/application.yml.
+        image: postgres:17
+        env:
+          POSTGRES_DB: carrito_db
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: admin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin -d carrito_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Verify
+        # The `frontend` profile installs the frontend dependencies and builds
+        # the SPA into the static classpath (generate-resources) before the
+        # backend tests run, because the generated bundle is not versioned.
+        run: mvn -B --no-transfer-progress -Pfrontend verify
+
+      - name: Frontend contract tests
+        # The three legacy Node contract runners (menu-app, page-guard,
+        # frontend-origin) used to execute the vanilla files in vm sandboxes.
+        # Those files no longer exist: the contracts now run against the React
+        # sources with Vitest, see frontend/tests/. They pin the customer-facing
+        # menu failure contract (missing slug / unloadable restaurant / failed
+        # or malformed menu fetch all stop with a readable message), the session
+        # guard and the login redirect chain (including dead tokens, blocked
+        # storage and a missing roles claim), the first-screen menu behaviour
+        # and the rule that no shipped client hardcodes the application origin.
+        working-directory: frontend
+        run: npm test

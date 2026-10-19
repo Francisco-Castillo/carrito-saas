@@ -35,6 +35,14 @@
 			<artifactId>service</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
+		<!-- Los schedulers del módulo jobs son los únicos disparadores de la
+			cadena de analítica (métricas → tendencias → predicciones); sin esta
+			dependencia sus clases no llegan al fat jar y quedan como dead code. -->
+		<dependency>
+			<groupId>com.carrito</groupId>
+			<artifactId>jobs</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
 		<dependency>
 			<groupId>com.carrito</groupId>
 			<artifactId>security</artifactId>
@@ -55,4 +63,63 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!--
+			Builds the React SPA into src/main/resources/static during
+			generate-resources, before the resources are copied, so a packaged jar
+			serves the real UI.
+
+			The generated bundle is deliberately NOT versioned: committing minified
+			assets made every review candidate exceed the native reviewer context
+			budget. Requires Node and npm on PATH (CI sets Node up first, then runs
+			`mvn -Pfrontend verify`). Without this profile the backend still builds
+			and its tests still run, but the SPA entry pages are absent.
+		-->
+		<profile>
+			<id>frontend</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<version>3.5.0</version>
+						<executions>
+							<execution>
+								<id>frontend-dependencies</id>
+								<phase>generate-resources</phase>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+								<configuration>
+									<workingDirectory>${project.basedir}/../frontend</workingDirectory>
+									<executable>npm</executable>
+									<arguments>
+										<argument>ci</argument>
+										<argument>--no-audit</argument>
+										<argument>--no-fund</argument>
+									</arguments>
+								</configuration>
+							</execution>
+							<execution>
+								<id>frontend-bundle</id>
+								<phase>generate-resources</phase>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+								<configuration>
+									<workingDirectory>${project.basedir}/../frontend</workingDirectory>
+									<executable>npm</executable>
+									<arguments>
+										<argument>run</argument>
+										<argument>build:spring</argument>
+									</arguments>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>

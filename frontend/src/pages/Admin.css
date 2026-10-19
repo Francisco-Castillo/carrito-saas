@@ -1,0 +1,1032 @@
+/* ============================================================
+   Admin — liquid glass sobre los tokens de src/styles/tokens.css
+   Mobile-first: sidebar como barra superior de vidrio en mobile,
+   sidebar vertical de vidrio en desktop. Reutiliza los patrones
+   de Dashboard.css (aurora, glass-panel, table-scroll).
+   ============================================================ */
+
+.admin-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ------------------------------------------------------------
+   Sidebar — glass bar (horizontal en mobile, vertical en desktop)
+   ------------------------------------------------------------ */
+
+.admin-sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--glass-bg-strong);
+  border-bottom: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  /* Mobile: la barra es scrolleable; la marca conserva su ancho (acotado)
+     en vez de dejarse aplastar por el nav. */
+  flex-shrink: 0;
+  max-width: 45%;
+}
+
+.admin-logo {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* Nombres de negocio largos: se recortan con elipsis, nunca rompen la barra */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-brand-sub {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.admin-sidebar nav {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.admin-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px; /* touch target ≥44px */
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out-soft),
+    color var(--duration-fast) var(--ease-out-soft);
+}
+
+.admin-nav-btn svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+  transition: opacity var(--duration-fast) var(--ease-out-soft);
+}
+
+.admin-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text);
+}
+
+.admin-nav-btn:hover svg {
+  opacity: 1;
+}
+
+.admin-nav-btn.is-active {
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: var(--button-glow);
+}
+
+.admin-nav-btn.is-active svg {
+  opacity: 1;
+}
+
+.admin-nav-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.admin-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  margin-left: auto;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--error);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out-soft);
+}
+
+.admin-logout svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.admin-logout:hover svg {
+  opacity: 1;
+}
+
+.admin-logout:hover {
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.admin-logout:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring-error);
+}
+
+/* ------------------------------------------------------------
+   Main + topbar
+   ------------------------------------------------------------ */
+
+.admin-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-8);
+}
+
+.admin-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.admin-topbar h1 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.02em;
+}
+
+/* Acción primaria con gradiente de acento */
+.btn-primary {
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent-gradient);
+  color: #fff;
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  box-shadow: var(--button-glow);
+  transition:
+    transform var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--glass-shadow-hover), var(--button-glow);
+}
+
+.btn-primary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Botón fantasma (ON/OFF, 🗑 de products, utilidades de Local): 36px en
+   desktop para no inflar las filas de la tabla; en pantalla táctil se
+   devuelve al mínimo de 44px. */
+.btn-ghost {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out-soft);
+}
+
+@media (pointer: coarse) {
+  .btn-ghost {
+    min-height: 44px; /* touch target ≥44px */
+  }
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-ghost:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ------------------------------------------------------------
+   Contenido: paneles de vidrio + tablas scrolleables
+   ------------------------------------------------------------ */
+
+.admin-content {
+  display: block;
+}
+
+/* Reutiliza el layout del dashboard embebido */
+.admin-dashboard main {
+  max-width: none;
+}
+
+.admin-table-panel {
+  padding: var(--space-4);
+}
+
+.admin-not-found {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Contenido tabular scrolleable en horizontal en mobile (patrón Dashboard.css) */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+}
+
+.table th {
+  padding: var(--space-3);
+  text-align: left;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--glass-border-subtle);
+  white-space: nowrap;
+  /* Dígitos tabulares: precios y stocks alineados columna a columna */
+  font-variant-numeric: tabular-nums;
+}
+
+.table tbody tr {
+  transition: background var(--duration-fast) var(--ease-out-soft);
+}
+
+.table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.table tfoot td {
+  padding: var(--space-3);
+  border-top: 1px solid var(--glass-border);
+  border-bottom: none;
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.row-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* Badges de estado (copy y semántica del legacy) */
+.badge {
+  display: inline-block;
+  min-width: 70px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: #fff;
+  text-align: center;
+}
+
+.badge.active {
+  background: #22c55e;
+}
+
+.badge.inactive {
+  background: #ef4444;
+}
+
+/* Botones activar/desactivar (mismos colores del legacy) */
+.toggle-btn {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: #fff;
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft);
+}
+
+.toggle-btn.activate {
+  background: var(--accent-indigo);
+}
+
+.toggle-btn.deactivate {
+  background: #ef4444;
+}
+
+.toggle-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--button-glow);
+}
+
+.toggle-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Drag handle (reordenamiento de categorías) */
+.drag-handle {
+  cursor: grab;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-right: var(--space-1);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-lg);
+  touch-action: none;
+  user-select: none;
+}
+
+.drag-handle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+/* Edición inline del nombre (glass input) */
+.name-text {
+  cursor: text;
+  border-bottom: 1px dashed transparent;
+}
+
+.name-text:hover {
+  border-bottom-color: var(--glass-border);
+}
+
+.name-text:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+.inline-input,
+.admin-input {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  width: 100%;
+}
+
+.inline-input:focus-visible,
+.admin-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: var(--accent-violet);
+}
+
+.admin-input--error {
+  border-color: var(--error);
+}
+
+.admin-input--error:focus-visible {
+  box-shadow: var(--focus-ring-error);
+}
+
+.name-error {
+  margin: var(--space-2) 0 0;
+  color: var(--error);
+  font-size: var(--font-size-xs);
+}
+
+/* ------------------------------------------------------------
+   Modal / toast — glass surface con backdrop blureado
+   ------------------------------------------------------------ */
+
+.toast-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-4);
+  background: rgba(2, 6, 23, 0.5);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.toast-modal {
+  min-width: 280px;
+  max-width: 90%;
+  padding: var(--space-6);
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow), var(--glass-inset-highlight);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  text-align: center;
+  transform: translateY(-20px);
+  opacity: 0;
+  animation: modal-in 0.3s var(--ease-out-soft) forwards;
+}
+
+.toast-modal h3 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.toast-modal p {
+  margin: 0 0 var(--space-2);
+  overflow-wrap: break-word;
+}
+
+.toast-modal-actions {
+  margin-top: var(--space-4);
+}
+
+@keyframes modal-in {
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Toast éxito (legacy: verde fijo arriba a la derecha) */
+.toast-success {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2000;
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  background: #22c55e;
+  color: #fff;
+  font-weight: var(--font-weight-medium);
+  box-shadow: var(--glass-shadow);
+  opacity: 0;
+  transform: translateX(50px);
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+
+.toast-success.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ------------------------------------------------------------
+   Breakpoints — mobile first
+   ------------------------------------------------------------ */
+
+@media (min-width: 560px) {
+  .admin-main {
+    padding: var(--space-6) var(--space-6) var(--space-8);
+  }
+
+  .admin-table-panel {
+    padding: var(--space-5);
+  }
+}
+
+@media (min-width: 900px) {
+  .admin-screen {
+    flex-direction: row;
+  }
+
+  .admin-sidebar {
+    position: sticky;
+    top: 0;
+    flex-direction: column;
+    align-items: stretch;
+    width: 240px;
+    height: 100vh;
+    padding: var(--space-5);
+    border-bottom: none;
+    border-right: 1px solid var(--glass-border);
+    overflow-x: visible;
+  }
+
+  /* Jerarquía del sidebar: marca arriba (con separador), nav al medio y
+     logout clavado al fondo. */
+  .admin-brand {
+    max-width: none;
+    padding-bottom: var(--space-5);
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .admin-sidebar nav {
+    flex-direction: column;
+    gap: var(--space-1);
+    margin-top: var(--space-4);
+  }
+
+  .admin-nav-btn {
+    width: 100%;
+    text-align: left;
+  }
+
+  .admin-logout {
+    margin-left: 0;
+    margin-top: auto;
+  }
+}
+
+/* Reduced motion: los keyframes propios del admin se apagan acá;
+   aurora/fade-up/stagger ya se cubren en tokens.css. */
+@media (prefers-reduced-motion: reduce) {
+  .toast-modal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .toast-success {
+    transition: none;
+  }
+
+  .btn-primary:hover,
+  .toggle-btn:hover {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------
+   Vista "Local" — formulario de perfil del negocio
+   ------------------------------------------------------------ */
+
+.admin-profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.admin-profile-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+.admin-profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-profile-field label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.admin-profile-preview {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+}
+
+.admin-profile-preview--empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.admin-profile-hours {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-profile-hours h3 {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.admin-profile-hours-note {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.admin-profile-day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.admin-profile-day:last-child {
+  border-bottom: none;
+}
+
+.admin-profile-day--closed {
+  opacity: 0.6;
+}
+
+.admin-profile-day-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.admin-profile-day-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  min-width: 88px;
+}
+
+.admin-profile-day-add {
+  margin-left: auto;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+}
+
+.admin-profile-day-closed {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.admin-profile-shift {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.admin-profile-shift-remove {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--error);
+}
+
+.admin-profile-shift-remove:hover {
+  background: rgba(248, 113, 113, 0.12);
+}
+
+/* Fechas especiales: reutilizan .admin-profile-day / .admin-profile-shift
+   (el mismo markup de un día de la semana); sólo se agregan el estado vacío,
+   la fila de alta y el botón de quitar fecha. */
+.admin-profile-exceptions-empty {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.admin-profile-exception-add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-profile-exception-add .admin-input {
+  max-width: 180px;
+}
+
+.admin-profile-exception-remove {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--error);
+}
+
+.admin-profile-exception-remove:hover {
+  background: rgba(248, 113, 113, 0.12);
+}
+
+/* Fecha anual: el checkbox de repetición va en la cabecera de la fila y la
+   fila se distingue de una one-off con una barra lateral acentuada. */
+.admin-profile-exception-yearly {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.admin-profile-exception-yearly input {
+  margin: 0;
+  accent-color: var(--accent-violet);
+  cursor: pointer;
+}
+
+.admin-profile-day--yearly {
+  border-left: 3px solid var(--accent-violet);
+  padding-left: var(--space-2);
+}
+
+.admin-profile-error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-sm);
+  color: var(--error);
+  font-size: var(--font-size-sm);
+}
+
+.admin-profile-save {
+  align-self: flex-start;
+}
+
+.admin-profile-save:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+@media (min-width: 700px) {
+  .admin-profile-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-profile-field--wide {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-profile-shift {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-profile-day-name,
+  .admin-profile-shift-remove,
+  .admin-profile-day-add {
+    grid-column: auto;
+  }
+
+  .admin-profile-day-name {
+    min-width: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Panel admin: buscador, modal de crear/editar, switch de estado y estados vacíos
+ * (productos y categorías comparten esta piel).
+ *
+ * Estas reglas vinieron de una hoja nueva en `pages/admin/Admin.css`, creada
+ * porque un brief las ubicó mal. Dos `Admin.css` para la misma pantalla es peor
+ * que el error que las originó, así que viven acá, con la piel de tabla que ya
+ * estaba en este archivo. Todas las clases son propias (`products-*`,
+ * `admin-switch*`, `admin-product-form*`, `admin-empty-state`): no pisan nada de
+ * lo que ya había.
+ * --------------------------------------------------------------------------- */
+/*
+ * Estilos del panel admin (buscador, switch, modal de producto, estado vacío).
+ *
+ * La tabla de categorías REUSA `products-toolbar`, `admin-switch*` y
+ * `admin-empty-state` tal cual (unidad 3 del ODD): los dos catálogos tienen
+ * que verse como hermanos. No renombrar sin actualizar CategoriesTable.tsx —
+ * y viceversa: ProductsTable.tsx usa estos mismos selectores.
+ *
+ * Regla dura después del PR #37: la piel COMPARTIDA de tablas vive en
+ * src/pages/Admin.css y NO se toca acá. Esta hoja sólo declara selectores de
+ * clase nuevos (prefijo products- / admin-), de modo que ningún estilo de la
+ * vista de productos pueda filtrarse a dashboard, KDS, carta o categorías.
+ * El guard tests/css-scoping.test.ts incluye esta hoja en su lista.
+ */
+
+/* Buscador + botón crear, arriba de la tabla */
+.products-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.products-toolbar-search {
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.products-toolbar .btn-primary {
+  white-space: nowrap;
+}
+
+/* Switch activar/desactivar (reemplaza al botón ON/OFF del legacy) */
+.admin-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out-soft), border-color var(--duration-fast) var(--ease-out-soft);
+}
+
+.admin-switch.is-on {
+  background: var(--accent-gradient);
+  border-color: transparent;
+}
+
+.admin-switch:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.admin-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform var(--duration-fast) var(--ease-out-soft);
+}
+
+.admin-switch.is-on .admin-switch-knob {
+  transform: translateX(18px);
+}
+
+/* Estado vacío: búsqueda sin resultados o catálogo todavía vacío */
+.admin-empty-state {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: var(--space-6) 0 !important;
+  white-space: normal !important;
+}
+
+/* Formulario del modal de producto (grid de dos columnas) */
+.admin-product-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.admin-product-form .admin-product-form--full {
+  grid-column: 1 / -1;
+}
+
+.admin-product-check {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.admin-product-form-actions {
+  justify-content: flex-end;
+}
+
+/* Imagen de producto del ProductModal: preview + picker/quitado (feature
+   product-image-upload). Reusa btn-ghost y name-error; nada compartido
+   arriba se toca. */
+.admin-product-image {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.admin-product-image--preview {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: var(--radius-md, 8px);
+  align-self: flex-start;
+}
+
+.admin-product-image--controls {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.admin-product-image--pick {
+  cursor: pointer;
+}
+
+/* El input file real vive oculto dentro del label-botón. */
+.admin-product-image--pick input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-product-image--hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 640px) {
+  .admin-product-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Picker de productos con cantidades del modal de combos (unidad 5 del
+   ODD): selectores NUEVOS con prefijo combo-, reusando admin-input y
+   btn-ghost. Nada de las reglas compartidas de arriba se toca (regla dura
+   del PR #37). */
+.combo-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.combo-picker-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.combo-picker-row .admin-input {
+  width: 100%;
+}
+
+.combo-picker-quantity {
+  max-width: 92px;
+}
+
+.combo-picker-add {
+  align-self: flex-start;
+}
+
+@media (max-width: 640px) {
+  .combo-picker-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "select remove"
+      "quantity remove";
+  }
+
+  .combo-picker-row .admin-input:first-child {
+    grid-area: select;
+  }
+
+  .combo-picker-row .combo-picker-quantity {
+    grid-area: quantity;
+  }
+
+  .combo-picker-row .btn-ghost {
+    grid-area: remove;
+  }
+}

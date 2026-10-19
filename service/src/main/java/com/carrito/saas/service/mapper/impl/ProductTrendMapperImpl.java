@@ -1,5 +1,6 @@
 package com.carrito.saas.service.mapper.impl;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
@@ -10,12 +11,6 @@ import com.carrito.saas.service.mapper.interfaces.IProductTrendMapper;
 
 @Component
 public class ProductTrendMapperImpl implements IProductTrendMapper {
-
-	@Override
-	public ProductTrend toEntity(ProductTrendDTO dto) {
-		// TODO Auto-generated method stub
-		return null;
-	}
 
 	@Override
 	public ProductTrendDTO toDTO(ProductTrend entity) {
@@ -29,8 +24,9 @@ public class ProductTrendMapperImpl implements IProductTrendMapper {
 
 	@Override
 	public List<ProductTrendDTO> toListDTO(List<ProductTrend> entities) {
-		// TODO Auto-generated method stub
-		return null;
+		List<ProductTrendDTO> lista = new ArrayList<ProductTrendDTO>();
+		entities.forEach(entity -> lista.add(toDTO(entity)));
+		return lista;
 	}
 
 }

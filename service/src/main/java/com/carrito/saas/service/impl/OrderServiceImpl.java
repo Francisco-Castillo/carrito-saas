@@ -14,6 +14,8 @@ import com.carrito.saas.dto.OrderDTO;
 import com.carrito.saas.dto.OrderItemDTO;
 import com.carrito.saas.dto.OrderKitchenDTO;
 import com.carrito.saas.dto.OrderRequestDTO;
+import com.carrito.saas.exception.BusinessException;
+import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.entity.CancellationReason;
 import com.carrito.saas.repository.entity.Combo;
@@ -66,36 +68,36 @@ public class OrderServiceImpl implements IOrderService {
 	public OrderDTO createOrder(String slug, OrderRequestDTO request) {
 
 		if (request == null) {
-			throw new RuntimeException("Pedido inválido");
+			throw new BusinessException("Pedido inválido", ErrorType.VALIDATION);
 		}
 
 		if (slug == null || slug.isBlank()) {
-			throw new RuntimeException("Restaurante es obligatorio");
+			throw new BusinessException("Restaurante es obligatorio", ErrorType.VALIDATION);
 		}
 
 		if (request.getCustomerName() == null || request.getCustomerName().isBlank()) {
-			throw new RuntimeException("El nombre del cliente es obligatorio");
+			throw new BusinessException("El nombre del cliente es obligatorio", ErrorType.VALIDATION);
 		}
 
 		if (request.getOrderType() == null) {
-			throw new RuntimeException("Debe indicar tipo de pedido");
+			throw new BusinessException("Debe indicar tipo de pedido", ErrorType.VALIDATION);
 		}
 
 		if (request.getPaymentMethod() == null) {
-			throw new RuntimeException("Debe indicar método de pago");
+			throw new BusinessException("Debe indicar método de pago", ErrorType.VALIDATION);
 		}
 
 		if (request.getOrderType() == OrderType.DELIVERY
 				&& (request.getCustomerAddress() == null || request.getCustomerAddress().isBlank())) {
-			throw new RuntimeException("Debe indicar dirección para delivery");
+			throw new BusinessException("Debe indicar dirección para delivery", ErrorType.VALIDATION);
 		}
 
 		if (request.getItems() == null || request.getItems().isEmpty()) {
-			throw new RuntimeException("El pedido debe contener al menos un producto");
+			throw new BusinessException("El pedido debe contener al menos un producto", ErrorType.VALIDATION);
 		}
 
 		Business business = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new RuntimeException("No se encontró restaurante"));
+				.orElseThrow(() -> new BusinessException("No se encontró restaurante", ErrorType.NOT_FOUND));
 
 		Order order = new Order();
 		order.setStatus(OrderStatus.NEW);
@@ -117,7 +119,7 @@ public class OrderServiceImpl implements IOrderService {
 		for (OrderItemDTO item : request.getItems()) {
 
 			if (item.getQuantity() == null || item.getQuantity() <= 0) {
-				throw new RuntimeException("Cantidad inválida");
+				throw new BusinessException("Cantidad inválida", ErrorType.VALIDATION);
 			}
 
 			if (item.getProductId() != null) {
@@ -129,8 +131,8 @@ public class OrderServiceImpl implements IOrderService {
 			}
 		}
 
-		// traer productos
-		List<Product> products = productRepository.findAllByIdInForUpdate(productIds);
+		// traer productos (scopeados por negocio: un id ajeno no entra al mapa)
+		List<Product> products = productRepository.findAllByIdInForUpdate(productIds, business.getId());
 		Map<Long, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, p -> p));
 
 		// traer combos con sus productos
@@ -158,13 +160,13 @@ public class OrderServiceImpl implements IOrderService {
 				Product product = productMap.get(dto.getProductId());
 
 				if (product == null) {
-					throw new RuntimeException("Producto no existe");
+					throw new BusinessException("Producto no existe", ErrorType.NOT_FOUND);
 				}
 
-				int updatedRows = productRepository.decrementStock(product.getId(), quantity);
+				int updatedRows = productRepository.decrementStock(product.getId(), quantity, business.getId());
 
 				if (updatedRows == 0) {
-					throw new RuntimeException("Stock insuficiente: " + product.getName());
+					throw new BusinessException("Stock insuficiente: " + product.getName(), ErrorType.CONFLICT);
 				}
 
 				OrderItem item = new OrderItem();
@@ -191,7 +193,7 @@ public class OrderServiceImpl implements IOrderService {
 				Combo combo = comboMap.get(dto.getComboId());
 
 				if (combo == null) {
-					throw new RuntimeException("Combo no existe");
+					throw new BusinessException("Combo no existe", ErrorType.NOT_FOUND);
 				}
 
 				// item root (para analytics)
@@ -217,10 +219,10 @@ public class OrderServiceImpl implements IOrderService {
 
 					int finalQty = cp.getQuantity().multiply(BigDecimal.valueOf(quantity)).intValue();
 
-					int updatedRows = productRepository.decrementStock(product.getId(), finalQty);
+					int updatedRows = productRepository.decrementStock(product.getId(), finalQty, business.getId());
 
 					if (updatedRows == 0) {
-						throw new RuntimeException("Stock insuficiente en combo: " + product.getName());
+						throw new BusinessException("Stock insuficiente en combo: " + product.getName(), ErrorType.CONFLICT);
 					}
 
 					OrderItem item = new OrderItem();
@@ -263,7 +265,7 @@ public class OrderServiceImpl implements IOrderService {
 		Long businessId = securityService.getCurrentBusinessId();
 
 		Order order = orderRepository.findByIdAndBusinessId(orderId, businessId)
-				.orElseThrow(() -> new RuntimeException("Pedido no encontrado o no autorizado"));
+				.orElseThrow(() -> new BusinessException("Pedido no encontrado o no autorizado", ErrorType.NOT_FOUND));
 
 		OrderStatus currentStatus = order.getStatus();
 
@@ -317,7 +319,7 @@ public class OrderServiceImpl implements IOrderService {
 		Long businessId = securityService.getCurrentBusinessId();
 
 		Order order = orderRepository.findByIdAndBusinessId(orderId, businessId)
-				.orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
+				.orElseThrow(() -> new BusinessException("Pedido no encontrado", ErrorType.NOT_FOUND));
 
 		order.getStatus().validateTransition(OrderStatus.CANCELLED);
 
@@ -330,7 +332,7 @@ public class OrderServiceImpl implements IOrderService {
 				if (Boolean.TRUE.equals(item.getComboRoot()))
 					continue;
 
-				int updated = productRepository.incrementStock(item.getProductId(), item.getQuantity());
+				int updated = productRepository.incrementStock(item.getProductId(), item.getQuantity(), businessId);
 
 				if (updated == 0) {
 					throw new RuntimeException("No se pudo devolver stock del producto: " + item.getProductId());
@@ -339,7 +341,7 @@ public class OrderServiceImpl implements IOrderService {
 		}
 
 		CancellationReason reason = cancellationReasonRepository.findById(reasonId)
-				.orElseThrow(() -> new RuntimeException("Motivo inválido"));
+				.orElseThrow(() -> new BusinessException("Motivo inválido", ErrorType.VALIDATION));
 
 		order.setStatus(OrderStatus.CANCELLED);
 		order.setCancellationReason(reason);

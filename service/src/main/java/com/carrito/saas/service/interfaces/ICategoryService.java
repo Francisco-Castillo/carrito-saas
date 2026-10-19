@@ -32,4 +32,11 @@ public interface ICategoryService {
 	
 	CategoryDTO findById(Long id);
 
+	/**
+	 * Elimina una categoría del negocio del JWT. Una categoría que todavía
+	 * tiene productos se rechaza con 409 (nunca se hace cascade hacia los
+	 * productos); un id ajeno al negocio resuelve como 404.
+	 */
+	void eliminarCategoria(Long id);
+
 }

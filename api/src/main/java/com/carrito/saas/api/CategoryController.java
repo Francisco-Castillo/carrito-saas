@@ -3,6 +3,8 @@ package com.carrito.saas.api;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,7 +41,6 @@ public class CategoryController {
 		categoryService.ordenarCategorias(idsOrdenados);
 	}
 
-	// FIXME: AQUI SOLO SE DEBEN VER LAS CATEGORIAS PROPIAS DEL LOCAL.
 	@GetMapping
 	public List<CategoryDTO> obtenerTodasLasCategorias() {
 		return categoryService.findAllByBusinessId();
@@ -51,6 +52,17 @@ public class CategoryController {
 		CategoryDTO category = categoryService.findById(id);
 
 		return ResponseEntity.ok(category);
+	}
+
+	/**
+	 * Panel de administración: elimina una categoría propia. Una categoría
+	 * con productos falla con 409 (nunca se hace cascade hacia los
+	 * productos); un id ajeno resuelve como 404.
+	 */
+	@DeleteMapping("/{id}")
+	public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+		categoryService.eliminarCategoria(id);
+		return ResponseEntity.noContent().build();
 	}
 
 }

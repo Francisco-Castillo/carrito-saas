@@ -1,0 +1,341 @@
+/* ============================================================
+   Login — Liquid Glass visual proposal
+   ============================================================ */
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+/* ------------------------------------------------------------
+   Card
+   ------------------------------------------------------------ */
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-8);
+  border-radius: var(--radius-lg);
+}
+
+/* ------------------------------------------------------------
+   Header
+   ------------------------------------------------------------ */
+
+.login-header {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+.logo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: var(--space-4);
+  font-size: 28px;
+  border-radius: var(--radius-full);
+  background: var(--glass-bg-subtle);
+  box-shadow: var(--glass-inset-highlight);
+}
+
+.login-title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.login-subtitle {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------------
+   Form
+   ------------------------------------------------------------ */
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.field {
+  display: contents;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border-subtle);
+  box-shadow: var(--glass-inset-highlight);
+  transition:
+    border-color var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft),
+    background var(--duration-fast) var(--ease-out-soft);
+}
+
+.input-group:hover {
+  border-color: var(--glass-border);
+}
+
+.input-group:focus-within {
+  border-color: var(--accent-violet);
+  background: rgba(2, 6, 23, 0.6);
+  box-shadow: var(--focus-ring), var(--glass-inset-highlight);
+  outline: none;
+}
+
+.input-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-faint);
+  transition: color var(--duration-fast) var(--ease-out-soft);
+}
+
+.input-group:focus-within .input-icon {
+  color: var(--accent-violet);
+}
+
+.input-group input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-3) 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-regular);
+}
+
+.input-group input::placeholder {
+  color: var(--color-text-faint);
+}
+
+.input-group input:disabled {
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------
+   Options row
+   ------------------------------------------------------------ */
+
+.form-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.remember-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember-label input[type="checkbox"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border-radius: 5px;
+  border: 1px solid var(--glass-border);
+  background: var(--input-bg);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition:
+    background var(--duration-fast) var(--ease-out-soft),
+    border-color var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft);
+}
+
+.remember-label input[type="checkbox"]::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  transform: scale(0);
+  transition: transform var(--duration-fast) var(--ease-out-soft);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  background: white;
+}
+
+.remember-label input[type="checkbox"]:checked {
+  background: var(--accent-gradient);
+  border-color: transparent;
+  box-shadow: var(--focus-ring);
+}
+
+.remember-label input[type="checkbox"]:checked::before {
+  transform: scale(1);
+}
+
+.remember-label input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ------------------------------------------------------------
+   Submit button
+   ------------------------------------------------------------ */
+
+.login-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 14px var(--space-4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-sm);
+  background: var(--accent-gradient);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: var(--glass-inset-highlight), var(--button-glow);
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft),
+    filter var(--duration-fast) var(--ease-out-soft);
+}
+
+/* Glass sheen sweeping the top of the button */
+.login-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 80% at 50% 0%,
+    rgba(255, 255, 255, 0.25),
+    rgba(255, 255, 255, 0) 55%
+  );
+  pointer-events: none;
+}
+
+.login-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-inset-highlight), var(--button-glow),
+    0 14px 40px rgba(139, 92, 246, 0.4);
+  filter: saturate(1.1);
+}
+
+.login-button:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(0.95);
+}
+
+.login-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring), var(--glass-inset-highlight),
+    var(--button-glow);
+}
+
+.login-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+/* Spinner (replaces label while loading) */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: white;
+  border-radius: var(--radius-full);
+  animation: spinner-rotate 0.7s linear infinite;
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ------------------------------------------------------------
+   Error
+   ------------------------------------------------------------ */
+
+.form-error {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--error);
+  text-align: center;
+  border-radius: var(--radius-sm);
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+}
+
+/* ------------------------------------------------------------
+   Footer
+   ------------------------------------------------------------ */
+
+.login-footer {
+  margin-top: var(--space-6);
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+}
+
+.login-footer p {
+  margin: 0;
+}
+
+.powered {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+/* ------------------------------------------------------------
+   Responsive — mobile first adjustments
+   ------------------------------------------------------------ */
+
+@media (max-width: 480px) {
+  .login-screen {
+    padding: var(--space-3);
+  }
+
+  .login-card {
+    max-width: none;
+    padding: var(--space-6);
+  }
+}

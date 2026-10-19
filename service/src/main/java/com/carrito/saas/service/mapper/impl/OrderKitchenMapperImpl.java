@@ -32,6 +32,7 @@ public class OrderKitchenMapperImpl implements IOrderKitchenMapper {
 			orderKitchenDTO.setOrderNumber(order.getOrderNumber());
 			orderKitchenDTO.setOrderType(order.getOrderType().toString());
 			orderKitchenDTO.setCustomerName(order.getCustomerName());
+			orderKitchenDTO.setCustomerPhone(order.getCustomerPhone());
 			orderKitchenDTO.setStatus(order.getStatus());
 			orderKitchenDTO.setCreatedAt(order.getCreatedAt());
 			orderKitchenDTO.setNotes(order.getNotes());

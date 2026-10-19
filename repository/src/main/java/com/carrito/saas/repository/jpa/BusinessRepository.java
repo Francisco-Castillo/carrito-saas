@@ -1,14 +1,18 @@
 package com.carrito.saas.repository.jpa;
 
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import com.carrito.saas.repository.entity.Business;
 
-import java.util.List;
-import java.util.Optional;
-
+/**
+ * Data access for {@link Business}: lookup by public {@code slug} and id
+ * listing for batch jobs.
+ */
 @Repository
 public interface BusinessRepository extends JpaRepository<Business, Long> {
 

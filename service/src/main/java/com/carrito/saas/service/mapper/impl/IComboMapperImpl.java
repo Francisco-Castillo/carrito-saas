@@ -13,12 +13,6 @@ import com.carrito.saas.service.mapper.interfaces.IComboMapper;
 public class IComboMapperImpl implements IComboMapper {
 
 	@Override
-	public Combo toEntity(ComboDTO dto) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	public ComboDTO toDTO(Combo entity) {
 		ComboDTO dto = new ComboDTO();
 
@@ -26,9 +20,11 @@ public class IComboMapperImpl implements IComboMapper {
 		dto.setName(entity.getName());
 		dto.setPrice(entity.getPrice());
 		dto.setCategoryId(entity.getCategory().getId());
+		dto.setActive(entity.getActive());
 
 		List<ComboItemDTO> items = entity.getItems().stream().map(cp -> {
 			ComboItemDTO item = new ComboItemDTO();
+			item.setProductId(cp.getProduct().getId());
 			item.setProductName(cp.getProduct().getName());
 			item.setQuantity(cp.getQuantity());
 			return item;
@@ -41,8 +37,13 @@ public class IComboMapperImpl implements IComboMapper {
 
 	@Override
 	public List<ComboDTO> toListDTO(List<Combo> entities) {
-		// TODO Auto-generated method stub
-		return null;
+		if (entities == null) {
+			return null;
+		}
+
+		return entities.stream()
+				.map(this::toDTO)
+				.toList();
 	}
 
 }
