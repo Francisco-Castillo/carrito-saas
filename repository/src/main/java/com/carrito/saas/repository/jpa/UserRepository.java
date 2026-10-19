@@ -12,4 +12,7 @@ public interface UserRepository extends JpaRepository<User,Long> {
 	
 	 Optional<User> findByUsername(String username);
 
+	 /** Plataforma: pre-check del alta de clientes (email UNIQUE en users). */
+	 Optional<User> findByEmail(String email);
+
 }

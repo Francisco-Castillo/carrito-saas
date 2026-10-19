@@ -29,7 +29,8 @@ BEGIN;
 -- Roles (reuse by name, never duplicate)
 INSERT INTO roles (id, name)
 SELECT v.id, v.name
-FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN'), (990004, 'PEDIDOS')) AS v(id, name)
+FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN'), (990004, 'PEDIDOS'),
+             (990005, 'PLATFORM_ADMIN')) AS v(id, name)
 WHERE NOT EXISTS (SELECT 1 FROM roles r WHERE r.name = v.name);
 
 -- Business
@@ -42,8 +43,14 @@ INSERT INTO users (id, username, email, password) VALUES
   (990001, 'e2e-owner',   'e2e-owner@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
   (990002, 'e2e-kitchen', 'e2e-kitchen@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
   (990003, 'e2e-admin',   'e2e-admin@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
-  (990004, 'e2e-pedidos', 'e2e-pedidos@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2')
+  (990004, 'e2e-pedidos', 'e2e-pedidos@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
+  (990005, 'e2e-platform-admin', 'e2e-platform-admin@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2')
 ON CONFLICT (id) DO NOTHING;
+
+-- Operador de plataforma (rol PLATFORM_ADMIN): no pertenece a ningún
+-- business, sólo a la tabla de authorities. Es quien usa el panel de alta
+-- de clientes (odd/tasks/plataforma-altas.md).
+-- OJO: el login exige businessId en el token; ver docs del panel operador.
 
 -- Authorities (ROLE_ + roles.name) and business membership.
 -- Roles are looked up by name with MIN(id): the table may already hold many
@@ -51,7 +58,8 @@ ON CONFLICT (id) DO NOTHING;
 -- one row per duplicate.
 INSERT INTO user_roles (user_id, role_id)
 SELECT v.user_id, (SELECT MIN(r.id) FROM roles r WHERE r.name = v.role)
-FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN'), (990004, 'PEDIDOS')) AS v(user_id, role)
+FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN'), (990004, 'PEDIDOS'),
+             (990005, 'PLATFORM_ADMIN')) AS v(user_id, role)
 WHERE EXISTS (SELECT 1 FROM roles r WHERE r.name = v.role)
 ON CONFLICT (user_id, role_id) DO NOTHING;
 

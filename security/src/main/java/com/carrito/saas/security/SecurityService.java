@@ -10,23 +10,28 @@ import org.springframework.stereotype.Service;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.BusinessUser;
+import com.carrito.saas.repository.entity.Role;
+import com.carrito.saas.repository.entity.User;
 
 import java.util.List;
 
 import com.carrito.saas.repository.jpa.BusinessUserRepository;
+import com.carrito.saas.repository.jpa.UserRepository;
 
 @Service
 public class SecurityService implements ISecurityService {
 
 	private final AuthenticationManager authenticationManager;
 	private final BusinessUserRepository businessUserRepository;
+	private final UserRepository userRepository;
 	private final JwtUtil jwtUtil;
 
 	public SecurityService(AuthenticationManager authenticationManager, BusinessUserRepository businessUserRepository,
-			JwtUtil jwtUtil) {
+			UserRepository userRepository, JwtUtil jwtUtil) {
 		super();
 		this.authenticationManager = authenticationManager;
 		this.businessUserRepository = businessUserRepository;
+		this.userRepository = userRepository;
 		this.jwtUtil = jwtUtil;
 	}
 
@@ -49,6 +54,16 @@ public class SecurityService implements ISecurityService {
 		// que nombrar el motivo no filtra nada: 403, no 401 ni 500.
 		BusinessUser bu = resolveMembership(request);
 
+		// 2-bis. Operador de plataforma (odd/tasks/plataforma-altas.md): el
+		// PLATFORM_ADMIN no pertenece a ningún negocio, y la membresía era el
+		// único camino al token — el operador quedaba afuera con el 403 de
+		// "no pertenece a ningún negocio". El branch solo alcanza a usuarios
+		// SIN membresía que tienen el rol de plataforma en user_roles; un
+		// usuario de negocio conserva el comportamiento de siempre.
+		if (bu == null) {
+			return platformLogin(request.getUsername());
+		}
+
 		Long businessId = bu.getBusiness().getId();
 		String role = bu.getRole().getName();
 		String username = bu.getUser().getUsername();
@@ -66,8 +81,9 @@ public class SecurityService implements ISecurityService {
 	 * Resuelve la membresía que alimenta el token. Con un slug explícito en el
 	 * pedido manda el slug (comportamiento de siempre, hacia atrás compatible
 	 * y a prueba de multi-negocio). Sin slug — login orgánico — el negocio se
-	 * deduce de la membresía: exactamente una → esa; cero → 403; más de una →
-	 * 400 pidiendo el negocio, porque todavía no existe selector en el login.
+	 * deduce de la membresía: exactamente una → esa; cero → null (el branch
+	 * de plataforma del login decide con el rol); más de una → 400 pidiendo
+	 * el negocio, porque todavía no existe selector en el login.
 	 */
 	private BusinessUser resolveMembership(LoginRequestDTO request) {
 
@@ -82,7 +98,9 @@ public class SecurityService implements ISecurityService {
 		List<BusinessUser> memberships = businessUserRepository.findByUserUsername(request.getUsername());
 
 		if (memberships.isEmpty()) {
-			throw new BusinessException("El usuario no pertenece a ningún negocio", ErrorType.FORBIDDEN);
+			// No es necesariamente un error: el operador de plataforma no tiene
+			// membresía por diseño. El branch de arriba decide con el rol.
+			return null;
 		}
 
 		if (memberships.size() > 1) {
@@ -91,6 +109,29 @@ public class SecurityService implements ISecurityService {
 		}
 
 		return memberships.get(0);
+	}
+
+	/**
+	 * Login del operador de plataforma: sin negocio, sin slug, sin membresía.
+	 * El token sale SIN el claim businessId (el JwtFilter autentica tokens sin
+	 * claim y no fija TenantContext), y el rol es el de plataforma. Un usuario
+	 * sin membresía y sin PLATFORM_ADMIN sigue recibiendo el 403 de siempre.
+	 */
+	private LoginResponseDTO platformLogin(String username) {
+
+		User user = userRepository.findByUsername(username)
+				.orElseThrow(() -> new BusinessException("Usuario o contraseña incorrectos", ErrorType.UNAUTHORIZED));
+
+		Role platformRole = user.getRoles().stream()
+				.filter(role -> "PLATFORM_ADMIN".equals(role.getName()))
+				.findFirst()
+				.orElseThrow(() -> new BusinessException("El usuario no pertenece a ningún negocio", ErrorType.FORBIDDEN));
+
+		String token = jwtUtil.generateToken(username, null);
+
+		long expiresAt = System.currentTimeMillis() + jwtUtil.getExpirationMillis();
+
+		return new LoginResponseDTO(token, null, null, platformRole.getName(), username, expiresAt);
 	}
 
 	@Override

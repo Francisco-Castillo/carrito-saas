@@ -29,6 +29,14 @@
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 
+		<!-- El LoginResponseDTO es el contrato HTTP del login y omite los
+			campos nulos del operador de plataforma (@JsonInclude NON_NULL).
+			Versión gestionada por el parent (spring-boot-starter-parent). -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>
+
 		<!-- JWT: JJWT library -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>

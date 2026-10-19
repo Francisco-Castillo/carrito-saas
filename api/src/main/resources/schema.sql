@@ -77,3 +77,17 @@ CREATE TABLE IF NOT EXISTS hourly_predictions (
   predicted_orders INTEGER,
   CONSTRAINT uq_hourly_predictions UNIQUE (business_id, date, hour)
 );
+
+-- ---------------------------------------------------------------------------
+-- SEQUENCES (Hibernate no crea secuencias: ddl-auto:update sólo toca tablas de
+-- entidades, así que la secuencia que consume el JPA va acá, idempotente).
+
+-- IDs de businesses creados por el panel de operador
+-- (docs/migrations/2026-10-19-businesses-id-sequence.sql, documento hermano
+-- para DBs administradas a mano). La entidad Business no tiene generador: sus
+-- filas nacieron de seeds con id manual (990000001) y ddl-auto nunca puso un
+-- default en la columna. La secuencia arranca lejos de los ids manuales y
+-- convive con ellos.
+CREATE SEQUENCE IF NOT EXISTS businesses_id_seq
+    START WITH 1000000000
+    INCREMENT BY 1;

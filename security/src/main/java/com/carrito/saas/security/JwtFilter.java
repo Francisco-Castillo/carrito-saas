@@ -59,9 +59,13 @@ public class JwtFilter extends OncePerRequestFilter {
 			String role = jwtUtil.extractRole(token);
 			String businessSlug = jwtUtil.extractBusinessSlug(token);*/
 			
-			if (businessId == null) {
-			    throw new SecurityException("JWT sin businessId");
-			}
+			// Un token SIN businessId es el token del operador de plataforma
+			// (SecurityService.platformLogin, odd/tasks/plataforma-altas.md):
+			// antes se descartaba con "JWT sin businessId" y el operador caía a
+			// anónimo con 401. Autentica igual, pero SIN fijar contexto de
+			// tenant: el scoping de negocio es por parámetro explícito y el
+			// operador no escribe filas de negocio. Solo el login de plataforma
+			// emite tokens sin claim, así que ningún token de negocio cambia.
 
 			if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
@@ -74,11 +78,13 @@ public class JwtFilter extends OncePerRequestFilter {
 
 					SecurityContextHolder.getContext().setAuthentication(auth);
 
-					// CONTEXTO MULTI-TENANT
-					TenantContext.set(businessId);
+					if (businessId != null) {
+						// CONTEXTO MULTI-TENANT (solo tokens de negocio)
+						TenantContext.set(businessId);
+					}
 
 					// LOGS (MDC)
-					MDC.put("businessId", String.valueOf(businessId));
+					MDC.put("businessId", businessId == null ? "platform" : String.valueOf(businessId));
 					MDC.put("userId", username);
 					
 					//  BONUS PRO logs
