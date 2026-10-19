@@ -37,12 +37,21 @@ public class ImageStorageService {
 	/** Techo duro de archivo (5 MB): el mismo límite que fija multipart en application.yml. */
 	static final long MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
+	/** Prefijo público de las URLs de imagen de producto (UploadedImagesConfig). */
+	private static final String PRODUCTS_URL_PREFIX = "/api/images/products/";
+
+	/** Prefijo público de las URLs de imagen del negocio, logo y banner (UploadedImagesConfig). */
+	private static final String BUSINESS_URL_PREFIX = "/api/images/business/";
+
 	private final Path productsDir;
 	private final Path combosDir;
+
+	private final Path businessDir;
 
 	public ImageStorageService(@Value("${app.uploads.dir:./uploads}") String uploadsDir) {
 		this.productsDir = Path.of(uploadsDir, "products").toAbsolutePath().normalize();
 		this.combosDir = Path.of(uploadsDir, "combos").toAbsolutePath().normalize();
+		this.businessDir = Path.of(uploadsDir, "business").toAbsolutePath().normalize();
 	}
 
 	/**
@@ -77,12 +86,26 @@ public class ImageStorageService {
 	}
 
 	/**
+	 * Guarda el contenido de una imagen del NEGOCIO (logo o banner) y devuelve
+	 * la URL pública relativa para persistir en el perfil. Mismas reglas que
+	 * {@link #store}: nombre UUID, tipo y tamaño validados.
+	 */
+	public String storeBusinessImage(byte[] data, String contentType) {
+		return storeTo(businessDir, BUSINESS_URL_PREFIX, data, contentType, "negocio");
+	}
+
+	/**
 	 * Borra la imagen apuntada por una URL previamente devuelta por
-	 * {@link #store}. Un URL ajeno, vacío o fuera de productsDir se ignora
-	 * en silencio: borrar nunca rompe el flujo de guardado.
+	 * {@link #store} o {@link #storeBusinessImage}. Un URL ajeno, vacío o fuera
+	 * de los directorios gestionados se ignora en silencio: borrar nunca rompe
+	 * el flujo de guardado.
 	 */
 	public void deleteByUrl(String url) {
-		deleteFrom(productsDir, "/api/images/products/", url);
+		if (url != null && url.startsWith(BUSINESS_URL_PREFIX)) {
+			deleteFrom(businessDir, BUSINESS_URL_PREFIX, url);
+		} else {
+			deleteFrom(productsDir, PRODUCTS_URL_PREFIX, url);
+		}
 	}
 
 	public void deleteComboByUrl(String url) {
