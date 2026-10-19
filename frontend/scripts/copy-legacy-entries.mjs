@@ -29,6 +29,7 @@ const LEGACY_ENTRIES = [
   "kds/index.html",
   "admin/admin.html",
   "pedidos/index.html",
+  "platform/index.html",
 ];
 
 const source = join(staticDir, "index.html");

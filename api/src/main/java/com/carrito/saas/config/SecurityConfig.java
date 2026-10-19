@@ -78,6 +78,8 @@ public class SecurityConfig {
 	                "/kds",
 	                "/admin/**",
 	                "/admin",
+	                "/platform/**",
+	                "/platform",
 	                "/dashboard/**",
 	                "/dashboard",
 	                "/pedidos/**",
