@@ -13,7 +13,7 @@
 
 ## Tareas
 
-- [ ] T1 (S3, S5): Seguridad: `/api/platform/**` exige `ROLE_PLATFORM_ADMIN`; rol en `docs/dev-seed.sql` + migración `docs/migrations/`. Tests HTTP (403 para OWNER, 200 para PLATFORM_ADMIN, 401 anónimo). Commit.
+- [x] T1 (S3, S5): Seguridad: `/api/platform/**` exige `ROLE_PLATFORM_ADMIN`; rol en `docs/dev-seed.sql` + migración `docs/migrations/2026-10-19-platform-admin-role.sql`. Login de operador sin membresía (token sin businessId; JwtFilter autentica sin TenantContext). Tests: `PlatformPrivilegeHttpTests` (6/6 verdes). Commit `3d61c70`.
 - [ ] T2 (S1, S4, S5): `POST /api/platform/clients`: alta atómica de `Business` (name, slug, phone) + `User` (username, email, password) + `BusinessUser` OWNER. Validaciones de unicidad (slug, phone, email, username) con 400 legible. Commit.
 - [ ] T3 (S1, S5): `GET /api/platform/clients`: listado de clientes con su local (nombre, slug, teléfono, usuario owner, fecha alta). Commit.
 - [ ] T4 (S1, S3, S4): Frontend: nueva vista de operador (acceso por rol de plataforma): login reutilizado, listado de clientes y formulario de alta con errores legibles. Tests vitest. Commit.
