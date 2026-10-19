@@ -807,6 +807,7 @@ export default function Menu() {
           key={toast.key}
           message={toast.message}
           type={toast.type}
+          duration={TOAST_AUTO_DISMISS_MS[toast.type]}
           onDismiss={dismissToast}
         />
       )}
