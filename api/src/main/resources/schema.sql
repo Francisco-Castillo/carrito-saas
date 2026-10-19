@@ -93,9 +93,12 @@ CREATE SEQUENCE IF NOT EXISTS businesses_id_seq
     INCREMENT BY 1;
 
 -- Baja lógica de locales (docs/migrations/2026-10-19-businesses-active.sql,
--- documento hermano; odd/tasks/plataforma-editar-baja.md S3/S5). ddl-auto
---:update NO agregó la columna a la DB existente al arrancar (verificado:
--- "column b1_0.active does not exist"), así que el ALTER idempotente va
--- acá, como la secuencia: corre en cada startup, antes de Hibernate.
--- Baja = active=false; REVERSIBLE; el historial no se toca.
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
+-- documento hermano; odd/tasks/plataforma-editar-baja.md S3/S5). La columna
+-- vive en la entidad Business (@Column nullable=false, default TRUE), así
+-- que ddl-auto la crea en DBs FRESCAS (CI) ya con la columna. NO va un ALTER
+-- acá: spring.sql.init corre ANTES de que Hibernate cree las tablas (un
+-- ALTER directo aborta CI con "relation businesses does not exist") y el
+-- parser de scripts no soporta DO $$ con ; internos ("Unterminated dollar
+-- quote", CI de #66). Las DBs administradas a mano aplican la migración
+-- hermana una vez (ALTER idempotente). Baja = active=false; REVERSIBLE; el
+-- historial no se toca.
