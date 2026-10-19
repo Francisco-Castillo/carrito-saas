@@ -18,6 +18,9 @@ Pantalla de gestión de pedidos (mostrador): visión de todos los estados del d�
 - Productos para el POS: `GET ${API}/products` con header auth ya usado por `ProductsTable`.
 - Tests: `mvn verify` (backend), Vitest en `frontend/tests/` (patrón session-guard, login-redirect, etc.).
 
+- **S5** — Rol para la consola (pedido del usuario, verbatim: «si el rol para pedidos, crear uno nuevo»): rol nuevo `PEDIDOS` para la consola de pedidos. Defaults tomados al cancelar el cuestionario del usuario: acceso jerárquico — `PEDIDOS` entra a `/pedidos`; `OWNER` y `ADMIN` conservan todo; `KITCHEN` queda en el KDS. Los endpoints que usa el POS (products, tables, crear pedido) no se gatean: el flujo del QR ya es público y el admin los usa.
+- **S6** — Tarjeta del KDS (verbatim: «sacar el whatsapp del kds, el tipo de envio y priorisar solo la informacion del pedido»): en `OrderCard` del KDS se sacan el teléfono (link `tel:`) y el rótulo Retiro/Delivery; la tarjeta prioriza la información del pedido (número, mesa, ítems, notas, timer).
+
 ## Contrato implementado (T1+T2, commit 68dc55d)
 
 - `GET /api/business/orders?date=YYYY-MM-DD` (date opcional, default `LocalDate.now()` server-local, igual que el dashboard) → `OrderManagementDTO[]`: `orderNumber`, `orderType`, `status`, `customerName/Phone/Address`, `paymentMethod`, `notes`, `table` (`OrderManagementTableDTO` id+name cuando hay), `total`, `createdAt`, `items` (`OrderManagementItemDTO`: name, quantity, unitPrice, subtotal), `timeline` (`preparingAt/readyAt/completedAt/cancelledAt`), `cancellationReason` (id+description) y `cancellationNote`.
@@ -33,6 +36,10 @@ Pantalla de gestión de pedidos (mostrador): visión de todos los estados del d�
 - **T4** (S2) Frontend — POS de mostrador dentro de la página Orders: catálogo con búsqueda (endpoint products del admin), carrito, tipo de pedido (SALON/RETIRO/DELIVERY), mesa para SALON, cliente, método de pago, notas; crea vía API existente y refresca la vista. Route: worker frontend. Commit: `feat(frontend): counter POS order creation`.
 - **T5** (S3) Frontend — routing y navegación: `/pedidos` (+ `/pedidos/index.html`) en `view.ts`, `App.tsx`, entrada desde la pantalla principal (dashboard/admin nav), routing post-login actualizado si corresponde. Commit: `feat(frontend): route and navigation for orders console`.
 - **T6** Verificación: `mvn -B --no-transfer-progress verify` + suite Vitest + build de Vite; ensayo manual de la pantalla completa.
+- **T7** (S5) Backend — rol `PEDIDOS` con gate server-side: seed idempotente en `docs/dev-seed.sql` (rol + usuario e2e-pedidos) e insert en la DB local; `GET /api/business/orders` pasa a `hasAnyRole("PEDIDOS","OWNER","ADMIN")` (RED-first: usuario sin esos roles → 403; hoy 200). Los endpoints del KDS y del POS no cambian (gap preexistente de autorización amplia queda como está). Route: inline (unidades livianas). Commit: `feat(api): PEDIDOS role with server-side gate on the management day endpoint`.
+- **T8** (S5) Frontend — login rutea `PEDIDOS` → `/pedidos` (RED-first con el patrón de login-redirect). Commit: `feat(frontend): route PEDIDOS role to the orders console`.
+- **T9** (S6) Frontend — tarjeta del KDS: sin teléfono, sin tipo de envío, foco en el pedido; actualizar los tests kds-* que fijen los elementos removidos. Commit: `feat(frontend): KDS card focused on order information`.
+- **T10** Verificación: suites enfocadas + Vitest completo + build:spring + jar + restart + ensayo en vivo con usuario PEDIDOS (login → /pedidos) y KITCHEN (KDS).
 
 ## Log
 
@@ -65,6 +72,10 @@ Pantalla de gestión de pedidos (mostrador): visión de todos los estados del d�
 - **L15** — La vista de gestión no tiene gate de rol en cliente ni en servidor distinto del resto de paneles (igual que Dashboard/KDS: la autorización real es el 403 server-side de la API). Si el producto quiere «solo OWNER ve pedidos», es un slice aparte con authorities.
 
 - **L16** — Agregado posterior (2026-10-18): el teléfono del cliente en la consola de `/pedidos` (tarjeta y detalle) abre chat de WhatsApp en vez de marcar (`wa.me`, pestaña nueva, fallback `tel:` si no hay dígitos). Normalizador puro en `pages/orders/wa.ts` con test RED-first (`orders-wa.test.ts`: 5 casos — 54 ya presente, prefijo 54 local, guiones/formato, cero troncal, sin dígitos). Suite 258/258, tsc limpio. Alcance: solo la consola; el KDS no se tocó.
+
+- **L17** — Nuevo pedido del usuario (verbatim): «si el rol para pedidos, crear uno nuevo, sacar el whatsapp del kds, el tipo de envio y priorisar solo la informacion del pedido». El cuestionario de decisiones fue cancelado por el usuario → defaults: rol `PEDIDOS`, acceso jerárquico (OWNER/ADMIN conservan todo, KITCHEN en el KDS). Cadena de auth verificada: `CustomUserDetailsService` mapea los roles de DB genéricamente (`ROLE_ + name`), `JwtFilter.extractRole` sigue comentado y las autoridades salen del userDetails; solo `/api/predictions/run` está role-gateado hoy. El login devuelve el rol y el frontend rutea con `role.includes(...)`.
+
+- **L18** — Verificación independiente del slice (gentle-ai-verify, read-only, repo byte-idéntico): **PASS WITH FINDINGS** sin bloqueantes. S5 y S6 cumplidos. Sondas propias del verificador: matcher exacto no sombrea `/orders/active` ni la variante con `/` final (404, sin leak); cadena correcta (única SecurityFilterChain, gate antes de anyRequest); autoridades genéricas (`ROLE_+name`, único literal ROLE_ en main); seed idempotente sin colisiones de id; mutación observada en scratch (borrar rama PEDIDOS del login → 1 fallo; reintroducir teléfono en la card → 2 fallos). Hallazgos A1/A2 (docs desactualizados) corregidos + tests de regresión sugeridos agregados (`OrdersConsolePathMatchTests` 3 casos, ausencia de link tel:/wa.me por clase y href). No verificado por el agente: re-ejecución del seed en DB aislada (la DB local ya se sembró en vivo en T7).
 
 ## Open gaps and decisions
 
