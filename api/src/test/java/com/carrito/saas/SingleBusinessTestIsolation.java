@@ -39,7 +39,9 @@ final class SingleBusinessTestIsolation {
 
 		String[] simpleDeletes = {
 				"delete from table_request where business_id <> %d",
-				"delete from order_proposals where business_id <> %d",
+				// order_proposals se quitó de acá: el revert d16d37a eliminó el
+				// modelo OrderProposal, así que en una DB fresca (CI) la tabla no
+				// existe y este delete rompía el CI con SQLGrammarException.
 				"delete from orders where business_id <> %d",
 				"delete from restaurant_table where business_id <> %d",
 				"delete from business_date_exception where business_id <> %d",
