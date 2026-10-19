@@ -48,6 +48,46 @@ public class PlatformClientController {
 		return platformClientService.listClients();
 	}
 
+	@GetMapping("/clients/{id}/users")
+	public java.util.List<com.carrito.saas.dto.PlatformUserDTO> listUsers(@PathVariable("id") Long id) {
+
+		return platformClientService.listUsers(id);
+	}
+
+	@PostMapping("/clients/{id}/users")
+	public ResponseEntity<com.carrito.saas.dto.PlatformUserDTO> createUser(@PathVariable("id") Long id,
+			@RequestBody com.carrito.saas.dto.CreatePlatformUserRequestDTO request) {
+
+		return ResponseEntity.status(HttpStatus.CREATED)
+				.body(platformClientService.createUser(id, request));
+	}
+
+	@PutMapping("/clients/{id}/users/{username}")
+	public com.carrito.saas.dto.PlatformUserDTO editUser(@PathVariable("id") Long id,
+			@PathVariable("username") String username,
+			@RequestBody com.carrito.saas.dto.UpdatePlatformUserRequestDTO request) {
+
+		return platformClientService.editUser(id, username, request);
+	}
+
+	@DeleteMapping("/clients/{id}/users/{username}")
+	public com.carrito.saas.dto.PlatformUserDTO deactivateUser(@PathVariable("id") Long id,
+			@PathVariable("username") String username) {
+
+		// Baja LÓGICA (no physical): el row sobrevive con active=false.
+		return platformClientService.deactivateUser(id, username);
+	}
+
+	@PostMapping("/clients/{id}/users/{username}/password")
+	public com.carrito.saas.dto.PlatformUserDTO resetUserPassword(@PathVariable("id") Long id,
+			@PathVariable("username") String username,
+			@RequestBody com.carrito.saas.dto.ResetOwnerPasswordRequestDTO request) {
+
+		// Reset de la clave de un usuario del local (S3): bcrypt, igual que
+		// el alta; reutiliza el DTO del reset a nivel cliente.
+		return platformClientService.resetUserPassword(id, username, request.getPassword());
+	}
+
 	@PutMapping("/clients/{id}")
 	public PlatformClientDTO editClient(@PathVariable("id") Long id,
 			@RequestBody UpdatePlatformClientRequestDTO request) {

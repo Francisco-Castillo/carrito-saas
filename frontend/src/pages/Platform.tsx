@@ -41,6 +41,23 @@ type RowModal =
   | { kind: "baja"; client: PlatformClient }
   | { kind: "password"; client: PlatformClient };
 
+/** Sección de usuarios de un cliente (plataforma-usuarios.md, S1-S3). */
+type UsersSection = { client: PlatformClient };
+
+interface PlatformUser {
+  username: string;
+  email?: string | null;
+  role: string;
+  active?: boolean | null;
+}
+
+const EMPTY_USER_FORM = {
+  username: "",
+  email: "",
+  password: "",
+  role: "KITCHEN",
+};
+
 export default function Platform() {
   useLayoutEffect(() => {
     if (!hasUsableSession()) {
@@ -61,6 +78,12 @@ export default function Platform() {
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [usersSection, setUsersSection] = useState<UsersSection | null>(null);
+  const [users, setUsers] = useState<PlatformUser[] | null>(null);
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [userForm, setUserForm] = useState(EMPTY_USER_FORM);
+  const [userError, setUserError] = useState<string | null>(null);
+  const [userBusy, setUserBusy] = useState(false);
 
   useLayoutEffect(() => {
     if (!hasUsableSession()) return;
@@ -190,6 +213,99 @@ export default function Platform() {
 
   function reactivate(client: PlatformClient) {
     void rowAction(`/api/platform/clients/${client.businessId}`, "PUT", { active: true });
+  }
+
+  // ------------------------------------------------------------------
+  // Sección de usuarios del cliente (plataforma-usuarios.md, S1-S3)
+  // ------------------------------------------------------------------
+
+  async function loadUsers(client: PlatformClient) {
+    setUsersError(null);
+    try {
+      const res = await fetch(`/api/platform/clients/${client.businessId}/users`, {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+      });
+      if (!res.ok) {
+        throw new Error(await legibleError(res, "No se pudo cargar el listado de usuarios"));
+      }
+      setUsers((await res.json()) as PlatformUser[]);
+    } catch (err) {
+      setUsersError(err instanceof Error ? err.message : "Error inesperado");
+    }
+  }
+
+  function openUsers(client: PlatformClient) {
+    setUsersSection({ client });
+    setUsers(null);
+    setUsersError(null);
+    setUserForm(EMPTY_USER_FORM);
+    setUserError(null);
+    void loadUsers(client);
+  }
+
+  function closeUsers() {
+    setUsersSection(null);
+    setUsers(null);
+    setUsersError(null);
+    setUserError(null);
+  }
+
+  function setUserField(field: keyof typeof EMPTY_USER_FORM, value: string) {
+    setUserForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleUserAlta(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!usersSection) return;
+    setUserBusy(true);
+    setUserError(null);
+    try {
+      const res = await fetch(`/api/platform/clients/${usersSection.client.businessId}/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + localStorage.getItem("token"),
+        },
+        body: JSON.stringify({
+          username: userForm.username.trim(),
+          email: userForm.email.trim(),
+          password: userForm.password,
+          role: userForm.role,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(await legibleError(res, "No se pudo crear el usuario"));
+      }
+      setUserForm(EMPTY_USER_FORM);
+      await loadUsers(usersSection.client);
+    } catch (err) {
+      setUserError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setUserBusy(false);
+    }
+  }
+
+  async function deactivateUser(user: PlatformUser) {
+    if (!usersSection) return;
+    setUserBusy(true);
+    setUserError(null);
+    try {
+      const res = await fetch(
+        `/api/platform/clients/${usersSection.client.businessId}/users/${user.username}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        },
+      );
+      if (!res.ok) {
+        throw new Error(await legibleError(res, "No se pudo dar de baja el usuario"));
+      }
+      await loadUsers(usersSection.client);
+    } catch (err) {
+      setUserError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setUserBusy(false);
+    }
   }
 
   function logout() {
@@ -324,6 +440,9 @@ export default function Platform() {
                       </button>
                     ) : (
                       <>
+                        <button type="button" onClick={() => openUsers(client)}>
+                          Usuarios
+                        </button>
                         <button type="button" onClick={() => openRowModal({ kind: "edit", client })}>
                           Editar
                         </button>
@@ -431,6 +550,114 @@ export default function Platform() {
                 {rowError}
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {usersSection && (
+        <div className="platform-modal-backdrop">
+          <div className="platform-modal platform-users-modal" role="dialog" aria-modal="true">
+            <h3>Usuarios de {usersSection.client.businessName}</h3>
+
+            {usersError && (
+              <p className="platform-error" role="alert">
+                {usersError}
+              </p>
+            )}
+
+            {users === null && !usersError && <p>Cargando…</p>}
+            {users !== null && users.length === 0 && <p>El local todavía no tiene usuarios.</p>}
+            {users !== null && users.length > 0 && (
+              <table className="platform-users-table">
+                <thead>
+                  <tr>
+                    <th>Usuario</th>
+                    <th>Email</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user.username}>
+                      <td>{user.username}</td>
+                      <td>{user.email || "—"}</td>
+                      <td>{user.role}</td>
+                      <td>
+                        {user.active === false ? (
+                          <span className="platform-inactive-badge">de baja</span>
+                        ) : (
+                          "activo"
+                        )}
+                      </td>
+                      <td>
+                        {user.active !== false && (
+                          <button
+                            type="button"
+                            className="platform-danger"
+                            onClick={() => deactivateUser(user)}
+                            disabled={userBusy}
+                          >
+                            Dar de baja
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            <form onSubmit={handleUserAlta} className="platform-user-alta">
+              <h4>Crear usuario</h4>
+              <div className="platform-user-fields">
+                <input
+                  placeholder="Usuario"
+                  value={userForm.username}
+                  onChange={(e) => setUserField("username", e.target.value)}
+                  required
+                />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={userForm.email}
+                  onChange={(e) => setUserField("email", e.target.value)}
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Contraseña"
+                  value={userForm.password}
+                  onChange={(e) => setUserField("password", e.target.value)}
+                  required
+                />
+                <label>
+                  Rol{" "}
+                  <select value={userForm.role} onChange={(e) => setUserField("role", e.target.value)}>
+                    <option value="KITCHEN">KITCHEN</option>
+                    <option value="OWNER">OWNER</option>
+                    <option value="ADMIN">ADMIN</option>
+                    <option value="PEDIDOS">PEDIDOS</option>
+                  </select>
+                </label>
+              </div>
+
+              {userError && (
+                <p className="platform-error" role="alert">
+                  {userError}
+                </p>
+              )}
+
+              <div className="platform-modal-actions">
+                <button type="submit" disabled={userBusy}>
+                  {userBusy ? "Creando…" : "Crear usuario"}
+                </button>
+                <button type="button" onClick={closeUsers} disabled={userBusy}>
+                  Cerrar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
