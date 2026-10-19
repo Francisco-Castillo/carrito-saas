@@ -712,9 +712,12 @@
 
    Flota sobre todo (sheet incluido: los errores de validación ocurren con
    el pedido abierto) y queda arriba de la barra de carrito cuando hay una.
+   Ícono con glow por tipo + barra de progreso del auto-dismiss; los colores
+   viven acá (no hay tokens de success/danger en el design system).
    ------------------------------------------------------------ */
 
 .menu-toast {
+  --toast-accent: var(--text-secondary);
   position: fixed;
   left: 0;
   right: 0;
@@ -724,13 +727,55 @@
   bottom: calc(var(--space-3) + 76px + env(safe-area-inset-bottom, 0px));
   z-index: 70;
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
+  align-items: center;
+  gap: var(--space-3);
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   border-radius: var(--radius-lg);
-  background: rgba(2, 6, 23, 0.85);
-  box-shadow: var(--glass-shadow);
-  animation: fade-up var(--duration-fast) var(--ease-out-soft) both;
+  background: rgba(2, 6, 23, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 12px 40px rgba(2, 6, 23, 0.5),
+    0 0 24px color-mix(in srgb, var(--toast-accent) 22%, transparent);
+  animation: toast-pop var(--duration-slow) var(--ease-out-soft) both;
+  overflow: hidden;
+}
+
+.menu-toast--success {
+  --toast-accent: #4ade80;
+}
+
+.menu-toast--error {
+  --toast-accent: #f87171;
+}
+
+/* Entrada con resorte: sube y se asienta, no aparece seca. */
+@keyframes toast-pop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.01);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.menu-toast-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--toast-accent);
+  background: color-mix(in srgb, var(--toast-accent) 16%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--toast-accent) 35%, transparent);
 }
 
 .menu-toast-message {
@@ -739,14 +784,6 @@
   font-size: var(--font-size-sm);
   line-height: 1.45;
   color: var(--text-primary);
-}
-
-.menu-toast--success .menu-toast-message {
-  color: var(--color-success, #4ade80);
-}
-
-.menu-toast--error .menu-toast-message {
-  color: var(--color-danger, #f87171);
 }
 
 .menu-toast-close {
@@ -760,11 +797,52 @@
   font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out-soft),
+    color var(--duration-fast) var(--ease-out-soft);
 }
 
 .menu-toast-close:hover {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
+}
+
+/* Barra de progreso del auto-dismiss: se agota junto con el timer del padre
+   (la duración real llega por style inline). Miente si alguien cambia un lado
+   sin el otro — ver MenuToast.tsx. */
+.menu-toast-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--toast-accent);
+  opacity: 0.7;
+  transform-origin: left;
+  animation-name: toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* Sin movimiento para quien lo pide: aparece sin resorte y sin barra que
+   se agote (el auto-dismiss del padre sigue igual). */
+@media (prefers-reduced-motion: reduce) {
+  .menu-toast {
+    animation: none;
+  }
+
+  .menu-toast-progress {
+    display: none;
+  }
 }
 
 /* ------------------------------------------------------------
