@@ -48,6 +48,12 @@ public class PlatformClientController {
 		return platformClientService.listClients();
 	}
 
+	@GetMapping("/clients/{id}/users")
+	public java.util.List<com.carrito.saas.dto.PlatformUserDTO> listUsers(@PathVariable("id") Long id) {
+
+		return platformClientService.listUsers(id);
+	}
+
 	@PutMapping("/clients/{id}")
 	public PlatformClientDTO editClient(@PathVariable("id") Long id,
 			@RequestBody UpdatePlatformClientRequestDTO request) {

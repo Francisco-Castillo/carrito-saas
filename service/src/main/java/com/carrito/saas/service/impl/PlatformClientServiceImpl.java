@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.carrito.saas.dto.CreatePlatformClientRequestDTO;
 import com.carrito.saas.dto.PlatformClientDTO;
+import com.carrito.saas.dto.PlatformUserDTO;
 import com.carrito.saas.dto.UpdatePlatformClientRequestDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
@@ -173,6 +174,24 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 		userRepository.saveAndFlush(owner);
 
 		return toDTO(business, owner);
+	}
+
+	@Override
+	public List<PlatformUserDTO> listUsers(Long businessId) {
+
+		businessRepository.findById(businessId)
+				.orElseThrow(() -> new BusinessException("Cliente no encontrado", ErrorType.NOT_FOUND));
+
+		List<PlatformUserDTO> users = new ArrayList<>();
+		for (BusinessUser membership : businessUserRepository.findByBusiness_IdOrderByIdAsc(businessId)) {
+			PlatformUserDTO dto = new PlatformUserDTO();
+			dto.setUsername(membership.getUser().getUsername());
+			dto.setEmail(membership.getUser().getEmail());
+			dto.setRole(membership.getRole().getName());
+			dto.setActive(membership.getUser().getActive());
+			users.add(dto);
+		}
+		return users;
 	}
 
 	private static final Pattern SLUG_SHAPE = Pattern.compile("^[a-z0-9-]+$");

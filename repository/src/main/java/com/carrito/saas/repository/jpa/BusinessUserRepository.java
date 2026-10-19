@@ -36,4 +36,10 @@ public interface BusinessUserRepository extends JpaRepository<BusinessUser, Long
 	 */
 	@Query("SELECT bu FROM BusinessUser bu JOIN bu.role r WHERE r.name = 'OWNER'")
 	List<BusinessUser> findOwnerMemberships();
+
+	/**
+	 * Membresías de UN negocio, ordenadas por id de alta — el listado de
+	 * usuarios del local para el operador (odd/tasks/plataforma-usuarios.md).
+	 */
+	List<BusinessUser> findByBusiness_IdOrderByIdAsc(Long businessId);
 }

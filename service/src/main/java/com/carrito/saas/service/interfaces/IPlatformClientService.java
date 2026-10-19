@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.carrito.saas.dto.CreatePlatformClientRequestDTO;
 import com.carrito.saas.dto.PlatformClientDTO;
+import com.carrito.saas.dto.PlatformUserDTO;
 import com.carrito.saas.dto.UpdatePlatformClientRequestDTO;
 
 /**
@@ -48,4 +49,11 @@ public interface IPlatformClientService {
 	 * answers 400 and leaves the stored hash untouched.
 	 */
 	PlatformClientDTO resetOwnerPassword(Long businessId, String newPassword);
+
+	/**
+	 * Users of a client's locale as the operator sees them (S2/S3 of
+	 * odd/tasks/plataforma-usuarios.md): username, email, role and the
+	 * deactivation state. Unknown client answers 404.
+	 */
+	List<PlatformUserDTO> listUsers(Long businessId);
 }
