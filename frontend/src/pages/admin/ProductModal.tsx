@@ -377,7 +377,7 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
               </button>
             )}
           </div>
-          <p className="admin-product-image--hint">JPG, PNG o WebP · hasta 5 MB</p>
+          <p className="admin-image-hint">JPG, PNG o WebP · hasta 5 MB · ideal 800×600 (4:3): en la carta se recorta al centro</p>
           {imageError && (
             <p className="name-error" role="alert">
               {imageError}
