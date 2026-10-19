@@ -362,6 +362,7 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
           )}
           <div className="admin-product-image--controls">
             <label className="btn-ghost admin-product-image--pick">
+              <span className="admin-product-image--pick-icon" aria-hidden="true">🖼️</span>
               {imagePreview ? "Cambiar imagen" : "Agregar imagen"}
               <input
                 type="file"

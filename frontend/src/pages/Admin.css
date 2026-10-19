@@ -928,6 +928,7 @@
 
 .admin-product-form-actions {
   justify-content: flex-end;
+  gap: var(--space-3);
 }
 
 /* Imagen de producto del ProductModal: preview + picker/quitado (feature
@@ -957,6 +958,26 @@
 
 .admin-product-image--pick {
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+}
+
+.admin-product-image--pick:hover,
+.admin-product-image--pick:focus-within {
+  border-color: rgba(255, 255, 255, 0.55);
+  color: var(--color-text, #fff);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-product-image--pick-icon {
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 /* El input file real vive oculto dentro del label-botón. */
