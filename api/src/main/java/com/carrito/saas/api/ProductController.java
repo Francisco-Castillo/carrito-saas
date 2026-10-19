@@ -1,5 +1,6 @@
 package com.carrito.saas.api;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.carrito.saas.dto.BusinessDTO;
 import com.carrito.saas.dto.PageResponse;
@@ -116,6 +118,28 @@ public class ProductController {
 	@PutMapping("/products/{id}")
 	public ProductDTO actualizar(@PathVariable Long id, @RequestBody ProductDTO dto) {
 		return productService.actualizarProducto(id, dto);
+	}
+
+	/**
+	 * Sube (o reemplaza) la imagen de un producto propio: multipart con el
+	 * campo "file". El tenant se valida en el servicio (producto ajeno →
+	 * 404); el tipo/tamaño los valida ImageStorageService (400 con mensaje
+	 * en español). Reemplazar borra la imagen anterior de disco.
+	 */
+	@PostMapping("/products/{id}/image")
+	public ProductDTO subirImagen(@PathVariable Long id,
+			@RequestParam("file") MultipartFile file) {
+		try {
+			return productService.actualizarImagen(id, file.getBytes(), file.getContentType());
+		} catch (IOException e) {
+			throw new BusinessException("No se pudo leer la imagen subida", ErrorType.INTERNAL_ERROR);
+		}
+	}
+
+	/** Quita la imagen de un producto propio; si no tiene, no cambia nada. */
+	@DeleteMapping("/products/{id}/image")
+	public ProductDTO borrarImagen(@PathVariable Long id) {
+		return productService.eliminarImagen(id);
 	}
 
 	/**

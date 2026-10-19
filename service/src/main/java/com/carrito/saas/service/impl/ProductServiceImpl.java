@@ -30,6 +30,7 @@ import com.carrito.saas.repository.entity.Product;
 import com.carrito.saas.repository.jpa.CategoryRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
 import com.carrito.saas.service.interfaces.IProductPredictionService;
+import com.carrito.saas.service.impl.ImageStorageService;
 import com.carrito.saas.service.interfaces.IProductService;
 import com.carrito.saas.service.interfaces.IProductTrendService;
 import com.carrito.saas.service.mapper.interfaces.IProductMapper;
@@ -48,11 +49,12 @@ public class ProductServiceImpl implements IProductService {
 	private final IProductPredictionService productPredictionService;
 	private final ProductInsightService productInsightService;
 	private final SecurityService securityService;
+	private final ImageStorageService imageStorageService;
 
 	public ProductServiceImpl(ProductRepository productRepository, CategoryRepository categoryRepository,
 			IProductMapper iProductMapper, IProductTrendService productTrendService,
 			IProductPredictionService productPredictionService, ProductInsightService productInsightService,
-			SecurityService securityService) {
+			SecurityService securityService, ImageStorageService imageStorageService) {
 
 		this.productRepository = productRepository;
 		this.categoryRepository = categoryRepository;
@@ -61,6 +63,7 @@ public class ProductServiceImpl implements IProductService {
 		this.productPredictionService = productPredictionService;
 		this.productInsightService = productInsightService;
 		this.securityService = securityService;
+		this.imageStorageService = imageStorageService;
 	}
 
 	@Override
@@ -262,6 +265,44 @@ public class ProductServiceImpl implements IProductService {
 				.orElseThrow(() -> new BusinessException("Producto no encontrado", ErrorType.NOT_FOUND));
 
 		p.setActive(activo);
+
+		return iProductMapper.toDTO(productRepository.save(p));
+	}
+
+	@Override
+	@Transactional
+	public ProductDTO actualizarImagen(Long id, byte[] data, String contentType) {
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		Product p = productRepository.findByIdAndCategory_Business_Id(id, businessId)
+				.orElseThrow(() -> new BusinessException("Producto no encontrado", ErrorType.NOT_FOUND));
+
+		// Reemplazo = guardar la nueva primero (falla en disco no toca la fila)
+		// y recién después borrar la vieja si existía.
+		String oldUrl = p.getImageUrl();
+		String newUrl = imageStorageService.store(data, contentType);
+		p.setImageUrl(newUrl);
+
+		if (oldUrl != null && !oldUrl.equals(newUrl)) {
+			imageStorageService.deleteByUrl(oldUrl);
+		}
+
+		return iProductMapper.toDTO(productRepository.save(p));
+	}
+
+	@Override
+	@Transactional
+	public ProductDTO eliminarImagen(Long id) {
+
+		Long businessId = securityService.getCurrentBusinessId();
+
+		Product p = productRepository.findByIdAndCategory_Business_Id(id, businessId)
+				.orElseThrow(() -> new BusinessException("Producto no encontrado", ErrorType.NOT_FOUND));
+
+		String url = p.getImageUrl();
+		p.setImageUrl(null);
+		imageStorageService.deleteByUrl(url);
 
 		return iProductMapper.toDTO(productRepository.save(p));
 	}
