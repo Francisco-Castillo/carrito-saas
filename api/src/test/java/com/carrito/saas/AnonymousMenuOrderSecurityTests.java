@@ -71,6 +71,9 @@ class AnonymousMenuOrderSecurityTests {
 	@Autowired
 	private ProductRepository productRepository;
 
+	@Autowired
+	private com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository;
+
 	private MockMvc mockMvc;
 
 	@BeforeEach
@@ -92,6 +95,7 @@ class AnonymousMenuOrderSecurityTests {
 		business.setName("Security Probe Business");
 		business.setSlug("security-probe-business");
 		business = businessRepository.saveAndFlush(business);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, business.getId());
 
 		Category category = new Category();
 		category.setBusiness(business);

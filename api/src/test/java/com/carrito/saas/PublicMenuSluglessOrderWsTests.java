@@ -75,6 +75,9 @@ class PublicMenuSluglessOrderWsTests {
 	@PersistenceContext
 	private EntityManager entityManager;
 
+	@Autowired
+	private com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository;
+
 	private MockMvc mockMvc;
 
 	@BeforeEach
@@ -94,6 +97,7 @@ class PublicMenuSluglessOrderWsTests {
 		business.setName("Slugless WS Test Business");
 		business.setSlug(SLUG);
 		business = businessRepository.saveAndFlush(business);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, business.getId());
 
 		Category category = new Category();
 		category.setBusiness(business);

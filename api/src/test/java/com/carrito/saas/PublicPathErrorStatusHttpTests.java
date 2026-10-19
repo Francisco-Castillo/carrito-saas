@@ -67,6 +67,9 @@ class PublicPathErrorStatusHttpTests {
 	@Autowired
 	private ProductRepository productRepository;
 
+	@Autowired
+	private com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository;
+
 	private MockMvc mockMvc;
 
 	@BeforeEach
@@ -83,7 +86,9 @@ class PublicPathErrorStatusHttpTests {
 		business.setId(BUSINESS_ID);
 		business.setName("Public Path Error Status Test Business");
 		business.setSlug(slug);
-		return businessRepository.saveAndFlush(business);
+		business = businessRepository.saveAndFlush(business);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, business.getId());
+		return business;
 	}
 
 	private Product seedProduct(Business business, String name, int stock) {

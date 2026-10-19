@@ -85,6 +85,9 @@ class NullStockMeansInfiniteTests {
 	@Autowired
 	private FilterChainProxy springSecurityFilterChain;
 
+	@Autowired
+	private com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository;
+
 	private MockMvc mockMvc;
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
@@ -124,7 +127,9 @@ class NullStockMeansInfiniteTests {
 		business.setId(id);
 		business.setName(name);
 		business.setSlug(slug);
-		return businessRepository.saveAndFlush(business);
+		business = businessRepository.saveAndFlush(business);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, business.getId());
+		return business;
 	}
 
 	private Category seedCategory(Business business, String name) {

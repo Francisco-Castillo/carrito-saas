@@ -80,6 +80,9 @@ class PublicMenuOrderHttpTests {
 	@Autowired
 	private FilterChainProxy springSecurityFilterChain;
 
+	@Autowired
+	private com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository;
+
 	private MockMvc mockMvc;
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
@@ -119,6 +122,7 @@ class PublicMenuOrderHttpTests {
 		business.setName("Public Menu HTTP Test Business");
 		business.setSlug(SLUG);
 		businessRepository.saveAndFlush(business);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, business.getId());
 
 		// --- Seed: category owned by the business ------------------------------
 		// A product always has a category in the real API (ProductServiceImpl
@@ -200,6 +204,7 @@ class PublicMenuOrderHttpTests {
 		business.setName("Public Menu Combo Test Business");
 		business.setSlug(SLUG + "-combo");
 		businessRepository.saveAndFlush(business);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, business.getId());
 
 		// --- Seed: category owned by the business (combo lookup joins on it) ---
 		Category category = new Category();

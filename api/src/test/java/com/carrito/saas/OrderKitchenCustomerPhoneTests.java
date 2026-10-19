@@ -78,6 +78,9 @@ class OrderKitchenCustomerPhoneTests {
 	@Autowired
 	private ProductRepository productRepository;
 
+	@Autowired
+	private com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository;
+
 	private MockMvc mockMvc;
 
 	private BusinessAuthSeed.AuthenticatedBusiness owner;
@@ -90,6 +93,7 @@ class OrderKitchenCustomerPhoneTests {
 
 		owner = BusinessAuthSeed.seedOwner(businessRepository, userRepository, roleRepository,
 				businessUserRepository, jwtUtil, BUSINESS_ID, SLUG, USERNAME);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, BUSINESS_ID);
 	}
 
 	@Test

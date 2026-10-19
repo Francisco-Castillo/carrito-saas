@@ -107,6 +107,9 @@ class OrderManagementDayEndpointTests {
 	@Autowired
 	private EntityManager entityManager;
 
+	@Autowired
+	private com.carrito.saas.repository.jpa.BusinessHoursRepository businessHoursRepository;
+
 	private MockMvc mockMvc;
 
 	private BusinessAuthSeed.AuthenticatedBusiness ownerA;
@@ -124,6 +127,8 @@ class OrderManagementDayEndpointTests {
 				businessUserRepository, jwtUtil, BUSINESS_A_ID, SLUG_A, USERNAME_A);
 		ownerB = BusinessAuthSeed.seedOwner(businessRepository, userRepository, roleRepository,
 				businessUserRepository, jwtUtil, BUSINESS_B_ID, SLUG_B, USERNAME_B);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, BUSINESS_A_ID);
+		BusinessAuthSeed.seedAlwaysOpenWeek(businessHoursRepository, businessRepository, BUSINESS_B_ID);
 	}
 
 	// ------------------------------------------------------------------
