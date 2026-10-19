@@ -70,7 +70,9 @@ function mapCombosToProducts(combos: Combo[], baseProducts: Product[]): Product[
       price: c.price,
       categoryId: String(c.categoryId),
       categoryName: "Combos",
-      imageUrl: main?.imageUrl,
+      // La imagen propia del combo manda; la derivación por componente
+      // más caro queda como fallback para combos sin imagen propia.
+      imageUrl: c.imageUrl ?? main?.imageUrl,
       isCombo: true,
     };
   });
