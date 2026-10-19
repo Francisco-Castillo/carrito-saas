@@ -17,6 +17,7 @@ import com.carrito.saas.dto.CategoryDTO;
 import com.carrito.saas.dto.ComboDTO;
 import com.carrito.saas.dto.DateExceptionDTO;
 import com.carrito.saas.dto.MenuDTO;
+import com.carrito.saas.dto.MenuTableDTO;
 import com.carrito.saas.dto.ProductDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
@@ -26,12 +27,14 @@ import com.carrito.saas.repository.entity.BusinessHours;
 import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.repository.entity.Combo;
 import com.carrito.saas.repository.entity.Product;
+import com.carrito.saas.repository.entity.RestaurantTable;
 import com.carrito.saas.repository.jpa.BusinessDateExceptionRepository;
 import com.carrito.saas.repository.jpa.BusinessHoursRepository;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.CategoryRepository;
 import com.carrito.saas.repository.jpa.ComboRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
+import com.carrito.saas.repository.jpa.TableRepository;
 import com.carrito.saas.service.interfaces.IMenuService;
 import com.carrito.saas.service.mapper.interfaces.IBusinessMapper;
 import com.carrito.saas.service.mapper.interfaces.ICategoryMapper;
@@ -54,11 +57,13 @@ public class MenuServiceImpl implements IMenuService {
 
 	private final SingleBusinessResolver singleBusinessResolver;
 
+	private final TableRepository tableRepository;
+
 	public MenuServiceImpl(BusinessRepository businessRepository, BusinessHoursRepository businessHoursRepository,
 			BusinessDateExceptionRepository businessDateExceptionRepository, CategoryRepository categoryRepository,
 			ProductRepository productRepository, ComboRepository comboRepository, IBusinessMapper iBusinessMapper,
 			ICategoryMapper iCategoryMapper, IProductMapper iProductMapper, IComboMapper iComboMapper,
-			SingleBusinessResolver singleBusinessResolver) {
+			SingleBusinessResolver singleBusinessResolver, TableRepository tableRepository) {
 		this.businessRepository = businessRepository;
 		this.businessHoursRepository = businessHoursRepository;
 		this.businessDateExceptionRepository = businessDateExceptionRepository;
@@ -70,6 +75,35 @@ public class MenuServiceImpl implements IMenuService {
 		this.iProductMapper = iProductMapper;
 		this.iComboMapper = iComboMapper;
 		this.singleBusinessResolver = singleBusinessResolver;
+		this.tableRepository = tableRepository;
+	}
+
+	@Override
+	public MenuTableDTO getPublicTable(Long tableId) {
+
+		// Same slugless contract as getMenu: the public surface resolves the
+		// deployment's single business and fails closed when the deployment
+		// cannot be determined (zero or multiple businesses).
+		Business business = singleBusinessResolver.requireSingle();
+
+		// Baja lógica (S5 de odd/tasks/plataforma-editar-baja.md): la mesa de
+		// un local dado de baja no existe públicamente — 404, igual que la
+		// carta.
+		if (!Boolean.TRUE.equals(business.getActive())) {
+			throw new BusinessException("Local no encontrado", ErrorType.NOT_FOUND);
+		}
+
+		// An unknown id OR a table of another business: same 404, without
+		// filtering existence (same rule OrderServiceImpl applies for SALON).
+		RestaurantTable table = tableRepository
+				.findByIdAndBusinessId(tableId, business.getId())
+				.orElseThrow(() -> new BusinessException("Mesa no encontrada", ErrorType.NOT_FOUND));
+
+		return MenuTableDTO.builder()
+				.id(table.getId())
+				.tableNumber(table.getTableNumber())
+				.tableName(table.getTableName())
+				.build();
 	}
 
 	@Override

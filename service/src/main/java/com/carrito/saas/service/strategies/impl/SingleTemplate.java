@@ -83,8 +83,8 @@ public class SingleTemplate implements PdfTemplateStrategy {
 	                        new Paragraph(" "));
 
 	                String url =
-	                        menuUrlBuilder.buildMenuUrl(
-	                                table.getBusiness().getSlug());
+	                        menuUrlBuilder.buildTableMenuUrl(
+	                                table.getBusiness().getSlug(), table.getId());
 
 	                byte[] qr =
 	                        qrCodeService.generateQr(
