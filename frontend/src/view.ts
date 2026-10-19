@@ -1,4 +1,4 @@
-export type AppView = "login" | "menu" | "dashboard" | "admin" | "kds" | "orders";
+export type AppView = "login" | "menu" | "dashboard" | "admin" | "kds" | "orders" | "platform";
 
 /**
  * Route table for real navigation: the SPA ships as separate entry paths —
@@ -15,6 +15,7 @@ const PATH_ROUTES: Array<[RegExp, AppView]> = [
   [/^\/admin(?:\/admin\.html)?\/?$/, "admin"],
   [/^\/kds(?:\/index\.html)?\/?$/, "kds"],
   [/^\/pedidos(?:\/index\.html)?\/?$/, "orders"],
+  [/^\/platform(?:\/index\.html)?\/?$/, "platform"],
   [/^\/login(?:\/login\.html)?\/?$/, "login"],
 ];
 
@@ -40,5 +41,6 @@ export function getView(): AppView {
   if (view === "admin") return "admin";
   if (view === "kds") return "kds";
   if (view === "pedidos") return "orders";
+  if (view === "platform") return "platform";
   return "login";
 }

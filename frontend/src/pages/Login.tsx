@@ -4,6 +4,9 @@ import "./Login.css";
 function redirectPathForRole(role: string): string | null {
   if (role.includes("OWNER")) return `/dashboard`;
   if (role.includes("KITCHEN")) return `/kds`;
+  // PLATFORM_ADMIN va ANTES que ADMIN: "PLATFORM_ADMIN".includes("ADMIN")
+  // es true y el rol del operador caería en el panel de negocio.
+  if (role.includes("PLATFORM_ADMIN")) return `/platform`;
   if (role.includes("ADMIN")) return `/admin`;
   if (role.includes("PEDIDOS")) return `/pedidos`;
   return null;

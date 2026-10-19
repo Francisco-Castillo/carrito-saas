@@ -76,6 +76,11 @@ describe('login redirect chain (ported from api/src/test/js/page-guard.test.mjs)
     await waitFor(() => expect(location.href).toBe(`/pedidos`))
   })
 
+  it('PLATFORM_ADMIN lands on /platform (the operator panel is its own role)', async () => {
+    const { location } = await submitLogin('PLATFORM_ADMIN', '')
+    await waitFor(() => expect(location.href).toBe(`/platform`))
+  })
+
   it('the restaurant slug from the login response is stored verbatim in the session', async () => {
     // The legacy login.js used data.restaurantSlug as-is (no re-encoding); the
     // port must keep storing it verbatim — the session is now the only place

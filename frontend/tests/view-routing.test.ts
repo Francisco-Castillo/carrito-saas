@@ -37,6 +37,9 @@ describe('view routing (one SPA, every entry path)', () => {
     ['/login', 'login'],
     ['/login/', 'login'],
     ['/login/login.html', 'login'],
+    ['/platform', 'platform'],
+    ['/platform/', 'platform'],
+    ['/platform/index.html', 'platform'],
   ])('%s resolves to the %s view', (path, view) => {
     at(path)
     expect(getView()).toBe(view)
