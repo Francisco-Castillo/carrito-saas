@@ -927,6 +927,7 @@
 }
 
 .admin-product-form-actions {
+  display: flex;
   justify-content: flex-end;
   gap: var(--space-3);
 }
