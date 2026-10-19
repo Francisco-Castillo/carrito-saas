@@ -75,7 +75,11 @@ class QrPdfTemplateUrlTests {
 
 	private static final String USERNAME = "qr-pdf-url-owner";
 
-	private static final String EXPECTED_URL = "https://qr.example.test/menu/";
+	private static final String EXPECTED_BASE_URL = "https://qr.example.test/menu/";
+
+	private static String expectedTableUrl(long tableId) {
+		return EXPECTED_BASE_URL + "?table=" + tableId;
+	}
 
 	@Autowired
 	private PdfTemplateFactory pdfTemplateFactory;
@@ -134,12 +138,12 @@ class QrPdfTemplateUrlTests {
 		String capturedUrl = capturedQrUrls(1).get(0);
 
 		assertThat(capturedUrl)
-				.as("the SINGLE template must hand menuUrlBuilder.buildMenuUrl(slug) to the QR encoder, not a hardcoded host (actual: %s)",
+				.as("the SINGLE template must hand menuUrlBuilder.buildTableMenuUrl(slug, tableId) to the QR encoder, not a hardcoded host (actual: %s)",
 						capturedUrl)
-				.isEqualTo(menuUrlBuilder.buildMenuUrl(SLUG));
+				.isEqualTo(menuUrlBuilder.buildTableMenuUrl(SLUG, 1L));
 		assertThat(capturedUrl)
-				.as("the configured base https://qr.example.test must be used verbatim (actual: %s)", capturedUrl)
-				.isEqualTo(EXPECTED_URL);
+				.as("the configured base https://qr.example.test must be used verbatim, carrying the table id (actual: %s)", capturedUrl)
+				.isEqualTo(expectedTableUrl(1L));
 		assertThat(capturedUrl)
 				.as("the dead localhost:3030 host must be gone from the QR content (actual: %s)", capturedUrl)
 				.doesNotContain("localhost:3030");
@@ -158,14 +162,13 @@ class QrPdfTemplateUrlTests {
 		List<String> capturedUrls = capturedQrUrls(3);
 
 		assertThat(capturedUrls)
-				.as("every table of one business must receive the same public menu URL, whatever its qrToken "
-						+ "-- the accepted trade-off of dropping per-table identity (actual: %s)",
+				.as("each table of one business must carry its OWN table id in the QR URL (actual: %s)",
 						capturedUrls)
-				.containsExactly(menuUrlBuilder.buildMenuUrl(SLUG), menuUrlBuilder.buildMenuUrl(SLUG),
-						menuUrlBuilder.buildMenuUrl(SLUG));
+				.containsExactly(expectedTableUrl(1L), expectedTableUrl(2L), expectedTableUrl(3L));
 		assertThat(capturedUrls)
 				.as("the configured base https://qr.example.test must be used verbatim (actual: %s)", capturedUrls)
-				.containsOnly(EXPECTED_URL);
+				.containsOnly(EXPECTED_BASE_URL + "?table=1", EXPECTED_BASE_URL + "?table=2",
+						EXPECTED_BASE_URL + "?table=3");
 		assertThat(capturedUrls)
 				.as("the dead localhost:3030 host must be gone from the QR content (actual: %s)", capturedUrls)
 				.doesNotContain("localhost:3030");
@@ -180,12 +183,12 @@ class QrPdfTemplateUrlTests {
 		String capturedUrl = capturedQrUrls(1).get(0);
 
 		assertThat(capturedUrl)
-				.as("the ACRYLIC template must hand menuUrlBuilder.buildMenuUrl(slug) to the QR encoder, not a hardcoded host (actual: %s)",
+				.as("the ACRYLIC template must hand menuUrlBuilder.buildTableMenuUrl(slug, tableId) to the QR encoder, not a hardcoded host (actual: %s)",
 						capturedUrl)
-				.isEqualTo(menuUrlBuilder.buildMenuUrl(SLUG));
+				.isEqualTo(menuUrlBuilder.buildTableMenuUrl(SLUG, 1L));
 		assertThat(capturedUrl)
-				.as("the configured base https://qr.example.test must be used verbatim (actual: %s)", capturedUrl)
-				.isEqualTo(EXPECTED_URL);
+				.as("the configured base https://qr.example.test must be used verbatim, carrying the table id (actual: %s)", capturedUrl)
+				.isEqualTo(expectedTableUrl(1L));
 		assertThat(capturedUrl)
 				.as("the dead localhost:3030 host must be gone from the QR content (actual: %s)", capturedUrl)
 				.doesNotContain("localhost:3030");
@@ -206,6 +209,7 @@ class QrPdfTemplateUrlTests {
 		table.setCreatedAt(LocalDateTime.now());
 		table.setUpdatedAt(LocalDateTime.now());
 		table = tableRepository.saveAndFlush(table);
+		long savedTableId = table.getId();
 
 		byte[] pdf = mockMvc
 				.perform(get("/api/tables/{id}/qr/pdf", table.getId())
@@ -227,9 +231,9 @@ class QrPdfTemplateUrlTests {
 		String extractedText = extractPdfText(pdf).replaceAll("\\s+", "");
 
 		assertThat(extractedText)
-				.as("the printed PDF must show the configured public menu URL, not a dead host (actual: %s)",
+				.as("the printed PDF must show the configured public menu URL with its own table id, not a dead host (actual: %s)",
 						extractedText)
-				.contains(EXPECTED_URL.replaceAll("\\s+", ""));
+				.contains(expectedTableUrl(table.getId()).replaceAll("\\s+", ""));
 		assertThat(extractedText)
 				.as("the printed PDF must not carry the dead localhost:3030 host (actual: %s)", extractedText)
 				.doesNotContain("localhost:3030");
@@ -245,6 +249,9 @@ class QrPdfTemplateUrlTests {
 		table.setTableName("Mesa " + number);
 		table.setTableNumber(number);
 		table.setQrToken(UUID.randomUUID().toString());
+		// The templates encode the table id into the QR URL, so an in-memory
+		// table needs a deterministic identity.
+		table.setId((long) number);
 		return table;
 	}
 

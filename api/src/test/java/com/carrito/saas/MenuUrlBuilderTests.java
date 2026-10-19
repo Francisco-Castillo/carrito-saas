@@ -51,4 +51,26 @@ class MenuUrlBuilderTests {
 		assertThat(builder.buildMenuUrl("my-restaurant"))
 				.isEqualTo("https://carta.midominio.com/menu/");
 	}
+
+	@Test
+	void buildsTheTableMenuUrlWithTheTableIdOnTheDefaultLocalBase() {
+
+		QrProperties properties = new QrProperties();
+		IMenuUrlBuilder builder = new MenuUrlBuilder(properties);
+
+		assertThat(builder.buildTableMenuUrl("my-restaurant", 42L))
+				.isEqualTo("http://localhost:9090/menu/?table=42");
+	}
+
+	@Test
+	void buildsTheTableMenuUrlFromAConfiguredBaseAndToleratesATrailingSlash() {
+
+		QrProperties properties = new QrProperties();
+		properties.setPublicMenuUrl("https://carta.midominio.com/");
+
+		IMenuUrlBuilder builder = new MenuUrlBuilder(properties);
+
+		assertThat(builder.buildTableMenuUrl("my-restaurant", 7L))
+				.isEqualTo("https://carta.midominio.com/menu/?table=7");
+	}
 }

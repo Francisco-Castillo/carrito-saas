@@ -102,7 +102,10 @@ public class OrderServiceImpl implements IOrderService {
 			throw new BusinessException("Debe indicar tipo de pedido", ErrorType.VALIDATION);
 		}
 
-		if (request.getPaymentMethod() == null) {
+		// S4 de odd/tasks/pedido-qr-mesa.md: un pedido de salón se paga en la
+		// mesa/caja — el cliente no elige forma de pago y el campo viaja null.
+		// Todo otro tipo de pedido mantiene la exigencia legacy.
+		if (request.getOrderType() != OrderType.SALON && request.getPaymentMethod() == null) {
 			throw new BusinessException("Debe indicar método de pago", ErrorType.VALIDATION);
 		}
 

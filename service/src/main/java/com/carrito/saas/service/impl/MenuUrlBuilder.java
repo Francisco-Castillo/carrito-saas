@@ -37,4 +37,12 @@ public class MenuUrlBuilder implements IMenuUrlBuilder {
 		// single business is resolved by the backend, never by the URL.
 		return normalizedBase + "/menu/";
 	}
+
+	@Override
+	public String buildTableMenuUrl(String slug, Long tableId) {
+
+		// Same slugless base; the table id lets the customer menu attribute
+		// the order to the scanned table (SALON + tableId).
+		return buildMenuUrl(slug) + "?table=" + tableId;
+	}
 }

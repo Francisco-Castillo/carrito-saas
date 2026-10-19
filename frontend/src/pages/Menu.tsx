@@ -16,6 +16,7 @@ import type {
   OrderType,
   PaymentMethod,
   Product,
+  PublicTable,
   Restaurant,
   StorefrontBusiness,
 } from "./menu/types";
@@ -112,6 +113,15 @@ export default function Menu() {
     []
   );
 
+  // QR de mesa (feature pedido-qr-mesa): el QR de una mesa abre la carta como
+  // /menu/?table=<id>. Un id inválido o una mesa que no resuelve (404/error)
+  // caen al menú normal — un QR viejo sigue funcionando.
+  const tableParam = useMemo(() => {
+    const raw = new URLSearchParams(window.location.search).get("table");
+    const id = raw === null ? NaN : Number(raw);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  }, []);
+
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   // Portada del local: llega en el payload del menú (`data.business`).
   const [business, setBusiness] = useState<StorefrontBusiness | null>(null);
@@ -132,6 +142,8 @@ export default function Menu() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [orderType, setOrderType] = useState<OrderType>("RETIRO");
+  // Mesa fija del QR: presente => el pedido es SALON con esa mesa.
+  const [table, setTable] = useState<PublicTable | null>(null);
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("EFECTIVO");
@@ -198,7 +210,8 @@ export default function Menu() {
       setCustomerPhone("");
       setAddress("");
       setNotes("");
-      setOrderType("RETIRO");
+      setOrderType(tableParam ? "SALON" : "RETIRO");
+      setTable(null);
       setProducts([]);
       setRestaurant(null);
       setBusiness(null);
@@ -273,6 +286,27 @@ export default function Menu() {
           ...baseProducts,
           ...mapCombosToProducts(data.combos || [], baseProducts),
         ]);
+
+        // QR de mesa: con el menú cargado, resolvemos la identidad pública de
+        // la mesa. Un 404/error deja `table` en null: el menú cae al
+        // comportamiento normal (fallback honesto) — un QR viejo sin mesa
+        // sigue funcionando igual.
+        if (tableParam !== null) {
+          try {
+            const tableRes = await fetch(`/api/menu/table/${tableParam}`);
+            if (!tableRes.ok) {
+              throw new Error("Table request failed with HTTP " + tableRes.status);
+            }
+            const tableData: PublicTable = await tableRes.json();
+            if (cancelled) return;
+            setTable(tableData);
+            setOrderType("SALON");
+          } catch {
+            if (cancelled) return;
+            setTable(null);
+            setOrderType("RETIRO");
+          }
+        }
       } catch {
         if (!cancelled) setLoadError(ERROR_PRODUCTS);
       } finally {
@@ -284,7 +318,7 @@ export default function Menu() {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, tableParam]);
 
   // Scroll-spy: la píldora activa sigue la sección visible. En entornos sin
   // IntersectionObserver (jsdom, navegadores viejos) simplemente no se activa.
@@ -394,7 +428,8 @@ export default function Menu() {
     setCustomerPhone("");
     setAddress("");
     setNotes("");
-    setOrderType("RETIRO");
+    // Modo mesa fija: el pedido sigue siendo de salón tras confirmar.
+    setOrderType(table ? "SALON" : "RETIRO");
     setCartSheetOpen(false);
   }
 
@@ -481,11 +516,24 @@ export default function Menu() {
     const payload: Record<string, unknown> = {
       customerName,
       customerPhone: normalizedPhone,
-      orderType,
-      paymentMethod,
+      // Mesa fija (QR): el pedido ES de salón, sin importar el estado del
+      // selector (que ni siquiera se muestra en ese modo).
+      orderType: table ? "SALON" : orderType,
       notes,
       items,
     };
+
+    // S4 de pedido-qr-mesa: un pedido de mesa se paga en la mesa — no viaja
+    // forma de pago. RETIRO/DELIVERY mantienen la selección del cliente.
+    if (!table) {
+      payload.paymentMethod = paymentMethod;
+    }
+
+    // La mesa viaja sólo en el pedido de salón (misma convención del POS,
+    // validación T2 del backend: mesa propia del negocio).
+    if (table) {
+      payload.tableId = table.id;
+    }
 
     if (orderType === "DELIVERY") {
       payload.customerAddress = address;
@@ -715,6 +763,7 @@ export default function Menu() {
                   customerName={customerName}
                   customerPhone={customerPhone}
                   orderType={orderType}
+                  table={table}
                   address={address}
                   notes={notes}
                   paymentMethod={paymentMethod}

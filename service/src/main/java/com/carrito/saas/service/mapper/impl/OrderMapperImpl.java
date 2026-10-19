@@ -31,7 +31,9 @@ public class OrderMapperImpl implements IOrderMapper {
 		orderDTO.setCustomerPhone(entity.getCustomerPhone());
 		orderDTO.setCustomerAddress(entity.getCustomerAddress());
 		orderDTO.setOrderType(entity.getOrderType().toString());
-		orderDTO.setPaymentMethod(entity.getPaymentMethod().toString());
+		// S4 de odd/tasks/pedido-qr-mesa.md: un pedido de salón viaja sin forma
+		// de pago (se paga en la mesa) — el mapper no debe reventar con null.
+		orderDTO.setPaymentMethod(entity.getPaymentMethod() == null ? null : entity.getPaymentMethod().toString());
 		orderDTO.setStatus(entity.getStatus().toString());
 		orderDTO.setCreatedAt(entity.getCreatedAt());
 		orderDTO.setUpdatedAt(entity.getUpdatedAt());
