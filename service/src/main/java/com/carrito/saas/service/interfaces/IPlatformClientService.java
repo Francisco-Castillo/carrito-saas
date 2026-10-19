@@ -4,10 +4,11 @@ import java.util.List;
 
 import com.carrito.saas.dto.CreatePlatformClientRequestDTO;
 import com.carrito.saas.dto.PlatformClientDTO;
+import com.carrito.saas.dto.UpdatePlatformClientRequestDTO;
 
 /**
- * Platform-side client management: the operator registers clients (owner +
- * locale) and lists them (odd/tasks/plataforma-altas.md, S1).
+ * Platform-side client management: the operator registers (owner + locale),
+ * edits and deactivates clients (odd/tasks/plataforma-editar-baja.md, S1).
  */
 public interface IPlatformClientService {
 
@@ -22,4 +23,12 @@ public interface IPlatformClientService {
 	/** Every business of the platform, oldest first; the owner account when
 	 * the business has one (null otherwise). */
 	List<PlatformClientDTO> listClients();
+
+	/**
+	 * Partial edit of the SAFE fields (name, phone, ownerEmail) and optional
+	 * reactivation/deactivation ({@code active}). Unknown id answers 404; a
+	 * colliding owner email 409; a malformed phone 400. The slug NEVER moves
+	 * — it is the public identity (printed QRs, menu URLs).
+	 */
+	PlatformClientDTO editClient(Long businessId, UpdatePlatformClientRequestDTO request);
 }

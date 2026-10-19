@@ -3,10 +3,11 @@ package com.carrito.saas.dto;
 import lombok.Data;
 
 /**
- * Response of the platform client endpoints ({@code POST} and {@code GET}
- * {@code /api/platform/clients}): what the operator panel lists and what the
- * alta answers — the locale identity plus its owner account (never the
- * password).
+ * Response of the platform client endpoints ({@code POST}, {@code GET} and
+ * {@code PUT} {@code /api/platform/clients}): what the operator panel lists
+ * and what the alta/edit answer — the locale identity plus its owner account
+ * (never the password). {@code active} carries the logical-deactivation
+ * state (odd/tasks/plataforma-editar-baja.md, S3).
  */
 @Data
 public class PlatformClientDTO {
@@ -22,4 +23,6 @@ public class PlatformClientDTO {
 	private String ownerUsername;
 
 	private String ownerEmail;
+
+	private Boolean active;
 }

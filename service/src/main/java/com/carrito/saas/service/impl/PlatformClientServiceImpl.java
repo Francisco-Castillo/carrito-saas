@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.carrito.saas.dto.CreatePlatformClientRequestDTO;
 import com.carrito.saas.dto.PlatformClientDTO;
+import com.carrito.saas.dto.UpdatePlatformClientRequestDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
@@ -64,6 +65,75 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 			clients.add(dto);
 		}
 		return clients;
+	}
+
+	@Override
+	public PlatformClientDTO editClient(Long businessId, UpdatePlatformClientRequestDTO request) {
+
+		if (request == null) {
+			throw new BusinessException("No hay cambios para aplicar", ErrorType.VALIDATION);
+		}
+
+		Business business = businessRepository.findById(businessId)
+				.orElseThrow(() -> new BusinessException("Cliente no encontrado", ErrorType.NOT_FOUND));
+
+		// --- name: sólo si el payload lo manda (edición parcial) ----------
+		if (request.getName() != null) {
+			String name = blankToNull(request.getName());
+			if (name == null) {
+				throw new BusinessException("El nombre del local es obligatorio", ErrorType.VALIDATION);
+			}
+			business.setName(name);
+		}
+
+		// --- phone: sólo si el payload lo manda; blank limpia el campo ----
+		if (request.getPhone() != null) {
+			String phone = blankToNull(request.getPhone());
+			if (phone != null && !PHONE_SHAPE.matcher(phone).matches()) {
+				throw new BusinessException("El teléfono debe ser código de área y número, sin 0 ni 15",
+						ErrorType.VALIDATION);
+			}
+			business.setPhone(phone);
+		}
+
+		// --- ownerEmail: sólo si el payload lo manda; sin auto-colisión ---
+		if (request.getOwnerEmail() != null) {
+			String email = blankToNull(request.getOwnerEmail());
+			if (email == null) {
+				throw new BusinessException("El email del dueño es obligatorio", ErrorType.VALIDATION);
+			}
+			User owner = ownerOf(businessId);
+			if (owner == null) {
+				throw new BusinessException("El local no tiene dueño: no hay email que editar", ErrorType.VALIDATION);
+			}
+			User collision = userRepository.findByEmail(email).orElse(null);
+			if (collision != null && !collision.getId().equals(owner.getId())) {
+				throw new BusinessException("Ya existe un usuario con ese email", ErrorType.CONFLICT);
+			}
+			owner.setEmail(email);
+			userRepository.saveAndFlush(owner);
+		}
+
+		// --- active: reactivación/baja directa cuando el payload lo manda --
+		if (request.getActive() != null) {
+			business.setActive(request.getActive());
+		}
+
+		// El slug NUNCA se toca: es la identidad pública (QRs impresos,
+		// URLs del menú) — el DTO de edición ni lo declara.
+		businessRepository.saveAndFlush(business);
+
+		return toDTO(business, ownerOf(businessId));
+	}
+
+	/** Owner membership del negocio, o null si no tiene (listado honesto). */
+	private User ownerOf(Long businessId) {
+
+		return businessUserRepository.findOwnerMemberships().stream()
+				.filter(membership -> businessId.equals(membership.getBusiness().getId()))
+				.map(BusinessUser::getUser)
+				.findFirst()
+				.orElse(null);
 	}
 
 	private static final Pattern SLUG_SHAPE = Pattern.compile("^[a-z0-9-]+$");
@@ -199,8 +269,9 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 		dto.setBusinessName(business.getName());
 		dto.setSlug(business.getSlug());
 		dto.setPhone(business.getPhone());
-		dto.setOwnerUsername(owner.getUsername());
-		dto.setOwnerEmail(owner.getEmail());
+		dto.setOwnerUsername(owner == null ? null : owner.getUsername());
+		dto.setOwnerEmail(owner == null ? null : owner.getEmail());
+		dto.setActive(business.getActive());
 		return dto;
 	}
 
