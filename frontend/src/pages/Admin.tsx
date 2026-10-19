@@ -127,6 +127,17 @@ function OrdersIcon() {
   );
 }
 
+function KdsIcon() {
+  return (
+    <Icon>
+      <path d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+      <path d="M12 16v3.5" />
+      <path d="M8.5 19.5h7" />
+      <path d="M8 9.5l2.5 2.5L16 7.5" />
+    </Icon>
+  );
+}
+
 const VIEW_ICONS: Record<AdminView, React.ReactNode> = {
   dashboard: <DashboardIcon />,
   products: <ProductsIcon />,
@@ -247,6 +258,12 @@ export default function Admin() {
           <a href="/pedidos" className="admin-nav-btn">
             <OrdersIcon />
             <span>Pedidos</span>
+          </a>
+          {/* KDS de cocina (/kds): página propia como Pedidos — la cocina y el
+              mostrador trabajan sobre pantallas distintas del mismo panel. */}
+          <a href="/kds" className="admin-nav-btn">
+            <KdsIcon />
+            <span>KDS Cocina</span>
           </a>
         </nav>
 
