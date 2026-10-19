@@ -20,6 +20,11 @@ import com.carrito.saas.repository.jpa.BusinessUserRepository;
 import com.carrito.saas.repository.jpa.RoleRepository;
 import com.carrito.saas.repository.jpa.UserRepository;
 import com.carrito.saas.service.interfaces.IPlatformClientService;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 /**
  * Platform client alta ({@code POST /api/platform/clients}):
  * odd/tasks/plataforma-altas.md S1/S4/S5.
@@ -34,6 +39,32 @@ import com.carrito.saas.service.interfaces.IPlatformClientService;
  */
 @Service
 public class PlatformClientServiceImpl implements IPlatformClientService {
+
+	@Override
+	public List<PlatformClientDTO> listClients() {
+
+		// Un owner por negocio (por diseño del alta); un negocio sin owner
+		// aparece con campos de dueño en null — el operador ve la fila igual.
+		Map<Long, BusinessUser> ownerByBusinessId = new HashMap<>();
+		for (BusinessUser membership : businessUserRepository.findOwnerMemberships()) {
+			ownerByBusinessId.put(membership.getBusiness().getId(), membership);
+		}
+
+		List<PlatformClientDTO> clients = new ArrayList<>();
+		for (Business business : businessRepository.findAll(org.springframework.data.domain.Sort.by("id"))) {
+			BusinessUser owner = ownerByBusinessId.get(business.getId());
+
+			PlatformClientDTO dto = new PlatformClientDTO();
+			dto.setBusinessId(business.getId());
+			dto.setBusinessName(business.getName());
+			dto.setSlug(business.getSlug());
+			dto.setPhone(business.getPhone());
+			dto.setOwnerUsername(owner == null ? null : owner.getUser().getUsername());
+			dto.setOwnerEmail(owner == null ? null : owner.getUser().getEmail());
+			clients.add(dto);
+		}
+		return clients;
+	}
 
 	private static final Pattern SLUG_SHAPE = Pattern.compile("^[a-z0-9-]+$");
 

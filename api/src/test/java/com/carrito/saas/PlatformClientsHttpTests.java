@@ -1,6 +1,7 @@
 package com.carrito.saas;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -279,6 +280,95 @@ class PlatformClientsHttpTests {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{}"))
 				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	@DisplayName("GET /api/platform/clients lists every business, owner included when it has one")
+	void listingReturnsEveryBusinessWithItsOwner() throws Exception {
+
+		String token = platformAdminToken();
+
+		// Two clients registered through the real alta…
+		for (int i = 1; i <= 2; i++) {
+			String body = """
+					{
+					  "business": {"name": "Local %d %s", "slug": "lista-%d-%s", "phone": "11500011%02d"},
+					  "owner": {"username": "owner-%d-%s", "email": "owner-%d-%s@test.dev", "password": "client-pass-123"}
+					}
+					""".formatted(i, run, i, run, i, i, run, i, run);
+
+			mockMvc.perform(post("/api/platform/clients")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+					.andExpect(status().isCreated());
+		}
+
+		// …and one seeded business WITHOUT an owner (honest listing: the
+		// operator sees the row, with null owner fields).
+		BusinessAuthSeed.seedBusiness(businessRepository, 987_903_005L, "solo-local-" + run);
+
+		String response = mockMvc.perform(get("/api/platform/clients")
+					.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andReturn().getResponse().getContentAsString();
+
+		var clients = com.jayway.jsonpath.JsonPath.read(response, "$[?(@.slug)]");
+		
+		var bySlug = new java.util.HashMap<String, java.util.Map<String, Object>>();
+		@SuppressWarnings("unchecked")
+		java.util.List<java.util.Map<String, Object>> list = (java.util.List<java.util.Map<String, Object>>) clients;
+		for (var client : list) {
+			bySlug.put((String) client.get("slug"), client);
+		}
+
+		for (int i = 1; i <= 2; i++) {
+			var client = bySlug.get("lista-%d-%s".formatted(i, run));
+			assertThat(client).isNotNull();
+			assertThat(client.get("businessName")).isEqualTo("Local %d %s".formatted(i, run));
+			assertThat(client.get("ownerUsername")).isEqualTo("owner-%d-%s".formatted(i, run));
+			assertThat(client.get("ownerEmail")).isEqualTo("owner-%d-%s@test.dev".formatted(i, run));
+			assertThat((Integer) client.get("businessId")).isPositive();
+		}
+
+		var solo = bySlug.get("solo-local-" + run);
+		assertThat(solo).isNotNull();
+		assertThat(solo.get("ownerUsername")).isNull();
+	}
+
+	@Test
+	@DisplayName("GET /api/platform/clients keeps the listing ordered oldest first")
+	void listingIsOrderedOldestFirst() throws Exception {
+
+		String token = platformAdminToken();
+
+		for (int i = 1; i <= 3; i++) {
+			String body = """
+					{
+					  "business": {"name": "Orden %d %s", "slug": "orden-%d-%s"},
+					  "owner": {"username": "owner-%d-%s", "email": "owner-%d-%s@test.dev", "password": "client-pass-123"}
+					}
+					""".formatted(i, run, i, run, i, run, i, run);
+
+			mockMvc.perform(post("/api/platform/clients")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+					.andExpect(status().isCreated());
+		}
+
+		String response = mockMvc.perform(get("/api/platform/clients")
+					.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andReturn().getResponse().getContentAsString();
+
+		java.util.List<String> slugs = com.jayway.jsonpath.JsonPath.read(response, "$[*].slug");
+
+		int first = slugs.indexOf("orden-1-" + run);
+		int second = slugs.indexOf("orden-2-" + run);
+		int third = slugs.indexOf("orden-3-" + run);
+		assertThat(first).isLessThan(second);
+		assertThat(second).isLessThan(third);
 	}
 
 	// ==================================================================

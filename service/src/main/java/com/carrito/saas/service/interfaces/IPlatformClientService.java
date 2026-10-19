@@ -1,12 +1,13 @@
 package com.carrito.saas.service.interfaces;
 
+import java.util.List;
+
 import com.carrito.saas.dto.CreatePlatformClientRequestDTO;
 import com.carrito.saas.dto.PlatformClientDTO;
 
 /**
- * Platform-side client registration: the operator panel registers clients
- * (owner + locale) in one call (odd/tasks/plataforma-altas.md, S1). The
- * listing arrives in its own task (T3).
+ * Platform-side client management: the operator registers clients (owner +
+ * locale) and lists them (odd/tasks/plataforma-altas.md, S1).
  */
 public interface IPlatformClientService {
 
@@ -17,4 +18,8 @@ public interface IPlatformClientService {
 	 * input answers 400 VALIDATION.
 	 */
 	PlatformClientDTO createClient(CreatePlatformClientRequestDTO request);
+
+	/** Every business of the platform, oldest first; the owner account when
+	 * the business has one (null otherwise). */
+	List<PlatformClientDTO> listClients();
 }
