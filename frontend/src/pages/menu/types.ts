@@ -113,7 +113,24 @@ export interface CartEntry {
 /** Legacy shape: object keyed by product id → { product, qty, isCombo }. */
 export type Cart = Record<string, CartEntry>;
 
-export type OrderType = "RETIRO" | "DELIVERY";
+/**
+ * Tipos de pedido del carrito público. `SALON` sólo aparece fijado por la
+ * página cuando el QR de una mesa abrió la carta (`?table=<id>`): no es una
+ * opción del selector — el usuario decidió "Fijar Salón" (feature
+ * pedido-qr-mesa).
+ */
+export type OrderType = "RETIRO" | "DELIVERY" | "SALON";
+
+/**
+ * Identidad pública de una mesa, tal como la sirve
+ * `GET /api/menu/table/{id}` (endpoint anónimo minimalista): lo justo para el
+ * badge — sin `qrToken`, sin `qrUrl`, sin estado interno.
+ */
+export interface PublicTable {
+  id: number;
+  tableNumber: number;
+  tableName: string;
+}
 export type PaymentMethod = "EFECTIVO" | "TRANSFERENCIA";
 
 export interface CategoryGroup {

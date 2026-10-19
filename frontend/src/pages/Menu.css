@@ -1072,6 +1072,30 @@
   color: var(--color-text);
 }
 
+/* Badge de mesa fija (QR de mesa, feature pedido-qr-mesa): ocupa el lugar
+   del selector de tipo — el pedido ES de salón y el cliente ve su mesa. */
+.table-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: 12px;
+  border: 1px solid var(--accent-violet);
+  background: rgba(124, 58, 237, 0.12);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.table-badge-label {
+  font-size: 0.95rem;
+}
+
+.table-badge-name {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
 .order-textarea {
   resize: none;
   min-height: 64px;

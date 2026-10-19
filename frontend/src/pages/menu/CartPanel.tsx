@@ -1,6 +1,6 @@
 import { formatARS } from "../../format";
 import FoodImage from "./FoodImage";
-import type { Cart, OrderType, PaymentMethod } from "./types";
+import type { Cart, OrderType, PaymentMethod, PublicTable } from "./types";
 
 interface CartPanelProps {
   cart: Cart;
@@ -12,6 +12,12 @@ interface CartPanelProps {
   notes: string;
   paymentMethod: PaymentMethod;
   sending: boolean;
+  /**
+   * Mesa fija (QR de mesa): cuando viaja, el pedido es de salón por decisión
+   * del negocio — el selector de tipo desaparece y se muestra un badge con la
+   * mesa ("Fijar Salón" + "Badge con mesa", feature pedido-qr-mesa).
+   */
+  table?: PublicTable | null;
   onCustomerNameChange: (value: string) => void;
   onCustomerPhoneChange: (value: string) => void;
   onOrderTypeChange: (value: OrderType) => void;
@@ -54,6 +60,7 @@ export default function CartPanel({
   onSubmit,
   closed = false,
   closedNotice = null,
+  table = null,
 }: CartPanelProps) {
   return (
     <>
@@ -125,15 +132,25 @@ export default function CartPanel({
           onChange={(e) => onCustomerPhoneChange(e.target.value)}
         />
 
-        <select
-          className="order-input order-select"
-          value={orderType}
-          onChange={(e) => onOrderTypeChange(e.target.value as OrderType)}
-          aria-label="Tipo de pedido"
-        >
-          <option value="RETIRO">Retiro en el local</option>
-          <option value="DELIVERY">Delivery</option>
-        </select>
+        {table ? (
+          // Mesa fija (QR de mesa): el pedido ES de salón — el tipo no se
+          // pregunta y el cliente ve su mesa. La mesa viaja igual en el
+          // payload (tableId), donde el backend la valida.
+          <div className="table-badge" role="status" aria-label="Mesa del pedido">
+            <span className="table-badge-label">Mesa {table.tableNumber}</span>
+            {table.tableName && <span className="table-badge-name"> · {table.tableName}</span>}
+          </div>
+        ) : (
+          <select
+            className="order-input order-select"
+            value={orderType}
+            onChange={(e) => onOrderTypeChange(e.target.value as OrderType)}
+            aria-label="Tipo de pedido"
+          >
+            <option value="RETIRO">Retiro en el local</option>
+            <option value="DELIVERY">Delivery</option>
+          </select>
+        )}
 
         {orderType === "DELIVERY" && (
           <div className="order-address-reveal">
