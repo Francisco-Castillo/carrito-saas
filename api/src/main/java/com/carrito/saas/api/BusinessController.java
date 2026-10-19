@@ -4,22 +4,29 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import java.io.IOException;
+
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.carrito.saas.dto.BusinessDTO;
 import com.carrito.saas.dto.BusinessProfileDTO;
 import com.carrito.saas.dto.OrderKitchenDTO;
 import com.carrito.saas.dto.OrderManagementDTO;
+import com.carrito.saas.exception.BusinessException;
+import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.exception.ErrorResponse;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.jpa.BusinessRepository;
@@ -65,6 +72,45 @@ public class BusinessController {
 	@GetMapping("/orders/active")
 	public List<OrderKitchenDTO> getActiveOrders() {
 		return orderService.getActiveOrders();
+	}
+
+	/**
+	 * Sube el LOGO del negocio del JWT (multipart, campo "file"). El tipo y el
+	 * tamaño los valida ImageStorageService (400 con mensaje en español) y el
+	 * archivo se guarda con nombre UUID en {@code <uploads>/business/}; la URL
+	 * pública persistida es {@code /api/images/business/...}. Reemplazar borra
+	 * la imagen anterior SOLO si era del storage propio (una URL externa pegada
+	 * a mano no se toca). Devuelve el perfil actualizado.
+	 */
+	@PostMapping("/logo")
+	public BusinessProfileDTO subirLogo(@RequestParam("file") MultipartFile file) {
+		try {
+			return businessProfileService.updateLogoImage(file.getBytes(), file.getContentType());
+		} catch (IOException e) {
+			throw new BusinessException("No se pudo leer la imagen subida", ErrorType.INTERNAL_ERROR);
+		}
+	}
+
+	/** Quita el logo propio del negocio del JWT (y su archivo, si era propio). */
+	@DeleteMapping("/logo")
+	public BusinessProfileDTO borrarLogo() {
+		return businessProfileService.clearLogoImage();
+	}
+
+	/** Igual que {@link #subirLogo(MultipartFile)} para el banner. */
+	@PostMapping("/banner")
+	public BusinessProfileDTO subirBanner(@RequestParam("file") MultipartFile file) {
+		try {
+			return businessProfileService.updateBannerImage(file.getBytes(), file.getContentType());
+		} catch (IOException e) {
+			throw new BusinessException("No se pudo leer la imagen subida", ErrorType.INTERNAL_ERROR);
+		}
+	}
+
+	/** Igual que {@link #borrarLogo()} para el banner. */
+	@DeleteMapping("/banner")
+	public BusinessProfileDTO borrarBanner() {
+		return businessProfileService.clearBannerImage();
 	}
 
 	/**

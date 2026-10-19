@@ -112,12 +112,17 @@ function seedStorage() {
   localStorage.setItem('expiresAt', '2030-01-01T00:00:00Z')
 }
 
-/** Renders the admin and opens the "Local" view, waiting for the GET to fill the form. */
-async function openLocalView() {
+/**
+ * Renders the admin, opens the "Local" view and switches to the given tab
+ * (default "Horarios", where most of these contracts live), waiting for the
+ * GET to fill the form.
+ */
+async function openLocalView(tab = 'Horarios') {
   render(<Admin />)
   const user = userEvent.setup()
   await user.click(screen.getByRole('button', { name: 'Local' }))
   await screen.findByDisplayValue('Foodtruck Demo')
+  if (tab !== 'Datos del local') await user.click(screen.getByRole('tab', { name: tab }))
   return user
 }
 
@@ -152,14 +157,19 @@ afterEach(() => {
 describe('Admin "Local" view — business profile editor', () => {
   it('renders the form from the GET payload: a day with two shifts, closed days as "Cerrado", previews', async () => {
     stubFetch()
-    await openLocalView()
+    await openLocalView('Datos del local')
 
-    // Text fields loaded from GET /api/business/profile.
+    // Text fields loaded from GET /api/business/profile (tab "Datos del local").
+    // The logo/banner URL inputs are gone: images are UPLOADED now, only the
+    // previews reflect the stored URLs.
     expect(screen.getByLabelText('Nombre del local')).toHaveValue('Foodtruck Demo')
-    expect(screen.getByLabelText('URL del logo')).toHaveValue('/dev-media/logo-local.jpg')
-    expect(screen.getByLabelText('URL del banner')).toHaveValue('/dev-media/banner-local.jpg')
     expect(screen.getByLabelText('Dirección')).toHaveValue('Av. Siempreviva 742, Springfield')
     expect(screen.getByLabelText('URL de Instagram')).toHaveValue('https://instagram.com/foodtruckdemo')
+    expect(screen.getByAltText('Vista previa del logo')).toHaveAttribute('src', '/dev-media/logo-local.jpg')
+    expect(screen.getByAltText('Vista previa del banner')).toHaveAttribute('src', '/dev-media/banner-local.jpg')
+
+    // The weekly hours live in their own tab now.
+    await userEvent.click(screen.getByRole('tab', { name: 'Horarios' }))
 
     // Lunes carries TWO shifts, both loaded with times converted to "HH:mm".
     expect(screen.getByLabelText('Apertura Lunes turno 1')).toHaveValue('11:00')
@@ -175,10 +185,6 @@ describe('Admin "Local" view — business profile editor', () => {
 
     // Midnight case loaded as-is: Friday closes at 00:30.
     expect(screen.getByLabelText('Cierre Viernes turno 1')).toHaveValue('00:30')
-
-    // Image previews render for non-empty URLs.
-    expect(screen.getByAltText('Vista previa del logo')).toHaveAttribute('src', '/dev-media/logo-local.jpg')
-    expect(screen.getByAltText('Vista previa del banner')).toHaveAttribute('src', '/dev-media/banner-local.jpg')
   })
 
   it('adding and removing a shift flips a day between open and closed', async () => {
@@ -225,10 +231,14 @@ describe('Admin "Local" view — business profile editor', () => {
 
   it('saving issues a PUT with the exact payload: all seven days, each with its shifts, times in HH:mm:ss', async () => {
     stubFetch()
-    const user = await openLocalView()
+    const user = await openLocalView('Datos del local')
 
+    // Edits across tabs: the name lives in "Datos del local", the shifts in
+    // "Horarios". The single PUT must carry BOTH edits, whatever tab the
+    // save button lives in.
     await user.clear(screen.getByLabelText('Nombre del local'))
     await user.type(screen.getByLabelText('Nombre del local'), 'Foodtruck Demo Bar')
+    await user.click(screen.getByRole('tab', { name: 'Horarios' }))
     await user.clear(screen.getByLabelText('Apertura Lunes turno 1'))
     await user.type(screen.getByLabelText('Apertura Lunes turno 1'), '10:30')
     // A second shift on Martes: mediodía y noche on the same day.
@@ -279,11 +289,13 @@ describe('Admin "Local" view — business profile editor', () => {
     await user.type(screen.getByLabelText('Cierre Martes turno 2'), '14:00')
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
-    // The backend's message is rendered, not swallowed.
+    // The backend's message is rendered, not swallowed (also in the Horarios tab).
     expect(await screen.findByText('Los turnos del día no pueden solaparse: 11:00–23:00 y 12:00–14:00')).toBeInTheDocument()
 
-    // No success toast on failure, and the form is still editable + saveable.
+    // No success toast on failure, and the form is still editable + saveable
+    // from the other tab too: the name field lives in "Datos del local".
     expect(screen.queryByText('Perfil actualizado')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: 'Datos del local' }))
     await user.clear(screen.getByLabelText('Nombre del local'))
     await user.type(screen.getByLabelText('Nombre del local'), 'Reintentando')
     expect(screen.getByLabelText('Nombre del local')).toHaveValue('Reintentando')
