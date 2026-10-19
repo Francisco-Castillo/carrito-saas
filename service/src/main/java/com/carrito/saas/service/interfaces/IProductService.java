@@ -41,4 +41,20 @@ public interface IProductService {
 	 */
 	ProductDTO cambiarEstadoActivo(Long id, boolean activo);
 
+	/**
+	 * Guarda (o reemplaza) la imagen de un producto propio del negocio
+	 * autenticado. La validación de tipo/tamaño y la escritura en disco las
+	 * hace {@code ImageStorageService}; en la entidad queda la URL pública
+	 * servida por {@code /api/images/**}.
+	 *
+	 * @param id          id del producto.
+	 * @param data        contenido del archivo.
+	 * @param contentType content type declarado (image/jpeg, image/png o image/webp).
+	 * @return el DTO actualizado con la nueva imageUrl.
+	 */
+	ProductDTO actualizarImagen(Long id, byte[] data, String contentType);
+
+	/** Quita la imagen de un producto propio; si no tiene, no cambia nada. */
+	ProductDTO eliminarImagen(Long id);
+
 }

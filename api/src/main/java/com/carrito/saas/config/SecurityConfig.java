@@ -98,7 +98,11 @@ public class SecurityConfig {
 	                // Fotos de demo del seed (docs/dev-seed.sql): son assets
 	                // publicos de la carta, igual que las imagenes de producto
 	                // que subiria un negocio real.
-	                "/dev-media/**"
+	                "/dev-media/**",
+	                // Imágenes de producto subidas por el negocio (uploads en
+	                // disco, servidas por UploadedImagesConfig): públicas igual
+	                // que /dev-media porque la carta digital las muestra.
+	                "/api/images/**"
 	            ).permitAll()
 
 	            // Actuator (incluye Prometheus)

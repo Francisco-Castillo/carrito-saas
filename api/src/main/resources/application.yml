@@ -3,6 +3,12 @@ server:
   address: 0.0.0.0
 
 spring:
+  servlet:
+    multipart:
+      # Límite de subida de imágenes de producto (POST /api/products/{id}/image):
+      # el servicio además valida 5 MB y los content types permitidos.
+      max-file-size: 5MB
+      max-request-size: 6MB
   datasource:
     url: jdbc:postgresql://localhost:5432/carrito_db
     username: admin
@@ -35,6 +41,11 @@ spring:
       indent-output: true
 
 app:
+  uploads:
+    # Directorio base para imágenes de producto (POST /api/products/{id}/image).
+    # En producción fijar UPLOADS_DIR a un volumen persistente: los archivos
+    # viven FUERA del classpath y sobreviven al redeploy solo si el dir lo hace.
+    dir: ${UPLOADS_DIR:./uploads}
   metrics:
     # Ventana (en días hacia atrás desde hoy) que agrega el job de métricas
     # (ProductMetricsScheduler → AggregateProductMetricsUseCaseImpl) sobre

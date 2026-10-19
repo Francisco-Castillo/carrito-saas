@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { API, authHeader, type AdminCategory, type AdminProduct } from "./api";
 import { showSuccessToast } from "./toast";
 
@@ -13,6 +13,7 @@ export interface AdminProductFull extends AdminProduct {
   cost?: number | null;
   categoryId?: number | null;
   unitMeasure?: string | null;
+  imageUrl?: string | null;
 }
 
 interface ProductModalProps {
@@ -22,6 +23,11 @@ interface ProductModalProps {
   /** Guardado con éxito: el padre cierra el modal y recarga la lista. */
   onSaved: () => void;
 }
+
+/** Formato de imagen aceptado por el backend (ImageStorageService). */
+const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp";
+/** Techo duro espejo del backend: 5 MB. */
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 /** Enum UnitMeasure del backend (repository/enums/UnitMeasure.java) con copy en español. */
 const UNIT_MEASURES: Array<{ value: string; label: string }> = [
@@ -57,6 +63,14 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
   const [unitMeasure, setUnitMeasure] = useState(product?.unitMeasure ?? "");
   const [active, setActive] = useState(product?.active ?? true);
 
+  /** Archivo nuevo elegido; mientras no se guarde, la preview lo muestra. */
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  /** URL de la preview: la actual del producto o un blob: del archivo nuevo. */
+  const [imagePreview, setImagePreview] = useState<string | null>(product?.imageUrl ?? null);
+  /** true cuando el usuario pidió quitar la imagen existente. */
+  const [imageRemoved, setImageRemoved] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [missingFields, setMissingFields] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -70,8 +84,46 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
       if (e.key === "Escape") onClose();
     }
     document.addEventListener("keydown", escHandler);
-    return () => document.removeEventListener("keydown", escHandler);
-  }, [onClose]);
+    return () => {
+      document.removeEventListener("keydown", escHandler);
+      // La preview blob: del archivo elegido deja un ObjectURL colgado.
+      if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+    };
+  }, [onClose, imagePreview]);
+
+  function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+
+    if (!IMAGE_ACCEPT.split(",").includes(file.type)) {
+      setImageError("Formato no soportado: usá JPG, PNG o WebP");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > IMAGE_MAX_BYTES) {
+      setImageError("La imagen supera el máximo de 5 MB");
+      e.target.value = "";
+      return;
+    }
+
+    setImageError(null);
+    setImageRemoved(false);
+    setImageFile(file);
+    setImagePreview((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  }
+
+  function handleImageRemove() {
+    setImagePreview((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setImageFile(null);
+    setImageRemoved(true);
+    setImageError(null);
+  }
 
   useEffect(() => {
     // Categorías para el select: mismo endpoint owner que CategoriesTable.
@@ -143,6 +195,15 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
         return;
       }
 
+      const saved = (await res.json()) as AdminProductFull;
+
+      // El producto ya quedó guardado: la imagen viaja después (subir nueva
+      // o borrar la existente). Un fallo de imagen no revierte el guardado:
+      // se avisa inline y el padre recarga la lista igual.
+      if (imageFile || imageRemoved) {
+        await syncImage(saved.id);
+      }
+
       showSuccessToast(creating ? "Producto creado con éxito" : "Producto actualizado con éxito");
       onSaved();
     } catch (e) {
@@ -150,6 +211,32 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
     } finally {
       setSaving(false);
     }
+  }
+
+  /** Sube (POST multipart) o borra (DELETE) la imagen del producto ya guardado. */
+  async function syncImage(productId: number): Promise<void> {
+    const url = `${API}/products/${productId}/image`;
+    try {
+      const res = imageFile
+        ? await fetch(url, {
+            method: "POST",
+            headers: authHeader(),
+            body: toFormData(imageFile),
+          })
+        : await fetch(url, { method: "DELETE", headers: authHeader() });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { message?: string } | null;
+        setImageError(data?.message || "No se pudo guardar la imagen");
+      }
+    } catch {
+      setImageError("No se pudo guardar la imagen");
+    }
+  }
+
+  function toFormData(file: File): FormData {
+    const fd = new FormData();
+    fd.append("file", file);
+    return fd;
   }
 
   return (
@@ -267,6 +354,34 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
             />
             <span>Producto activo (visible en la carta)</span>
           </label>
+        </div>
+
+        <div className="admin-product-image">
+          {imagePreview && (
+            <img className="admin-product-image--preview" src={imagePreview} alt="Imagen del producto" />
+          )}
+          <div className="admin-product-image--controls">
+            <label className="btn-ghost admin-product-image--pick">
+              {imagePreview ? "Cambiar imagen" : "Agregar imagen"}
+              <input
+                type="file"
+                accept={IMAGE_ACCEPT}
+                aria-label="Imagen del producto"
+                onChange={handleImageChange}
+              />
+            </label>
+            {imagePreview && (
+              <button type="button" className="btn-ghost" onClick={handleImageRemove}>
+                Quitar imagen
+              </button>
+            )}
+          </div>
+          <p className="admin-product-image--hint">JPG, PNG o WebP · hasta 5 MB</p>
+          {imageError && (
+            <p className="name-error" role="alert">
+              {imageError}
+            </p>
+          )}
         </div>
 
         <div className="toast-modal-actions admin-product-form-actions">
