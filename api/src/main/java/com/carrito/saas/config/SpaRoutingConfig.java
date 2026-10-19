@@ -30,6 +30,7 @@ public class SpaRoutingConfig implements WebMvcConfigurer {
 		forward(registry, "/pedidos", "/pedidos/index.html");
 		forward(registry, "/login", "/login/login.html");
 		forward(registry, "/menu", "/menu/index.html");
+		forward(registry, "/platform", "/platform/index.html");
 	}
 
 	private void forward(ViewControllerRegistry registry, String cleanPath, String shell) {
