@@ -127,9 +127,13 @@ class PanelErrorStatusHttpTests {
 	/** Seeds a role by name. */
 	private Role seedRole(String name) {
 
-		Role role = new Role();
-		role.setName(name);
-		return roleRepository.saveAndFlush(role);
+		Role role = roleRepository.findByName(name)
+				.orElseGet(() -> {
+					Role created = new Role();
+					created.setName(name);
+					return roleRepository.saveAndFlush(created);
+				});
+		return role;
 	}
 
 	/**

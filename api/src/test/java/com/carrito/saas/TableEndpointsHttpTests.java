@@ -124,10 +124,12 @@ class TableEndpointsHttpTests {
 
 		seedBusiness(id, slug);
 
-		Role role = new Role();
-		role.setName("OWNER");
-		role = roleRepository.saveAndFlush(role);
-
+		Role role = roleRepository.findByName("OWNER")
+				.orElseGet(() -> {
+					Role created = new Role();
+					created.setName("OWNER");
+					return roleRepository.saveAndFlush(created);
+				});
 		User user = new User();
 		user.setUsername(USERNAME);
 		user.setPassword(passwordEncoder.encode(PASSWORD));
