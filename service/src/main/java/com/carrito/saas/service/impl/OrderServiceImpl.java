@@ -120,6 +120,14 @@ public class OrderServiceImpl implements IOrderService {
 				: businessRepository.findBySlug(slug)
 						.orElseThrow(() -> new BusinessException("No se encontró restaurante", ErrorType.NOT_FOUND));
 
+		// Baja lógica (S5 de odd/tasks/plataforma-editar-baja.md): un local
+		// dado de baja NO existe públicamente — 404, ANTES del check de
+		// horarios (un local de baja no está "cerrado": no está). Sin este
+		// orden el pedido caería en el 400 de "El local está cerrado".
+		if (!Boolean.TRUE.equals(business.getActive())) {
+			throw new BusinessException("No se encontró restaurante", ErrorType.NOT_FOUND);
+		}
+
 		// Local cerrado: el pedido público no entra fuera del horario efectivo
 		// del negocio — mismas reglas que el badge de la portada (turnos
 		// ordenados, cruce de medianoche, excepciones por fecha). Una unidad
