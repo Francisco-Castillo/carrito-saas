@@ -60,7 +60,7 @@ public class AcrylicTemplate implements PdfTemplateStrategy {
 
 				document.add(new Paragraph(" "));
 
-				String url = menuUrlBuilder.buildMenuUrl(table.getBusiness().getSlug());
+				String url = menuUrlBuilder.buildTableMenuUrl(table.getBusiness().getSlug(), table.getId());
 
 				byte[] qr = qrCodeService.generateQr(url, 500);
 

@@ -67,8 +67,8 @@ public class Grid3Template implements PdfTemplateStrategy {
 
 	            byte[] qr =
 	                    qrCodeService.generateQr(
-	                            menuUrlBuilder.buildMenuUrl(
-	                                    table.getBusiness().getSlug()),
+	                            menuUrlBuilder.buildTableMenuUrl(
+	                                    table.getBusiness().getSlug(), table.getId()),
 	                            qrSize);
 
 	            if (qr == null || qr.length == 0) {

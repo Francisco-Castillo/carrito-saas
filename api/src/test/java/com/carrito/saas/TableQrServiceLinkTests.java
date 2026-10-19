@@ -127,13 +127,19 @@ class TableQrServiceLinkTests {
 
 		String decoded = decodeQrText(png);
 
-		assertThat(decoded)
-				.as("the table QR PNG must encode menuUrlBuilder.buildMenuUrl(slug)")
-				.isEqualTo(menuUrlBuilder.buildMenuUrl(SLUG));
+		String expectedUrl = "http://localhost:9090/menu/?table=" + tableId;
 
 		assertThat(decoded)
-				.as("the table QR PNG must encode the suite's public menu URL literal")
-				.isEqualTo("http://localhost:9090/menu/");
+				.as("the table QR PNG must encode menuUrlBuilder.buildTableMenuUrl(slug, tableId)")
+				.isEqualTo(expectedUrl);
+
+		assertThat(decoded)
+				.as("the table QR PNG must encode the suite's public menu URL literal for its own table")
+				.isEqualTo("http://localhost:9090/menu/?table=" + tableId);
+
+		assertThat(decoded)
+				.as("the table QR PNG must carry the table id of the printed table")
+				.contains("?table=" + tableId);
 
 		assertThat(decoded)
 				.as("the table QR PNG must never point at the abandoned frontend port 3030")
@@ -154,14 +160,15 @@ class TableQrServiceLinkTests {
 		JsonNode created = createTableThroughEndpoint(910002, "Mesa QA 2");
 		String qrUrl = created.get("qrUrl").asText();
 		String qrToken = created.get("qrToken").asText();
+		long tableId = created.get("id").asLong();
 
 		assertThat(qrUrl)
-				.as("the created table's qrUrl must equal menuUrlBuilder.buildMenuUrl(slug)")
-				.isEqualTo(menuUrlBuilder.buildMenuUrl(SLUG));
+				.as("the created table's qrUrl must equal menuUrlBuilder.buildTableMenuUrl(slug, tableId)")
+				.isEqualTo("http://localhost:9090/menu/?table=" + tableId);
 
 		assertThat(qrUrl)
-				.as("the created table's qrUrl must equal the suite's public menu URL literal")
-				.isEqualTo("http://localhost:9090/menu/");
+				.as("the created table's qrUrl must carry its own table id")
+				.contains("?table=" + tableId);
 
 		assertThat(qrUrl)
 				.as("the created table's qrUrl must never point at the abandoned frontend port 3030")

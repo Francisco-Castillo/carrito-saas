@@ -62,7 +62,7 @@ public class TableServiceImpl implements ITableService {
 		Long businessId = securityService.getCurrentBusinessId();
 		RestaurantTable table = findOwnedTable(tableId, businessId);
 
-		String url = menuUrlBuilder.buildMenuUrl(table.getBusiness().getSlug());
+		String url = menuUrlBuilder.buildTableMenuUrl(table.getBusiness().getSlug(), table.getId());
 
 		return qrCodeService.generateQr(url, size);
 	}
@@ -227,7 +227,7 @@ public class TableServiceImpl implements ITableService {
 
 		TableResponseDTO response=	restaurantTableMapper.toDTO(table);
 
-		response.setQrUrl(menuUrlBuilder.buildMenuUrl(table.getBusiness().getSlug()));
+		response.setQrUrl(menuUrlBuilder.buildTableMenuUrl(table.getBusiness().getSlug(), table.getId()));
 
 		return response;
 	}
