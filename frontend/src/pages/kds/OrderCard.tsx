@@ -46,8 +46,10 @@ interface OrderCardProps {
 
 /**
  * Puerto de createCard del legacy kds/kds.js (líneas 133-262): número,
- * cliente, tipo (Retiro/Delivery), items "Nx producto", notas, timer con
+ * cliente, items "Nx producto", notas, timer con
  * colores por minutos transcurridos, barra de progreso y botón de avance.
+ * S6 (orders-console): sin teléfono y sin tipo de envío — el contacto con el
+ * cliente vive en la consola de /pedidos; la tarjeta prioriza el pedido.
  * Incluye el drag & swipe del legacy (kds.js:334-513): swipe derecha avanza
  * al siguiente estado, swipe izquierda cancela (NEW) o revierte (PREPARING),
  * y presión larga sobre un pedido NEW abre el modal de cancelación.

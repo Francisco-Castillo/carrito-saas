@@ -1,8 +1,10 @@
 /**
- * KDS order card phone chip: when the kitchen payload carries the customer's
- * phone, the card must render it as a tap-to-call `tel:` link (a cook can
- * call from a tablet); when it is null, no phone element at all — no empty
- * chip and no "null" text.
+ * KDS order card customer contact: the kitchen card renders NO phone element
+ * at all — no tel: link, no WhatsApp, no chip — whether the payload carries a
+ * phone or not (S6 of odd/tasks/orders-console.md: customer contact lives in
+ * the /pedidos console, which opens WhatsApp). Pinned here so a regression
+ * cannot reintroduce it: absence is asserted against the concrete class and
+ * against any contact link (tel:/wa.me), class or role notwithstanding.
  */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -46,6 +48,11 @@ describe("KDS order card — customer phone", () => {
     renderCard(buildOrder({ customerPhone: "1155551234" }));
 
     expect(document.querySelector(".order-phone")).not.toBeInTheDocument();
+    // Sin ningún link de contacto, aunque la clase o el rol cambien: ni tel:
+    // ni WhatsApp pueden volver por una regresión de estilo.
+    expect(
+      document.querySelector('a[href^="tel:"], a[href^="wa.me"]')
+    ).not.toBeInTheDocument();
   });
 
   it("renders no link at all on the card", () => {
