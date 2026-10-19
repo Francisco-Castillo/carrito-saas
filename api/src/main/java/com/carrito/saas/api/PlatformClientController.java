@@ -78,6 +78,16 @@ public class PlatformClientController {
 		return platformClientService.deactivateUser(id, username);
 	}
 
+	@PostMapping("/clients/{id}/users/{username}/password")
+	public com.carrito.saas.dto.PlatformUserDTO resetUserPassword(@PathVariable("id") Long id,
+			@PathVariable("username") String username,
+			@RequestBody com.carrito.saas.dto.ResetOwnerPasswordRequestDTO request) {
+
+		// Reset de la clave de un usuario del local (S3): bcrypt, igual que
+		// el alta; reutiliza el DTO del reset a nivel cliente.
+		return platformClientService.resetUserPassword(id, username, request.getPassword());
+	}
+
 	@PutMapping("/clients/{id}")
 	public PlatformClientDTO editClient(@PathVariable("id") Long id,
 			@RequestBody UpdatePlatformClientRequestDTO request) {

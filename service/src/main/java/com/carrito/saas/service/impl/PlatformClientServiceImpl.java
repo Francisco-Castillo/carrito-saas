@@ -323,6 +323,26 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 		return toUserDTO(membership);
 	}
 
+	@Override
+	public PlatformUserDTO resetUserPassword(Long businessId, String username, String newPassword) {
+
+		String password = blankToNull(newPassword);
+		if (password == null || password.length() < 8) {
+			throw new BusinessException("La contraseña debe tener al menos 8 caracteres", ErrorType.VALIDATION);
+		}
+
+		BusinessUser membership = membershipOf(businessId, username)
+				.orElseThrow(() -> new BusinessException("Usuario no encontrado en este local", ErrorType.NOT_FOUND));
+
+		// Reset de la clave de un usuario del local (S3): bcrypt, igual que
+		// el alta; el usuario se loguea con la nueva enseguida.
+		User user = membership.getUser();
+		user.setPassword(passwordEncoder.encode(password));
+		userRepository.saveAndFlush(user);
+
+		return toUserDTO(membership);
+	}
+
 	/** Membresía del usuario en ESE negocio (404 si no está en él). */
 	private java.util.Optional<BusinessUser> membershipOf(Long businessId, String username) {
 
