@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: carrito-saas-demo
+    runtime: docker
+    plan: free
+    region: virginia  # cambiar a frankfurt/sao paulo si conviene por latencia
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: carrito-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_URL
+        value: jdbc:postgresql://${DATABASE_HOST}/${DATABASE_NAME}?sslmode=require
+      - key: SPRING_DATASOURCE_USERNAME
+        value: ${DATABASE_USER}
+      - key: SPRING_DATASOURCE_PASSWORD
+        value: ${DATABASE_PASSWORD}
+      - key: DATABASE_HOST
+        fromDatabase:
+          name: carrito-db
+          property: host
+      - key: DATABASE_NAME
+        fromDatabase:
+          name: carrito-db
+          property: database
+      - key: DATABASE_USER
+        fromDatabase:
+          name: carrito-db
+          property: user
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: carrito-db
+          property: password
+      # Cambiar por la URL pública del servicio tras el primer deploy.
+      - key: QR_PUBLIC_MENU_URL
+        sync: false
+
+databases:
+  - name: carrito-db
+    plan: free
+    region: virginia

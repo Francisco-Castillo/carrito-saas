@@ -72,7 +72,9 @@ management:
     tags:
       application: carrito-saas
   server:
-    port: 9090
+    # Mismo puerto que la app: Render y cualquier reverse proxy hacen el
+    # health check contra el puerto del servicio (PORT), no contra uno fijo.
+    port: ${server.port}
 
 logging:
   level:
