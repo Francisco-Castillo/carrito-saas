@@ -182,34 +182,6 @@ class PlatformUsersAltaHttpTests {
 	}
 
 	@Test
-	@DisplayName("unknown role answers 400 with the role catalogue")
-	void unknownRoleAnswersValidation() throws Exception {
-
-		String[] businessId = new String[1];
-		seedClient(businessId);
-
-		String token = platformAdminToken();
-
-		String body = """
-				{
-				  "username": "nuevo-%s",
-				  "email": "nuevo-%s@test.dev",
-				  "password": "cajero-pass-123",
-				  "role": "MAGO"
-				}
-				""".formatted(run, run);
-
-		mockMvc.perform(post("/api/platform/clients/" + businessId[0] + "/users")
-						.header("Authorization", "Bearer " + token)
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(body))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.message").value("El rol indicado no existe"));
-
-		assertThat(userRepository.findByUsername("nuevo-" + run)).isEmpty();
-	}
-
-	@Test
 	@DisplayName("short password answers 400 and leaves no rows")
 	void shortPasswordAnswersValidation() throws Exception {
 
@@ -235,6 +207,68 @@ class PlatformUsersAltaHttpTests {
 				.andExpect(jsonPath("$.message").value("La contraseña debe tener al menos 8 caracteres"));
 
 		assertThat(userRepository.findByUsername("nuevo-" + run)).isEmpty();
+	}
+
+	@Test
+	@DisplayName("alta with an unknown role creates the role on the fly (catalogue seeds itself)")
+	void altaWithUnknownRoleCreatesTheRole() throws Exception {
+
+		String[] businessId = new String[1];
+		seedClient(businessId);
+
+		String token = platformAdminToken();
+
+		String body = """
+				{
+				  "username": "mozo-%s",
+				  "email": "mozo-%s@test.dev",
+				  "password": "cajero-pass-123",
+				  "role": "MOZO"
+				}
+				""".formatted(run, run);
+
+		mockMvc.perform(post("/api/platform/clients/" + businessId[0] + "/users")
+					.header("Authorization", "Bearer " + token)
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(body))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.role").value("MOZO"));
+
+		// The role row now exists (find-or-create keeps the CI catalogue
+		// self-seeding) and the membership uses it.
+		assertThat(roleRepository.findByName("MOZO")).isPresent();
+		var membership = businessUserRepository
+				.findByUserUsernameAndBusinessSlug("mozo-" + run, "biz-" + run);
+		assertThat(membership).isPresent();
+		assertThat(membership.get().getRole().getName()).isEqualTo("MOZO");
+	}
+
+	@Test
+	@DisplayName("blank fields answer 400 and leave no rows")
+	void blankFieldsAnswerValidation() throws Exception {
+
+		String[] businessId = new String[1];
+		seedClient(businessId);
+
+		String token = platformAdminToken();
+
+		String body = """
+				{
+				  "username": "   ",
+				  "email": "nuevo-%s@test.dev",
+				  "password": "cajero-pass-123",
+				  "role": "KITCHEN"
+				}
+				""".formatted(run);
+
+		mockMvc.perform(post("/api/platform/clients/" + businessId[0] + "/users")
+					.header("Authorization", "Bearer " + token)
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("El usuario es obligatorio"));
+
+		assertThat(userRepository.findByEmail("nuevo-" + run + "@test.dev")).isEmpty();
 	}
 
 	@Test
