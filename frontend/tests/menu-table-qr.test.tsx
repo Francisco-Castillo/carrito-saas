@@ -108,6 +108,8 @@ describe('Menu × QR de mesa (?table=<id>)', () => {
     expect(screen.getByText(/Salón principal/)).toBeInTheDocument()
     expect(screen.getByText(/Mesa 5/)).toBeInTheDocument()
     expect(screen.queryByLabelText('Tipo de pedido')).not.toBeInTheDocument()
+    // S4: a table order is paid at the table — no payment method UI at all.
+    expect(screen.queryByRole('group', { name: 'Forma de pago' })).not.toBeInTheDocument()
 
     await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente de Mesa')
     await user.type(screen.getByPlaceholderText('Celular (ej. 11 5555 1234)'), '11 5555 1234')
@@ -120,6 +122,8 @@ describe('Menu × QR de mesa (?table=<id>)', () => {
       expect(payload.orderType).toBe('SALON')
       expect(payload.tableId).toBe(5)
       expect(payload.customerName).toBe('Cliente de Mesa')
+      // S4: no payment method leaves the browser for a table order.
+      expect(payload.paymentMethod).toBeUndefined()
     })
   })
 
@@ -186,6 +190,8 @@ describe('fallback: parámetro ?table= inválido o ausente', () => {
       // success, so post-submit assertions would miss it).
       expect(screen.getByLabelText('Tipo de pedido')).toBeInTheDocument()
       expect(screen.queryByText(/Salón principal/)).not.toBeInTheDocument()
+      // Legacy mode keeps the payment method selector.
+      expect(screen.getByRole('group', { name: 'Forma de pago' })).toBeInTheDocument()
 
       await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Legacy')
       await user.type(screen.getByPlaceholderText('Celular (ej. 11 5555 1234)'), '11 5555 1234')
@@ -197,6 +203,8 @@ describe('fallback: parámetro ?table= inválido o ausente', () => {
         const payload = JSON.parse(orderCall!.body!)
         expect(payload.orderType).toBe('RETIRO')
         expect(payload.tableId).toBeUndefined()
+        // Legacy payload keeps its payment method (default EFECTIVO).
+        expect(payload.paymentMethod).toBe('EFECTIVO')
       })
 
       cleanup()
@@ -275,18 +283,20 @@ const baseProps = {
 describe('CartPanel × mesa fija (badge)', () => {
   afterEach(cleanup)
 
-  it('muestra el badge de la mesa y oculta el selector de tipo cuando la mesa viaja fija', () => {
+  it('muestra el badge de la mesa, oculta el selector de tipo Y la forma de pago cuando la mesa viaja fija', () => {
     render(<CartPanel {...baseProps} table={TABLE_PAYLOAD} />)
 
     expect(screen.getByText(/Salón principal/)).toBeInTheDocument()
     expect(screen.getByText(/Mesa 5/)).toBeInTheDocument()
     expect(screen.queryByLabelText('Tipo de pedido')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Forma de pago' })).not.toBeInTheDocument()
   })
 
-  it('sin mesa fija mantiene el selector y no muestra ningún badge', () => {
+  it('sin mesa fija mantiene el selector, la forma de pago y no muestra ningún badge', () => {
     render(<CartPanel {...baseProps} />)
 
     expect(screen.getByLabelText('Tipo de pedido')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Forma de pago' })).toBeInTheDocument()
     expect(screen.queryByText(/Mesa 5/)).not.toBeInTheDocument()
   })
 })

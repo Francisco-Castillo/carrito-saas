@@ -164,24 +164,28 @@ export default function CartPanel({
           </div>
         )}
 
-        <div className="segmented" role="group" aria-label="Forma de pago">
-          <button
-            type="button"
-            className="segment"
-            aria-pressed={paymentMethod === "EFECTIVO"}
-            onClick={() => onPaymentMethodChange("EFECTIVO")}
-          >
-            Efectivo
-          </button>
-          <button
-            type="button"
-            className="segment"
-            aria-pressed={paymentMethod === "TRANSFERENCIA"}
-            onClick={() => onPaymentMethodChange("TRANSFERENCIA")}
-          >
-            Transferencia
-          </button>
-        </div>
+        {/* S4 de pedido-qr-mesa: un pedido de mesa se paga en la mesa — sin
+            selector de forma de pago en ese modo. */}
+        {!table && (
+          <div className="segmented" role="group" aria-label="Forma de pago">
+            <button
+              type="button"
+              className="segment"
+              aria-pressed={paymentMethod === "EFECTIVO"}
+              onClick={() => onPaymentMethodChange("EFECTIVO")}
+            >
+              Efectivo
+            </button>
+            <button
+              type="button"
+              className="segment"
+              aria-pressed={paymentMethod === "TRANSFERENCIA"}
+              onClick={() => onPaymentMethodChange("TRANSFERENCIA")}
+            >
+              Transferencia
+            </button>
+          </div>
+        )}
 
         <textarea
           className="order-input order-textarea"

@@ -519,10 +519,15 @@ export default function Menu() {
       // Mesa fija (QR): el pedido ES de salón, sin importar el estado del
       // selector (que ni siquiera se muestra en ese modo).
       orderType: table ? "SALON" : orderType,
-      paymentMethod,
       notes,
       items,
     };
+
+    // S4 de pedido-qr-mesa: un pedido de mesa se paga en la mesa — no viaja
+    // forma de pago. RETIRO/DELIVERY mantienen la selección del cliente.
+    if (!table) {
+      payload.paymentMethod = paymentMethod;
+    }
 
     // La mesa viaja sólo en el pedido de salón (misma convención del POS,
     // validación T2 del backend: mesa propia del negocio).
