@@ -154,6 +154,89 @@ describe('Menu × QR de mesa (?table=<id>)', () => {
   })
 })
 
+describe('fallback: parámetro ?table= inválido o ausente', () => {
+  afterEach(() => {
+    cleanup()
+    setSearch('')
+    vi.unstubAllGlobals()
+  })
+
+  // Parámetros que NO deben disparar el fetch de mesa: ausente, vacío, no
+  // numérico, cero, negativo o decimal (Number.isInteger + id > 0).
+  const INVALID_SEARCHES = ['', '?table=', '?table=abc', '?table=0', '?table=-3', '?table=1.5']
+
+  for (const search of INVALID_SEARCHES) {
+    it(`"${search || '(sin query)'}" carga el menú legacy: sin fetch de mesa, selector presente y pedido RETIRO sin tableId`, async () => {
+      const user = userEvent.setup()
+      const { calls, fetchMock } = makeFetch()
+      setSearch(search)
+      // stub BEFORE render: the load effect fetches immediately.
+      vi.stubGlobal('alert', vi.fn())
+      vi.stubGlobal('fetch', fetchMock)
+      render(<Menu />)
+
+      await screen.findByText('Milanesa')
+      // No table fetch may ever happen for an invalid/missing param.
+      expect(calls.some((call) => call.url.startsWith('/api/menu/table/'))).toBe(false)
+
+      await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+      await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
+
+      // UI BEFORE submitting: legacy selector, no badge (the sheet closes on
+      // success, so post-submit assertions would miss it).
+      expect(screen.getByLabelText('Tipo de pedido')).toBeInTheDocument()
+      expect(screen.queryByText(/Salón principal/)).not.toBeInTheDocument()
+
+      await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Legacy')
+      await user.type(screen.getByPlaceholderText('Celular (ej. 11 5555 1234)'), '11 5555 1234')
+      await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
+
+      await waitFor(() => {
+        const orderCall = calls.find((call) => call.url === '/api/orders/menu')
+        expect(orderCall).toBeDefined()
+        const payload = JSON.parse(orderCall!.body!)
+        expect(payload.orderType).toBe('RETIRO')
+        expect(payload.tableId).toBeUndefined()
+      })
+
+      cleanup()
+      vi.unstubAllGlobals()
+    })
+  }
+
+  it('fallo de red en el fetch de la mesa: intenta /api/menu/table/5 y cae al pedido legacy', async () => {
+    const user = userEvent.setup()
+    const { calls, fetchMock } = makeFetch({ tableFailure: 'network' })
+    setSearch('?table=5')
+    vi.stubGlobal('alert', vi.fn())
+    vi.stubGlobal('fetch', fetchMock)
+    render(<Menu />)
+
+    // The table fetch WAS attempted...
+    await waitFor(() => expect(calls.some((call) => call.url === '/api/menu/table/5')).toBe(true))
+
+    await screen.findByText('Milanesa')
+    await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+    await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
+
+    // ...but the fallback kicked in: legacy selector, no badge.
+    expect(screen.getByLabelText('Tipo de pedido')).toBeInTheDocument()
+    expect(screen.queryByText(/Salón principal/)).not.toBeInTheDocument()
+
+    await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Red')
+    await user.type(screen.getByPlaceholderText('Celular (ej. 11 5555 1234)'), '11 5555 1234')
+    await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
+
+    await waitFor(() => {
+      const orderCall = calls.find((call) => call.url === '/api/orders/menu')
+      expect(orderCall).toBeDefined()
+      const payload = JSON.parse(orderCall!.body!)
+      expect(payload.orderType).toBe('RETIRO')
+      expect(payload.tableId).toBeUndefined()
+    })
+  })
+})
+
 const PRODUCT = {
   id: '101',
   name: 'Milanesa',
