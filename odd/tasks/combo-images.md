@@ -31,4 +31,8 @@ Imagen propia para los combos: alta/edición/borrado desde el panel (mismo flujo
 
 | Task | Estado | Evidencia |
 | --- | --- | --- |
-| T1–T5 | pendiente | |
+| T1 | hecho | `7b55aec` en develop: Combo.image_url + POST/DELETE /api/combos/{id}/image + serving /api/images/combos/**. RED: 3 fallos (200 vs 404 en el endpoint ausente) → GREEN 5/5; preservación 23/23 (product-image + CRUD de combos) |
+| T2 | hecho | mismo commit: el payload del menú lleva imageUrl del combo vía IComboMapper (verificado en el ensayo en vivo) |
+| T3 | hecho | `8330623`: picker en ComboModal (preview/Cambiar/Quitar/errores inline) con upload DESPUÉS del guardado; RED: 3 fallos → GREEN |
+| T4 | hecho | mismo commit: mapCombosToProducts prefiere la imagen propia, fallback derivado; RED: el caso imagen-propia fallaba → GREEN; el caso fallback ya pasaba (preservación) |
+| T5 | hecho | suite 284/284 + tsc; ensayo en vivo: upload 200 → payload del menú sirve /api/images/combos/a4ea77c4...png → DELETE 200 → payload imageUrl null (fallback). Limpieza: DELETE borra el archivo de disco |
