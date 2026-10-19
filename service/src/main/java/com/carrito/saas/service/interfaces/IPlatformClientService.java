@@ -7,6 +7,7 @@ import com.carrito.saas.dto.CreatePlatformUserRequestDTO;
 import com.carrito.saas.dto.PlatformClientDTO;
 import com.carrito.saas.dto.PlatformUserDTO;
 import com.carrito.saas.dto.UpdatePlatformClientRequestDTO;
+import com.carrito.saas.dto.UpdatePlatformUserRequestDTO;
 
 /**
  * Platform-side client management: the operator registers (owner + locale),
@@ -65,4 +66,20 @@ public interface IPlatformClientService {
 	 * blank fields or a password shorter than 8.
 	 */
 	PlatformUserDTO createUser(Long businessId, CreatePlatformUserRequestDTO request);
+
+	/**
+	 * Partial edit of a locale user (S3): change the role and/or reactivate.
+	 * The PROTECTION rule (S4): neither demoting nor deactivating may leave
+	 * the locale without an ACTIVE owner — 409 with a legible message and
+	 * nothing changes. Unknown user answers 404, unknown role 400.
+	 */
+	PlatformUserDTO editUser(Long businessId, String username, UpdatePlatformUserRequestDTO request);
+
+	/**
+	 * LOGICAL deactivation of a locale user (S4): the row and the membership
+	 * survive (active=false); history untouched. The locale must keep an
+	 * ACTIVE owner — deactivating the last one answers 409. Idempotent;
+	 * unknown user answers 404.
+	 */
+	PlatformUserDTO deactivateUser(Long businessId, String username);
 }

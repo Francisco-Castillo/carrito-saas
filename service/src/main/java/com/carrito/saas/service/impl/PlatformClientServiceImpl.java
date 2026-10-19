@@ -12,6 +12,7 @@ import com.carrito.saas.dto.CreatePlatformUserRequestDTO;
 import com.carrito.saas.dto.PlatformClientDTO;
 import com.carrito.saas.dto.PlatformUserDTO;
 import com.carrito.saas.dto.UpdatePlatformClientRequestDTO;
+import com.carrito.saas.dto.UpdatePlatformUserRequestDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
@@ -260,6 +261,99 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 			// clientes).
 			throw new BusinessException("Ya existe un usuario con esos datos", ErrorType.CONFLICT);
 		}
+	}
+
+	@Override
+	public PlatformUserDTO editUser(Long businessId, String username, UpdatePlatformUserRequestDTO request) {
+
+		if (request == null) {
+			throw new BusinessException("No hay cambios para aplicar", ErrorType.VALIDATION);
+		}
+
+		BusinessUser membership = membershipOf(businessId, username)
+				.orElseThrow(() -> new BusinessException("Usuario no encontrado en este local", ErrorType.NOT_FOUND));
+
+		// Cambio de rol: el PROTEGIDO es el último OWNER activo (S4) — bajarlo
+		// dejaría el local sin dueño activo. 409 legible, nada cambia.
+		if (request.getRole() != null) {
+			String roleName = blankToNull(request.getRole());
+			if (roleName == null) {
+				throw new BusinessException("El rol es obligatorio", ErrorType.VALIDATION);
+			}
+			Role newRole = roleRepository.findByName(roleName)
+					.orElseThrow(() -> new BusinessException("El rol indicado no existe", ErrorType.VALIDATION));
+
+			if (isLastActiveOwner(membership) && !"OWNER".equals(newRole.getName())) {
+				throw new BusinessException("El local necesita al menos un dueño activo", ErrorType.CONFLICT);
+			}
+			membership.setRole(newRole);
+			businessUserRepository.saveAndFlush(membership);
+		}
+
+		// Reactivación/baja directa cuando el payload la manda (mismo
+		// protegido: no desactivar al último OWNER activo).
+		if (request.getActive() != null) {
+			User user = membership.getUser();
+			if (!request.getActive() && isLastActiveOwner(membership)) {
+				throw new BusinessException("El local necesita al menos un dueño activo", ErrorType.CONFLICT);
+			}
+			user.setActive(request.getActive());
+			userRepository.saveAndFlush(user);
+		}
+
+		return toUserDTO(membership);
+	}
+
+	@Override
+	public PlatformUserDTO deactivateUser(Long businessId, String username) {
+
+		BusinessUser membership = membershipOf(businessId, username)
+				.orElseThrow(() -> new BusinessException("Usuario no encontrado en este local", ErrorType.NOT_FOUND));
+
+		// El local SIEMPRE conserva un OWNER activo (S4): desactivar al
+		// último responde 409 legible y no cambia nada.
+		if (isLastActiveOwner(membership)) {
+			throw new BusinessException("El local necesita al menos un dueño activo", ErrorType.CONFLICT);
+		}
+
+		User user = membership.getUser();
+		user.setActive(Boolean.FALSE);
+		userRepository.saveAndFlush(user);
+
+		return toUserDTO(membership);
+	}
+
+	/** Membresía del usuario en ESE negocio (404 si no está en él). */
+	private java.util.Optional<BusinessUser> membershipOf(Long businessId, String username) {
+
+		return businessUserRepository.findByUserUsernameAndBusinessSlug(username,
+				businessRepository.findById(businessId)
+						.map(Business::getSlug)
+						.orElseThrow(() -> new BusinessException("Cliente no encontrado", ErrorType.NOT_FOUND)));
+	}
+
+	/** true si la membresía es OWNER, está activa y NO hay otro OWNER activo. */
+	private boolean isLastActiveOwner(BusinessUser membership) {
+
+		if (!"OWNER".equals(membership.getRole().getName())
+				|| !Boolean.TRUE.equals(membership.getUser().getActive())) {
+			return false;
+		}
+		return businessUserRepository.findOwnerMemberships().stream()
+				.filter(m -> m.getBusiness().getId().equals(membership.getBusiness().getId()))
+				.filter(m -> !m.getUser().getUsername().equals(membership.getUser().getUsername()))
+				.noneMatch(m -> Boolean.TRUE.equals(m.getUser().getActive()));
+	}
+
+	private PlatformUserDTO toUserDTO(BusinessUser membership) {
+
+		PlatformUserDTO dto = new PlatformUserDTO();
+		User user = membership.getUser();
+		dto.setUsername(user.getUsername());
+		dto.setEmail(user.getEmail());
+		dto.setRole(membership.getRole().getName());
+		dto.setActive(user.getActive());
+		return dto;
 	}
 
 	private static final Pattern SLUG_SHAPE = Pattern.compile("^[a-z0-9-]+$");

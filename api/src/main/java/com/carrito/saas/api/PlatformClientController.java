@@ -62,6 +62,22 @@ public class PlatformClientController {
 				.body(platformClientService.createUser(id, request));
 	}
 
+	@PutMapping("/clients/{id}/users/{username}")
+	public com.carrito.saas.dto.PlatformUserDTO editUser(@PathVariable("id") Long id,
+			@PathVariable("username") String username,
+			@RequestBody com.carrito.saas.dto.UpdatePlatformUserRequestDTO request) {
+
+		return platformClientService.editUser(id, username, request);
+	}
+
+	@DeleteMapping("/clients/{id}/users/{username}")
+	public com.carrito.saas.dto.PlatformUserDTO deactivateUser(@PathVariable("id") Long id,
+			@PathVariable("username") String username) {
+
+		// Baja LÓGICA (no physical): el row sobrevive con active=false.
+		return platformClientService.deactivateUser(id, username);
+	}
+
 	@PutMapping("/clients/{id}")
 	public PlatformClientDTO editClient(@PathVariable("id") Long id,
 			@RequestBody UpdatePlatformClientRequestDTO request) {
