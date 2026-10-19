@@ -1,8 +1,10 @@
 package com.carrito.saas.security;
 
 import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 @Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class LoginResponseDTO {
 	private String token;
 	private String restaurantSlug;

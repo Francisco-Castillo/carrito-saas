@@ -145,6 +145,16 @@ public class SecurityConfig {
 
             .requestMatchers(HttpMethod.POST, "/api/predictions/run").hasAnyRole("OWNER", "ADMIN")
 
+            // API del operador de plataforma (alta de clientes y sus locales,
+            // odd/tasks/plataforma-altas.md): superficie GLOBAL del SaaS. Ningun
+            // rol de negocio (OWNER/KITCHEN/ADMIN/PEDIDOS) la toca: un OWNER de
+            // un negocio no puede enumerar ni crear los clientes de la
+            // plataforma. Solo el rol dedicado PLATFORM_ADMIN pasa; un anónimo
+            // recibe 401 del entry point y un autenticado sin el rol, 403 del
+            // AccessDeniedHandler (contrato resuelto en
+            // odd/tasks/http-error-contract.md).
+            .requestMatchers("/api/platform/**").hasRole("PLATFORM_ADMIN")
+
 	            .anyRequest().authenticated()
 	        )
 
