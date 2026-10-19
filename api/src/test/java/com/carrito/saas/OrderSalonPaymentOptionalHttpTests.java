@@ -1,6 +1,7 @@
 package com.carrito.saas;
 
 import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -211,6 +212,59 @@ class OrderSalonPaymentOptionalHttpTests {
 								+ "\"orderType\":\"RETIRO\",\"items\":[{\"productId\":" + productId + ",\"quantity\":1}]}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.message").value("Debe indicar método de pago"));
+	}
+
+	@Test
+	void deliveryOrderStillRequiresPaymentMethod() throws Exception {
+
+		// DELIVERY boundary (verifier probe 1): same legacy rule as RETIRO.
+		mockMvc.perform(post("/api/orders/menu")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"customerName\":\"Cliente Delivery\",\"customerPhone\":\"1155551234\","
+								+ "\"orderType\":\"DELIVERY\",\"customerAddress\":\"Calle Falsa 123\","
+								+ "\"items\":[{\"productId\":" + productId + ",\"quantity\":1}]}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("Debe indicar método de pago"));
+	}
+
+	@Test
+	void salonOrderWithoutPaymentMethodAppearsAsNullInOrderManagement() throws Exception {
+
+		// Verifier probe 2: the management listing (OrderManagementMapperImpl)
+		// must not break on a null paymentMethod either.
+		String body = mockMvc.perform(post("/api/orders/menu")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"customerName\":\"Cliente Mesa Lista\",\"customerPhone\":\"1155551234\","
+								+ "\"orderType\":\"SALON\",\"items\":[{\"productId\":" + productId + ",\"quantity\":1}],"
+								+ "\"tableId\":" + tableId + "}"))
+				.andExpect(status().isOk())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		long orderId = objectMapper.readTree(body).get("orderId").asLong();
+
+		String listing = mockMvc.perform(get("/api/business/orders")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader()))
+				.andExpect(status().isOk())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		JsonNode created = null;
+		for (JsonNode node : objectMapper.readTree(listing)) {
+			if (node.get("orderId").asLong() == orderId) {
+				created = node;
+				break;
+			}
+		}
+
+		org.assertj.core.api.Assertions.assertThat(created)
+				.as("the SALON order without payment method must appear in the management listing")
+				.isNotNull();
+		org.assertj.core.api.Assertions.assertThat(created.get("paymentMethod") == null || created.get("paymentMethod").isNull())
+				.as("the management listing must carry the null payment method, not a fabricated one")
+				.isTrue();
 	}
 
 	@Test
