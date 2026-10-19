@@ -10,7 +10,7 @@
  *   the backend's legible Spanish error inline (e.g. duplicate slug 409).
  * - On success the form clears and the list refreshes with the new client.
  */
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Platform from '../src/pages/Platform'
@@ -35,6 +35,15 @@ const CLIENTS = [
 ]
 
 const okJson = (data: unknown) => ({ ok: true, status: 200, json: async () => data })
+
+/** La fila de la tabla del cliente: las acciones por fila viven acá —
+ * screen.getByRole Matchearía el botón de TODAS las filas. */
+function rowOf(businessName: string): HTMLElement {
+  const cell = screen.getByText(businessName)
+  const row = cell.closest('tr')
+  if (!row) throw new Error('row not found for ' + businessName)
+  return row
+}
 
 function stubSession() {
   localStorage.setItem('token', 'header.payload.signature')
@@ -152,5 +161,191 @@ describe('platform operator view', () => {
     await user.click(screen.getByRole('button', { name: /dar de alta/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Ya existe un local con ese slug')
+  })
+
+  it('deactivates a client through the row action after confirmation', async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001' && init?.method === 'DELETE') {
+        return { ok: true, status: 200, json: async () => ({ ...CLIENTS[0], active: false }) }
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(CLIENTS)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    // The row action asks for confirmation before the DELETE — the baja is
+    // consequential (S3), the click-through does not happen silently.
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /dar de baja/i }))
+    expect(fetchMock.mock.calls.some(([u, init]) => init?.method === 'DELETE')).toBe(false)
+
+    await user.click(screen.getByRole('button', { name: /confirmar/i }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/platform/clients/1000000001',
+      expect.objectContaining({ method: 'DELETE' }),
+    ))
+  })
+
+  it('reactivates a deactivated client and marks the row in the listing', async () => {
+    const DEACTIVATED = [
+      { ...CLIENTS[0], active: false },
+      { ...CLIENTS[1], active: true },
+    ]
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001' && init?.method === 'PUT') {
+        return { ok: true, status: 200, json: async () => ({ ...DEACTIVATED[0], active: true }) }
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(DEACTIVATED)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    // The deactivated row is honestly marked in the listing: the badge
+    // lives in the row of the deactivated client (the active row shows
+    // its own "Dar de baja" button, which also matches /de baja/i).
+    expect(within(rowOf('Local Uno')).getByText(/de baja/i)).toBeTruthy()
+
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /reactivar/i }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/platform/clients/1000000001',
+      expect.objectContaining({ method: 'PUT' }),
+    ))
+
+    const putCall = fetchMock.mock.calls.find(
+      ([u, init]) => (init as RequestInit).method === 'PUT',
+    )
+    expect(JSON.parse(String((putCall![1] as RequestInit).body))).toEqual({ active: true })
+  })
+
+  it('edits a client through the inline form with the safe fields only', async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001' && init?.method === 'PUT') {
+        return { ok: true, status: 200, json: async () => ({ ...CLIENTS[0], businessName: 'Local Editado' }) }
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(CLIENTS)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /editar/i }))
+
+    // The edit form preloads the current safe fields; the slug is shown
+    // READ-ONLY as a note inside the modal (S2: the public identity does
+    // not move) — not as an editable input. The slug text also lives in
+    // the listing row, so the assertion is scoped to the modal.
+    const nameInput = await screen.findByDisplayValue('Local Uno')
+    const modal = screen.getByRole('dialog')
+    expect(within(modal).getByText('local-uno')).toBeTruthy()
+
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Local Editado')
+    await user.click(screen.getByRole('button', { name: /guardar/i }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/platform/clients/1000000001',
+      expect.objectContaining({ method: 'PUT' }),
+    ))
+
+    const putCall = fetchMock.mock.calls.find(
+      ([u, init]) => String(u) === '/api/platform/clients/1000000001' && (init as RequestInit).method === 'PUT',
+    )
+    // The form preloads the current safe fields and sends what it shows:
+    // the edited name plus the untouched phone/email (the backend treats
+    // them as updates to the same values). The slug never travels.
+    expect(JSON.parse(String((putCall![1] as RequestInit).body))).toEqual({
+      name: 'Local Editado',
+      phone: '1150001111',
+      ownerEmail: 'owner-uno@test.dev',
+    })
+  })
+
+  it('resets the owner password through the row action', async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001/password' && init?.method === 'POST') {
+        return { ok: true, status: 200, json: async () => CLIENTS[0] }
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(CLIENTS)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /nueva clave/i }))
+
+    const passwordInput = await screen.findByPlaceholderText('Nueva contraseña del dueño')
+    await user.type(passwordInput, 'nueva-clave-789')
+    await user.click(screen.getByRole('button', { name: /confirmar/i }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/platform/clients/1000000001/password',
+      expect.objectContaining({ method: 'POST' }),
+    ))
+
+    const postCall = fetchMock.mock.calls.find(
+      ([u, init]) => String(u) === '/api/platform/clients/1000000001/password',
+    )
+    expect(JSON.parse(String((postCall![1] as RequestInit).body))).toEqual({ password: 'nueva-clave-789' })
+  })
+
+  it('shows the backend legible error inline when a row action fails', async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001/password' && init?.method === 'POST') {
+        return {
+          ok: false,
+          status: 400,
+          json: async () => ({ message: 'La contraseña debe tener al menos 8 caracteres' }),
+        }
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(CLIENTS)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /nueva clave/i }))
+    const passwordInput = await screen.findByPlaceholderText('Nueva contraseña del dueño')
+    await user.type(passwordInput, 'corta')
+    await user.click(screen.getByRole('button', { name: /confirmar/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'La contraseña debe tener al menos 8 caracteres',
+    )
   })
 })
