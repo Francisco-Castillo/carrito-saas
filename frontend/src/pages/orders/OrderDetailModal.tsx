@@ -1,5 +1,6 @@
 import { formatARS } from "../../format";
 import { formatPhone } from "../kds/format";
+import CopyPhoneButton from "./CopyPhoneButton";
 import {
   ORDER_TYPE_LABELS,
   PAYMENT_LABELS,
@@ -53,7 +54,7 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
           {order.customerPhone && (
             <div>
               <dt>Celular</dt>
-              <dd>
+              <dd className="orders-detail-phone">
                 <a
                   href={whatsappUrl(order.customerPhone) ?? `tel:${order.customerPhone}`}
                   target="_blank"
@@ -62,6 +63,7 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
                 >
                   {formatPhone(order.customerPhone)}
                 </a>
+                <CopyPhoneButton phone={order.customerPhone} />
               </dd>
             </div>
           )}

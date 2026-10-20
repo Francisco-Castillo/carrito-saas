@@ -236,6 +236,46 @@
   color: inherit;
 }
 
+/* Copiar el número de WhatsApp: botón mínimo junto al link, con confirmación
+   visual (pasa a check dos segundos). */
+.copy-phone-btn {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-left: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out-soft),
+    border-color var(--duration-fast) var(--ease-out-soft),
+    transform var(--duration-fast) var(--ease-out-soft);
+}
+
+.copy-phone-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.copy-phone-btn:active {
+  transform: scale(0.9);
+}
+
+.orders-detail-phone {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.orders-detail-phone .copy-phone-btn {
+  margin-left: 8px;
+}
+
 .orders-card-items {
   margin: 0;
   padding-left: 18px;

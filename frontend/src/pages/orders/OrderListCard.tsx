@@ -1,5 +1,6 @@
 import { formatARS } from "../../format";
 import { formatPhone } from "../kds/format";
+import CopyPhoneButton from "./CopyPhoneButton";
 import {
   ORDER_TYPE_LABELS,
   canTransition,
@@ -51,16 +52,19 @@ export default function OrderListCard({
       <p className="orders-card-customer">
         {order.customerName}
         {order.customerPhone && (
-          <a
-            className="orders-card-phone"
-            href={whatsappUrl(order.customerPhone) ?? `tel:${order.customerPhone}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Abrir chat de WhatsApp con el cliente"
-          >
-            {" "}
-            {formatPhone(order.customerPhone)}
-          </a>
+          <>
+            <a
+              className="orders-card-phone"
+              href={whatsappUrl(order.customerPhone) ?? `tel:${order.customerPhone}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Abrir chat de WhatsApp con el cliente"
+            >
+              {" "}
+              {formatPhone(order.customerPhone)}
+            </a>
+            <CopyPhoneButton phone={order.customerPhone} />
+          </>
         )}
       </p>
 

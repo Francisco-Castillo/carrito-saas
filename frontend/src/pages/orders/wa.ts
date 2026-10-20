@@ -16,3 +16,13 @@ export function whatsappUrl(phone: string): string | null {
   const withoutTrunkZero = digits.startsWith("0") ? digits.slice(1) : digits;
   return `https://wa.me/54${withoutTrunkZero}`;
 }
+
+/**
+ * The digits the wa.me link dials ("541155551234"): what a copy-phone button
+ * should put on the clipboard, so the number pastes straight into any chat
+ * app. Null when there are no digits at all.
+ */
+export function whatsappInternational(phone: string): string | null {
+  const url = whatsappUrl(phone);
+  return url ? url.replace("https://wa.me/", "") : null;
+}
