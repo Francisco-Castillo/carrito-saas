@@ -164,15 +164,6 @@ export default function Orders() {
 
           <button
             type="button"
-            className="orders-refresh"
-            onClick={() => void refresh()}
-            title="Refrescar pedidos"
-          >
-            ↻ Refrescar
-          </button>
-
-          <button
-            type="button"
             className="orders-new"
             onClick={() => setPosOpen(true)}
           >
