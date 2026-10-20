@@ -5,6 +5,43 @@ interface CopyPhoneButtonProps {
   phone: string;
 }
 
+/** Feather-style copy icon: two overlapping rounded rectangles. */
+function CopyIcon() {
+  return (
+    <svg
+      className="copy-phone-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+/** Feather-style check icon for the copied confirmation. */
+function CheckIcon() {
+  return (
+    <svg
+      className="copy-phone-icon copy-phone-icon--check"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+}
+
 /**
  * Copy-to-clipboard for the customer's WhatsApp number, shown next to the
  * phone link in the orders console. Copies the SAME international digits the
@@ -13,7 +50,7 @@ interface CopyPhoneButtonProps {
  * The panel is served over plain HTTP on the LAN (not a secure context):
  * navigator.clipboard does not exist there, so the button falls back to the
  * legacy document.execCommand("copy") route. Confirmation is visual and
- * momentary — the button flips to a check for a couple of seconds.
+ * momentary — the icon flips to a check for a couple of seconds.
  */
 export default function CopyPhoneButton({ phone }: CopyPhoneButtonProps) {
   const [copied, setCopied] = useState(false);
@@ -60,12 +97,12 @@ export default function CopyPhoneButton({ phone }: CopyPhoneButtonProps) {
   return (
     <button
       type="button"
-      className="copy-phone-btn"
+      className={`copy-phone-btn${copied ? " copy-phone-btn--copied" : ""}`}
       onClick={copy}
       aria-label={copied ? "Número copiado" : "Copiar el número de WhatsApp"}
       title={copied ? "¡Copiado!" : "Copiar el número de WhatsApp"}
     >
-      {copied ? "✓" : "⧉"}
+      {copied ? <CheckIcon /> : <CopyIcon />}
     </button>
   );
 }

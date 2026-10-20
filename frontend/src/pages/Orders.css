@@ -236,34 +236,47 @@
   color: inherit;
 }
 
-/* Copiar el número de WhatsApp: botón mínimo junto al link, con confirmación
-   visual (pasa a check dos segundos). */
+/* Copiar el número de WhatsApp: botón fantasma junto al link (sin borde ni
+   círculo), con confirmación visual (el ícono pasa a check dos segundos). */
 .copy-phone-btn {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  margin-left: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 4px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: inherit;
-  font-size: 0.75rem;
-  line-height: 1;
-  vertical-align: middle;
+  opacity: 0.65;
   cursor: pointer;
   transition:
+    opacity var(--duration-fast) var(--ease-out-soft),
     background var(--duration-fast) var(--ease-out-soft),
-    border-color var(--duration-fast) var(--ease-out-soft),
-    transform var(--duration-fast) var(--ease-out-soft);
+    color var(--duration-fast) var(--ease-out-soft);
+}
+
+.copy-phone-icon {
+  width: 15px;
+  height: 15px;
 }
 
 .copy-phone-btn:hover {
   background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.35);
+  color: var(--text-primary);
+  opacity: 1;
 }
 
 .copy-phone-btn:active {
   transform: scale(0.9);
+}
+
+.copy-phone-btn--copied {
+  color: var(--color-success, #4ade80);
+  opacity: 1;
 }
 
 .orders-detail-phone {
