@@ -64,6 +64,27 @@
   flex-wrap: wrap;
 }
 
+/* Reloj de la barra — mismo estilo que el .clock del KDS (kds.css:114-133):
+   hora grande en tabular-nums y la fecha debajo. */
+.orders-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.orders-clock-time {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.orders-clock-date {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
 /* Indicador en vivo: mismas clases que el KDS (refresh-indicator/refresh-dot)
    ya están en Kds.css del bundle; acá solo el botón de refresco. */
 .orders-refresh {

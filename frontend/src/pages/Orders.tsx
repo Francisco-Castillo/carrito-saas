@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import "./Orders.css";
 import { enforceSession, getSessionRestaurantSlug, hasPanelSession } from "./dashboard/auth";
 import { showToast } from "./kds/toast";
@@ -53,12 +53,20 @@ export default function Orders() {
 
   const slug = useMemo(() => getSessionRestaurantSlug(), []);
 
-  const { orders, lastUpdated, live, refresh } = useOrdersFeed(
+  const { orders, live, refresh } = useOrdersFeed(
     slug,
     sessionUsable && Boolean(slug)
   );
 
   const [filter, setFilter] = useState<StatusFilter>("ALL");
+
+  // Reloj de la barra (mismo ritmo de 1s que el KDS): la píldora "En vivo" es
+  // estado de conexión, no reloj — la hora acá era redundante con este.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
   const [cancelOrderId, setCancelOrderId] = useState<number | null>(null);
   const [detailOrderId, setDetailOrderId] = useState<number | null>(null);
   const [posOpen, setPosOpen] = useState(false);
@@ -133,6 +141,7 @@ export default function Orders() {
         </div>
 
         <div className="orders-topbar-right">
+          {/* Estado de conexión, no reloj: la hora real vive en .orders-clock. */}
           <div
             className={`refresh-indicator${live ? " live" : ""}`}
             title={live ? "Conectado en vivo" : "Reconectando..."}
@@ -140,13 +149,17 @@ export default function Orders() {
             <span className="refresh-dot" aria-hidden="true" />
             <span className="refresh-label">
               {live ? "En vivo" : "Reconectando…"}
-              {lastUpdated &&
-                ` · Act. ${lastUpdated.toLocaleTimeString("es-ES", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}`}
             </span>
+          </div>
+
+          {/* Reloj del KDS (kds.css .clock): hora + fecha en tabular-nums. */}
+          <div className="orders-clock">
+            <div className="orders-clock-time">{now.toLocaleTimeString()}</div>
+            <div className="orders-clock-date">
+              {`${String(now.getDate()).padStart(2, "0")}/${String(
+                now.getMonth() + 1,
+              ).padStart(2, "0")}/${now.getFullYear()}`}
+            </div>
           </div>
 
           <button

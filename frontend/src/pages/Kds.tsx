@@ -74,7 +74,7 @@ export default function Kds() {
     return () => document.removeEventListener("click", onFirstClick);
   }, []);
 
-  const { sortedOrders, lastUpdated, live, fatal, refresh, advance } = useKdsOrders(
+  const { sortedOrders, live, fatal, refresh, advance } = useKdsOrders(
     slug,
     sessionUsable && Boolean(slug)
   );
@@ -143,16 +143,12 @@ export default function Kds() {
         </div>
 
         <div className="topbar-right">
+          {/* Estado de conexión, no reloj: la hora real vive en .clock —
+              mostrar "Act. HH:MM:SS" acá era redundante con ese reloj. */}
           <div className={`refresh-indicator${live ? " live" : ""}`} title={live ? "Conectado en vivo" : "Reconectando..."}>
             <span className="refresh-dot" aria-hidden="true" />
             <span className="refresh-label">
               {live ? "En vivo" : "Reconectando…"}
-              {lastUpdated &&
-                ` · Act. ${lastUpdated.toLocaleTimeString("es-ES", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}`}
             </span>
           </div>
 
