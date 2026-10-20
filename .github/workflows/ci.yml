@@ -17,25 +17,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    services:
-      postgres:
-        # Must stay in sync with api/src/main/resources/application.yml.
-        image: postgres:17
-        env:
-          POSTGRES_DB: carrito_db
-          POSTGRES_USER: admin
-          POSTGRES_PASSWORD: admin
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U admin -d carrito_db"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Start PostgreSQL (max_connections=300)
+        # A `services:` container cannot receive postgres arguments: its
+        # `options` are docker-create flags, where `-c` is `--cpu-shares`, not
+        # a postgres option. The suite creates one pooled context per Spring
+        # test context and outgrew the default 100 connections — the failure
+        # that kept this job red since ed219bc ("too many clients already",
+        # 8 context-load errors in ProductImageEndpointTests). See issue #72.
+        run: |
+          docker run -d --name postgres \
+            -e POSTGRES_DB=carrito_db \
+            -e POSTGRES_USER=admin \
+            -e POSTGRES_PASSWORD=admin \
+            -p 5432:5432 \
+            postgres:17 postgres -c max_connections=300
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in $(seq 1 30); do
+            docker exec postgres pg_isready -U admin -d carrito_db && exit 0
+            sleep 2
+          done
+          echo "PostgreSQL did not become ready in time" >&2
+          exit 1
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
