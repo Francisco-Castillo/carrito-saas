@@ -113,9 +113,10 @@ describe('Menu × QR de mesa (?table=<id>)', () => {
     // Verifier probe 3: no payment buttons may exist either, not just the group.
     expect(screen.queryByRole('button', { name: 'Efectivo' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Transferencia' })).not.toBeInTheDocument()
+    // Sin datos de contacto en modo mesa: ni nombre ni celular se piden.
+    expect(screen.queryByPlaceholderText('Nombre y Apellido')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Celular (ej. 11 5555 1234)')).not.toBeInTheDocument()
 
-    await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente de Mesa')
-    await user.type(screen.getByPlaceholderText('Celular (ej. 11 5555 1234)'), '11 5555 1234')
     await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
 
     await waitFor(() => {
@@ -124,7 +125,10 @@ describe('Menu × QR de mesa (?table=<id>)', () => {
       const payload = JSON.parse(orderCall!.body!)
       expect(payload.orderType).toBe('SALON')
       expect(payload.tableId).toBe(5)
-      expect(payload.customerName).toBe('Cliente de Mesa')
+      // Sin nombre ni celular del cliente: la cocina identifica el pedido por
+      // su mesa (el backend exige un nombre no vacío, así que viaja la mesa).
+      expect(payload.customerName).toBe('Mesa 5')
+      expect(payload.customerPhone).toBeUndefined()
       // S4: no payment method leaves the browser for a table order.
       expect(payload.paymentMethod).toBeUndefined()
     })
@@ -286,13 +290,16 @@ const baseProps = {
 describe('CartPanel × mesa fija (badge)', () => {
   afterEach(cleanup)
 
-  it('muestra el badge de la mesa, oculta el selector de tipo Y la forma de pago cuando la mesa viaja fija', () => {
+  it('muestra el badge de la mesa, oculta el selector de tipo, la forma de pago Y los datos de contacto', () => {
     render(<CartPanel {...baseProps} table={TABLE_PAYLOAD} />)
 
     expect(screen.getByText(/Salón principal/)).toBeInTheDocument()
     expect(screen.getByText(/Mesa 5/)).toBeInTheDocument()
     expect(screen.queryByLabelText('Tipo de pedido')).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Forma de pago' })).not.toBeInTheDocument()
+    // Mesa = sin nombre ni celular: el pedido se identifica por la mesa.
+    expect(screen.queryByPlaceholderText('Nombre y Apellido')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Celular (ej. 11 5555 1234)')).not.toBeInTheDocument()
   })
 
   it('sin mesa fija mantiene el selector, la forma de pago y no muestra ningún badge', () => {

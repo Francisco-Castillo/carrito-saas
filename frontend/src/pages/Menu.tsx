@@ -482,22 +482,28 @@ export default function Menu() {
       return;
     }
 
-    if (customerName.trim() === "") {
-      showToast("Por favor ingresa tu nombre", "error");
-      return;
-    }
-
-    // El celular es obligatorio (RETIRO y DELIVERY): la cocina necesita poder
-    // llamar al cliente. Se valida la forma normalizada, misma regla que los
-    // teléfonos de los negocios.
+    // Modo mesa (QR): el cliente está sentado en el local — sin nombre ni
+    // celular. La cocina identifica el pedido por su mesa; el backend exige
+    // un customerName no vacío, así que viaja "Mesa <n>". RETIRO/DELIVERY
+    // mantienen la exigencia completa (la cocina necesita poder llamar).
     const normalizedPhone = normalizePhone(customerPhone);
-    if (normalizedPhone === "") {
-      showToast("El celular es obligatorio", "error");
-      return;
-    }
-    if (!PHONE_SHAPE.test(normalizedPhone)) {
-      showToast("Ingresá un número de celular válido", "error");
-      return;
+    if (!table) {
+      if (customerName.trim() === "") {
+        showToast("Por favor ingresa tu nombre", "error");
+        return;
+      }
+
+      // El celular es obligatorio (RETIRO y DELIVERY): la cocina necesita poder
+      // llamar al cliente. Se valida la forma normalizada, misma regla que los
+      // teléfonos de los negocios.
+      if (normalizedPhone === "") {
+        showToast("El celular es obligatorio", "error");
+        return;
+      }
+      if (!PHONE_SHAPE.test(normalizedPhone)) {
+        showToast("Ingresá un número de celular válido", "error");
+        return;
+      }
     }
 
     if (orderType === "DELIVERY" && address.trim() === "") {
@@ -513,15 +519,23 @@ export default function Menu() {
       return { productId: Number(id), quantity: item.qty };
     });
 
-    const payload: Record<string, unknown> = {
-      customerName,
-      customerPhone: normalizedPhone,
-      // Mesa fija (QR): el pedido ES de salón, sin importar el estado del
-      // selector (que ni siquiera se muestra en ese modo).
-      orderType: table ? "SALON" : orderType,
-      notes,
-      items,
-    };
+    const payload: Record<string, unknown> = table
+      ? // Mesa fija (QR): el pedido ES de salón, sin importar el estado del
+        // selector (que ni siquiera se muestra en ese modo). Sin contacto:
+        // viaja la mesa como identificador del pedido.
+        {
+          customerName: `Mesa ${table.tableNumber}`,
+          orderType: "SALON",
+          notes,
+          items,
+        }
+      : {
+          customerName,
+          customerPhone: normalizedPhone,
+          orderType,
+          notes,
+          items,
+        };
 
     // S4 de pedido-qr-mesa: un pedido de mesa se paga en la mesa — no viaja
     // forma de pago. RETIRO/DELIVERY mantienen la selección del cliente.

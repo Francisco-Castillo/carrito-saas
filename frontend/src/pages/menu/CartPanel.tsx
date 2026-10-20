@@ -113,24 +113,31 @@ export default function CartPanel({
       <p className="cart-total">Total: {formatARS(total)}</p>
 
       <div className="order-form">
-        <input
-          className="order-input"
-          type="text"
-          placeholder="Nombre y Apellido"
-          value={customerName}
-          onChange={(e) => onCustomerNameChange(e.target.value)}
-        />
+        {/* Mesa fija (QR de mesa): sin datos de contacto — la cocina identifica
+            el pedido por su mesa, y pedirle el celular a alguien que está
+            sentado en ella no aporta nada. */}
+        {!table && (
+          <>
+            <input
+              className="order-input"
+              type="text"
+              placeholder="Nombre y Apellido"
+              value={customerName}
+              onChange={(e) => onCustomerNameChange(e.target.value)}
+            />
 
-        {/* Celular obligatorio: la cocina lo muestra como llamada con un tap. */}
-        <input
-          className="order-input"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="Celular (ej. 11 5555 1234)"
-          value={customerPhone}
-          onChange={(e) => onCustomerPhoneChange(e.target.value)}
-        />
+            {/* Celular obligatorio: la cocina lo muestra como llamada con un tap. */}
+            <input
+              className="order-input"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="Celular (ej. 11 5555 1234)"
+              value={customerPhone}
+              onChange={(e) => onCustomerPhoneChange(e.target.value)}
+            />
+          </>
+        )}
 
         {table ? (
           // Mesa fija (QR de mesa): el pedido ES de salón — el tipo no se
