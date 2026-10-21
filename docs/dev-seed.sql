@@ -34,17 +34,17 @@ FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN'), (990004,
 WHERE NOT EXISTS (SELECT 1 FROM roles r WHERE r.name = v.name);
 
 -- Business
-INSERT INTO businesses (id, name, phone, slug)
-VALUES (990000001, 'Foodtruck Demo', '1123456789', 'demo-e2e')
+INSERT INTO businesses (id, name, phone, slug, active)
+VALUES (990000001, 'Foodtruck Demo', '1123456789', 'demo-e2e', true)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Users: password is admin123 (bcrypt, cost 10)
-INSERT INTO users (id, username, email, password) VALUES
-  (990001, 'e2e-owner',   'e2e-owner@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
-  (990002, 'e2e-kitchen', 'e2e-kitchen@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
-  (990003, 'e2e-admin',   'e2e-admin@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
-  (990004, 'e2e-pedidos', 'e2e-pedidos@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2'),
-  (990005, 'e2e-platform-admin', 'e2e-platform-admin@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2')
+INSERT INTO users (id, username, email, password, active) VALUES
+  (990001, 'e2e-owner',   'e2e-owner@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2', true),
+  (990002, 'e2e-kitchen', 'e2e-kitchen@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2', true),
+  (990003, 'e2e-admin',   'e2e-admin@demo.test',   '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2', true),
+  (990004, 'e2e-pedidos', 'e2e-pedidos@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2', true),
+  (990005, 'e2e-platform-admin', 'e2e-platform-admin@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Operador de plataforma (rol PLATFORM_ADMIN): no pertenece a ningún
