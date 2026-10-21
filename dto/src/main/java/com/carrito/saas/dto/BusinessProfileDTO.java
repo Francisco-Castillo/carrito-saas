@@ -23,6 +23,12 @@ public class BusinessProfileDTO {
 
     private String name;
 
+    /** Teléfono del local (WhatsApp): el menú público lo sirve como
+     *  {@code whatsappNumber}. Mismas reglas que en el alta de plataforma:
+     *  dígitos, sin 0 ni 15 (espeja el check businesses_phone_shape).
+     *  null = no tocar (actualización parcial); vacío limpia; inválido es 400. */
+    private String phone;
+
     private String logoUrl;
 
     private String bannerUrl;

@@ -588,6 +588,81 @@ class BusinessProfileAndStorefrontTests {
 	}
 
 	/**
+	 * {@code phone} viaja en el perfil del dueño: el GET lo devuelve, un PUT
+	 * con sólo {@code phone} lo guarda y el menú público lo expone como
+	 * {@code whatsappNumber} (el número que usa el fallback de WhatsApp).
+	 */
+	@Test
+	void putWithOnlyPhoneSavesItAndPublicMenuCarriesItAsWhatsappNumber() throws Exception {
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"phone\":\"5491123456789\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.phone").value("5491123456789"))
+				.andExpect(jsonPath("$.name").value("Business " + SLUG_A))
+				.andExpect(jsonPath("$.address").value(equalTo(null)));
+
+		entityManager.flush();
+		entityManager.clear();
+		assertThat(businessA().getPhone()).as("el teléfono quedó en la base").isEqualTo("5491123456789");
+
+		mockMvc.perform(get("/api/menu/" + SLUG_A))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.business.whatsappNumber").value("5491123456789"));
+	}
+
+	/** {@code phone} ausente conserva el guardado; blank lo limpia (null en la base). */
+	@Test
+	void putWithoutPhoneKeepsStoredPhoneAndBlankPhoneClearsIt() throws Exception {
+
+		Business seeded = businessA();
+		seeded.setPhone("5491123456789");
+		businessRepository.saveAndFlush(seeded);
+		entityManager.clear();
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"address\":\"Calle Parcial 789\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.phone").value("5491123456789"));
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"phone\":\"   \"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.phone").value(equalTo(null)));
+
+		entityManager.flush();
+		entityManager.clear();
+		assertThat(businessA().getPhone()).as("el teléfono quedó en null en la base").isNull();
+	}
+
+	/** Un teléfono con forma inválida es 400 (espejo del check businesses_phone_shape). */
+	@Test
+	void putRejectsInvalidPhone() throws Exception {
+
+		Business seeded = businessA();
+		seeded.setPhone("5491123456789");
+		businessRepository.saveAndFlush(seeded);
+		entityManager.clear();
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"phone\":\"no-es-un-telefono\"}"))
+				.andExpect(status().isBadRequest());
+
+		entityManager.flush();
+		entityManager.clear();
+		assertThat(businessA().getPhone()).as("el teléfono guardado queda intacto")
+				.isEqualTo("5491123456789");
+	}
+
+	/**
 	 * {@code name: ""} es 400 (un negocio necesita nombre) y no toca lo
 	 * guardado; {@code name} ausente conserva el nombre almacenado.
 	 */

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.regex.Pattern;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -196,6 +197,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 	private BusinessProfileDTO toProfileDTO(Business business) {
 		BusinessProfileDTO dto = new BusinessProfileDTO();
 		dto.setName(business.getName());
+		dto.setPhone(business.getPhone());
 		dto.setLogoUrl(business.getLogoUrl());
 		dto.setBannerUrl(business.getBannerUrl());
 		dto.setAddress(business.getAddress());
@@ -218,6 +220,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		Business business = currentBusiness();
 
 		validateName(dto.getName());
+		validatePhone(dto.getPhone());
 		validateUrl("logoUrl", dto.getLogoUrl(), MAX_URL_LENGTH);
 		validateUrl("bannerUrl", dto.getBannerUrl(), MAX_URL_LENGTH);
 		validateUrl("instagramUrl", dto.getInstagramUrl(), MAX_URL_LENGTH);
@@ -249,6 +252,12 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		// necesita nombre.
 		if (dto.getName() != null) {
 			business.setName(dto.getName().trim());
+		}
+		if (dto.getPhone() != null) {
+			// Teléfono/WhatsApp: mismo contrato parcial que los demás textos —
+			// ausente conserva lo guardado, vacío limpia (null en la base) y
+			// presente ya vino validado (validatePhone).
+			business.setPhone(normalize(dto.getPhone()));
 		}
 		if (dto.getLogoUrl() != null) {
 			business.setLogoUrl(normalize(dto.getLogoUrl()));
@@ -325,6 +334,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 
 		BusinessProfileDTO result = new BusinessProfileDTO();
 		result.setName(business.getName());
+		result.setPhone(business.getPhone());
 		result.setLogoUrl(business.getLogoUrl());
 		result.setBannerUrl(business.getBannerUrl());
 		result.setAddress(business.getAddress());
@@ -396,6 +406,23 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 	private void validateAddress(String address) {
 		if (address != null && address.trim().length() > MAX_ADDRESS_LENGTH) {
 			throw new BusinessException("address no puede superar los " + MAX_ADDRESS_LENGTH + " caracteres",
+					ErrorType.VALIDATION);
+		}
+	}
+
+	/** Espeja el check businesses_phone_shape: dígitos, 8-14, sin 0 ni 15 inicial. */
+	private static final Pattern PHONE_SHAPE = Pattern.compile("^[1-9][0-9]{7,13}$");
+
+	/**
+	 * Teléfono del local (el WhatsApp que usa el fallback de la carta). Mismo
+	 * criterio que el alta de plataforma: sólo dígitos en forma E.164 sin el
+	 * '+', sin 0 ni 15 de prefijo local. null/blank es válido acá (blank limpia
+	 * el campo en la aplicación parcial).
+	 */
+	private void validatePhone(String phone) {
+		String trimmed = phone == null ? null : phone.trim();
+		if (trimmed != null && !trimmed.isBlank() && !PHONE_SHAPE.matcher(trimmed).matches()) {
+			throw new BusinessException("El teléfono debe ser código de país y número, sin 0 ni 15",
 					ErrorType.VALIDATION);
 		}
 	}
