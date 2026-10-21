@@ -102,3 +102,23 @@ CREATE SEQUENCE IF NOT EXISTS businesses_id_seq
 -- quote", CI de #66). Las DBs administradas a mano aplican la migración
 -- hermana una vez (ALTER idempotente). Baja = active=false; REVERSIBLE; el
 -- historial no se toca.
+
+-- Imágenes subidas (productos, combos, logo/banner del negocio) almacenadas
+-- EN LA BASE, no en el filesystem. Motivo duro: el demo corre en Render free,
+-- donde el filesystem del contenedor (/tmp) se VACÍA en cada spin-down
+-- (~15 min sin tráfico) y en cada redeploy, mientras las URLs quedan en
+-- product.image_url / business.logo_url / combos.image_url — imagen rota.
+-- Postgres es el único almacenamiento que el plan gratuito persiste.
+--
+-- Ownership: JDBC puro (JdbcTemplate en ImageStorageService), sin entidad
+-- JPA — mismo criterio que las tablas de analytics de arriba. Sin FK a
+-- propósito: los dueños de las URLs son las columnas image_url de varias
+-- tablas, y el ciclo de vida (borrar al reemplazar) lo maneja el servicio.
+-- Idempotente (IF NOT EXISTS): corre en cada arranque.
+CREATE TABLE IF NOT EXISTS uploaded_images (
+  id           UUID PRIMARY KEY,
+  kind         VARCHAR(20)  NOT NULL,
+  content_type VARCHAR(100) NOT NULL,
+  data         BYTEA        NOT NULL,
+  created_at   TIMESTAMP    NOT NULL DEFAULT now()
+);
