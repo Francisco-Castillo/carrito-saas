@@ -32,6 +32,10 @@ public class BusinessDTO {
     /** Brand color del local como hex {@code #RRGGBB}, o null si no cargó uno. */
     private String primaryColor;
 
+    /** Tipografía de la carta: slug de la lista blanca de fuentes curadas,
+     *  o null si el dueño no eligió ninguna (la carta usa Inter). */
+    private String menuFont;
+
     private List<BusinessHoursDTO> hours;
 
     /** Fechas especiales (feriados y horarios especiales), ordenadas por fecha;

@@ -156,4 +156,14 @@ public class Business {
     @Column(length = 7)
     private String primaryColor;
 
+    /**
+     * Tipografía de la carta: slug de la lista blanca de fuentes curadas
+     * (ver {@code BusinessProfileServiceImpl#MENU_FONTS}), o NULL cuando el
+     * dueño no eligió ninguna (la carta usa Inter, el tema actual). El slug
+     * viaja por el perfil como {@code menuFont} y por el menú público como
+     * {@code business.menuFont}.
+     */
+    @Column(length = 40)
+    private String menuFont;
+
 }

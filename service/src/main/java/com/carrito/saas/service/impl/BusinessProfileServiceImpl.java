@@ -92,6 +92,17 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 	private static final int MAX_URL_LENGTH = 500;
 	/** Color de marca: exactamente #RRGGBB (6 dígitos hexadecimales). */
 	private static final java.util.regex.Pattern HEX_COLOR = java.util.regex.Pattern.compile("^#[0-9a-fA-F]{6}$");
+	/**
+	 * Lista blanca de fuentes curadas para la carta (spec S2 de
+	 * odd/tasks/personalizacion-carta.md): slugs de Google Fonts elegidos para
+	 * menú — sin serif por defecto, serif elegante, slab y redondeada. Cualquier
+	 * slug fuera de esta lista es 400: el dueño no puede inyectar una fuente
+	 * arbitraria. Mantener en sync con MENU_FONT_OPTIONS del frontend
+	 * (frontend/src/pages/admin/menuFonts.ts).
+	 */
+	private static final java.util.Set<String> MENU_FONTS = java.util.Set.of(
+			"inter", "poppins", "montserrat", "playfair-display",
+			"lora", "roboto-slab", "dm-serif-display", "nunito");
 	private static final int MAX_ADDRESS_LENGTH = 300;
 	/** Máximo de turnos por día: holgado para cualquier local real. */
 	private static final int MAX_SHIFTS_PER_DAY = 4;
@@ -203,6 +214,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		dto.setAddress(business.getAddress());
 		dto.setInstagramUrl(business.getInstagramUrl());
 		dto.setPrimaryColor(business.getPrimaryColor());
+		dto.setMenuFont(business.getMenuFont());
 		dto.setHours(toHoursDTOs(business.getId()));
 		dto.setDateExceptions(toDateExceptionDTOs(business.getId()));
 
@@ -226,6 +238,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		validateUrl("instagramUrl", dto.getInstagramUrl(), MAX_URL_LENGTH);
 		validateAddress(dto.getAddress());
 		validatePrimaryColor(dto.getPrimaryColor());
+		validateMenuFont(dto.getMenuFont());
 
 		// Horas efectivas, resueltas UNA sola vez: las del payload cuando
 		// viaja, las almacenadas cuando no. La validación de derrame de las
@@ -275,6 +288,14 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 			// Mismo contrato parcial que los demás textos: ausente conserva lo
 			// guardado, vacío limpia (null en la base), presente ya vino validado.
 			business.setPrimaryColor(normalize(dto.getPrimaryColor()));
+		}
+		if (dto.getMenuFont() != null) {
+			// Mismo contrato parcial: ausente conserva, vacío limpia (la carta
+			// vuelve a Inter), presente ya vino validado contra la whitelist.
+			// normalize("" ) devuelve null — el caso "limpiar" NO pasa por
+			// toLowerCase (NPE: el blank-clear llegaba al cliente como 500).
+			String normalized = normalize(dto.getMenuFont());
+			business.setMenuFont(normalized == null ? null : normalized.toLowerCase());
 		}
 		businessRepository.save(business);
 
@@ -340,6 +361,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		result.setAddress(business.getAddress());
 		result.setInstagramUrl(business.getInstagramUrl());
 		result.setPrimaryColor(business.getPrimaryColor());
+		result.setMenuFont(business.getMenuFont());
 		result.setHours(toHoursDTOs(business.getId()));
 		result.setDateExceptions(toDateExceptionDTOs(business.getId()));
 
@@ -376,6 +398,26 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		if (!HEX_COLOR.matcher(value.trim()).matches()) {
 			throw new BusinessException("El color debe ser un código hexadecimal (#RRGGBB)",
 					ErrorType.VALIDATION);
+		}
+	}
+
+	/**
+	 * La fuente de la carta es opcional: null (ausente) no valida nada — es
+	 * "no tocar" en la actualización parcial; vacío limpia y se acepta; presente
+	 * tiene que ser un slug de la lista blanca (normalizado a minúsculas antes
+	 * de comparar, porque el picker del frontend puede mandar mayúsculas);
+	 * cualquier otra cosa es 400 con mensaje en español y NADA se guarda (la
+	 * validación corre antes de cualquier mutación).
+	 */
+	private void validateMenuFont(String value) {
+
+		if (value == null || value.isBlank()) {
+			return;
+		}
+
+		String slug = value.trim().toLowerCase();
+		if (!MENU_FONTS.contains(slug)) {
+			throw new BusinessException("La fuente elegida no está disponible", ErrorType.VALIDATION);
 		}
 	}
 
