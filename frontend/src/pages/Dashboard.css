@@ -235,6 +235,41 @@
   color: var(--color-text-muted);
 }
 
+/* Header de panel con título + chip de variación alineados. */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.panel-header h2 {
+  margin: 0;
+}
+
+/* Chip de variación semanal: verde para subir, rojo para bajar, sobre vidrio. */
+.variation-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.variation-chip--up {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.variation-chip--down {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
 /* ------------------------------------------------------------
    Ventas hoy (chart) y Top productos
    ------------------------------------------------------------ */

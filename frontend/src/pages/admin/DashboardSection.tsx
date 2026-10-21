@@ -11,7 +11,7 @@ import TopProducts from "../dashboard/TopProducts";
  * dashboard existentes en vez de duplicarlos.
  */
 export default function DashboardSection() {
-  const { today, topProducts, salesByHour, salesByDay, loading, errors } =
+  const { today, topProducts, salesByHour, salesByDay, salesPrevWeek, loading, errors } =
     useDashboardData(true);
 
   return (
@@ -20,7 +20,7 @@ export default function DashboardSection() {
 
       <SalesChart data={salesByHour} loading={loading} error={errors.salesByHour} />
 
-      <SalesByDayChart data={salesByDay} loading={loading} error={errors.salesByDay} />
+      <SalesByDayChart data={salesByDay} prevData={salesPrevWeek} loading={loading} error={errors.salesByDay} />
 
       <TopProducts products={topProducts} loading={loading} error={errors.topProducts} />
     </div>

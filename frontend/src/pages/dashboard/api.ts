@@ -40,6 +40,14 @@ export interface SalesByDay {
   revenue: number;
 }
 
+/** Tendencia de un producto (sube/baja vs. período anterior). */
+export interface ProductTrend {
+  productId: number;
+  productName: string;
+  trendPercentage: number;
+  trendDirection: string;
+}
+
 /**
  * Base de la API del panel. El slug de sesión es obligatorio y se resuelve
  * por request, no en una constante de módulo: así ningún camino arma una base
@@ -87,5 +95,17 @@ export const api = {
 
   getSalesLast7Days(): Promise<SalesByDay[]> {
     return apiGet("/analytics/sales-last-7-days");
+  },
+
+  getSalesPrevious7Days(): Promise<SalesByDay[]> {
+    return apiGet("/analytics/sales-previous-7-days");
+  },
+
+  getTrendsTopUp(limit = 5): Promise<ProductTrend[]> {
+    return apiGet(`/trends/top-up?limit=${limit}`);
+  },
+
+  getTrendsTopDown(limit = 5): Promise<ProductTrend[]> {
+    return apiGet(`/trends/top-down?limit=${limit}`);
   },
 };

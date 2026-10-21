@@ -26,13 +26,15 @@ import type {
 const REFRESH_MS = 60_000;
 
 /** Cada loader del hook, identificado para el estado de error por sección. */
-type LoadKey = "today" | "topProducts" | "salesByHour" | "salesByDay";
+type LoadKey = "today" | "topProducts" | "salesByHour" | "salesByDay" | "salesPrevWeek" | "trends";
 
 export interface DashboardErrors {
   today: boolean;
   topProducts: boolean;
   salesByHour: boolean;
   salesByDay: boolean;
+  salesPrevWeek: boolean;
+  trends: boolean;
 }
 
 export function useDashboardData(enabled: boolean) {
@@ -40,6 +42,7 @@ export function useDashboardData(enabled: boolean) {
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [salesByHour, setSalesByHour] = useState<SalesByHour[] | null>(null);
   const [salesByDay, setSalesByDay] = useState<SalesByDay[] | null>(null);
+  const [salesPrevWeek, setSalesPrevWeek] = useState<SalesByDay[] | null>(null);
   const [date, setDate] = useState("");
 
   // Primera carga: los skeletons están arriba hasta que la tanda inicial
@@ -51,6 +54,8 @@ export function useDashboardData(enabled: boolean) {
     topProducts: false,
     salesByHour: false,
     salesByDay: false,
+    salesPrevWeek: false,
+    trends: false,
   });
 
   useEffect(() => {
@@ -77,6 +82,7 @@ export function useDashboardData(enabled: boolean) {
         track("topProducts", api.getTopProducts().then(setTopProducts)),
         track("salesByHour", api.getSalesByHour().then(setSalesByHour)),
         track("salesByDay", api.getSalesLast7Days().then(setSalesByDay)),
+        track("salesPrevWeek", api.getSalesPrevious7Days().then(setSalesPrevWeek)),
       ]).then(() => setLoading(false));
     };
 
@@ -87,5 +93,14 @@ export function useDashboardData(enabled: boolean) {
     return () => clearInterval(intervalId);
   }, [enabled]);
 
-  return { today, topProducts, salesByHour, salesByDay, date, loading, errors };
+  return {
+    today,
+    topProducts,
+    salesByHour,
+    salesByDay,
+    salesPrevWeek,
+    date,
+    loading,
+    errors,
+  };
 }

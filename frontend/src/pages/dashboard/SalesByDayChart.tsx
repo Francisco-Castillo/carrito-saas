@@ -6,10 +6,25 @@ import { formatDayLabel } from "./format";
 interface SalesByDayChartProps {
   /** null = sin datos aún: el canvas queda vacío hasta la primera respuesta. */
   data: SalesByDay[] | null;
+  /** Semana anterior (misma longitud/orden): línea comparativa + % variación. */
+  prevData?: SalesByDay[] | null;
   /** Primera carga en curso: esqueleto del panel en vez del panel vacío. */
   loading?: boolean;
   /** La API falló y no hay datos: mensaje visible en vez del gráfico vacío. */
   error?: boolean;
+}
+
+/** Variación % del total de la semana actual contra la anterior. */
+function weekVariation(data: SalesByDay[], prev: SalesByDay[]): number | null {
+  const total = data.reduce((sum, d) => sum + d.revenue, 0);
+  const prevTotal = prev.reduce((sum, d) => sum + d.revenue, 0);
+
+  // Sin base de comparación no hay % honesto que mostrar.
+  if (prevTotal === 0) {
+    return null;
+  }
+
+  return ((total - prevTotal) / prevTotal) * 100;
 }
 
 /**
@@ -18,7 +33,7 @@ interface SalesByDayChartProps {
  * sin ventas, así que el eje X es estable. Mismo estilo Chart.js que
  * SalesChart (línea → barras para distinguir el corte temporal).
  */
-export default function SalesByDayChart({ data, loading = false, error = false }: SalesByDayChartProps) {
+export default function SalesByDayChart({ data, prevData, loading = false, error = false }: SalesByDayChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
 
@@ -28,6 +43,11 @@ export default function SalesByDayChart({ data, loading = false, error = false }
 
     const labels = data.map((d) => formatDayLabel(d.day));
     const values = data.map((d) => d.revenue);
+    // La semana anterior alinea por índice: el backend devuelve ambas series
+    // día-más-viejo-primero, misma longitud.
+    const prevValues = prevData && prevData.length === data.length
+      ? prevData.map((d) => d.revenue)
+      : null;
 
     chartRef.current?.destroy();
 
@@ -43,7 +63,23 @@ export default function SalesByDayChart({ data, loading = false, error = false }
             hoverBackgroundColor: "rgba(99,102,241,0.8)",
             borderRadius: 6,
             maxBarThickness: 48,
+            order: 2,
           },
+          ...(prevValues
+            ? [
+                {
+                  label: "Semana anterior",
+                  data: prevValues,
+                  type: "line" as const,
+                  borderColor: "rgba(232,121,249,0.8)",
+                  backgroundColor: "rgba(232,121,249,0.15)",
+                  borderDash: [6, 4],
+                  pointRadius: 2,
+                  tension: 0.3,
+                  order: 1,
+                },
+              ]
+            : []),
         ],
       },
       options: {
@@ -84,9 +120,20 @@ export default function SalesByDayChart({ data, loading = false, error = false }
     };
   }, [data]);
 
+  const variation = data && prevData ? weekVariation(data, prevData) : null;
+
   return (
     <section className="chart-section panel glass-panel fade-up">
-      <h2>Ventas últimos 7 días</h2>
+      <div className="panel-header">
+        <h2>Ventas últimos 7 días</h2>
+        {variation !== null && (
+          <span
+            className={`variation-chip ${variation >= 0 ? "variation-chip--up" : "variation-chip--down"}`}
+          >
+            {variation >= 0 ? "▲" : "▼"} {Math.abs(variation).toFixed(1)}% vs. semana anterior
+          </span>
+        )}
+      </div>
 
       {loading && !data ? (
         <div className="chart-container skeleton" aria-busy="true" aria-label="Cargando ventas semanales" />
