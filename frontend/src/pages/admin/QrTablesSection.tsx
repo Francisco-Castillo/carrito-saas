@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { API, authHeader } from "./api";
+import LoadingPanel from "./LoadingPanel";
 import { useConfirmDialog } from "./useConfirmDialog";
 import ConfirmModal from "./ConfirmModal";
 
@@ -180,7 +181,8 @@ export default function QrTablesSection() {
     }
   }
 
-  if (loading) return null;
+  // Primera carga de mesas/QR: skeleton en vez de la pestaña invisible.
+  if (loading) return <LoadingPanel label="Cargando mesas y QR…" lines={5} />;
 
   return (
     <div className="glass-panel fade-up admin-table-panel admin-qr-panel">

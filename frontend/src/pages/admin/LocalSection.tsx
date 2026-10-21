@@ -1,6 +1,7 @@
 import { useState } from "react";
 import DatosSection from "./DatosSection";
 import HorariosSection from "./HorariosSection";
+import LoadingPanel from "./LoadingPanel";
 import PersonalizationSection from "./PersonalizationSection";
 import QrTablesSection from "./QrTablesSection";
 import { useBusinessProfile } from "./useBusinessProfile";
@@ -36,7 +37,10 @@ export default function LocalSection() {
   const [tab, setTab] = useState<LocalTab>("profile");
   const profile = useBusinessProfile();
 
-  if (profile.loading) return null;
+  // Primera carga del perfil: skeleton del dashboard en vez de la vista
+  // invisible (return null) que no daba ninguna señal (S1 de
+  // odd/tasks/carga-responsive-panel.md).
+  if (profile.loading) return <LoadingPanel label="Cargando el perfil del local…" lines={6} />;
 
   return (
     <div>

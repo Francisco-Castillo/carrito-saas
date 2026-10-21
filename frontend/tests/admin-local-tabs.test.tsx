@@ -15,7 +15,7 @@
  * Los endpoints de QR responden binario (image/png / application/pdf): el
  * stub de fetch entrega blobs y se stubbea URL.createObjectURL.
  */
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Admin from '../src/pages/Admin'
@@ -302,5 +302,31 @@ describe('vista Local: pestañas', () => {
     await waitFor(() => {
       expect(calls.some((c) => c.method === 'DELETE' && c.url.includes('/api/tables/11'))).toBe(true)
     })
+  })
+})
+
+describe('vista Local: estado de carga', () => {
+  it('shows the dashboard-style skeleton while the profile loads', async () => {
+    let resolveProfile!: (value: Response) => void
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/business/profile')) {
+        return new Promise<Response>((resolve) => {
+          resolveProfile = resolve
+        })
+      }
+      return { ok: false, status: 404, json: async () => ({ message: 'unexpected' }) } as Response
+    }))
+
+    render(<Admin />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Local' }))
+
+    // While the profile is pending: the dashboard-style skeleton instead of
+    // the old `return null` (an invisible, silent section).
+    expect(screen.getByRole('status', { name: /cargando el perfil/i })).toBeInTheDocument()
+
+    act(() => resolveProfile({ ok: true, status: 200, json: async () => PROFILE } as Response))
+    expect(await screen.findByLabelText('Nombre del local')).toHaveValue('Foodtruck Demo')
+    expect(screen.queryByRole('status', { name: /cargando el perfil/i })).not.toBeInTheDocument()
   })
 })
