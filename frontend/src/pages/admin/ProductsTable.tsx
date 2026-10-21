@@ -100,11 +100,14 @@ export default function ProductsTable() {
     }
   }
 
-  if (products === null) return null;
+  // Carga fallida (API error): la vista no desaparece — el panel se muestra
+  // con mensaje de error en la tabla. Antes el `return null` dejaba la
+  // pantalla en blanco, sin tabla y sin pista (hallazgo de Playwright).
+  const list = products ?? [];
 
   // Filtro en cliente sobre la lista ya cargada (accent- y case-insensitive).
   const needle = normalize(query.trim());
-  const filtered = needle === "" ? products : products.filter((p) => normalize(p.name).includes(needle));
+  const filtered = needle === "" ? list : list.filter((p) => normalize(p.name).includes(needle));
 
   return (
     <>
@@ -138,9 +141,11 @@ export default function ProductsTable() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={5} className="admin-empty-state">
-                    {products.length === 0
-                      ? 'Todavía no hay productos. Creá el primero con "+ Nuevo producto".'
-                      : "No hay productos que coincidan con la búsqueda"}
+                    {products === null
+                      ? "No se pudieron cargar los productos. Reintentá recargando la página."
+                      : products.length === 0
+                        ? 'Todavía no hay productos. Creá el primero con "+ Nuevo producto".'
+                        : "No hay productos que coincidan con la búsqueda"}
                   </td>
                 </tr>
               )}
