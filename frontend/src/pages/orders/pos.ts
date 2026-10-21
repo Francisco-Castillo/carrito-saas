@@ -47,8 +47,9 @@ export interface PosOrderItemPayload {
 }
 
 export interface PosOrderRequestPayload {
-  customerName: string;
-  customerPhone: string;
+  /** Ausentes en SALON: el pedido de mesa es anónimo (la mesa identifica). */
+  customerName?: string;
+  customerPhone?: string;
   orderType: PosOrderType;
   paymentMethod: PosPaymentMethod;
   notes: string;
@@ -67,9 +68,13 @@ export function buildOrderRequest(
   form: PosOrderForm,
   items: PosCartItem[]
 ): PosOrderRequestPayload {
+  // SALON viaja sin datos del cliente: la mesa identifica al comensal y el
+  // backend guarda el pedido anónimo (customerName/phone null).
+  const isSalon = form.orderType === "SALON";
   const payload: PosOrderRequestPayload = {
-    customerName: form.customerName,
-    customerPhone: form.customerPhone,
+    ...(isSalon
+      ? {}
+      : { customerName: form.customerName, customerPhone: form.customerPhone }),
     orderType: form.orderType,
     paymentMethod: form.paymentMethod,
     notes: form.notes,
@@ -107,7 +112,8 @@ export function validatePosOrder(
   if (items.length === 0) {
     return "Agrega al menos un producto al pedido";
   }
-  if (form.customerName.trim() === "") {
+  // SALON no pide nombre: la mesa identifica al comensal.
+  if (form.orderType !== "SALON" && form.customerName.trim() === "") {
     return "El nombre del cliente es obligatorio";
   }
   if (form.orderType === "SALON" && form.tableId === null) {

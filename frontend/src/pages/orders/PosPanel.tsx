@@ -26,7 +26,8 @@ interface PosPanelProps {
  * Counter POS (T4 / S2): "es lo que hace el flujo del cliente pero operado
  * por vos". Catálogo con búsqueda de texto (productos + combos activos),
  * carrito con cantidades y total, tipo de pedido (SALON/RETIRO/DELIVERY)
- * con picker de mesa para SALON, datos del cliente (nombre obligatorio),
+ * con picker de mesa para SALON (que viaja anónimo: la mesa identifica al
+ * comensal), datos del cliente (nombre obligatorio salvo SALON),
  * forma de pago y notas. Crea vía POST /api/orders/menu/{slug} (endpoint
  * existente) y los errores de validación del backend se muestran en español.
  */
@@ -268,19 +269,24 @@ export default function PosPanel({ onClose, onCreated }: PosPanelProps) {
                 </select>
               )}
 
-              <input
-                type="text"
-                placeholder="Nombre y apellido (obligatorio)"
-                value={form.customerName}
-                onChange={(e) => setForm((f) => ({ ...f, customerName: e.target.value }))}
-              />
-              <input
-                type="tel"
-                inputMode="tel"
-                placeholder="Celular (opcional)"
-                value={form.customerPhone}
-                onChange={(e) => setForm((f) => ({ ...f, customerPhone: e.target.value }))}
-              />
+              {/* SALON no pide datos del cliente: la mesa identifica al comensal. */}
+              {form.orderType !== "SALON" && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Nombre y apellido (obligatorio)"
+                    value={form.customerName}
+                    onChange={(e) => setForm((f) => ({ ...f, customerName: e.target.value }))}
+                  />
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="Celular (opcional)"
+                    value={form.customerPhone}
+                    onChange={(e) => setForm((f) => ({ ...f, customerPhone: e.target.value }))}
+                  />
+                </>
+              )}
               {form.orderType === "DELIVERY" && (
                 <input
                   type="text"

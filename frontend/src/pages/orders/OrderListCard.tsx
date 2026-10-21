@@ -49,8 +49,9 @@ export default function OrderListCard({
         <span> · {formatTime(order.createdAt)}</span>
       </div>
 
-      <p className="orders-card-customer">
-        {order.customerName}
+      {(order.customerName || order.customerPhone) && (
+        <p className="orders-card-customer">
+          {order.customerName}
         {order.customerPhone && (
           <>
             <a
@@ -66,7 +67,8 @@ export default function OrderListCard({
             <CopyPhoneButton phone={order.customerPhone} />
           </>
         )}
-      </p>
+        </p>
+      )}
 
       <ul className="orders-card-items">
         {order.items.map((item, i) => (

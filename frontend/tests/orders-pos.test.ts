@@ -130,6 +130,25 @@ describe('POS client-side validation (Spanish copy)', () => {
     )
   })
 
+  it('a SALON order needs no customer name: the table identifies the guest', () => {
+    expect(
+      validatePosOrder(form({ orderType: 'SALON', tableId: 3, customerName: '', customerPhone: '' }), [
+        productLine(1),
+      ])
+  ).toBeNull()
+  })
+
+  it('a SALON payload carries no customer fields at all', () => {
+    const payload = buildOrderRequest(
+      form({ orderType: 'SALON', tableId: 3, customerName: '', customerPhone: '' }),
+      [productLine(1)]
+    )
+
+    expect(payload).not.toHaveProperty('customerName')
+    expect(payload).not.toHaveProperty('customerPhone')
+    expect(payload.tableId).toBe(3)
+  })
+
   it('blocks a SALON order without a table', () => {
     expect(validatePosOrder(form({ orderType: 'SALON', tableId: null }), [productLine(1)])).toBe(
       'Selecciona una mesa para el pedido de salón'
