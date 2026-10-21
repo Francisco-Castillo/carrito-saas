@@ -25,12 +25,6 @@ export interface DashboardToday {
   avgPrepTime: number;
 }
 
-export interface OrderStatusSummary {
-  NEW?: number;
-  PREPARING?: number;
-  READY?: number;
-}
-
 export interface TopProduct {
   productName: string;
   quantity: number;
@@ -76,10 +70,6 @@ async function apiGet<T>(path: string): Promise<T> {
 export const api = {
   getDashboardToday(): Promise<DashboardToday> {
     return apiGet("/dashboard/today");
-  },
-
-  getOrderStatusSummary(): Promise<OrderStatusSummary> {
-    return apiGet("/orders/status-summary");
   },
 
   getTopProducts(): Promise<TopProduct[]> {

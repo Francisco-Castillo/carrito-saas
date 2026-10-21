@@ -111,17 +111,17 @@
 }
 
 /* El espacio entre secciones no es de la PANTALLA sino del COMPONENTE: el panel
-   admin renderiza las mismas secciones (stats, orders-status, chart-section,
-   top-products) dentro de `.admin-dashboard`, y con el selector atado a
-   `.dashboard-screen` quedaban pegadas — 0px medidos contra los 32px de acá.
-   Ojo al agregar variantes de pantalla: si el mismo componente se reusa, el
-   selector tiene que listarla o el espacio desaparece sin que nada falle. */
+   admin renderiza las mismas secciones (stats, chart-section, top-products)
+   dentro de `.admin-dashboard`, y con el selector atado a `.dashboard-screen`
+   quedaban pegadas — 0px medidos contra los 32px de acá. Ojo al agregar
+   variantes de pantalla: si el mismo componente se reusa, el selector tiene
+   que listarla o el espacio desaparece sin que nada falle. */
 .dashboard-screen main section,
 .admin-dashboard > section {
   margin-bottom: var(--space-8);
 }
 
-/* Panel de vidrio con padding (chart-section, top-products, orders-status) */
+/* Panel de vidrio con padding (chart-section, top-products) */
 .panel {
   padding: var(--space-5);
 }
@@ -161,33 +161,6 @@
   margin: var(--space-2) 0 0;
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
-}
-
-/* ------------------------------------------------------------
-   Pedidos activos
-   ------------------------------------------------------------ */
-
-.status-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--space-4);
-}
-
-.status-card {
-  background: var(--glass-bg-subtle);
-  border: 1px solid var(--glass-border-subtle);
-  border-radius: var(--radius-sm);
-  padding: var(--space-4);
-  text-align: center;
-}
-
-.status-card span {
-  color: var(--color-text-muted);
-}
-
-.status-card h3 {
-  font-size: var(--font-size-xl);
-  margin: var(--space-2) 0 0;
 }
 
 /* ------------------------------------------------------------

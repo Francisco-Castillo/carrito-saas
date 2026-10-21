@@ -3,7 +3,6 @@ import { api } from "./api";
 import { checkAuth } from "./auth";
 import type {
   DashboardToday,
-  OrderStatusSummary,
   SalesByHour,
   TopProduct,
 } from "./api";
@@ -19,7 +18,6 @@ import type {
  */
 export function useDashboardData(enabled: boolean) {
   const [today, setToday] = useState<DashboardToday | null>(null);
-  const [status, setStatus] = useState<OrderStatusSummary | null>(null);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [salesByHour, setSalesByHour] = useState<SalesByHour[] | null>(null);
   const [date, setDate] = useState("");
@@ -37,11 +35,6 @@ export function useDashboardData(enabled: boolean) {
       .catch((e) => console.error("Error cargando dashboard", e));
 
     api
-      .getOrderStatusSummary()
-      .then(setStatus)
-      .catch((e) => console.error("Error cargando estados", e));
-
-    api
       .getTopProducts()
       .then(setTopProducts)
       .catch((e) => console.error("Error cargando top productos", e));
@@ -52,5 +45,5 @@ export function useDashboardData(enabled: boolean) {
       .catch((e) => console.error("Error cargando grafico", e));
   }, [enabled]);
 
-  return { today, status, topProducts, salesByHour, date };
+  return { today, topProducts, salesByHour, date };
 }
