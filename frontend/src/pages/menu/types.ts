@@ -13,6 +13,27 @@ export interface Combo {
   imageUrl?: string | null;
 }
 
+export interface ProductOption {
+  id: number;
+  name: string;
+  priceDelta: number;
+}
+
+/**
+ * Grupo de opciones del producto, tal como lo sirve ProductDTO en el menú
+ * (odd/tasks/product-options.md S1/S2). required → el cliente debe elegir
+ * antes de agregar al carrito (S4).
+ */
+export interface ProductOptionGroup {
+  id?: number;
+  name: string;
+  required: boolean;
+  multiple: boolean;
+  minSelections?: number | null;
+  maxSelections?: number | null;
+  options: ProductOption[];
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -22,6 +43,7 @@ export interface Product {
   categoryName: string;
   imageUrl?: string;
   isCombo: boolean;
+  optionGroups?: ProductOptionGroup[] | null;
 }
 
 export interface Restaurant {
@@ -114,6 +136,13 @@ export interface CartEntry {
   product: Product;
   qty: number;
   isCombo: boolean;
+  /**
+   * Opciones elegidas (S4): ids de ProductOption, ordenados por grupo.
+   * Vacío/ausente = producto sin opciones (S6).
+   */
+  selectedOptionIds?: number[];
+  /** Precio unitario con recargos, ya calculado al agregar. */
+  unitPrice: number;
 }
 
 /** Legacy shape: object keyed by product id → { product, qty, isCombo }. */

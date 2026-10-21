@@ -1458,3 +1458,59 @@
     animation: none;
   }
 }
+
+/* Opciones de producto en el sheet (odd/tasks/product-options.md, T5). */
+.sheet-option-group {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  border-radius: 10px;
+}
+
+.sheet-option-group--missing {
+  border-color: #d64545;
+}
+
+.sheet-option-group--name {
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.sheet-option-required {
+  color: #d64545;
+}
+
+.sheet-option-hint {
+  font-weight: 400;
+  font-size: 0.85em;
+  color: var(--muted, #666);
+}
+
+.sheet-option-error {
+  color: #d64545;
+  font-size: 0.85rem;
+  margin: 0 0 6px;
+}
+
+.sheet-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.sheet-option-name {
+  flex: 1;
+}
+
+.sheet-option-delta {
+  color: var(--muted, #666);
+  font-size: 0.9em;
+}
+
+.cart-line-options {
+  display: block;
+  font-size: 0.85em;
+  color: var(--muted, #666);
+}

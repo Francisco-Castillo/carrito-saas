@@ -398,11 +398,27 @@ export default function Menu() {
     localStorage.setItem("cart", JSON.stringify(next));
   }
 
-  function addItem(product: Product, qty = 1) {
-    const id = product.id;
+  /**
+   * Clave de línea del carrito: producto solo → su id (igual que siempre);
+   * con opciones (S4) → id + combinación elegida, para que dos elecciones
+   * distintas convivan como líneas separadas.
+   */
+  function cartKey(productId: string, selectedOptionIds: number[]): string {
+    return selectedOptionIds.length > 0 ? `${productId}|${selectedOptionIds.join(",")}` : productId;
+  }
+
+  function addItem(product: Product, qty = 1, selectedOptionIds: number[] = []) {
+    // Precio unitario con recargos, calculado al agregar (S4).
+    let unitPrice = product.price;
+    for (const group of product.optionGroups ?? []) {
+      for (const option of group.options) {
+        if (selectedOptionIds.includes(option.id)) unitPrice += option.priceDelta;
+      }
+    }
+    const id = cartKey(product.id, selectedOptionIds);
     const next: Cart = { ...cart };
     if (!next[id]) {
-      next[id] = { product, qty: 0, isCombo: product.isCombo || false };
+      next[id] = { product, qty: 0, isCombo: product.isCombo || false, selectedOptionIds, unitPrice };
     }
     next[id] = { ...next[id], qty: next[id].qty + qty };
     saveCart(next);
@@ -447,12 +463,17 @@ export default function Menu() {
     let message = "Hola! Quiero hacer el siguiente pedido:%0A%0A";
 
     Object.values(cart).forEach((item) => {
-      message += `• ${item.qty} x ${item.product.name}%0A`;
+      // Líneas con opciones (S4): nombre + opciones elegidas legibles.
+      const opciones = (item.product.optionGroups ?? [])
+        .flatMap((g) => g.options)
+        .filter((o) => (item.selectedOptionIds ?? []).includes(o.id))
+        .map((o) => o.name);
+      message += `• ${item.qty} x ${item.product.name}${opciones.length > 0 ? ` (${opciones.join(", ")})` : ""}%0A`;
     });
 
     let total = 0;
     Object.values(cart).forEach((item) => {
-      total += item.qty * item.product.price;
+      total += item.qty * (item.unitPrice ?? item.product.price);
     });
 
     message += `%0A*Total:* ${formatARS(total)}%0A`;
@@ -512,12 +533,17 @@ export default function Menu() {
       return;
     }
 
-    // El pedido entra primero a la cocina
+    // El pedido entra primero a la cocina. Las líneas con opciones viajan
+    // con selectedOptionIds (S4); la clave de línea es "productId|opciones".
     const items = Object.entries(cart).map(([id, item]) => {
       if (item.isCombo) {
         return { comboId: Number(id.replace("combo-", "")), quantity: item.qty };
       }
-      return { productId: Number(id), quantity: item.qty };
+      const productId = Number(id.split("|")[0]);
+      if (item.selectedOptionIds && item.selectedOptionIds.length > 0) {
+        return { productId, quantity: item.qty, selectedOptionIds: item.selectedOptionIds };
+      }
+      return { productId, quantity: item.qty };
     });
 
     const payload: Record<string, unknown> = table
@@ -606,8 +632,10 @@ export default function Menu() {
   }
 
   const cartVisible = Object.keys(cart).length > 0;
+  // Precio por línea: unitPrice con recargos si la línea tiene opciones (S4);
+  // precio base del producto para el resto (S6).
   const total = Object.values(cart).reduce(
-    (sum, item) => sum + item.qty * item.product.price,
+    (sum, item) => sum + item.qty * (item.unitPrice ?? item.product.price),
     0
   );
   const totalUnits = Object.values(cart).reduce((sum, item) => sum + item.qty, 0);
@@ -793,7 +821,7 @@ export default function Menu() {
                   onPaymentMethodChange={setPaymentMethod}
                   onAddItem={(id) => {
                     const entry = cart[id];
-                    if (entry) addItem(entry.product);
+                    if (entry) addItem(entry.product, 1, entry.selectedOptionIds ?? []);
                   }}
                   onRemoveItem={removeItem}
                   onSubmit={handleSubmit}
@@ -808,8 +836,8 @@ export default function Menu() {
         <ProductDetailSheet
           product={detailProduct}
           onClose={() => setDetailProduct(null)}
-          onAdd={(qty) => {
-            addItem(detailProduct, qty);
+          onAdd={(qty, selectedOptionIds) => {
+            addItem(detailProduct, qty, selectedOptionIds);
             setDetailProduct(null);
           }}
         />

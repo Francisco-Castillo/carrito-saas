@@ -67,8 +67,8 @@ export default function CartPanel({
       <h2 className="cart-title">Tu pedido</h2>
 
       <ul className="cart-lines">
-        {Object.values(cart).map((item) => (
-          <li key={item.product.id} className="cart-line">
+        {Object.entries(cart).map(([entryId, item]) => (
+          <li key={entryId} className="cart-line">
             <FoodImage
               src={item.product.imageUrl}
               alt={item.product.name}
@@ -76,16 +76,28 @@ export default function CartPanel({
               className="cart-thumb"
             />
             <div className="cart-line-info">
-              <span className="cart-line-name">{item.product.name}</span>
+              <span className="cart-line-name">
+                {item.product.name}
+                {(item.selectedOptionIds?.length ?? 0) > 0 && (
+                  <span className="cart-line-options">
+                    {" · "}
+                    {(item.product.optionGroups ?? [])
+                      .flatMap((g) => g.options)
+                      .filter((o) => item.selectedOptionIds!.includes(o.id))
+                      .map((o) => o.name)
+                      .join(", ")}
+                  </span>
+                )}
+              </span>
               <span className="cart-line-total">
-                {formatARS(item.qty * item.product.price)}
+                {formatARS(item.qty * (item.unitPrice ?? item.product.price))}
               </span>
             </div>
             <div className="qty-stepper">
               <button
                 type="button"
                 className="qty-btn qty-btn--minus"
-                onClick={() => onRemoveItem(item.product.id)}
+                onClick={() => onRemoveItem(entryId)}
                 aria-label={`Restar ${item.product.name}`}
               >
                 −
@@ -100,7 +112,7 @@ export default function CartPanel({
               <button
                 type="button"
                 className="qty-btn qty-btn--plus"
-                onClick={() => onAddItem(item.product.id)}
+                onClick={() => onAddItem(entryId)}
                 aria-label={`Sumar ${item.product.name}`}
               >
                 +
