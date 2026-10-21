@@ -14,6 +14,28 @@ export interface AdminProductFull extends AdminProduct {
   categoryId?: number | null;
   unitMeasure?: string | null;
   imageUrl?: string | null;
+  optionGroups?: AdminOptionGroup[] | null;
+}
+
+/**
+ * Grupo de opciones de un producto (odd/tasks/product-options.md S1/S2).
+ * Espejo de ProductOptionGroupDTO del backend: el dueño lo define por
+ * producto, sin biblioteca compartida (S3).
+ */
+export interface AdminOptionGroup {
+  id?: number | null;
+  name: string;
+  required: boolean;
+  multiple: boolean;
+  minSelections?: number | null;
+  maxSelections?: number | null;
+  options: AdminOption[];
+}
+
+export interface AdminOption {
+  id?: number | null;
+  name: string;
+  priceDelta: number;
 }
 
 interface ProductModalProps {
@@ -62,6 +84,12 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
   );
   const [unitMeasure, setUnitMeasure] = useState(product?.unitMeasure ?? "");
   const [active, setActive] = useState(product?.active ?? true);
+
+  // Grupos de opciones (S1/S2): el dueño los define acá, por producto.
+  const [optionGroups, setOptionGroups] = useState<AdminOptionGroup[]>(
+    product?.optionGroups?.map((g) => ({ ...g, options: g.options.map((o) => ({ ...o })) })) ?? [],
+  );
+  const [optionGroupsError, setOptionGroupsError] = useState<string | null>(null);
 
   /** Archivo nuevo elegido; mientras no se guarde, la preview lo muestra. */
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -147,6 +175,73 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
     return missingFields && value.trim() === "";
   }
 
+  /** Espejo de la validación del backend (T2): mismo mensaje, falla antes del fetch. */
+  function validarGrupos(grupos: AdminOptionGroup[]): string | null {
+    for (const g of grupos) {
+      if (g.name.trim() === "") return "Cada grupo de opciones necesita nombre";
+      if (g.options.length === 0)
+        return `El grupo "${g.name.trim()}" necesita al menos una opción`;
+      for (const o of g.options) {
+        if (o.name.trim() === "")
+          return `Cada opción del grupo "${g.name.trim()}" necesita nombre`;
+        if (Number(o.priceDelta) < 0)
+          return "El recargo de una opción no puede ser negativo";
+      }
+      if (g.multiple) {
+        const min = g.minSelections ?? null;
+        const max = g.maxSelections ?? null;
+        if (min != null && min < 0)
+          return "El mínimo de selecciones no puede ser negativo";
+        if (g.required && (min == null || min < 1))
+          return "Un grupo obligatorio y múltiple necesita mínimo 1 selección";
+        if (max != null && max < 1)
+          return "El máximo de selecciones tiene que ser al menos 1";
+        if (min != null && max != null && min > max)
+          return "El mínimo de selecciones no puede superar el máximo";
+      }
+    }
+    return null;
+  }
+
+  function addGroup(): void {
+    setOptionGroups((gs) => [
+      ...gs,
+      { name: "", required: true, multiple: false, minSelections: null, maxSelections: null, options: [] },
+    ]);
+  }
+
+  function updateGroup(index: number, changes: Partial<AdminOptionGroup>): void {
+    setOptionGroups((gs) => gs.map((g, i) => (i === index ? { ...g, ...changes } : g)));
+  }
+
+  function removeGroup(index: number): void {
+    setOptionGroups((gs) => gs.filter((_, i) => i !== index));
+  }
+
+  function addOption(groupIndex: number): void {
+    setOptionGroups((gs) =>
+      gs.map((g, i) =>
+        i === groupIndex ? { ...g, options: [...g.options, { name: "", priceDelta: 0 }] } : g,
+      ),
+    );
+  }
+
+  function updateOption(groupIndex: number, optionIndex: number, changes: Partial<AdminOption>): void {
+    setOptionGroups((gs) =>
+      gs.map((g, i) =>
+        i === groupIndex
+          ? { ...g, options: g.options.map((o, j) => (j === optionIndex ? { ...o, ...changes } : o)) }
+          : g,
+      ),
+    );
+  }
+
+  function removeOption(groupIndex: number, optionIndex: number): void {
+    setOptionGroups((gs) =>
+      gs.map((g, i) => (i === groupIndex ? { ...g, options: g.options.filter((_, j) => j !== optionIndex) } : g)),
+    );
+  }
+
   async function handleSave() {
     const trimmedName = name.trim();
     const missing =
@@ -161,6 +256,16 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
       setServerError(null);
       return;
     }
+
+    // Validación local de grupos (espejo del backend, T4): fallar antes del
+    // fetch con un mensaje que nombra el grupo en problema.
+    const groupError = validarGrupos(optionGroups);
+    if (groupError) {
+      setOptionGroupsError(groupError);
+      setServerError(null);
+      return;
+    }
+    setOptionGroupsError(null);
     setMissingFields(false);
     setServerError(null);
     setSaving(true);
@@ -175,6 +280,16 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
       stock: stock === "" ? null : Number(stock),
       active,
       unitMeasure: unitMeasure === "" ? null : unitMeasure,
+      // Grupos de opciones: siempre la lista completa (el backend reemplaza
+      // el set entero; lista vacía = el dueño borró todos los grupos).
+      optionGroups: optionGroups.map((g) => ({
+        name: g.name,
+        required: g.required,
+        multiple: g.multiple,
+        minSelections: g.multiple ? g.minSelections ?? null : null,
+        maxSelections: g.multiple ? g.maxSelections ?? null : null,
+        options: g.options.map((o) => ({ name: o.name, priceDelta: Number(o.priceDelta) || 0 })),
+      })),
       ...(creating ? {} : { id: product!.id }),
     };
 
@@ -354,6 +469,122 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
             />
             <span>Producto activo (visible en la carta)</span>
           </label>
+        </div>
+
+        <div className="admin-product-options">
+          <div className="admin-product-options--header">
+            <strong>Opciones del producto</strong>
+            <button type="button" className="btn-ghost" onClick={addGroup}>
+              + Agregar grupo
+            </button>
+          </div>
+          <p className="admin-image-hint">
+            Ej: "Tipo de pan" (obligatorio, elegir 1) o "Extras" (opcional, elegir varios con recargo).
+          </p>
+          {optionGroupsError && (
+            <p className="name-error" role="alert">
+              {optionGroupsError}
+            </p>
+          )}
+          {optionGroups.map((group, gi) => (
+            <fieldset key={gi} className="admin-option-group">
+              <legend>Grupo {gi + 1}</legend>
+              <div className="admin-option-group--row">
+                <input
+                  className="admin-input"
+                  type="text"
+                  value={group.name}
+                  placeholder="Nombre del grupo (ej: Tipo de pan)"
+                  aria-label={`Nombre del grupo ${gi + 1}`}
+                  onChange={(e) => updateGroup(gi, { name: e.target.value })}
+                />
+                <button type="button" className="btn-ghost" onClick={() => removeGroup(gi)}>
+                  Quitar grupo
+                </button>
+              </div>
+              <div className="admin-option-group--row">
+                <label className="admin-product-check">
+                  <input
+                    type="checkbox"
+                    checked={group.required}
+                    aria-label={`Grupo ${gi + 1} obligatorio`}
+                    onChange={(e) => updateGroup(gi, { required: e.target.checked })}
+                  />
+                  <span>Obligatorio</span>
+                </label>
+                <label className="admin-product-check">
+                  <input
+                    type="checkbox"
+                    checked={group.multiple}
+                    aria-label={`Grupo ${gi + 1} permite varias opciones`}
+                    onChange={(e) => updateGroup(gi, { multiple: e.target.checked })}
+                  />
+                  <span>Permite elegir varias</span>
+                </label>
+              </div>
+              {group.multiple && (
+                <div className="admin-option-group--row">
+                  <input
+                    className="admin-input"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={group.minSelections ?? ""}
+                    placeholder="Mínimo de selecciones"
+                    aria-label={`Mínimo del grupo ${gi + 1}`}
+                    onChange={(e) =>
+                      updateGroup(gi, { minSelections: e.target.value === "" ? null : Number(e.target.value) })
+                    }
+                  />
+                  <input
+                    className="admin-input"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={group.maxSelections ?? ""}
+                    placeholder="Máximo (vacío = sin tope)"
+                    aria-label={`Máximo del grupo ${gi + 1}`}
+                    onChange={(e) =>
+                      updateGroup(gi, { maxSelections: e.target.value === "" ? null : Number(e.target.value) })
+                    }
+                  />
+                </div>
+              )}
+              {group.options.map((option, oi) => (
+                <div key={oi} className="admin-option-group--row">
+                  <input
+                    className="admin-input"
+                    type="text"
+                    value={option.name}
+                    placeholder="Nombre de la opción (ej: Integral)"
+                    aria-label={`Opción ${oi + 1} del grupo ${gi + 1}`}
+                    onChange={(e) => updateOption(gi, oi, { name: e.target.value })}
+                  />
+                  <input
+                    className="admin-input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={option.priceDelta}
+                    placeholder="Recargo"
+                    aria-label={`Recargo de la opción ${oi + 1} del grupo ${gi + 1}`}
+                    onChange={(e) => updateOption(gi, oi, { priceDelta: Number(e.target.value) })}
+                  />
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    aria-label={`Quitar opción ${oi + 1} del grupo ${gi + 1}`}
+                    onClick={() => removeOption(gi, oi)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <button type="button" className="btn-ghost" onClick={() => addOption(gi)}>
+                + Agregar opción
+              </button>
+            </fieldset>
+          ))}
         </div>
 
         <div className="admin-product-image">

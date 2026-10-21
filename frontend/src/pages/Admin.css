@@ -1471,3 +1471,46 @@
     mask-image: linear-gradient(to right, #000 calc(100% - 26px), rgba(0, 0, 0, 0.3));
   }
 }
+
+/* Grupos de opciones por producto (odd/tasks/product-options.md, T4). */
+.admin-product-options {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.admin-product-options--header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-option-group {
+  border: 1px solid var(--border, #ddd);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-option-group legend {
+  font-size: 0.85rem;
+  color: var(--muted, #666);
+  padding: 0 4px;
+}
+
+.admin-option-group--row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-option-group--row .admin-input {
+  flex: 1;
+  min-width: 120px;
+}
