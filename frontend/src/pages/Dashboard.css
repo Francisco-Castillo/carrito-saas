@@ -290,3 +290,19 @@
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+/* Móvil: los charts pierden altura fija de desktop y no empujan medio scroll
+   vacío; el stack de secciones respeta el spacing de componente. */
+@media (max-width: 559px) {
+  .chart-container {
+    height: 240px;
+  }
+
+  .panel {
+    padding: var(--space-4);
+  }
+
+  .stat-card {
+    padding: var(--space-4);
+  }
+}
