@@ -1,8 +1,9 @@
 import { useDashboardData } from "../dashboard/useDashboardData";
 import KpiCards from "../dashboard/KpiCards";
-import OrderStatusCards from "../dashboard/OrderStatusCards";
 import SalesChart from "../dashboard/SalesChart";
+import SalesByDayChart from "../dashboard/SalesByDayChart";
 import TopProducts from "../dashboard/TopProducts";
+import ProductTrends from "../dashboard/ProductTrends";
 
 /**
  * Sección de dashboard embebida del admin: el legacy admin.js renderizaba el
@@ -11,17 +12,27 @@ import TopProducts from "../dashboard/TopProducts";
  * dashboard existentes en vez de duplicarlos.
  */
 export default function DashboardSection() {
-  const { today, status, topProducts, salesByHour } = useDashboardData(true);
+  const { today, topProducts, salesByHour, salesByDay, salesPrevWeek, trendsUp, trendsDown, loading, errors } =
+    useDashboardData(true);
 
   return (
     <div className="admin-dashboard">
-      <KpiCards today={today} />
+      <KpiCards
+        today={today}
+        weekTotal={salesByDay ? salesByDay.reduce((sum, d) => sum + d.revenue, 0) : null}
+        loading={loading}
+        error={errors.today}
+      />
 
-      <OrderStatusCards status={status} />
+      <SalesChart data={salesByHour} loading={loading} error={errors.salesByHour} />
 
-      <SalesChart data={salesByHour} />
+      <SalesByDayChart data={salesByDay} prevData={salesPrevWeek} loading={loading} error={errors.salesByDay} />
 
-      <TopProducts products={topProducts} />
+      <div className="top-grid">
+        <TopProducts products={topProducts} loading={loading} error={errors.topProducts} />
+
+        <ProductTrends trendsUp={trendsUp} trendsDown={trendsDown} loading={loading} error={errors.trends} />
+      </div>
     </div>
   );
 }

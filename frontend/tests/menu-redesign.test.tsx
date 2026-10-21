@@ -291,7 +291,7 @@ describe("product detail sheet", () => {
     const dialog = screen.getByRole("dialog", { name: "Detalles de Milanesa" });
     expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(within(dialog).getByText("con papas")).toBeInTheDocument();
-    expect(within(dialog).getByText("$ 100,00")).toBeInTheDocument();
+    expect(within(dialog).getByText("$ 100")).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("button", { name: "Agregar Milanesa" }));
     expect(within(dialog).getByLabelText("Cantidad de Milanesa")).toHaveTextContent("2");
@@ -305,7 +305,7 @@ describe("product detail sheet", () => {
     // section headings show similar item counts).
     const bar = document.querySelector(".cart-bar")!;
     expect(within(bar).getByText("2 ítems")).toBeInTheDocument();
-    expect(within(bar).getByText("$ 200,00")).toBeInTheDocument();
+    expect(within(bar).getByText("$ 200")).toBeInTheDocument();
 
     // Focus returns to the card that opened the sheet.
     expect(document.activeElement).toHaveTextContent("Milanesa");
@@ -349,27 +349,27 @@ describe("cart bar and cart sheet", () => {
     // Scoped to the bar: category section headings carry similar counts.
     const bar = () => document.querySelector(".cart-bar")!;
     expect(within(bar()).getByText("2 ítems")).toBeInTheDocument();
-    expect(within(bar()).getByText("$ 130,00")).toBeInTheDocument();
+    expect(within(bar()).getByText("$ 130")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Ver pedido" }));
     const cart = screen.getByRole("complementary", { name: "Tu pedido" });
     expect(within(cart).getByText("Milanesa")).toBeInTheDocument();
     expect(within(cart).getByText("Agua")).toBeInTheDocument();
     expect(within(cart).getByLabelText("Cantidad de Milanesa")).toHaveTextContent("1");
-    expect(within(cart).getByText("$ 100,00")).toBeInTheDocument();
-    expect(within(cart).getByText("$ 30,00")).toBeInTheDocument();
-    expect(within(cart).getByText("Total: $ 130,00")).toBeInTheDocument();
+    expect(within(cart).getByText("$ 100")).toBeInTheDocument();
+    expect(within(cart).getByText("$ 30")).toBeInTheDocument();
+    expect(within(cart).getByText("Total: $ 130")).toBeInTheDocument();
 
     // The line steppers update quantity, line and grand total.
     await user.click(within(cart).getByRole("button", { name: "Sumar Milanesa" }));
     expect(within(cart).getByLabelText("Cantidad de Milanesa")).toHaveTextContent("2");
-    expect(within(cart).getByText("Total: $ 230,00")).toBeInTheDocument();
+    expect(within(cart).getByText("Total: $ 230")).toBeInTheDocument();
 
     // Removing every unit of a line drops the line from the cart.
     await user.click(within(cart).getByRole("button", { name: "Restar Milanesa" }));
     await user.click(within(cart).getByRole("button", { name: "Restar Milanesa" }));
     expect(within(cart).queryByText("Milanesa")).not.toBeInTheDocument();
-    expect(within(cart).getByText("Total: $ 30,00")).toBeInTheDocument();
+    expect(within(cart).getByText("Total: $ 30")).toBeInTheDocument();
 
     // Closing the sheet keeps the bar with the remaining order.
     await user.click(screen.getByRole("button", { name: "Cerrar el pedido" }));
@@ -377,7 +377,7 @@ describe("cart bar and cart sheet", () => {
       screen.queryByRole("complementary", { name: "Tu pedido" }),
     ).not.toBeInTheDocument();
     expect(within(bar()).getByText("1 ítem")).toBeInTheDocument();
-    expect(within(bar()).getByText("$ 30,00")).toBeInTheDocument();
+    expect(within(bar()).getByText("$ 30")).toBeInTheDocument();
   });
 });
 
