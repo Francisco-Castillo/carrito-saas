@@ -1357,3 +1357,49 @@
   font-family: var(--font-sans);
   color: var(--color-text-muted);
 }
+
+/* ------------------------------------------------------------
+   Responsive móvil del panel (T4 de odd/tasks/carga-responsive-panel.md).
+   El layout base ya es mobile-first (sidebar horizontal <900px, tablas con
+   scroll, inputs de 44px). Esto cubre lo que quedaba roto en un celular:
+   ------------------------------------------------------------ */
+
+@media (max-width: 559px) {
+  /* Modales casi de pantalla completa: los formularios largos (producto,
+     combo) no entran en un dialog centrado de 90% sin altura máxima — el
+     contenido se desborda fuera del viewport y no se puede ni guardar ni
+     cerrar. dvh = alto dinámico (barra del navegador en móviles), con
+     fallback a vh para browsers viejos. */
+  .toast-modal-backdrop {
+    padding: var(--space-3);
+  }
+
+  .toast-modal {
+    width: 100%;
+    max-width: none;
+    max-height: 92vh;
+    max-height: calc(100dvh - 2 * var(--space-3));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--space-4);
+    text-align: left;
+  }
+}
+
+/* Tabs de Local: en 360px los cuatro labels no entran en una fila fija.
+   Scroll horizontal táctil con botones que no se comprimen. */
+.admin-local-tabs {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.admin-local-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-local-tab {
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-height: 44px; /* touch target ≥44px */
+}
