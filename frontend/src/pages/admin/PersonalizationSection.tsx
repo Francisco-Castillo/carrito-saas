@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { CARTA_COLORS } from "./cartaColors";
 import ColorPicker from "./ColorPicker";
+import { suggestColorsFromImage } from "./logoColors";
 import { MENU_FONT_OPTIONS } from "../../menuFonts";
 import type { BusinessProfileHook } from "./useBusinessProfile";
 
@@ -23,7 +25,27 @@ export default function PersonalizationSection({
 }: {
   profile: BusinessProfileHook;
 }) {
-  const { primaryColor, setPrimaryColor, menuFont, setMenuFont, saving, error, save } = profile;
+  const { primaryColor, setPrimaryColor, menuFont, setMenuFont, logoUrl, saving, error, save } = profile;
+
+  // Sugerencias desde el logo (spec S3): la extracción corre al hacer clic,
+  // nunca al montar (analizar es gratis pero cargar la imagen no); un fallo
+  // deja error legible y el resto de la pestaña intacto.
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+
+  async function suggestFromLogo() {
+    setSuggesting(true);
+    setSuggestError(null);
+    try {
+      setSuggestions(await suggestColorsFromImage(logoUrl));
+    } catch (e) {
+      setSuggestions([]);
+      setSuggestError((e as Error).message);
+    } finally {
+      setSuggesting(false);
+    }
+  }
 
   return (
     <div className="glass-panel fade-up admin-table-panel admin-profile-panel">
@@ -52,6 +74,42 @@ export default function PersonalizationSection({
             ))}
           </div>
           <ColorPicker value={primaryColor} onChange={setPrimaryColor} />
+          {logoUrl && (
+            <div className="admin-logo-colors">
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={suggesting}
+                onClick={() => void suggestFromLogo()}
+              >
+                {suggesting ? "Analizando logo…" : "Sugerir desde el logo"}
+              </button>
+              {suggestError && (
+                <p className="admin-profile-error" role="alert">
+                  {suggestError}
+                </p>
+              )}
+              {suggestions.length > 0 && (
+                <div
+                  className="admin-color-palette"
+                  role="group"
+                  aria-label="Colores sugeridos del logo"
+                >
+                  {suggestions.map((hex) => (
+                    <button
+                      key={hex}
+                      type="button"
+                      className={`admin-color-swatch${primaryColor.toUpperCase() === hex ? " is-selected" : ""}`}
+                      style={{ backgroundColor: hex }}
+                      aria-label={`Sugerido ${hex}`}
+                      aria-pressed={primaryColor.toUpperCase() === hex}
+                      onClick={() => setPrimaryColor(hex)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {primaryColor && (
             <div className="admin-color-actions">
               <button
