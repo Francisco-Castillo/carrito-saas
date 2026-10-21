@@ -58,13 +58,13 @@ describe('view routing (one SPA, every entry path)', () => {
 
 describe('browser tab titles per view', () => {
   it.each([
-    ['login', 'Carrito SaaS — Login'],
+    ['login', 'Login'],
     ['menu', 'Carta Digital'],
-    ['dashboard', 'Carrito SaaS — Dashboard'],
-    ['admin', 'Carrito SaaS — Panel del local'],
-    ['kds', 'Carrito SaaS — Cocina'],
-    ['orders', 'Carrito SaaS — Pedidos'],
-    ['platform', 'Carrito SaaS — Plataforma'],
+    ['dashboard', 'Dashboard'],
+    ['admin', 'Panel del local'],
+    ['kds', 'Cocina'],
+    ['orders', 'Pedidos'],
+    ['platform', 'Plataforma'],
   ] as Array<[AppView, string]>)('%s shows “%s” in the tab', (view, title) => {
     expect(titleForView(view)).toBe(title)
   })
