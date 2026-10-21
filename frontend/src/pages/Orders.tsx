@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import "./Orders.css";
 import { enforceSession, getSessionRestaurantSlug, hasPanelSession } from "./dashboard/auth";
+import { attachAudioUnlockListeners } from "./kds/audio";
 import { showToast } from "./kds/toast";
 import KdsToastHost from "./kds/KdsToastHost";
 import CancelOrderModal from "./kds/CancelOrderModal";
@@ -52,6 +53,12 @@ export default function Orders() {
   }, [sessionUsable]);
 
   const slug = useMemo(() => getSessionRestaurantSlug(), []);
+
+  // Un browser no permite autoplay antes de un gesto: el primer click/touch/
+  // tecla desbloquea el audio para que el ding del pedido nuevo suene siempre.
+  useEffect(() => {
+    attachAudioUnlockListeners();
+  }, []);
 
   const { orders, live, refresh } = useOrdersFeed(
     slug,
@@ -237,6 +244,10 @@ export default function Orders() {
       )}
 
       <KdsToastHost />
+
+      {/* Mismos ids y rutas que el KDS: las páginas nunca se montan juntas. */}
+      <audio id="newOrderSound" src="/ding.mp3" preload="auto" />
+      <audio id="readySound" src="/ready.mp3" preload="auto" />
     </div>
   );
 }

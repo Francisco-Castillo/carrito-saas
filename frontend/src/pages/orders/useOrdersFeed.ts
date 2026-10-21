@@ -4,6 +4,9 @@ import {
   loadManagementOrders,
   type ManagementOrder,
 } from "./api";
+// Mismo audio del KDS (ding.mp3 nuevo pedido, ready.mp3 listo): la consola
+// comparte los <audio> por id y el desbloqueo de autoplay en el gesto.
+import { playNewOrderSound, playReadySound } from "../kds/audio";
 
 /**
  * Live feed of the orders console (T3), following the same STOMP pattern as
@@ -35,9 +38,34 @@ export function useOrdersFeed(
 
   const refreshTimerRef = useRef<number | null>(null);
 
+  // Snapshot anterior para detectar QUÉ cambió: el evento STOMP no trae el
+  // detalle (dispara un re-fetch debounced), así que el diff contra la lista
+  // previa es lo que decide qué sonido corresponde. null = primera carga:
+  // no suena nada, o abrir la consola con pedidos del día sonaría en ráfaga.
+  const previousOrdersRef = useRef<ManagementOrder[] | null>(null);
+
+  /** Igual que detectNewOrders del KDS, pero contra la lista del día: suena
+   *  el ding por cada pedido que no existía y entra como NEW, y el ready
+   *  cuando un pedido existente PASA a READY (cocina lo marcó listo). Un
+   *  pedido nuevo que ya nace READY o DELIVERED (creado por POS) no suena. */
+  const detectChanges = useCallback((next: ManagementOrder[]): void => {
+    const prev = previousOrdersRef.current;
+    if (prev === null) return;
+    for (const order of next) {
+      const before = prev.find((p) => p.orderId === order.orderId);
+      if (!before && order.status === "NEW") {
+        playNewOrderSound();
+      } else if (before && before.status !== "READY" && order.status === "READY") {
+        playReadySound();
+      }
+    }
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
       const next = await loadManagementOrders();
+      detectChanges(next);
+      previousOrdersRef.current = next;
       setOrders(next);
       setLastUpdated(new Date());
       setLoadFailed(false);
@@ -46,7 +74,7 @@ export function useOrdersFeed(
       console.error("Error cargando pedidos", e);
       setLoadFailed(true);
     }
-  }, []);
+  }, [detectChanges]);
 
   // Debounce: una ráfaga de eventos (pedido creado + avance) dispara una
   // sola recarga. El timer se limpia al desmontar con el efecto principal.
