@@ -104,9 +104,11 @@ export default function Dashboard() {
 
         <SalesByDayChart data={salesByDay} prevData={salesPrevWeek} loading={loading} error={errors.salesByDay} />
 
-        <TopProducts products={topProducts} loading={loading} error={errors.topProducts} />
+        <div className="top-grid">
+          <TopProducts products={topProducts} loading={loading} error={errors.topProducts} />
 
-        <ProductTrends trendsUp={trendsUp} trendsDown={trendsDown} loading={loading} error={errors.trends} />
+          <ProductTrends trendsUp={trendsUp} trendsDown={trendsDown} loading={loading} error={errors.trends} />
+        </div>
       </main>
       {/* Sonido de pedido nuevo: mismo <audio> por id que el KDS y la consola
           (playNewOrderSound lo busca por document.getElementById). */}

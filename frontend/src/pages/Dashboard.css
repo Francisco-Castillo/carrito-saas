@@ -328,6 +328,26 @@
   border: 1px solid rgba(248, 113, 113, 0.3);
 }
 
+/* Top productos y tendencias a la par: grid de dos columnas en pantallas
+   anchas, apiladas en móvil. El margen de sección va en el wrapper — los
+   sections de adentro ya no reciben el espaciado del selector general. */
+.top-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+
+.top-grid > section {
+  margin-bottom: 0;
+}
+
+@media (min-width: 960px) {
+  .top-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* ------------------------------------------------------------
    Tendencias de productos (suben / bajan)
    ------------------------------------------------------------ */
