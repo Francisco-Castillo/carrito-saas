@@ -216,8 +216,10 @@
 }
 
 .orders-badge--delivered {
-  background: rgba(148, 163, 184, 0.25);
-  color: #cbd5e1;
+  /* Violeta propio: el gris apagado se confundía con un badge informativo y
+     el verde ya es de "Listo". Se distingue de lejos en la consola del día. */
+  background: rgba(139, 92, 246, 0.28);
+  color: #c4b5fd;
 }
 
 .orders-badge--cancelled {
