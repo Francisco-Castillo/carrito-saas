@@ -61,3 +61,4 @@ uploads/
 
 # Dependencias instaladas fuera de frontend/ (npm install accidental en la raíz)
 node_modules/
+frontend/test-results/
