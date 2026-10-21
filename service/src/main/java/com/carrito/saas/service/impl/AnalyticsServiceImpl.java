@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import com.carrito.saas.dto.reportes.SalesByDayDTO;
 import com.carrito.saas.dto.reportes.SalesByHourDTO;
 import com.carrito.saas.dto.reportes.TopProductDTO;
 import com.carrito.saas.exception.BusinessException;
@@ -85,6 +86,35 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	    }
 
 	    return sales;
+	}
+	@Override
+	public List<SalesByDayDTO> getSalesLast7Days(String slug) {
+		Business restaurant = businessRepository.findBySlug(slug)
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
+
+		// Ventana de los últimos 7 días INCLUDING hoy: [hoy-6 00:00, mañana 00:00).
+		LocalDate today = LocalDate.now();
+		LocalDateTime start = today.minusDays(6).atStartOfDay();
+		LocalDateTime end = today.plusDays(1).atStartOfDay();
+
+		List<Object[]> results =
+				orderRepository.findSalesByDay(restaurant.getId(), start, end);
+
+		Map<LocalDate, Double> revenueByDay = results.stream()
+				.collect(Collectors.toMap(
+						r -> LocalDate.parse(String.valueOf(r[0])),
+						r -> ((Number) r[1]).doubleValue()
+				));
+
+		// Siempre devolver los 7 días, con 0 en los días sin ventas: el gráfico
+		// necesita la serie completa para que el eje X sea estable.
+		List<SalesByDayDTO> sales = new ArrayList<>();
+		for (LocalDate day = today.minusDays(6); !day.isAfter(today); day = day.plusDays(1)) {
+			double revenue = revenueByDay.getOrDefault(day, 0.0);
+			sales.add(new SalesByDayDTO(day.toString(), revenue));
+		}
+
+		return sales;
 	}
 
 }
