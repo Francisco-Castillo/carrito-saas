@@ -63,6 +63,8 @@ export interface BusinessProfile {
   address?: string | null;
   instagramUrl?: string | null;
   primaryColor?: string | null;
+  /** Slug de la fuente curada elegida por el dueño (o null: Inter). */
+  menuFont?: string | null;
   hours?: BusinessHours[] | null;
   dateExceptions?: DateException[] | null;
 }
@@ -159,6 +161,9 @@ export function useBusinessProfile() {
   const [address, setAddress] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("");
+  // Tipografía de la carta: slug de la lista blanca curada ("" = sin elegir,
+  // la carta usa Inter). La valida el backend contra su whitelist.
+  const [menuFont, setMenuFont] = useState("");
   const [days, setDays] = useState<ShiftRow[][]>(emptyDays);
   const [exceptions, setExceptions] = useState<ExceptionRow[]>([]);
   const [newExceptionDate, setNewExceptionDate] = useState("");
@@ -181,6 +186,7 @@ export function useBusinessProfile() {
         setAddress(data.address ?? "");
         setInstagramUrl(data.instagramUrl ?? "");
         setPrimaryColor(data.primaryColor ?? "");
+        setMenuFont(data.menuFont ?? "");
         const byDay = new Map((data.hours ?? []).map((h) => [h.dayOfWeek, h]));
         setDays(DAYS.map((_, i) => dayFromEntry(byDay.get(i + 1))));
         setExceptions(
@@ -310,6 +316,10 @@ export function useBusinessProfile() {
           // cadena vacía como borrado) y un valor presente reemplaza. Enviar
           // null significaría "no tocar" y el color viejo seguiría activo.
           primaryColor,
+          // Tipografía de la carta: slug de la lista blanca curada ("" limpia
+          // y la carta vuelve a Inter). El backend revalida contra su
+          // whitelist: un slug fuera de la lista es 400 con mensaje legible.
+          menuFont,
           // Los siete días SIEMPRE van, cada uno con su lista de turnos
           // (un día cerrado viaja como `[]`): el backend reemplaza todo.
           hours: days.map((shifts, i) => ({
@@ -361,6 +371,8 @@ export function useBusinessProfile() {
     setInstagramUrl,
     primaryColor,
     setPrimaryColor,
+    menuFont,
+    setMenuFont,
     days,
     exceptions,
     newExceptionDate,

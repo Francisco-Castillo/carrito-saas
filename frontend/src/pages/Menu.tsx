@@ -3,6 +3,7 @@ import { formatARS } from "../format";
 import "./Menu.css";
 import CartPanel from "./menu/CartPanel";
 import { applyBrandColor } from "./menu/brandColor";
+import { applyMenuFont } from "../menuFonts";
 import MenuToast, { type MenuToastType } from "./menu/MenuToast";
 import ProductCard from "./menu/ProductCard";
 import ProductDetailSheet from "./menu/ProductDetailSheet";
@@ -235,6 +236,9 @@ export default function Menu() {
           if (data.primaryColor) {
             applyBrandColor(data.primaryColor);
           }
+          // Fuente de la carta: aplicar SIEMPRE (sin slug limpia la variable
+          // — reemplazo total, como el color).
+          applyMenuFont(data.menuFont);
         } catch {
           if (!cancelled) setLoadError(ERROR_RESTAURANT);
           return;
@@ -261,6 +265,9 @@ export default function Menu() {
           if (data.business.primaryColor) {
             applyBrandColor(data.business.primaryColor);
           }
+          // Ruta sin slug: la fuente viaja en el payload del menú; aplicar
+          // SIEMPRE (sin slug limpia — reemplazo total, como el color).
+          applyMenuFont(data.business.menuFont);
         }
 
         // La portada viaja en el payload del menú; si el local no tiene datos

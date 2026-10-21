@@ -41,6 +41,11 @@ public class BusinessProfileDTO {
      *  (actualización parcial); vacío limpia; inválido es 400. */
     private String primaryColor;
 
+    /** Tipografía de la carta: slug de la lista blanca de fuentes curadas.
+     *  null = no tocar (actualización parcial); vacío limpia (la carta vuelve
+     *  a Inter); un slug que no está en la lista es 400. */
+    private String menuFont;
+
     private List<BusinessHoursDTO> hours;
 
     /** Fechas especiales, ordenadas por fecha; vacío cuando no hay ninguna. */

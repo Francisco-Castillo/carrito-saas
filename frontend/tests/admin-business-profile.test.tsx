@@ -258,6 +258,7 @@ describe('Admin "Local" view — business profile editor', () => {
       address: 'Av. Siempreviva 742, Springfield',
       instagramUrl: 'https://instagram.com/foodtruckdemo',
       primaryColor: '',
+      menuFont: '',
       dateExceptions: [
         { date: '2026-12-24', yearly: false, shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
         { date: '2026-12-25', yearly: false, shifts: [] },
@@ -541,7 +542,7 @@ describe('Admin "Local" view — fechas especiales ANUALES (yearly)', () => {
 describe('Admin "Local" view — paleta de color de la carta', () => {
   it('elegir un swatch de la paleta y guardar envía ese primaryColor', async () => {
     stubFetch()
-    const user = await openLocalView('Datos del local')
+    const user = await openLocalView('Personalización')
 
     await user.click(screen.getByRole('button', { name: 'Violeta' }))
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
@@ -551,7 +552,7 @@ describe('Admin "Local" view — paleta de color de la carta', () => {
 
   it('elegir un color personalizado en el campo hex lo envía tal cual', async () => {
     stubFetch()
-    const user = await openLocalView('Datos del local')
+    const user = await openLocalView('Personalización')
 
     fireEvent.change(screen.getByLabelText('Código hex'), {
       target: { value: '#123abc' },
@@ -563,7 +564,7 @@ describe('Admin "Local" view — paleta de color de la carta', () => {
 
   it('"Quitar color" limpia el valor y lo envía vacío (diseño estándar)', async () => {
     stubFetch(undefined, { ...PROFILE, primaryColor: '#7C3AED' })
-    const user = await openLocalView('Datos del local')
+    const user = await openLocalView('Personalización')
 
     await user.click(screen.getByRole('button', { name: 'Quitar color' }))
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
@@ -573,7 +574,7 @@ describe('Admin "Local" view — paleta de color de la carta', () => {
 
   it('el swatch cargado del perfil arranca seleccionado', async () => {
     stubFetch(undefined, { ...PROFILE, primaryColor: '#22C55E' })
-    await openLocalView('Datos del local')
+    await openLocalView('Personalización')
 
     expect(screen.getByRole('button', { name: 'Verde' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Violeta' })).toHaveAttribute('aria-pressed', 'false')

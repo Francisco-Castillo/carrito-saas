@@ -1,14 +1,17 @@
 import { useState } from "react";
 import DatosSection from "./DatosSection";
 import HorariosSection from "./HorariosSection";
+import PersonalizationSection from "./PersonalizationSection";
 import QrTablesSection from "./QrTablesSection";
 import { useBusinessProfile } from "./useBusinessProfile";
 
 /**
- * Vista "Local" del panel admin, separada en TRES PESTAÑAS:
+ * Vista "Local" del panel admin, separada en CUATRO PESTAÑAS:
  *
- *   - "Datos del local" (DatosSection): nombre, logo, banner, dirección,
- *     Instagram y color.
+ *   - "Datos del local" (DatosSection): nombre, logo, banner, dirección
+ *     e Instagram — sólo lo informativo.
+ *   - "Personalización" (PersonalizationSection): color de la carta y
+ *     tipografía — lo visual del menú público.
  *   - "Horarios" (HorariosSection): horario semanal y fechas especiales.
  *   - "QR y mesas" (QrTablesSection): QR del menú público y mesas; NO se
  *     monta hasta que se elige su pestaña.
@@ -19,9 +22,10 @@ import { useBusinessProfile } from "./useBusinessProfile";
  * en las otras) y el GET se hace una sola vez al abrir la vista.
  */
 
-/** Pestañas de la vista Local: datos, horarios y gestión de QR/mesas. */
+/** Pestañas de la vista Local: datos, personalización, horarios y QR/mesas. */
 const LOCAL_TABS = [
   { id: "profile", label: "Datos del local" },
+  { id: "personalizacion", label: "Personalización" },
   { id: "hours", label: "Horarios" },
   { id: "qr", label: "QR y mesas" },
 ] as const;
@@ -51,6 +55,7 @@ export default function LocalSection() {
         ))}
       </div>
       {tab === "profile" && <DatosSection profile={profile} />}
+      {tab === "personalizacion" && <PersonalizationSection profile={profile} />}
       {tab === "hours" && <HorariosSection profile={profile} />}
       {tab === "qr" && <QrTablesSection />}
     </div>

@@ -29,6 +29,8 @@ export interface Restaurant {
   logoUrl?: string;
   whatsappNumber?: string;
   primaryColor?: string;
+  /** Slug de la fuente curada elegida por el dueño (o ausente: Inter). */
+  menuFont?: string;
 }
 
 /**
@@ -92,6 +94,8 @@ export interface StorefrontBusiness {
   address?: string | null;
   instagramUrl?: string | null;
   primaryColor?: string | null;
+  /** Slug de la fuente curada elegida por el dueño (o null: Inter). */
+  menuFont?: string | null;
   hours?: BusinessHours[] | null;
   dateExceptions?: DateException[] | null;
 }
