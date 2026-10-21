@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API, authHeader, type AdminCategory } from "./api";
+import LoadingPanel from "./LoadingPanel";
 import { showSuccessToast } from "./toast";
 import ConfirmModal from "./ConfirmModal";
 import { useConfirmDialog } from "./useConfirmDialog";
@@ -55,6 +56,8 @@ function normalize(text: string): string {
  */
 export default function CategoriesTable({ refreshKey, onRowCountChange }: CategoriesTableProps) {
   const [categories, setCategories] = useState<AdminCategory[] | null>(null);
+  // Primera carga en curso: skeleton del dashboard mientras la API responde.
+  const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<{ id: number; value: string } | null>(null);
@@ -85,6 +88,8 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
       setCategories(data);
     } catch (e) {
       console.error("Error cargando categorías", e);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -240,6 +245,12 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
   // Filtro en cliente sobre la lista ya cargada (accent- y case-insensitive).
   const needle = normalize(query.trim());
   const filtered = needle === "" ? list : list.filter((c) => normalize(c.name).includes(needle));
+
+  // Primera carga: skeleton en vez de una lista vacía. Con notFound/loading
+  // false cae al panel de not-found de arriba.
+  if (loading && categories === null) {
+    return <LoadingPanel label="Cargando categorías…" lines={6} />;
+  }
 
   return (
     <>

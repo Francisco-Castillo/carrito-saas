@@ -23,7 +23,7 @@
  *      the row and PUTs /api/products/{id}. A backend 400 keeps the modal
  *      open and shows the backend's Spanish message INLINE in the modal.
  */
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Admin from '../src/pages/Admin'
@@ -451,3 +451,35 @@ async function waitForModalToClose() {
   }
   throw new Error('el modal del producto seguía abierto')
 }
+
+describe('Admin tables loading state', () => {
+  it('shows the dashboard-style skeleton while the catalog loads', async () => {
+    let resolveProducts!: (value: ResponseLike) => void
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+        const method = (init?.method ?? 'GET').toUpperCase()
+        if (url === '/api/products' && !url.includes('/activar') && method === 'GET') {
+          return new Promise<ResponseLike>((resolve) => {
+            resolveProducts = resolve
+          })
+        }
+        if (url === '/api/categorias' && method === 'GET') return okJson(CATEGORIES)
+        if (url === '/api/combos' && method === 'GET') return okJson(COMBOS)
+        return { ok: false, status: 500, json: async () => [] }
+      })
+    )
+    seedStorage()
+    await openAdminView('Productos')
+
+    // While the catalog is pending: the dashboard-style skeleton, announced
+    // to screen readers (role=status + aria-label) instead of an empty table.
+    expect(screen.getByRole('status', { name: /cargando productos/i })).toBeInTheDocument()
+    expect(document.querySelectorAll('.skeleton-line').length).toBeGreaterThan(0)
+
+    act(() => resolveProducts(okJson(PRODUCTS)))
+    expect(await screen.findByText('Pizza Margherita')).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: /cargando productos/i })).not.toBeInTheDocument()
+  })
+})

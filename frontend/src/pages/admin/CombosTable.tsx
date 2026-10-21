@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { API, authHeader } from "./api";
+import LoadingPanel from "./LoadingPanel";
 import ComboModal, { type AdminComboFull } from "./ComboModal";
 import { showSuccessToast } from "./toast";
 import ConfirmModal from "./ConfirmModal";
@@ -39,6 +40,8 @@ type ComboModalState = { mode: "create" } | { mode: "edit"; combo: AdminComboFul
  */
 export default function CombosTable() {
   const [combos, setCombos] = useState<AdminComboFull[] | null>(null);
+  // Primera carga en curso: skeleton del dashboard mientras la API responde.
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState<ComboModalState | null>(null);
   /** Confirmación de delete: hook compartido por las tres tablas (la promesa
@@ -54,6 +57,8 @@ export default function CombosTable() {
       setCombos(data);
     } catch (e) {
       console.error("Error cargando combos", e);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -121,6 +126,11 @@ export default function CombosTable() {
   // Filtro en cliente sobre la lista ya cargada (accent- y case-insensitive).
   const needle = normalize(query.trim());
   const filtered = needle === "" ? list : list.filter((c) => normalize(c.name).includes(needle));
+
+  // Primera carga: skeleton en vez de una lista vacía.
+  if (loading && combos === null) {
+    return <LoadingPanel label="Cargando combos…" lines={5} />;
+  }
 
   return (
     <>

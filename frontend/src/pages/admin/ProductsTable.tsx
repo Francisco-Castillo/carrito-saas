@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { API, authHeader, type AdminProduct } from "./api";
 import { showSuccessToast } from "./toast";
+import LoadingPanel from "./LoadingPanel";
 import ConfirmModal from "./ConfirmModal";
 import ProductModal, { type AdminProductFull } from "./ProductModal";
 import { formatARS } from "../../format";
@@ -40,6 +41,10 @@ function normalize(text: string): string {
  */
 export default function ProductsTable() {
   const [products, setProducts] = useState<AdminProductFull[] | null>(null);
+  // Primera carga en curso: skeleton con el mismo efecto del dashboard (S1
+  // de odd/tasks/carga-responsive-panel.md). false también tras un error:
+  // el panel de error reemplaza al skeleton, nunca conviven.
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState<ProductModalState | null>(null);
   /** Confirmación de delete: hook compartido por las tres tablas (la promesa
@@ -55,6 +60,8 @@ export default function ProductsTable() {
       setProducts(data);
     } catch (e) {
       console.error("Error cargando productos", e);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -108,6 +115,13 @@ export default function ProductsTable() {
   // Filtro en cliente sobre la lista ya cargada (accent- y case-insensitive).
   const needle = normalize(query.trim());
   const filtered = needle === "" ? list : list.filter((p) => normalize(p.name).includes(needle));
+
+  // Primera carga: skeleton en vez de una tabla vacía que parece un catálogo
+  // sin productos. Con error (products null + loading false) cae al panel de
+  // error de abajo, no acá.
+  if (loading && products === null) {
+    return <LoadingPanel label="Cargando productos…" lines={6} />;
+  }
 
   return (
     <>
