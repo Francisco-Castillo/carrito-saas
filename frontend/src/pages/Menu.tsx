@@ -196,9 +196,8 @@ export default function Menu() {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const stickyObserverRef = useRef<IntersectionObserver | null>(null);
 
-  useEffect(() => {
-    document.title = "Carta Digital";
-  }, []);
+  // El título del tab lo fija App.tsx (VIEW_TITLES en src/view.ts): única
+  // fuente de verdad para las siete vistas.
 
   useEffect(() => {
     let cancelled = false;

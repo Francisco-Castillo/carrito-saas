@@ -20,6 +20,28 @@ const PATH_ROUTES: Array<[RegExp, AppView]> = [
 ];
 
 /**
+ * Browser tab title per view. The SPA ships ONE html shell whose static
+ * <title> says “Login” (the pre-JS flash and the login view are the same
+ * thing), so every other view must retitle the tab on mount — otherwise
+ * admin/kds/pedidos all keep reading “Carrito SaaS — Login”.
+ */
+const VIEW_TITLES: Record<AppView, string> = {
+  login: "Carrito SaaS — Login",
+  // Vista pública: sin prefijo de marca, tal como la fijaba Menu.tsx antes
+  // de que este mapa concentrara los títulos.
+  menu: "Carta Digital",
+  dashboard: "Carrito SaaS — Dashboard",
+  admin: "Carrito SaaS — Panel del local",
+  kds: "Carrito SaaS — Cocina",
+  orders: "Carrito SaaS — Pedidos",
+  platform: "Carrito SaaS — Plataforma",
+};
+
+export function titleForView(view: AppView): string {
+  return VIEW_TITLES[view];
+}
+
+/**
  * Resolves the screen to render:
  * 1. from `window.location.pathname` when it matches a known route
  *    (`/menu/` → digital menu, `/dashboard/` → owner dashboard,

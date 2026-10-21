@@ -10,7 +10,7 @@
  * dev-only ?view= escape hatch keeps forcing a view on non-route paths.
  */
 import { afterEach, describe, expect, it } from 'vitest'
-import { getView } from '../src/view'
+import { getView, titleForView, type AppView } from '../src/view'
 
 function at(path: string) {
   window.history.replaceState(null, '', path)
@@ -53,5 +53,19 @@ describe('view routing (one SPA, every entry path)', () => {
   it('the dev-only ?view= escape hatch still forces a view on a non-route path', () => {
     at('/?view=admin')
     expect(getView()).toBe('admin')
+  })
+})
+
+describe('browser tab titles per view', () => {
+  it.each([
+    ['login', 'Carrito SaaS — Login'],
+    ['menu', 'Carta Digital'],
+    ['dashboard', 'Carrito SaaS — Dashboard'],
+    ['admin', 'Carrito SaaS — Panel del local'],
+    ['kds', 'Carrito SaaS — Cocina'],
+    ['orders', 'Carrito SaaS — Pedidos'],
+    ['platform', 'Carrito SaaS — Plataforma'],
+  ] as Array<[AppView, string]>)('%s shows “%s” in the tab', (view, title) => {
+    expect(titleForView(view)).toBe(title)
   })
 })
