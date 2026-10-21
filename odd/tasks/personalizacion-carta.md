@@ -41,7 +41,8 @@ encadenados según decisión del dueño.
   on demand del link de Google Fonts, fallback Inter) + tests. Commit:
   f425243.
 - T5 (S3, PR 2): extracción de dominantes del logo vía canvas + swatches
-  sugeridos + tests. Commit: —
+  sugeridos + tests. Commit: 225ed37 (rama encadenada
+  feat/menu-logo-colors, PR sobre worktree/clear-cloud-ab0a).
 
 ## Log
 
