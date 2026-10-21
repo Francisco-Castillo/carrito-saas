@@ -41,18 +41,40 @@ export function menuFontFamily(slug: string | null | undefined): string {
   return `"${(option ?? MENU_FONT_OPTIONS[0]).family}"`;
 }
 
-const loadedFamilies = new Set<string>();
+/**
+ * Aplica (o limpia) la fuente de la carta en :root: setea `--menu-font` con
+ * la family del slug y carga la familia on demand. Sin slug válido REMUEVE
+ * la variable y no carga nada — reemplazo total, para que navegar de un
+ * local con fuente a otro sin fuente no deje la anterior activa. Menu.css
+ * la usa con fallback a la fuente del tema (`var(--menu-font,
+ * var(--font-sans))`), así que sin variable la carta queda como siempre.
+ */
+export function applyMenuFont(slug: string | null | undefined): void {
+  const rootStyle = document.documentElement.style;
+  const option = MENU_FONT_OPTIONS.find((o) => o.slug === slug);
+  if (option) {
+    rootStyle.setProperty("--menu-font", `"${option.family}"`);
+    loadMenuFonts([option.family]);
+  } else {
+    rootStyle.removeProperty("--menu-font");
+  }
+}
 
 /**
- * Inyecta (una sola vez por familia) el <link> de Google Fonts con los pesos
- * que usa la carta. Idempotente: llamarlo repetido con las mismas familias
- * no agrega links. Las preconecciones ya viven en index.html.
+ * Inyecta (una sola vez por familia, juzgando por el DOM) el <link> de Google
+ * Fonts con los pesos que usa la carta. La idempotencia es DOM-based a
+ * propósito: si el link se pierde (hot reload, limpieza de tests), se vuelve
+ * a agregar — no hay caché de módulo que quede desincronizada del head.
+ * Las preconecciones ya viven en index.html.
  */
 export function loadMenuFonts(families: string[]): void {
   if (typeof document === "undefined") return;
-  const pending = families.filter((family) => family && !loadedFamilies.has(family));
+  const pending = families.filter((family) => {
+    if (!family) return false;
+    const query = family.replace(/ /g, "+");
+    return !document.querySelector(`link[href*="family=${query}"]`);
+  });
   if (pending.length === 0) return;
-  pending.forEach((family) => loadedFamilies.add(family));
 
   const query = pending
     .map((family) => `family=${family.replace(/ /g, "+")}:wght@400;600;700`)

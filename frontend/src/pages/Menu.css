@@ -14,6 +14,10 @@
   max-width: 1720px;
   margin: 0 auto;
   padding: var(--space-3) var(--menu-gutter) var(--space-8);
+  /* Tipografía del local (spec S2, personalizacion-carta): --menu-font la
+     setea Menu.tsx cuando el dueño eligió una; el fallback es la fuente del
+     tema — sin elección, la carta queda exactamente como siempre. */
+  font-family: var(--menu-font, var(--font-sans));
 }
 
 /* --- Aurora de la carta con color de marca -------------------------------

@@ -63,6 +63,8 @@ export interface BusinessProfile {
   address?: string | null;
   instagramUrl?: string | null;
   primaryColor?: string | null;
+  /** Slug de la fuente curada elegida por el dueño (o null: Inter). */
+  menuFont?: string | null;
   hours?: BusinessHours[] | null;
   dateExceptions?: DateException[] | null;
 }
