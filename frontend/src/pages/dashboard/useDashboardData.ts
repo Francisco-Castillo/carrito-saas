@@ -25,12 +25,33 @@ import type {
  */
 const REFRESH_MS = 60_000;
 
+/** Cada loader del hook, identificado para el estado de error por sección. */
+type LoadKey = "today" | "topProducts" | "salesByHour" | "salesByDay";
+
+export interface DashboardErrors {
+  today: boolean;
+  topProducts: boolean;
+  salesByHour: boolean;
+  salesByDay: boolean;
+}
+
 export function useDashboardData(enabled: boolean) {
   const [today, setToday] = useState<DashboardToday | null>(null);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [salesByHour, setSalesByHour] = useState<SalesByHour[] | null>(null);
   const [salesByDay, setSalesByDay] = useState<SalesByDay[] | null>(null);
   const [date, setDate] = useState("");
+
+  // Primera carga: los skeletons están arriba hasta que la tanda inicial
+  // termina (bien o mal). Los refetch del auto-refresh NO muestran skeletons:
+  // los datos en pantalla se actualizan en silencio.
+  const [loading, setLoading] = useState(true);
+  const [errors, setErrors] = useState<DashboardErrors>({
+    today: false,
+    topProducts: false,
+    salesByHour: false,
+    salesByDay: false,
+  });
 
   useEffect(() => {
     if (!enabled) return;
@@ -39,28 +60,24 @@ export function useDashboardData(enabled: boolean) {
 
     setDate(new Date().toLocaleDateString("es-ES"));
 
+    const track = (key: LoadKey, promise: Promise<unknown>) =>
+      promise
+        .then(() => setErrors((prev) => ({ ...prev, [key]: false })))
+        .catch((e) => {
+          setErrors((prev) => ({ ...prev, [key]: true }));
+          console.error(`Error cargando ${key}`, e);
+        });
+
     const loadAll = () => {
       if (document.hidden) return;
 
-      api
-        .getDashboardToday()
-        .then(setToday)
-        .catch((e) => console.error("Error cargando dashboard", e));
-
-      api
-        .getTopProducts()
-        .then(setTopProducts)
-        .catch((e) => console.error("Error cargando top productos", e));
-
-      api
-        .getSalesByHour()
-        .then(setSalesByHour)
-        .catch((e) => console.error("Error cargando grafico", e));
-
-      api
-        .getSalesLast7Days()
-        .then(setSalesByDay)
-        .catch((e) => console.error("Error cargando ventas semanales", e));
+      // Promise.allSettled: una sección fallida no tapa a las demás.
+      void Promise.allSettled([
+        track("today", api.getDashboardToday().then(setToday)),
+        track("topProducts", api.getTopProducts().then(setTopProducts)),
+        track("salesByHour", api.getSalesByHour().then(setSalesByHour)),
+        track("salesByDay", api.getSalesLast7Days().then(setSalesByDay)),
+      ]).then(() => setLoading(false));
     };
 
     loadAll();
@@ -70,5 +87,5 @@ export function useDashboardData(enabled: boolean) {
     return () => clearInterval(intervalId);
   }, [enabled]);
 
-  return { today, topProducts, salesByHour, salesByDay, date };
+  return { today, topProducts, salesByHour, salesByDay, date, loading, errors };
 }

@@ -23,7 +23,7 @@ export default function Dashboard() {
 
   // initDashboard() del legacy: checkAuth primero, luego loads en paralelo
   // (hook compartido con la sección embebida del admin).
-  const { today, topProducts, salesByHour, salesByDay, date } =
+  const { today, topProducts, salesByHour, salesByDay, date, loading, errors } =
     useDashboardData(sessionUsable);
 
   if (!sessionUsable) {
@@ -80,13 +80,13 @@ export default function Dashboard() {
       </header>
 
       <main>
-        <KpiCards today={today} />
+        <KpiCards today={today} loading={loading} error={errors.today} />
 
-        <SalesChart data={salesByHour} />
+        <SalesChart data={salesByHour} loading={loading} error={errors.salesByHour} />
 
-        <SalesByDayChart data={salesByDay} />
+        <SalesByDayChart data={salesByDay} loading={loading} error={errors.salesByDay} />
 
-        <TopProducts products={topProducts} />
+        <TopProducts products={topProducts} loading={loading} error={errors.topProducts} />
       </main>
     </div>
   );

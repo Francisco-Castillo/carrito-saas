@@ -5,10 +5,40 @@ import { formatPrepTime } from "./format";
 interface KpiCardsProps {
   /** null = sin datos aún: la card muestra los valores iniciales del legacy (0 / $0 / 0m). */
   today: DashboardToday | null;
+  /** Primera carga en curso: muestra 4 skeletons en vez de ceros que parecen reales. */
+  loading?: boolean;
+  /** La API falló y no hay datos: mensaje visible en vez de $0 en silencio. */
+  error?: boolean;
 }
 
+const SKELETON_CARDS = ["Pedidos hoy", "Total vendido hoy", "Ticket promedio", "Tiempo cocina"];
+
 /** Las 4 KPIs del legacy dashboard/index.html, con el copy español intacto. */
-export default function KpiCards({ today }: KpiCardsProps) {
+export default function KpiCards({ today, loading = false, error = false }: KpiCardsProps) {
+  if (loading && !today) {
+    return (
+      <section className="stats stagger" aria-label="Cargando métricas de hoy" aria-busy="true">
+        {SKELETON_CARDS.map((label) => (
+          <article key={label} className="stat-card glass-panel skeleton-card">
+            <span>{label}</span>
+            <div className="skeleton skeleton-line--lg" />
+          </article>
+        ))}
+      </section>
+    );
+  }
+
+  if (error && !today) {
+    return (
+      <section className="stats stagger" aria-label="Métricas de hoy" aria-live="polite">
+        <article className="stat-card glass-panel section-error">
+          <span>No se pudieron cargar las métricas de hoy.</span>
+          <p>Reintentamos automáticamente cada minuto.</p>
+        </article>
+      </section>
+    );
+  }
+
   const orders = today ? String(today.orders) : "0";
   const revenue = today ? formatARS(today.revenue) : "$0";
   const avgTicket = today ? formatARS(today.avgTicket) : "$0";

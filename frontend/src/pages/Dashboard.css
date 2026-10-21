@@ -164,6 +164,78 @@
 }
 
 /* ------------------------------------------------------------
+   Skeletons y estados de carga / error
+   ------------------------------------------------------------ */
+
+/* Bloque que pulsa mientras carga la sección. Sobre panel de vidrio. */
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.06) 40%,
+    rgba(255, 255, 255, 0.14) 50%,
+    rgba(255, 255, 255, 0.06) 60%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Líneas de esqueleto dentro de cards y listas. */
+.skeleton-line {
+  height: 14px;
+  margin: 10px 0;
+}
+
+.skeleton-line--lg {
+  height: 28px;
+  width: 60%;
+  margin-top: var(--space-3);
+}
+
+/* Mensaje de error visible por sección: la API falló y no hay datos que
+   mostrar. Sin rojo agresivo sobre el vidrio: texto + nota de reintento. */
+.section-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: var(--radius-sm);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.section-error span {
+  font-weight: var(--font-weight-medium);
+}
+
+.section-error p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* Estado vacío honesto: la sección cargó bien pero no hay datos todavía. */
+.section-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------------
    Ventas hoy (chart) y Top productos
    ------------------------------------------------------------ */
 

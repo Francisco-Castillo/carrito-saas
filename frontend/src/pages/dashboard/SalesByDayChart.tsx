@@ -6,6 +6,10 @@ import { formatDayLabel } from "./format";
 interface SalesByDayChartProps {
   /** null = sin datos aún: el canvas queda vacío hasta la primera respuesta. */
   data: SalesByDay[] | null;
+  /** Primera carga en curso: esqueleto del panel en vez del panel vacío. */
+  loading?: boolean;
+  /** La API falló y no hay datos: mensaje visible en vez del gráfico vacío. */
+  error?: boolean;
 }
 
 /**
@@ -14,7 +18,7 @@ interface SalesByDayChartProps {
  * sin ventas, así que el eje X es estable. Mismo estilo Chart.js que
  * SalesChart (línea → barras para distinguir el corte temporal).
  */
-export default function SalesByDayChart({ data }: SalesByDayChartProps) {
+export default function SalesByDayChart({ data, loading = false, error = false }: SalesByDayChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
 
@@ -84,9 +88,18 @@ export default function SalesByDayChart({ data }: SalesByDayChartProps) {
     <section className="chart-section panel glass-panel fade-up">
       <h2>Ventas últimos 7 días</h2>
 
-      <div className="chart-container">
-        <canvas ref={canvasRef} />
-      </div>
+      {loading && !data ? (
+        <div className="chart-container skeleton" aria-busy="true" aria-label="Cargando ventas semanales" />
+      ) : error && !data ? (
+        <div className="section-error" aria-live="polite">
+          <span>No se pudieron cargar las ventas semanales.</span>
+          <p>Reintentamos automáticamente cada minuto.</p>
+        </div>
+      ) : (
+        <div className="chart-container">
+          <canvas ref={canvasRef} />
+        </div>
+      )}
     </section>
   );
 }

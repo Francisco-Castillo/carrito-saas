@@ -11,17 +11,18 @@ import TopProducts from "../dashboard/TopProducts";
  * dashboard existentes en vez de duplicarlos.
  */
 export default function DashboardSection() {
-  const { today, topProducts, salesByHour, salesByDay } = useDashboardData(true);
+  const { today, topProducts, salesByHour, salesByDay, loading, errors } =
+    useDashboardData(true);
 
   return (
     <div className="admin-dashboard">
-      <KpiCards today={today} />
+      <KpiCards today={today} loading={loading} error={errors.today} />
 
-      <SalesChart data={salesByHour} />
+      <SalesChart data={salesByHour} loading={loading} error={errors.salesByHour} />
 
-      <SalesByDayChart data={salesByDay} />
+      <SalesByDayChart data={salesByDay} loading={loading} error={errors.salesByDay} />
 
-      <TopProducts products={topProducts} />
+      <TopProducts products={topProducts} loading={loading} error={errors.topProducts} />
     </div>
   );
 }
