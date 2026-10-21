@@ -15,7 +15,9 @@ export function playNewOrderSound(): void {
   const sound = document.getElementById("newOrderSound") as HTMLAudioElement | null;
   if (sound) {
     sound.currentTime = 0;
-    sound.play().catch(() => {});
+    // play() puede no devolver promesa (jsdom no implementa HTMLMediaElement):
+    // sin este guard, .catch revienta igual que .then lo hacía en unlockAudio.
+    sound.play()?.catch(() => {});
   }
 }
 
@@ -24,7 +26,7 @@ export function playReadySound(): void {
   const sound = document.getElementById("readySound") as HTMLAudioElement | null;
   if (sound) {
     sound.currentTime = 0;
-    sound.play().catch(() => {});
+    sound.play()?.catch(() => {});
   }
 }
 
@@ -35,8 +37,13 @@ export function unlockAudio(): void {
   const sound = document.getElementById("newOrderSound") as HTMLAudioElement | null;
   if (!sound) return;
 
-  sound
-    .play()
+  const playback = sound.play();
+  // jsdom (y cualquier entorno sin HTMLMediaElement real) devuelve undefined:
+  // encadenar .then ahí lanzaba TypeError dentro del listener de click y
+  // vitest salía con exit 1 aunque todos los tests pasaran.
+  if (!playback) return;
+
+  playback
     .then(() => {
       sound.pause();
       sound.currentTime = 0;

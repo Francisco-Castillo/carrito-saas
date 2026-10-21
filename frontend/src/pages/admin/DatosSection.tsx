@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { API, authHeader } from "./api";
+import ColorPicker from "./ColorPicker";
 import type { BusinessProfileHook } from "./useBusinessProfile";
 
 /**
@@ -29,6 +30,27 @@ const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp";
 
 /** Techo duro del backend: 5 MB por archivo. */
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Paleta curada para el color de la carta: tonos que se ven bien sobre el
+ * fondo oscuro glass (el contraste del texto encima lo resuelve brandColor
+ * en la carta, así que cualquier color es legible; la curaduría es estética).
+ * El nombre es el accessible name del swatch (los tests lo usan).
+ */
+const CARTA_COLORS: Array<{ name: string; hex: string }> = [
+  { name: "Violeta", hex: "#7C3AED" },
+  { name: "Índigo", hex: "#6366F1" },
+  { name: "Azul", hex: "#3B82F6" },
+  { name: "Celeste", hex: "#22D3EE" },
+  { name: "Verde", hex: "#22C55E" },
+  { name: "Lima", hex: "#84CC16" },
+  { name: "Amarillo", hex: "#FDE047" },
+  { name: "Naranja", hex: "#F97316" },
+  { name: "Rojo", hex: "#EF4444" },
+  { name: "Rosa", hex: "#EC4899" },
+  { name: "Fucsia", hex: "#D946EF" },
+  { name: "Blanco humo", hex: "#E2E8F0" },
+];
 
 /** Miniatura de lo que apunta la URL: ver la imagen es la única devolución del owner. */
 function UrlPreview({ url, alt }: { url: string; alt: string }) {
@@ -280,15 +302,39 @@ export default function DatosSection({ profile }: { profile: BusinessProfileHook
         </div>
 
         <div className="admin-profile-field">
-          <label htmlFor="profile-primary-color">Color de la carta (#RRGGBB)</label>
-          <input
-            id="profile-primary-color"
-            className="admin-input"
-            aria-label="Color de la carta (#RRGGBB)"
-            placeholder="#7C3AED"
-            value={primaryColor}
-            onChange={(e) => setPrimaryColor(e.target.value)}
-          />
+          <span className="admin-profile-image-label">Color de la carta</span>
+          <div className="admin-color-palette" role="group" aria-label="Color de la carta">
+            {CARTA_COLORS.map(({ name, hex }) => (
+              <button
+                key={hex}
+                type="button"
+                className={`admin-color-swatch${primaryColor.toUpperCase() === hex ? " is-selected" : ""}`}
+                style={{ backgroundColor: hex }}
+                aria-label={name}
+                aria-pressed={primaryColor.toUpperCase() === hex}
+                onClick={() => setPrimaryColor(hex)}
+              />
+            ))}
+          </div>
+          <ColorPicker value={primaryColor} onChange={setPrimaryColor} />
+          {primaryColor && (
+            <div className="admin-color-actions">
+              <button
+                type="button"
+                className="btn-ghost admin-color-remove"
+                aria-label="Quitar color"
+                onClick={() => setPrimaryColor("")}
+              >
+                Quitar color
+              </button>
+            </div>
+          )}
+          <p className="admin-image-hint">
+            Pinta la carta entera: fondo, precios, botones y detalles. Cualquier
+            color es legible (el texto se ajusta solo); el badge de
+            Abierto/Cerrado mantiene siempre su color de estado. Vacío = carta
+            con el diseño estándar.
+          </p>
         </div>
       </div>
 

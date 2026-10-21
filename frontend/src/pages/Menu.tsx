@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { formatARS } from "../format";
 import "./Menu.css";
 import CartPanel from "./menu/CartPanel";
+import { applyBrandColor } from "./menu/brandColor";
 import MenuToast, { type MenuToastType } from "./menu/MenuToast";
 import ProductCard from "./menu/ProductCard";
 import ProductDetailSheet from "./menu/ProductDetailSheet";
@@ -232,10 +233,7 @@ export default function Menu() {
           setRestaurant(data);
 
           if (data.primaryColor) {
-            document.documentElement.style.setProperty(
-              "--primary-color",
-              data.primaryColor
-            );
+            applyBrandColor(data.primaryColor);
           }
         } catch {
           if (!cancelled) setLoadError(ERROR_RESTAURANT);
@@ -261,10 +259,7 @@ export default function Menu() {
             primaryColor: data.business.primaryColor ?? undefined,
           });
           if (data.business.primaryColor) {
-            document.documentElement.style.setProperty(
-              "--primary-color",
-              data.business.primaryColor
-            );
+            applyBrandColor(data.business.primaryColor);
           }
         }
 

@@ -16,6 +16,30 @@
   padding: var(--space-3) var(--menu-gutter) var(--space-8);
 }
 
+/* --- Aurora de la carta con color de marca -------------------------------
+
+   Sin marca, los blobs usan su paleta índigo/violeta/fucsia/cyan de siempre
+   (los fallbacks son exactamente esos valores). Con marca, cada blob toma un
+   tono de la FAMILIA derivada (base, claro, profundo, hover) para que el
+   fondo se sienta del local sin perder la profundidad del aurora. Scoped
+   bajo .menu-screen: los otros paneles comparten tokens.css y no deben
+   teñirse aunque las variables estén vivas en :root. */
+.menu-screen .aurora-blob--indigo {
+  background: radial-gradient(circle, var(--primary-color, #6366f1) 0%, transparent 65%);
+}
+
+.menu-screen .aurora-blob--violet {
+  background: radial-gradient(circle, var(--primary-light, #8b5cf6) 0%, transparent 65%);
+}
+
+.menu-screen .aurora-blob--fuchsia {
+  background: radial-gradient(circle, var(--primary-deep, #d946ef) 0%, transparent 65%);
+}
+
+.menu-screen .aurora-blob--cyan {
+  background: radial-gradient(circle, var(--primary-hover, #22d3ee) 0%, transparent 65%);
+}
+
 /* Espacio para la barra de carrito fija en móvil */
 .menu-screen[data-cart-visible] {
   padding-bottom: 132px;
@@ -79,7 +103,7 @@
   background: linear-gradient(
     180deg,
     rgba(2, 6, 23, 0) 62%,
-    rgba(2, 6, 23, 0.6) 100%
+    var(--primary-veil, rgba(2, 6, 23, 0.6)) 100%
   );
   pointer-events: none;
 }
@@ -139,12 +163,16 @@
 }
 
 .storefront-badge.is-open {
+  /* Semántico a propósito, NO toma el color de marca (decisión del dueño):
+     abierto/cerrado es información de estado y se lee igual con cualquier
+     branding. */
   color: #4ade80;
   background: rgba(34, 197, 94, 0.16);
   border: 1px solid rgba(34, 197, 94, 0.35);
 }
 
 .storefront-badge.is-closed {
+  /* Semántico a propósito, NO toma el color de marca (decisión del dueño). */
   color: #fbbf24;
   background: rgba(245, 158, 11, 0.14);
   border: 1px solid rgba(245, 158, 11, 0.32);
@@ -190,6 +218,8 @@
   border-radius: var(--radius-full);
   border: 1px solid var(--glass-border);
   background: var(--glass-bg-subtle);
+  /* Neutras a propósito (decisión del dueño): las píldoras de contacto son
+     información, no toman el color de marca. */
   color: var(--color-text);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
@@ -255,7 +285,7 @@
   inset: 0 calc(var(--menu-gutter) * -1);
   z-index: -1;
   pointer-events: none;
-  background: rgba(2, 6, 23, 0.62);
+  background: var(--primary-veil, rgba(2, 6, 23, 0.62));
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border-bottom: 1px solid var(--glass-border-subtle);
@@ -332,11 +362,12 @@
 }
 
 .nav-pill.active {
-  background: var(--accent-gradient);
+  background: var(--primary-color, var(--accent-gradient));
   border-color: rgba(255, 255, 255, 0.18);
-  color: white;
+  color: var(--on-primary, white);
   font-weight: var(--font-weight-semibold);
-  box-shadow: var(--button-glow);
+  /* Sin glow a propósito (decisión del dueño): el resplandor detrás de la
+     píldora activa se veía como un velo sucio. */
 }
 
 /* ------------------------------------------------------------
@@ -419,7 +450,7 @@
 
 .product-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: var(--primary-border, rgba(255, 255, 255, 0.22));
   box-shadow: var(--glass-shadow-hover), var(--glass-inset-highlight);
 }
 
@@ -552,8 +583,9 @@
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
-  /* Mantiene el branding del local (legacy --primary-color) con fallback glass */
-  color: var(--primary-color, var(--accent-indigo));
+  /* Mismo color que el título del producto (decisión del dueño): el precio
+     NO toma el color de marca, se mantiene neutro y legible. */
+  color: var(--color-text);
 }
 
 /* --- Stepper de cantidad (− n +) — objetivos táctiles ≥44px --- */
@@ -868,7 +900,7 @@
   gap: var(--space-3);
   padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
   border-radius: var(--radius-lg);
-  background: rgba(2, 6, 23, 0.78);
+  background: var(--primary-veil-strong, rgba(2, 6, 23, 0.78));
   box-shadow: var(--glass-shadow);
   animation: fade-up var(--duration-fast) var(--ease-out-soft) both;
 }
@@ -889,6 +921,9 @@
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
+  /* Neutro a propósito (igual que los precios): el total es información,
+     no toma el color de marca. */
+  color: var(--color-text);
 }
 
 .cart-bar-open {
@@ -896,8 +931,8 @@
   padding: 0 var(--space-5);
   border-radius: var(--radius-full);
   border: 1px solid rgba(255, 255, 255, 0.18);
-  background: var(--accent-gradient);
-  color: white;
+  background: var(--primary-color, var(--accent-gradient));
+  color: var(--on-primary, white);
   font-family: var(--font-sans);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
@@ -944,7 +979,7 @@
   max-height: min(88vh, 760px);
   overflow-y: auto;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background: rgba(15, 23, 42, 0.92);
+  background: var(--primary-surface, rgba(15, 23, 42, 0.92));
   animation: sheet-up var(--duration-slow) var(--ease-out-soft) both;
 }
 
@@ -1153,6 +1188,9 @@
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
+  /* Neutro a propósito (igual que los precios): el total es información,
+     no toma el color de marca. */
+  color: var(--color-text);
 }
 
 /* --- Formulario del pedido (restyle glass) --- */
@@ -1190,7 +1228,7 @@
 
 .order-input:focus-visible {
   outline: none;
-  border-color: var(--accent-violet);
+  border-color: var(--primary-color, var(--accent-violet));
   background: rgba(2, 6, 23, 0.6);
   box-shadow: var(--focus-ring), var(--glass-inset-highlight);
 }
@@ -1323,8 +1361,8 @@
   padding: var(--space-3) var(--space-4);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: var(--radius-sm);
-  background: var(--accent-gradient);
-  color: white;
+  background: var(--primary-color, var(--accent-gradient));
+  color: var(--on-primary, white);
   font-family: var(--font-sans);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
