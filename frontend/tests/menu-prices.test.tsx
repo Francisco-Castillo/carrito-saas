@@ -4,7 +4,7 @@
  * El dueño reportó dos lugares con el número crudo ("$3200") y eran cinco:
  * la tarjeta, la hoja de detalle, la línea del carrito (que además multiplica
  * por cantidad), el total del carrito y la barra pegada de abajo. La regla es
- * una sola y se verifica en todas: la plata se ve "$ 3.200,00", nunca "$3200"
+ * una sola y se verifica en todas: la plata se ve "$ 3.200", nunca "$3200"
  * ni "$3200.5". El total del mensaje de WhatsApp también, porque es el número
  * que el local lee en el teléfono.
  *
@@ -100,11 +100,11 @@ describe("precios de la carta", () => {
     const user = userEvent.setup();
     await renderMenu();
 
-    expect(textOf(".product-price")).toBe("$ 3.200,00");
+    expect(textOf(".product-price")).toBe("$ 3.200");
 
     await user.click(document.querySelector(".product-open") as HTMLElement);
     await screen.findByRole("dialog");
-    expect(textOf(".sheet-price")).toBe("$ 3.200,00");
+    expect(textOf(".sheet-price")).toBe("$ 3.200");
 
     // El crudo, textualmente, ya no está en ningún lado.
     expect(screen.queryByText("$3200")).toBeNull();
@@ -122,9 +122,9 @@ describe("precios de la carta", () => {
     await screen.findByRole("complementary", { name: "Tu pedido" });
 
     // 2 x 3.200 = 6.400: el valor se conserva y se formatea, no se redondea ni pierde el separador.
-    expect(textOf(".cart-line-total")).toBe("$ 6.400,00");
-    expect(textOf(".cart-bar-total")).toBe("$ 6.400,00");
-    expect(textOf(".cart-total")).toContain("$ 6.400,00");
+    expect(textOf(".cart-line-total")).toBe("$ 6.400");
+    expect(textOf(".cart-bar-total")).toBe("$ 6.400");
+    expect(textOf(".cart-total")).toContain("$ 6.400");
   });
 
   it("no queda ningún precio crudo en la carta", async () => {
@@ -133,7 +133,7 @@ describe("precios de la carta", () => {
     await openCart(user);
 
     const text = document.body.textContent ?? "";
-    expect(text).toContain("$ 3.200,00");
+    expect(text).toContain("$ 3.200");
     expect(text).not.toMatch(/\$\d/);
   });
 
@@ -157,7 +157,7 @@ describe("precios de la carta", () => {
       expect(location.href).toContain("wa.me");
     });
     // Ese total lo lee el local: mismo formato que el resto de la app.
-    expect(location.href).toContain("*Total:* $ 3.200,00");
+    expect(location.href).toContain("*Total:* $ 3.200");
     expect(location.href).not.toMatch(/\*Total:\* \$\d/);
   });
 });

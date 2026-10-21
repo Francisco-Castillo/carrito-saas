@@ -34,7 +34,5 @@ RUN mvn -q -B -pl api -am package -DskipTests
 FROM eclipse-temurin:21-jre-noble
 WORKDIR /app
 COPY --from=backend /app/api/target/*.jar app.jar
-# Render injects PORT; default keeps local parity with application.yml (9090).
-ENV UPLOADS_DIR=/tmp/uploads
 EXPOSE 9090
 ENTRYPOINT ["sh", "-c", "exec java -Xmx512m -jar app.jar --server.port=${PORT:-9090}"]

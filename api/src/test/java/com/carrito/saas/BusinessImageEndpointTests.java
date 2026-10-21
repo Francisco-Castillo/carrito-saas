@@ -7,22 +7,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.UUID;
-
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.web.FilterChainProxy;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,35 +26,25 @@ import com.carrito.saas.repository.jpa.BusinessUserRepository;
 import com.carrito.saas.repository.jpa.RoleRepository;
 import com.carrito.saas.repository.jpa.UserRepository;
 import com.carrito.saas.security.JwtUtil;
+import com.carrito.saas.service.impl.ImageStorageService;
 
 /**
  * Contract for the business image endpoints: {@code POST /api/business/logo},
  * {@code DELETE /api/business/logo}, {@code POST /api/business/banner} and
  * {@code DELETE /api/business/banner}. The flow mirrors the product image
- * contract: multipart upload stores a UUID-named file under
- * {@code <uploads>/business/}, persists a publicly servable
+ * contract: multipart upload stores UUID-named bytes in Postgres
+ * (uploaded_images) and persists a publicly servable
  * {@code /api/images/business/...} URL in the JWT's business row, replacing
- * deletes the previous file (only when it was our own storage) and DELETE
- * clears the field. Anonymous callers get 401 and unsupported content types
- * are rejected with 400 naming the allowed formats.
- *
- * <p>Uploads are pointed at a JUnit-managed temp dir via the
- * {@code app.uploads.dir} property, so tests never touch the developer's
- * real {@code ./uploads}.</p>
+ * deletes the previous bytes (only when the URL was our own storage) and
+ * DELETE clears the field. Anonymous callers get 401 and unsupported content
+ * types are rejected with 400 naming the allowed formats.
  */
 @SpringBootTest
 @Transactional
 class BusinessImageEndpointTests {
 
-	@BeforeAll
-	static void registerUploadsDir() {
-		System.setProperty("app.uploads.dir", uploadsDir.toString());
-	}
-
-	@DynamicPropertySource
-	static void uploadsProperties(org.springframework.test.context.DynamicPropertyRegistry registry) {
-		registry.add("app.uploads.dir", () -> uploadsDir.toString());
-	}
+	@Autowired
+	private ImageStorageService imageStorageService;
 
 	private static final Long BUSINESS_A_ID = 987_703_201L;
 
@@ -92,10 +75,6 @@ class BusinessImageEndpointTests {
 	@Autowired
 	private JwtUtil jwtUtil;
 
-	/** Fixed uploads dir registered into the context via @DynamicPropertySource. */
-	static final Path uploadsDir = Path.of(System.getProperty("java.io.tmpdir"),
-			"business-image-upload-tests-" + UUID.randomUUID());
-
 	private MockMvc mockMvc;
 
 	private BusinessAuthSeed.AuthenticatedBusiness owner;
@@ -109,28 +88,6 @@ class BusinessImageEndpointTests {
 
 		owner = BusinessAuthSeed.seedOwner(businessRepository, userRepository, roleRepository,
 				businessUserRepository, jwtUtil, BUSINESS_A_ID, SLUG_A, OWNER_USERNAME);
-	}
-
-	@AfterEach
-	void cleanUploads() throws Exception {
-		if (Files.exists(uploadsDir)) {
-			try (var files = Files.list(uploadsDir)) {
-				files.forEach(path -> deleteRecursively(path));
-			}
-		}
-	}
-
-	private static void deleteRecursively(Path path) {
-		try {
-			if (Files.isDirectory(path)) {
-				try (var files = Files.list(path)) {
-					files.forEach(BusinessImageEndpointTests::deleteRecursively);
-				}
-			}
-			Files.deleteIfExists(path);
-		} catch (Exception ignored) {
-			// best effort cleanup
-		}
 	}
 
 	private MockMultipartFile pngFile(String name) {
@@ -167,11 +124,11 @@ class BusinessImageEndpointTests {
 		String url = com.jayway.jsonpath.JsonPath.read(body, "$.logoUrl");
 		assertThat(url).startsWith("/api/images/business/");
 
-		// The file exists on disk under the configured uploads dir.
-		String fileName = url.substring("/api/images/business/".length());
-		Path stored = uploadsDir.resolve("business").resolve(fileName);
-		assertThat(stored).exists();
-		assertThat(stored).hasBinaryContent(PNG_BYTES);
+		// The bytes live in Postgres: same content, right content type.
+		var stored = imageStorageService.loadByUrl(url);
+		assertThat(stored).isPresent();
+		assertThat(stored.get().contentType()).isEqualTo(MediaType.IMAGE_PNG_VALUE);
+		assertThat(stored.get().data()).isEqualTo(PNG_BYTES);
 
 		// The stored URL is publicly servable: the storefront shows it.
 		mockMvc.perform(get(url))
@@ -186,8 +143,6 @@ class BusinessImageEndpointTests {
 				.andExpect(status().isOk())
 				.andReturn().getResponse().getContentAsString();
 		String firstUrl = com.jayway.jsonpath.JsonPath.read(first, "$.logoUrl");
-		Path firstFile = uploadsDir.resolve("business")
-				.resolve(firstUrl.substring("/api/images/business/".length()));
 
 		String second = mockMvc.perform(multipart("/api/business/logo")
 						.file(pngFile("logo.png"))
@@ -196,12 +151,11 @@ class BusinessImageEndpointTests {
 				.andReturn().getResponse().getContentAsString();
 		String secondUrl = com.jayway.jsonpath.JsonPath.read(second, "$.logoUrl");
 
-		// A NEW file each time (UUID names never collide or overwrite), and
-		// the replaced one is gone from disk: no orphans accumulate.
+		// A NEW uuid each time (names never collide or overwrite), and the
+		// replaced bytes are gone from storage: no orphans accumulate.
 		assertThat(secondUrl).isNotEqualTo(firstUrl);
-		assertThat(firstFile).doesNotExist();
-		assertThat(uploadsDir.resolve("business")
-				.resolve(secondUrl.substring("/api/images/business/".length()))).exists();
+		assertThat(imageStorageService.loadByUrl(firstUrl)).isEmpty();
+		assertThat(imageStorageService.loadByUrl(secondUrl)).isPresent();
 	}
 
 	@Test
@@ -216,8 +170,8 @@ class BusinessImageEndpointTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.logoUrl").isEmpty());
 
-		assertThat(uploadsDir.resolve("business")
-				.resolve(url.substring("/api/images/business/".length()))).doesNotExist();
+		// The bytes are gone from storage after the DELETE.
+		assertThat(imageStorageService.loadByUrl(url)).isEmpty();
 
 		// Deleting again with nothing set is still a clean 200.
 		mockMvc.perform(delete("/api/business/logo").header(HttpHeaders.AUTHORIZATION, authHeader()))
@@ -235,8 +189,7 @@ class BusinessImageEndpointTests {
 
 		String url = com.jayway.jsonpath.JsonPath.read(body, "$.bannerUrl");
 		assertThat(url).startsWith("/api/images/business/");
-		assertThat(uploadsDir.resolve("business")
-				.resolve(url.substring("/api/images/business/".length()))).exists();
+		assertThat(imageStorageService.loadByUrl(url)).isPresent();
 
 		mockMvc.perform(delete("/api/business/banner").header(HttpHeaders.AUTHORIZATION, authHeader()))
 				.andExpect(status().isOk())

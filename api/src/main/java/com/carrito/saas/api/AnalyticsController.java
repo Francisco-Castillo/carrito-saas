@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.carrito.saas.dto.reportes.SalesByDayDTO;
 import com.carrito.saas.dto.reportes.SalesByHourDTO;
 import com.carrito.saas.dto.reportes.TopProductDTO;
 import com.carrito.saas.service.interfaces.IAnalyticsService;
@@ -30,6 +31,16 @@ public class AnalyticsController {
 	@GetMapping("/sales-by-hour")
 	public List<SalesByHourDTO> getSalesByHour(@PathVariable String slug) {
 		return analyticsService.getSalesByHourToday(slug);
+	}
+
+	@GetMapping("/sales-last-7-days")
+	public List<SalesByDayDTO> getSalesLast7Days(@PathVariable String slug) {
+		return analyticsService.getSalesLast7Days(slug);
+	}
+
+	@GetMapping("/sales-previous-7-days")
+	public List<SalesByDayDTO> getSalesPrevious7Days(@PathVariable String slug) {
+		return analyticsService.getSalesPrevious7Days(slug);
 	}
 
 }
