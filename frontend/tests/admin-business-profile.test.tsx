@@ -252,6 +252,7 @@ describe('Admin "Local" view — business profile editor', () => {
     expect(put.headers['authorization']).toBe(`Bearer ${TOKEN}`)
     expect(JSON.parse(put.body ?? '{}')).toEqual({
       name: 'Foodtruck Demo Bar',
+      phone: '',
       logoUrl: '/dev-media/logo-local.jpg',
       bannerUrl: '/dev-media/banner-local.jpg',
       address: 'Av. Siempreviva 742, Springfield',
