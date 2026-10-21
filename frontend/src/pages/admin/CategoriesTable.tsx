@@ -233,11 +233,13 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
   if (notFound) {
     return <h1 className="admin-not-found">Categorías no encontradas</h1>;
   }
-  if (categories === null) return null;
+  // Carga fallida (API error): la vista no desaparece — el panel se muestra
+  // con mensaje de error en la tabla. Mismo hallazgo/criterio que Products.
+  const list = categories ?? [];
 
   // Filtro en cliente sobre la lista ya cargada (accent- y case-insensitive).
   const needle = normalize(query.trim());
-  const filtered = needle === "" ? categories : categories.filter((c) => normalize(c.name).includes(needle));
+  const filtered = needle === "" ? list : list.filter((c) => normalize(c.name).includes(needle));
 
   return (
     <>
@@ -268,9 +270,11 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={3} className="admin-empty-state">
-                    {categories.length === 0
-                      ? 'Todavía no hay categorías. Creá la primera con "+ Nuevo".'
-                      : "No hay categorías que coincidan con la búsqueda"}
+                    {categories === null
+                      ? "No se pudieron cargar las categorías. Reintentá recargando la página."
+                      : categories.length === 0
+                        ? 'Todavía no hay categorías. Creá la primera con "+ Nuevo".'
+                        : "No hay categorías que coincidan con la búsqueda"}
                   </td>
                 </tr>
               )}
@@ -392,7 +396,7 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={3}>Total de registros: {categories.length}</td>
+                <td colSpan={3}>Total de registros: {list.length}</td>
               </tr>
             </tfoot>
           </table>

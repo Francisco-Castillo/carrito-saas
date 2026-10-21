@@ -114,11 +114,13 @@ export default function CombosTable() {
     }
   }
 
-  if (combos === null) return null;
+  // Carga fallida (API error): la vista no desaparece — el panel se muestra
+  // con mensaje de error en la tabla. Mismo hallazgo/criterio que Products.
+  const list = combos ?? [];
 
   // Filtro en cliente sobre la lista ya cargada (accent- y case-insensitive).
   const needle = normalize(query.trim());
-  const filtered = needle === "" ? combos : combos.filter((c) => normalize(c.name).includes(needle));
+  const filtered = needle === "" ? list : list.filter((c) => normalize(c.name).includes(needle));
 
   return (
     <>
@@ -153,9 +155,11 @@ export default function CombosTable() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={3} className="admin-empty-state">
-                    {combos.length === 0
-                      ? 'Todavía no hay combos. Creá el primero con "+ Nuevo combo".'
-                      : "No hay combos que coincidan con la búsqueda"}
+                    {combos === null
+                      ? "No se pudieron cargar los combos. Reintentá recargando la página."
+                      : combos.length === 0
+                        ? 'Todavía no hay combos. Creá el primero con "+ Nuevo combo".'
+                        : "No hay combos que coincidan con la búsqueda"}
                   </td>
                 </tr>
               )}
