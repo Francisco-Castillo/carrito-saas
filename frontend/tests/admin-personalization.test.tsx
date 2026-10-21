@@ -139,4 +139,19 @@ describe("Pestaña Personalización de la vista Local", () => {
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
     expect(JSON.parse(putCall().body ?? "{}").menuFont).toBe("");
   });
+
+  it("al abrir la pestaña carga las familias curadas para la vista previa", async () => {
+    // Sin este load, los previews piden font-family que no existe y TODAS las
+    // opciones se ven idénticas (bug reportado por el dueño).
+    stubFetch();
+    const user = await openLocalView();
+    await user.click(screen.getByRole("tab", { name: "Personalización" }));
+
+    const hrefs = [...document.querySelectorAll<HTMLLinkElement>('link[href*="fonts.googleapis.com"]')]
+      .map((l) => l.href)
+      .join(" ");
+    for (const family of ["Poppins", "Montserrat", "Playfair+Display", "Lora", "Nunito"]) {
+      expect(hrefs).toContain(`family=${family}`);
+    }
+  });
 });
