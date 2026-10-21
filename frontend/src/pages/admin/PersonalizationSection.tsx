@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CARTA_COLORS } from "./cartaColors";
 import ColorPicker from "./ColorPicker";
 import { suggestColorsFromImage } from "./logoColors";
-import { MENU_FONT_OPTIONS } from "../../menuFonts";
+import { loadMenuFonts, MENU_FONT_OPTIONS } from "../../menuFonts";
 import type { BusinessProfileHook } from "./useBusinessProfile";
 
 /**
@@ -26,6 +26,13 @@ export default function PersonalizationSection({
   profile: BusinessProfileHook;
 }) {
   const { primaryColor, setPrimaryColor, menuFont, setMenuFont, logoUrl, saving, error, save } = profile;
+
+  // Vista previa real: sin cargar las familias curadas, cada opción pide una
+  // font-family que el navegador no tiene y TODAS se ven iguales (bug
+  // reportado por el dueño). Idempotente: loadMenuFonts no duplica links.
+  useEffect(() => {
+    loadMenuFonts(MENU_FONT_OPTIONS.map((option) => option.family));
+  }, []);
 
   // Sugerencias desde el logo (spec S3): la extracción corre al hacer clic,
   // nunca al montar (analizar es gratis pero cargar la imagen no); un fallo
