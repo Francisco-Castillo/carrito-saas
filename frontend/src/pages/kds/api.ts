@@ -14,6 +14,11 @@ import { showToast } from "./toast";
 export interface KdsOrderItem {
   quantity: number;
   productName: string;
+  /**
+   * Opciones elegidas del ítem (odd/tasks/product-options.md S5), como
+   * "Grupo: Opción" resueltas por el backend. Vacío = producto sin opciones.
+   */
+  selectedOptions?: string[];
 }
 
 export interface KdsOrder {

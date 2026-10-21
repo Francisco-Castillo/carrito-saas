@@ -273,6 +273,17 @@ export default function OrderCard({
           {order.items.map((i, idx) => (
             <div className="item" key={idx}>
               <span className="item-qty">{i.quantity}x</span> {i.productName}
+              {/* Opciones elegidas (S5): visibles para la cocina, debajo del
+                  producto y en el orden en que el dueño definió los grupos. */}
+              {(i.selectedOptions ?? []).length > 0 && (
+                <div className="item-options">
+                  {i.selectedOptions!.map((opt, optIdx) => (
+                    <span className="item-option" key={optIdx}>
+                      {opt}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>

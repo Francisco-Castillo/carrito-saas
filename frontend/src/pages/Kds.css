@@ -724,3 +724,17 @@ select option {
     transition: none;
   }
 }
+
+/* Opciones elegidas por ítem (odd/tasks/product-options.md, T6/S5). */
+.item-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 6px 2.2em;
+  font-size: 0.85em;
+  color: var(--muted, #555);
+}
+
+.item-option::before {
+  content: "› ";
+}
