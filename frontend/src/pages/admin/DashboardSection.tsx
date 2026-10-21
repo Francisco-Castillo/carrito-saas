@@ -3,6 +3,7 @@ import KpiCards from "../dashboard/KpiCards";
 import SalesChart from "../dashboard/SalesChart";
 import SalesByDayChart from "../dashboard/SalesByDayChart";
 import TopProducts from "../dashboard/TopProducts";
+import ProductTrends from "../dashboard/ProductTrends";
 
 /**
  * Sección de dashboard embebida del admin: el legacy admin.js renderizaba el
@@ -11,7 +12,7 @@ import TopProducts from "../dashboard/TopProducts";
  * dashboard existentes en vez de duplicarlos.
  */
 export default function DashboardSection() {
-  const { today, topProducts, salesByHour, salesByDay, salesPrevWeek, loading, errors } =
+  const { today, topProducts, salesByHour, salesByDay, salesPrevWeek, trendsUp, trendsDown, loading, errors } =
     useDashboardData(true);
 
   return (
@@ -23,6 +24,8 @@ export default function DashboardSection() {
       <SalesByDayChart data={salesByDay} prevData={salesPrevWeek} loading={loading} error={errors.salesByDay} />
 
       <TopProducts products={topProducts} loading={loading} error={errors.topProducts} />
+
+      <ProductTrends trendsUp={trendsUp} trendsDown={trendsDown} loading={loading} error={errors.trends} />
     </div>
   );
 }

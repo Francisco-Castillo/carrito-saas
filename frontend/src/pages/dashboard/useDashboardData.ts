@@ -3,6 +3,7 @@ import { api } from "./api";
 import { checkAuth } from "./auth";
 import type {
   DashboardToday,
+  ProductTrend,
   SalesByDay,
   SalesByHour,
   TopProduct,
@@ -43,6 +44,8 @@ export function useDashboardData(enabled: boolean) {
   const [salesByHour, setSalesByHour] = useState<SalesByHour[] | null>(null);
   const [salesByDay, setSalesByDay] = useState<SalesByDay[] | null>(null);
   const [salesPrevWeek, setSalesPrevWeek] = useState<SalesByDay[] | null>(null);
+  const [trendsUp, setTrendsUp] = useState<ProductTrend[]>([]);
+  const [trendsDown, setTrendsDown] = useState<ProductTrend[]>([]);
   const [date, setDate] = useState("");
 
   // Primera carga: los skeletons están arriba hasta que la tanda inicial
@@ -83,6 +86,13 @@ export function useDashboardData(enabled: boolean) {
         track("salesByHour", api.getSalesByHour().then(setSalesByHour)),
         track("salesByDay", api.getSalesLast7Days().then(setSalesByDay)),
         track("salesPrevWeek", api.getSalesPrevious7Days().then(setSalesPrevWeek)),
+        track(
+          "trends",
+          Promise.all([
+            api.getTrendsTopUp().then(setTrendsUp),
+            api.getTrendsTopDown().then(setTrendsDown),
+          ]),
+        ),
       ]).then(() => setLoading(false));
     };
 
@@ -99,6 +109,8 @@ export function useDashboardData(enabled: boolean) {
     salesByHour,
     salesByDay,
     salesPrevWeek,
+    trendsUp,
+    trendsDown,
     date,
     loading,
     errors,

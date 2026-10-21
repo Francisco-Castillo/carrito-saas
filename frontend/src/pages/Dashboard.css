@@ -271,6 +271,69 @@
 }
 
 /* ------------------------------------------------------------
+   Tendencias de productos (suben / bajan)
+   ------------------------------------------------------------ */
+
+.trends-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+}
+
+@media (min-width: 560px) {
+  .trends-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.trends-heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.trends-heading--up {
+  color: #4ade80;
+}
+
+.trends-heading--down {
+  color: #f87171;
+}
+
+.trends-grid ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.trends-grid li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.trends-grid li:last-child {
+  border-bottom: none;
+}
+
+.trend-value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-value--up {
+  color: #4ade80;
+}
+
+.trend-value--down {
+  color: #f87171;
+}
+
+/* ------------------------------------------------------------
    Ventas hoy (chart) y Top productos
    ------------------------------------------------------------ */
 

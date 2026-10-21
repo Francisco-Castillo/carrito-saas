@@ -6,6 +6,7 @@ import KpiCards from "./dashboard/KpiCards";
 import SalesChart from "./dashboard/SalesChart";
 import SalesByDayChart from "./dashboard/SalesByDayChart";
 import TopProducts from "./dashboard/TopProducts";
+import ProductTrends from "./dashboard/ProductTrends";
 
 export default function Dashboard() {
   // Guard del legacy (index.html <head>): corre antes del primer paint y
@@ -23,7 +24,7 @@ export default function Dashboard() {
 
   // initDashboard() del legacy: checkAuth primero, luego loads en paralelo
   // (hook compartido con la sección embebida del admin).
-  const { today, topProducts, salesByHour, salesByDay, salesPrevWeek, date, loading, errors } =
+  const { today, topProducts, salesByHour, salesByDay, salesPrevWeek, trendsUp, trendsDown, date, loading, errors } =
     useDashboardData(sessionUsable);
 
   if (!sessionUsable) {
@@ -87,6 +88,8 @@ export default function Dashboard() {
         <SalesByDayChart data={salesByDay} prevData={salesPrevWeek} loading={loading} error={errors.salesByDay} />
 
         <TopProducts products={topProducts} loading={loading} error={errors.topProducts} />
+
+        <ProductTrends trendsUp={trendsUp} trendsDown={trendsDown} loading={loading} error={errors.trends} />
       </main>
     </div>
   );
