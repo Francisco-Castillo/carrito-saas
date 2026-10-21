@@ -694,3 +694,41 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ============ Responsive móvil fino (T5 carga-responsive-panel.md) ============ */
+
+@media (max-width: 559px) {
+  /* Consola usada desde el celular en el salón: modal del POS y de detalle
+     casi de pantalla completa. dvh = alto dinámico (barra del navegador),
+     con fallback a vh. */
+  .orders-modal {
+    padding: 10px;
+  }
+
+  .orders-modal-content {
+    max-height: 94vh;
+    max-height: calc(100dvh - 20px);
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .orders-modal--pos .orders-modal-content {
+    width: 100%;
+  }
+
+  /* Cierre al alcance del pulgar: 44px de target táctil. */
+  .orders-modal-close {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
+  }
+
+  /* El modal de cancelación comparte .modal-content con el KDS: sin
+     max-height desbordaba en pantallas cortas (motivo + nota + acciones). */
+  .modal-content {
+    max-height: 90vh;
+    max-height: calc(100dvh - 20px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
