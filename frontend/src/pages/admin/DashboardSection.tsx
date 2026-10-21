@@ -17,7 +17,12 @@ export default function DashboardSection() {
 
   return (
     <div className="admin-dashboard">
-      <KpiCards today={today} loading={loading} error={errors.today} />
+      <KpiCards
+        today={today}
+        weekTotal={salesByDay ? salesByDay.reduce((sum, d) => sum + d.revenue, 0) : null}
+        loading={loading}
+        error={errors.today}
+      />
 
       <SalesChart data={salesByHour} loading={loading} error={errors.salesByHour} />
 
