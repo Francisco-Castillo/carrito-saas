@@ -116,5 +116,36 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 
 		return sales;
 	}
+	@Override
+	public List<SalesByDayDTO> getSalesPrevious7Days(String slug) {
+		Business restaurant = businessRepository.findBySlug(slug)
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
+
+		// Semana anterior completa: [hoy-13 00:00, hoy-6 00:00). Es la ventana
+		// que el gráfico compara contra getSalesLast7Days ([hoy-6, mañana)).
+		LocalDate today = LocalDate.now();
+		LocalDateTime start = today.minusDays(13).atStartOfDay();
+		LocalDateTime end = today.minusDays(6).atStartOfDay();
+
+		List<Object[]> results =
+				orderRepository.findSalesByDay(restaurant.getId(), start, end);
+
+		Map<LocalDate, Double> revenueByDay = results.stream()
+				.collect(Collectors.toMap(
+						r -> LocalDate.parse(String.valueOf(r[0])),
+						r -> ((Number) r[1]).doubleValue()
+				));
+
+		// Mismo orden que la semana actual (día más viejo primero) para que el
+		// dataset comparativo del gráfico alinee sin remapear en el frontend.
+		// 7 días exactos: [hoy-13 .. hoy-7] — hoy-6 ya pertenece a la semana actual.
+		List<SalesByDayDTO> sales = new ArrayList<>();
+		for (LocalDate day = today.minusDays(13); day.isBefore(today.minusDays(6)); day = day.plusDays(1)) {
+			double revenue = revenueByDay.getOrDefault(day, 0.0);
+			sales.add(new SalesByDayDTO(day.toString(), revenue));
+		}
+
+		return sales;
+	}
 
 }

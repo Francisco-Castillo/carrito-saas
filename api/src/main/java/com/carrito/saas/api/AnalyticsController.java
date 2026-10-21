@@ -38,4 +38,9 @@ public class AnalyticsController {
 		return analyticsService.getSalesLast7Days(slug);
 	}
 
+	@GetMapping("/sales-previous-7-days")
+	public List<SalesByDayDTO> getSalesPrevious7Days(@PathVariable String slug) {
+		return analyticsService.getSalesPrevious7Days(slug);
+	}
+
 }

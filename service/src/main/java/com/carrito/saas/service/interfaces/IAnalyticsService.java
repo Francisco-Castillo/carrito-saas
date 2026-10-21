@@ -11,5 +11,6 @@ public interface IAnalyticsService {
 	List<TopProductDTO> getTopProductsToday(String slug);
 	List<SalesByHourDTO> getSalesByHourToday(String slug);
 	List<SalesByDayDTO> getSalesLast7Days(String slug);
+	List<SalesByDayDTO> getSalesPrevious7Days(String slug);
 
 }

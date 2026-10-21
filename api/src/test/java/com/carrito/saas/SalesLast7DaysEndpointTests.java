@@ -86,6 +86,18 @@ class SalesLast7DaysEndpointTests {
 	}
 
 	@Test
+	void previousWeekReturnsTheShiftedZeroFilledSeries() throws Exception {
+		seedOwner();
+
+		mockMvc.perform(get("/api/restaurants/" + SLUG + "/analytics/sales-previous-7-days")
+				.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isArray())
+				.andExpect(jsonPath("$.length()").value(7))
+				.andExpect(jsonPath("$[0].revenue").value(0.0));
+	}
+
+	@Test
 	void rejectsAnAnonymousCaller() throws Exception {
 		seedOwner();
 
