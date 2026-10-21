@@ -94,7 +94,11 @@ public class OrderServiceImpl implements IOrderService {
 		// carries ?restaurant=<slug>, so a null/blank slug resolves the deployment's
 		// only business (fail-closed when there is not exactly one). A present slug
 		// keeps the legacy path untouched.
-		if (request.getCustomerName() == null || request.getCustomerName().isBlank()) {
+		// SALON no exige datos del cliente: la mesa identifica al comensal (el
+		// KDS y la consola muestran el nombre de la mesa). RETIRO/DELIVERY siguen
+		// necesitando el nombre para llamar/entregar.
+		boolean salon = request.getOrderType() == OrderType.SALON;
+		if (!salon && (request.getCustomerName() == null || request.getCustomerName().isBlank())) {
 			throw new BusinessException("El nombre del cliente es obligatorio", ErrorType.VALIDATION);
 		}
 
@@ -142,7 +146,10 @@ public class OrderServiceImpl implements IOrderService {
 		Order order = new Order();
 		order.setStatus(OrderStatus.NEW);
 		order.setBusiness(business);
-		order.setCustomerName(request.getCustomerName());
+		// En salón un nombre/phone en blanco se guarda como null (anónimo), no
+		// como cadena vacía.
+		String customerName = request.getCustomerName();
+		order.setCustomerName(customerName == null || customerName.isBlank() ? null : customerName.trim());
 		order.setCustomerPhone(request.getCustomerPhone());
 		order.setOrderType(request.getOrderType());
 		order.setCustomerAddress(request.getCustomerAddress());

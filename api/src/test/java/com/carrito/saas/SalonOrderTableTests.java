@@ -1,6 +1,7 @@
 package com.carrito.saas;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -154,15 +155,21 @@ class SalonOrderTableTests {
 	}
 
 	private ResultActions createOrder(String slug, String orderType, Long tableId) throws Exception {
+		return createOrderRaw(slug, orderType, tableId,
+				"\"customerName\": \"Cliente Salón\",\n\t\t\t  ");
+	}
+
+	/** Variante sin datos del cliente: el payload manda sólo tipo, pago, mesa e items. */
+	private ResultActions createOrderRaw(String slug, String orderType, Long tableId, String customerFields)
+			throws Exception {
 		String body = """
 				{
-				  "customerName": "Cliente Salón",
-				  "orderType": "%s",
+				  %s"orderType": "%s",
 				  "paymentMethod": "EFECTIVO",
 				  %s
 				  "items": [ { "productId": %d, "quantity": 1 } ]
 				}
-				""".formatted(orderType, tableId == null ? "" : "\"tableId\": " + tableId + ",", productIdA);
+				""".formatted(customerFields, orderType, tableId == null ? "" : "\"tableId\": " + tableId + ",", productIdA);
 
 		return mockMvc.perform(post("/api/orders/menu/" + slug)
 						.contentType(MediaType.APPLICATION_JSON)
@@ -236,6 +243,34 @@ class SalonOrderTableTests {
 		assertThat(order.getRestaurantTable()).isNotNull();
 		assertThat(order.getRestaurantTable().getId()).isEqualTo(tableId);
 		assertThat(order.getRestaurantTable().getTableName()).isEqualTo("Mesa 3");
+	}
+
+	// SALON sin datos del cliente: la mesa identifica al comensal, nombre y
+	// teléfono son para RETIRO/DELIVERY.
+	@Test
+	void salonOrderWithoutCustomerDataIsCreatedAnonymously() throws Exception {
+
+		long tableId = seedTable(SLUG_A, 5);
+
+		ResultActions result = createOrderRaw(SLUG_A, "SALON", tableId, "");
+
+		result.andExpect(status().isOk())
+				.andExpect(jsonPath("$.tableId").value((int) tableId))
+				.andExpect(jsonPath("$.customerName").value(equalTo(null)));
+
+		long orderId = objectMapper.readTree(result.andReturn().getResponse().getContentAsString()).get("orderId").asLong();
+		Order order = orderRepository.findById(orderId).orElseThrow();
+		assertThat(order.getCustomerName()).as("el salón no guarda nombre").isNull();
+		assertThat(order.getCustomerPhone()).as("el salón no guarda teléfono").isNull();
+	}
+
+	// Guarda: RETIRO sin nombre sigue rechazándose (400).
+	@Test
+	void retiroOrderWithoutCustomerNameIsStillRejected() throws Exception {
+
+		ResultActions result = createOrderRaw(SLUG_A, "RETIRO", null, "");
+
+		result.andExpect(status().isBadRequest());
 	}
 
 }
