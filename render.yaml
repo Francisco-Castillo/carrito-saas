@@ -35,6 +35,10 @@ services:
       # Cambiar por la URL pública del servicio tras el primer deploy.
       - key: QR_PUBLIC_MENU_URL
         sync: false
+      # Los horarios de negocio se cargan y evalúan en hora local: sin TZ el
+      # contenedor corre en UTC y "El local está cerrado" falla pedidos válidos.
+      - key: TZ
+        value: America/Argentina/Buenos_Aires
 
 databases:
   - name: carrito-db
