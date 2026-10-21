@@ -35,8 +35,12 @@ export function unlockAudio(): void {
   const sound = document.getElementById("newOrderSound") as HTMLAudioElement | null;
   if (!sound) return;
 
-  sound
-    .play()
+  const playing = sound.play();
+  // jsdom (y entornos sin implementación de media) devuelve undefined: sin
+  // el guard, unlockAudio revienta como excepción no capturada en tests.
+  if (!playing) return;
+
+  playing
     .then(() => {
       sound.pause();
       sound.currentTime = 0;
