@@ -1,6 +1,7 @@
 import { useDashboardData } from "../dashboard/useDashboardData";
 import KpiCards from "../dashboard/KpiCards";
 import SalesChart from "../dashboard/SalesChart";
+import SalesByDayChart from "../dashboard/SalesByDayChart";
 import TopProducts from "../dashboard/TopProducts";
 
 /**
@@ -10,13 +11,15 @@ import TopProducts from "../dashboard/TopProducts";
  * dashboard existentes en vez de duplicarlos.
  */
 export default function DashboardSection() {
-  const { today, topProducts, salesByHour } = useDashboardData(true);
+  const { today, topProducts, salesByHour, salesByDay } = useDashboardData(true);
 
   return (
     <div className="admin-dashboard">
       <KpiCards today={today} />
 
       <SalesChart data={salesByHour} />
+
+      <SalesByDayChart data={salesByDay} />
 
       <TopProducts products={topProducts} />
     </div>

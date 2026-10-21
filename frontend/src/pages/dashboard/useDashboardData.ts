@@ -3,6 +3,7 @@ import { api } from "./api";
 import { checkAuth } from "./auth";
 import type {
   DashboardToday,
+  SalesByDay,
   SalesByHour,
   TopProduct,
 } from "./api";
@@ -20,6 +21,7 @@ export function useDashboardData(enabled: boolean) {
   const [today, setToday] = useState<DashboardToday | null>(null);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [salesByHour, setSalesByHour] = useState<SalesByHour[] | null>(null);
+  const [salesByDay, setSalesByDay] = useState<SalesByDay[] | null>(null);
   const [date, setDate] = useState("");
 
   useEffect(() => {
@@ -43,7 +45,12 @@ export function useDashboardData(enabled: boolean) {
       .getSalesByHour()
       .then(setSalesByHour)
       .catch((e) => console.error("Error cargando grafico", e));
+
+    api
+      .getSalesLast7Days()
+      .then(setSalesByDay)
+      .catch((e) => console.error("Error cargando ventas semanales", e));
   }, [enabled]);
 
-  return { today, topProducts, salesByHour, date };
+  return { today, topProducts, salesByHour, salesByDay, date };
 }

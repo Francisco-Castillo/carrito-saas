@@ -35,6 +35,11 @@ export interface SalesByHour {
   revenue: number;
 }
 
+export interface SalesByDay {
+  day: string;
+  revenue: number;
+}
+
 /**
  * Base de la API del panel. El slug de sesión es obligatorio y se resuelve
  * por request, no en una constante de módulo: así ningún camino arma una base
@@ -78,5 +83,9 @@ export const api = {
 
   getSalesByHour(): Promise<SalesByHour[]> {
     return apiGet("/analytics/sales-by-hour");
+  },
+
+  getSalesLast7Days(): Promise<SalesByDay[]> {
+    return apiGet("/analytics/sales-last-7-days");
   },
 };

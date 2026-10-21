@@ -4,6 +4,7 @@ import { hasPanelSession, enforceSession, logout } from "./dashboard/auth";
 import { useDashboardData } from "./dashboard/useDashboardData";
 import KpiCards from "./dashboard/KpiCards";
 import SalesChart from "./dashboard/SalesChart";
+import SalesByDayChart from "./dashboard/SalesByDayChart";
 import TopProducts from "./dashboard/TopProducts";
 
 export default function Dashboard() {
@@ -22,7 +23,7 @@ export default function Dashboard() {
 
   // initDashboard() del legacy: checkAuth primero, luego loads en paralelo
   // (hook compartido con la sección embebida del admin).
-  const { today, topProducts, salesByHour, date } =
+  const { today, topProducts, salesByHour, salesByDay, date } =
     useDashboardData(sessionUsable);
 
   if (!sessionUsable) {
@@ -82,6 +83,8 @@ export default function Dashboard() {
         <KpiCards today={today} />
 
         <SalesChart data={salesByHour} />
+
+        <SalesByDayChart data={salesByDay} />
 
         <TopProducts products={topProducts} />
       </main>
