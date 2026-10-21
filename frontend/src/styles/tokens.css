@@ -5,7 +5,7 @@
 
 :root {
   /* Color — base surface */
-  --color-bg: #020617;
+  --color-bg: #000000;
   --color-text: #f8fafc;
   --color-text-muted: #94a3b8;
   --color-text-faint: #64748b;
@@ -101,7 +101,10 @@ body {
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-regular);
   color: var(--color-text);
-  background: var(--color-bg);
+  /* Base negra; la carta la tiñe con --primary-bg (marca al 7%) cuando el
+     local cargó color: la variable sólo existe entonces y el fallback
+     devuelve el negro original. */
+  background: var(--primary-bg, var(--color-bg));
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
