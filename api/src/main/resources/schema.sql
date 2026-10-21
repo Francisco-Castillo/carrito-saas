@@ -103,6 +103,13 @@ CREATE SEQUENCE IF NOT EXISTS businesses_id_seq
 -- hermana una vez (ALTER idempotente). Baja = active=false; REVERSIBLE; el
 -- historial no se toca.
 
+-- Grupos de opciones por producto (docs/migrations/2026-10-21-product-options.sql,
+-- documento hermano; odd/tasks/product-options.md S1-S3). Tablas creadas por
+-- ddl-auto:update en DBs frescas; mismas razones que arriba para NO poner
+-- CREATE TABLE acá: spring.sql.init corre antes de Hibernate. El dueño define
+-- por producto grupos (required, multiple, min/max) y opciones con recargo
+-- (price_delta); el pedido valida y persiste las selecciones (T3).
+
 -- Imágenes subidas (productos, combos, logo/banner del negocio) almacenadas
 -- EN LA BASE, no en el filesystem. Motivo duro: el demo corre en Render free,
 -- donde el filesystem del contenedor (/tmp) se VACÍA en cada spin-down
