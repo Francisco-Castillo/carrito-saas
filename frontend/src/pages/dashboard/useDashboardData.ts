@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 import { checkAuth } from "./auth";
 import type {
@@ -67,6 +67,10 @@ export function useDashboardData(enabled: boolean) {
     checkAuth();
 
     setDate(new Date().toLocaleDateString("es-ES"));
+  }, [enabled]);
+
+  const loadAll = useCallback(() => {
+    if (document.hidden) return;
 
     const track = (key: LoadKey, promise: Promise<unknown>) =>
       promise
@@ -76,32 +80,36 @@ export function useDashboardData(enabled: boolean) {
           console.error(`Error cargando ${key}`, e);
         });
 
-    const loadAll = () => {
-      if (document.hidden) return;
+    // Promise.allSettled: una sección fallida no tapa a las demás.
+    void Promise.allSettled([
+      track("today", api.getDashboardToday().then(setToday)),
+      track("topProducts", api.getTopProducts().then(setTopProducts)),
+      track("salesByHour", api.getSalesByHour().then(setSalesByHour)),
+      track("salesByDay", api.getSalesLast7Days().then(setSalesByDay)),
+      track("salesPrevWeek", api.getSalesPrevious7Days().then(setSalesPrevWeek)),
+      track(
+        "trends",
+        Promise.all([
+          api.getTrendsTopUp().then(setTrendsUp),
+          api.getTrendsTopDown().then(setTrendsDown),
+        ]),
+      ),
+    ]).then(() => setLoading(false));
+  }, []);
 
-      // Promise.allSettled: una sección fallida no tapa a las demás.
-      void Promise.allSettled([
-        track("today", api.getDashboardToday().then(setToday)),
-        track("topProducts", api.getTopProducts().then(setTopProducts)),
-        track("salesByHour", api.getSalesByHour().then(setSalesByHour)),
-        track("salesByDay", api.getSalesLast7Days().then(setSalesByDay)),
-        track("salesPrevWeek", api.getSalesPrevious7Days().then(setSalesPrevWeek)),
-        track(
-          "trends",
-          Promise.all([
-            api.getTrendsTopUp().then(setTrendsUp),
-            api.getTrendsTopDown().then(setTrendsDown),
-          ]),
-        ),
-      ]).then(() => setLoading(false));
-    };
+  useEffect(() => {
+    if (!enabled) return;
+
+    checkAuth();
+
+    setDate(new Date().toLocaleDateString("es-ES"));
 
     loadAll();
 
     const intervalId = setInterval(loadAll, REFRESH_MS);
 
     return () => clearInterval(intervalId);
-  }, [enabled]);
+  }, [enabled, loadAll]);
 
   return {
     today,
@@ -114,5 +122,7 @@ export function useDashboardData(enabled: boolean) {
     date,
     loading,
     errors,
+    /** Refetch inmediato de todos los datos — lo dispara el indicador en vivo. */
+    refresh: loadAll,
   };
 }

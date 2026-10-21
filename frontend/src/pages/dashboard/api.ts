@@ -40,6 +40,13 @@ export interface SalesByDay {
   revenue: number;
 }
 
+/** Conteo de pedidos por estado activo — lo usa el indicador en vivo. */
+export interface OrderStatusSummary {
+  NEW?: number;
+  PREPARING?: number;
+  READY?: number;
+}
+
 /** Tendencia de un producto (sube/baja vs. período anterior). */
 export interface ProductTrend {
   productId: number;
@@ -107,5 +114,9 @@ export const api = {
 
   getTrendsTopDown(limit = 5): Promise<ProductTrend[]> {
     return apiGet(`/trends/top-down?limit=${limit}`);
+  },
+
+  getOrderStatusSummary(): Promise<OrderStatusSummary> {
+    return apiGet("/orders/status-summary");
   },
 };

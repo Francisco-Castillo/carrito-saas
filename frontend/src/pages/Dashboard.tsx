@@ -2,6 +2,7 @@ import { useLayoutEffect, useState } from "react";
 import "./Dashboard.css";
 import { hasPanelSession, enforceSession, logout } from "./dashboard/auth";
 import { useDashboardData } from "./dashboard/useDashboardData";
+import { useLiveOrders } from "./dashboard/useLiveOrders";
 import KpiCards from "./dashboard/KpiCards";
 import SalesChart from "./dashboard/SalesChart";
 import SalesByDayChart from "./dashboard/SalesByDayChart";
@@ -24,8 +25,13 @@ export default function Dashboard() {
 
   // initDashboard() del legacy: checkAuth primero, luego loads en paralelo
   // (hook compartido con la sección embebida del admin).
-  const { today, topProducts, salesByHour, salesByDay, salesPrevWeek, trendsUp, trendsDown, date, loading, errors } =
+  const { today, topProducts, salesByHour, salesByDay, salesPrevWeek, trendsUp, trendsDown, date, loading, errors, refresh } =
     useDashboardData(sessionUsable);
+
+  // Indicador en vivo (S9): badge de pedidos activos + ding al entrar un
+  // pedido nuevo. El WS event dispara el refetch del dashboard, así que las
+  // KPIs del día reaccionan al instante sin esperar el auto-refresh.
+  const { activeCount, live } = useLiveOrders(sessionUsable, refresh);
 
   if (!sessionUsable) {
     // Redirect en curso: no renderizamos la página sin sesión.
@@ -48,6 +54,17 @@ export default function Dashboard() {
         </div>
 
         <div className="actions">
+          {/* Indicador en vivo: badge de pedidos activos + punto de conexión.
+              Solo el dashboard pantalla completa — la sección del admin vive
+              dentro de un panel más chico y no tiene topbar propia. */}
+          <span
+            className="live-badge"
+            title={live ? "Conectado en vivo" : "Reconectando…"}
+          >
+            <span className={`live-dot ${live ? "live-dot--on" : "live-dot--off"}`} aria-hidden="true" />
+            {activeCount} activos
+          </span>
+
           {/* Entrada a la consola de pedidos (orders-console S3): mismo patrón
               que el botón de salir — un enlace de la topbar, sin rediseñar la
               navegación existente. */}
@@ -91,6 +108,9 @@ export default function Dashboard() {
 
         <ProductTrends trendsUp={trendsUp} trendsDown={trendsDown} loading={loading} error={errors.trends} />
       </main>
+      {/* Sonido de pedido nuevo: mismo <audio> por id que el KDS y la consola
+          (playNewOrderSound lo busca por document.getElementById). */}
+      <audio id="newOrderSound" src="/ding.mp3" preload="auto" />
     </div>
   );
 }

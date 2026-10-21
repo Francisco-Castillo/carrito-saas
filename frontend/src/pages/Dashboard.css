@@ -139,6 +139,64 @@
 }
 
 /* ------------------------------------------------------------
+   Indicador en vivo (badge de pedidos activos en la topbar)
+   ------------------------------------------------------------ */
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: 999px;
+  background: var(--glass-bg-subtle);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.live-dot--on {
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.7);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+.live-dot--off {
+  background: var(--color-text-muted);
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot--on {
+    animation: none;
+  }
+}
+
+@media (max-width: 559px) {
+  .live-badge {
+    min-height: 36px;
+    padding: var(--space-1) var(--space-2);
+  }
+}
+
+/* ------------------------------------------------------------
    KPI cards — grid responsive 1 → 2 → 4
    ------------------------------------------------------------ */
 
