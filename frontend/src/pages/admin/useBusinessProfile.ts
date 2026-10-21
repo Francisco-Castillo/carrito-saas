@@ -57,6 +57,7 @@ import type { BusinessHours, DateException } from "../menu/types";
 
 export interface BusinessProfile {
   name?: string | null;
+  phone?: string | null;
   logoUrl?: string | null;
   bannerUrl?: string | null;
   address?: string | null;
@@ -152,6 +153,7 @@ function dayFromEntry(entry: { shifts?: BusinessHours["shifts"] } | undefined): 
 
 export function useBusinessProfile() {
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
   const [address, setAddress] = useState("");
@@ -173,6 +175,7 @@ export function useBusinessProfile() {
         const data = (await res.json()) as BusinessProfile;
         if (cancelled) return;
         setName(data.name ?? "");
+        setPhone(data.phone ?? "");
         setLogoUrl(data.logoUrl ?? "");
         setBannerUrl(data.bannerUrl ?? "");
         setAddress(data.address ?? "");
@@ -294,6 +297,11 @@ export function useBusinessProfile() {
         headers: { ...authHeader(), "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
+          // Teléfono del local (WhatsApp): el menú público lo expone como
+          // `whatsappNumber` y es el número que usa el fallback de WhatsApp
+          // de la carta. Tal cual los otros campos de texto: "" limpia (el
+          // backend interpreta la cadena vacía como borrado).
+          phone,
           logoUrl,
           bannerUrl,
           address,
@@ -341,6 +349,8 @@ export function useBusinessProfile() {
   return {
     name,
     setName,
+    phone,
+    setPhone,
     logoUrl,
     setLogoUrl,
     bannerUrl,

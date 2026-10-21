@@ -183,6 +183,8 @@ export default function DatosSection({ profile }: { profile: BusinessProfileHook
   const {
     name,
     setName,
+    phone,
+    setPhone,
     logoUrl,
     setLogoUrl,
     bannerUrl,
@@ -247,6 +249,23 @@ export default function DatosSection({ profile }: { profile: BusinessProfileHook
             value={address}
             onChange={(e) => setAddress(e.target.value)}
           />
+        </div>
+
+        <div className="admin-profile-field">
+          <label htmlFor="profile-phone">WhatsApp del local</label>
+          <input
+            id="profile-phone"
+            className="admin-input"
+            aria-label="WhatsApp del local"
+            placeholder="5491123456789"
+            inputMode="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+          <p className="admin-image-hint">
+            Código de país + número, sin 0 ni 15 (ej: 5491123456789). Es el
+            número que usa la carta para el fallback de WhatsApp.
+          </p>
         </div>
 
         <div className="admin-profile-field">
