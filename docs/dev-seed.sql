@@ -205,4 +205,161 @@ INSERT INTO cancellation_reasons (id, code, description, active, created_at) VAL
   (990103, 'ERROR_PEDIDO', 'Error en el pedido',        true, now())
 ON CONFLICT (code) DO NOTHING;
 
+-- ============================================================================
+-- Demo sales: weekly chart, top products and KPIs with real numbers.
+--
+-- Orders + items for the demo business (demo-e2e, 990000001) across the last
+-- 7 days, so the dashboard shows: week-over-week chart, hourly chart, top
+-- products and the "Vendido hoy" KPI (revenue counts DELIVERED only, so
+-- today always includes some delivered orders).
+--
+-- Design notes (same conventions as the rest of this file):
+--  * Insert-only and idempotent: explicit ids in the 991xxx range (orders)
+--    and 9910xxxxx (order items), far above tests and real rows; every
+--    statement is ON CONFLICT DO NOTHING or guarded by NOT EXISTS.
+--  * Deterministic: no RANDOM() — the demo looks the same on every machine.
+--  * Tied to the demo business products seeded above; skipped entirely if
+--    that business does not exist.
+-- NEVER run this against production: it creates fake sales history.
+-- ============================================================================
+DO $$
+DECLARE
+  biz_id  CONSTANT bigint := 990000001;
+  base_id bigint := 991000000;
+  d       int;
+  o       int;
+  ord_id  bigint;
+  ord_ts  timestamptz;
+  prep_mins int;
+  items_left int;
+  item_qty int;
+  prod    record;
+  ord_total numeric(38,2);
+  ord_num int;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM businesses WHERE id = biz_id) THEN
+    RETURN;
+  END IF;
+
+  FOR d IN 0..6 LOOP
+    -- Entre 3 y 8 pedidos por día, determinístico por día.
+    FOR o IN 1..(3 + ((d * 2 + 1) % 6)) LOOP
+      base_id := base_id + 1;
+      ord_id := base_id;
+      ord_ts := (CURRENT_DATE - d)::timestamptz
+                + make_interval(hours => 11 + ((o * 5 + d) % 11), mins => (o * 17) % 60);
+      prep_mins := 5 + ((o * 7 + d * 3) % 16);
+      ord_num := 990000 + d * 100 + o;
+
+      INSERT INTO orders (id, business_id, order_number, status, order_type, payment_method,
+                          customer_name, created_at, updated_at, total,
+                          preparing_at, ready_at, completed_at)
+      VALUES (
+        ord_id, biz_id, ord_num,
+        -- Hoy: mezcla de estados para ver el badge en vivo y el KDS.
+        -- Días pasados: entregados (el revenue de hoy solo cuenta DELIVERED,
+        -- así que hoy lleva sus propios entregados más abajo).
+        CASE WHEN d > 0 THEN 'DELIVERED'
+             WHEN o <= 2 THEN 'NEW'
+             WHEN o <= 4 THEN 'PREPARING'
+             ELSE 'DELIVERED' END,
+        CASE WHEN o % 3 = 0 THEN 'DELIVERY' WHEN o % 3 = 1 THEN 'RETIRO' ELSE 'SALON' END,
+        CASE WHEN o % 2 = 0 THEN 'EFECTIVO' ELSE 'TRANSFERENCIA' END,
+        'Cliente demo ' || o,
+        ord_ts, ord_ts,
+        0,  -- total recalculado abajo
+        CASE WHEN d = 0 AND o <= 2 THEN NULL ELSE ord_ts + make_interval(mins => 2) END,
+        CASE WHEN d = 0 AND o <= 2 THEN NULL ELSE ord_ts + make_interval(mins => 2 + prep_mins) END,
+        CASE WHEN d > 0 OR o > 4 THEN ord_ts + make_interval(mins => 10 + prep_mins) ELSE NULL END
+      )
+      ON CONFLICT (id) DO NOTHING;
+
+      IF NOT EXISTS (SELECT 1 FROM orders o2 WHERE o2.id = ord_id AND o2.total <> 0) THEN
+        -- 1 a 3 items por pedido, rotando el catálogo del negocio.
+        items_left := 1 + (o % 3);
+        ord_total := 0;
+        FOR prod IN
+          SELECT p.id, p.name, p.price
+          FROM products p
+          JOIN categories c ON p.category_id = c.id
+          WHERE c.business_id = biz_id AND p.active
+          ORDER BY p.id
+          OFFSET ((o + d) % 4)
+          LIMIT 4
+        LOOP
+          EXIT WHEN items_left <= 0;
+          item_qty := 1 + ((o + items_left + d) % 3);
+          INSERT INTO order_items (id, order_id, product_id, product_name, price, cost, quantity, subtotal)
+          VALUES (
+            ord_id * 10 + items_left, ord_id, prod.id, prod.name,
+            prod.price, prod.price * 0.4, item_qty, prod.price * item_qty
+          )
+          ON CONFLICT (id) DO NOTHING;
+          ord_total := ord_total + prod.price * item_qty;
+          items_left := items_left - 1;
+        END LOOP;
+
+        UPDATE orders SET total = ord_total WHERE id = ord_id AND total = 0;
+      END IF;
+    END LOOP;
+  END LOOP;
+
+  -- Dos entregados extra HOY: sin ellos "Total vendido hoy" queda en $0
+  -- porque el revenue del día solo cuenta pedidos DELIVERED.
+  FOR o IN 1..2 LOOP
+    ord_id := 991001000 + o;
+    ord_ts := CURRENT_DATE::timestamptz + make_interval(hours => 12 + o * 2, mins => o * 23);
+    prep_mins := 6 + o * 4;
+    ord_total := 0;
+
+    INSERT INTO orders (id, business_id, order_number, status, order_type, payment_method,
+                        customer_name, created_at, updated_at, total,
+                        preparing_at, ready_at, completed_at)
+    VALUES (ord_id, biz_id, 990200 + o, 'DELIVERED', 'RETIRO', 'EFECTIVO',
+            'Cliente entregado ' || o, ord_ts, ord_ts, 0,
+            ord_ts + make_interval(mins => 2),
+            ord_ts + make_interval(mins => 2 + prep_mins),
+            ord_ts + make_interval(mins => 12 + prep_mins))
+    ON CONFLICT (id) DO NOTHING;
+
+    IF NOT EXISTS (SELECT 1 FROM orders o2 WHERE o2.id = ord_id AND o2.total <> 0) THEN
+      FOR prod IN
+        SELECT p.id, p.name, p.price
+        FROM products p JOIN categories c ON p.category_id = c.id
+        WHERE c.business_id = biz_id AND p.active
+        ORDER BY p.id OFFSET o LIMIT 2
+      LOOP
+        INSERT INTO order_items (id, order_id, product_id, product_name, price, cost, quantity, subtotal)
+        VALUES (ord_id * 10 + o, ord_id, prod.id, prod.name,
+                prod.price, prod.price * 0.4, 2, prod.price * 2)
+        ON CONFLICT (id) DO NOTHING;
+        ord_total := ord_total + prod.price * 2;
+      END LOOP;
+      UPDATE orders SET total = ord_total WHERE id = ord_id AND total = 0;
+    END IF;
+  END LOOP;
+END $$;
+
+-- ============================================================================
+-- Demo product trends: what the "Tendencias" section reads directly
+-- (product_trends is the source for /api/trends/top-up and /top-down).
+--
+-- Seeded explicitly so the demo shows rising and falling products without
+-- waiting for the ProductTrendScheduler. Insert-only: the scheduler owns the
+-- table after the first run, and DO NOTHING means a re-run never overwrites
+-- what the scheduler computed.
+-- ============================================================================
+INSERT INTO product_trends (product_id, business_id, trend_percentage, current_week_sales, previous_week_sales, trend_direction, updated_at)
+SELECT v.product_id, v.business_id, v.trend_percentage, v.current_week_sales, v.previous_week_sales, v.trend_direction, now()
+FROM (VALUES
+  (990052, 990000001, 100.0, 12,  6, 'UP'),
+  (990053, 990000001,  50.0,  9,  6, 'UP'),
+  (990054, 990000001,  33.0,  8,  6, 'UP'),
+  (990051, 990000001, -25.0,  3,  4, 'DOWN'),
+  (990056, 990000001, -50.0,  2,  4, 'DOWN')
+) AS v(product_id, business_id, trend_percentage, current_week_sales, previous_week_sales, trend_direction)
+WHERE EXISTS (SELECT 1 FROM businesses WHERE id = v.business_id)
+  AND EXISTS (SELECT 1 FROM products WHERE id = v.product_id)
+ON CONFLICT (product_id, business_id) DO NOTHING;
+
 COMMIT;
