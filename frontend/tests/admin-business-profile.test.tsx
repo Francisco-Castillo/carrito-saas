@@ -16,7 +16,7 @@
  *   - The midnight convention: a closing time earlier than the opening time
  *     is sent as-is, and the UI explains the convention in one short line.
  */
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Admin from '../src/pages/Admin'
@@ -535,5 +535,47 @@ describe('Admin "Local" view — fechas especiales ANUALES (yearly)', () => {
       { date: '2026-12-24', yearly: false, shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
       { date: '2027-12-25', yearly: false, shifts: [] },
     ])
+  })
+})
+
+describe('Admin "Local" view — paleta de color de la carta', () => {
+  it('elegir un swatch de la paleta y guardar envía ese primaryColor', async () => {
+    stubFetch()
+    const user = await openLocalView('Datos del local')
+
+    await user.click(screen.getByRole('button', { name: 'Violeta' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(JSON.parse(putCall().body ?? '{}').primaryColor).toBe('#7C3AED')
+  })
+
+  it('elegir un color personalizado en el campo hex lo envía tal cual', async () => {
+    stubFetch()
+    const user = await openLocalView('Datos del local')
+
+    fireEvent.change(screen.getByLabelText('Código hex'), {
+      target: { value: '#123abc' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(JSON.parse(putCall().body ?? '{}').primaryColor).toBe('#123abc')
+  })
+
+  it('"Quitar color" limpia el valor y lo envía vacío (diseño estándar)', async () => {
+    stubFetch(undefined, { ...PROFILE, primaryColor: '#7C3AED' })
+    const user = await openLocalView('Datos del local')
+
+    await user.click(screen.getByRole('button', { name: 'Quitar color' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(JSON.parse(putCall().body ?? '{}').primaryColor).toBe('')
+  })
+
+  it('el swatch cargado del perfil arranca seleccionado', async () => {
+    stubFetch(undefined, { ...PROFILE, primaryColor: '#22C55E' })
+    await openLocalView('Datos del local')
+
+    expect(screen.getByRole('button', { name: 'Verde' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Violeta' })).toHaveAttribute('aria-pressed', 'false')
   })
 })
