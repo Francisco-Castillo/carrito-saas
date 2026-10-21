@@ -40,4 +40,7 @@ public class ProductOption {
 
     @Column(name = "price_delta", nullable = false)
     private BigDecimal priceDelta = BigDecimal.ZERO;
+
+    /** Orden de mostrado dentro del grupo (el que cargó el dueño). */
+    private Integer position;
 }

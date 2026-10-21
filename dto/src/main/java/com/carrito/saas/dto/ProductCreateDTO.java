@@ -1,6 +1,8 @@
 package com.carrito.saas.dto;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.carrito.saas.repository.enums.UnitMeasure;
 
@@ -17,6 +19,6 @@ public class ProductCreateDTO {
 	private Integer stock;
 	private Boolean active;
 	private UnitMeasure unitMeasure; // Puede ser unidad, Porcion, Kilos, etc.
-	
+	private List<ProductOptionGroupDTO> optionGroups;
 
 }

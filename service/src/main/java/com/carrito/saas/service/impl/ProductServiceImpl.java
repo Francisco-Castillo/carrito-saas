@@ -21,13 +21,18 @@ import com.carrito.saas.dto.ProductCreateDTO;
 import com.carrito.saas.dto.ProductDTO;
 import com.carrito.saas.dto.ProductFilterDTO;
 import com.carrito.saas.dto.ProductInsight;
+import com.carrito.saas.dto.ProductOptionDTO;
+import com.carrito.saas.dto.ProductOptionGroupDTO;
 import com.carrito.saas.dto.ProductPredictionDTO;
 import com.carrito.saas.dto.ProductTrendDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.repository.entity.Product;
+import com.carrito.saas.repository.entity.ProductOption;
+import com.carrito.saas.repository.entity.ProductOptionGroup;
 import com.carrito.saas.repository.jpa.CategoryRepository;
+import com.carrito.saas.repository.jpa.ProductOptionGroupRepository;
 import com.carrito.saas.repository.jpa.ProductRepository;
 import com.carrito.saas.service.interfaces.IProductPredictionService;
 import com.carrito.saas.service.impl.ImageStorageService;
@@ -50,11 +55,13 @@ public class ProductServiceImpl implements IProductService {
 	private final ProductInsightService productInsightService;
 	private final SecurityService securityService;
 	private final ImageStorageService imageStorageService;
+	private final ProductOptionGroupRepository optionGroupRepository;
 
 	public ProductServiceImpl(ProductRepository productRepository, CategoryRepository categoryRepository,
 			IProductMapper iProductMapper, IProductTrendService productTrendService,
 			IProductPredictionService productPredictionService, ProductInsightService productInsightService,
-			SecurityService securityService, ImageStorageService imageStorageService) {
+			SecurityService securityService, ImageStorageService imageStorageService,
+			ProductOptionGroupRepository optionGroupRepository) {
 
 		this.productRepository = productRepository;
 		this.categoryRepository = categoryRepository;
@@ -64,6 +71,7 @@ public class ProductServiceImpl implements IProductService {
 		this.productInsightService = productInsightService;
 		this.securityService = securityService;
 		this.imageStorageService = imageStorageService;
+		this.optionGroupRepository = optionGroupRepository;
 	}
 
 	@Override
@@ -185,6 +193,7 @@ public class ProductServiceImpl implements IProductService {
 		p.setStock(dto.getStock());
 		p.setActive(true);
 		p.setUnitMeasure(dto.getUnitMeasure());
+		aplicarGruposOpciones(p, dto.getOptionGroups());
 
 		return iProductMapper.toDTO(productRepository.save(p));
 	}
@@ -219,6 +228,7 @@ public class ProductServiceImpl implements IProductService {
 		p.setStock(dto.getStock());
 		p.setActive(dto.getActive());
 		p.setUnitMeasure(dto.getUnitMeasure());
+		aplicarGruposOpciones(p, dto.getOptionGroups());
 
 		return iProductMapper.toDTO(productRepository.save(p));
 	}
@@ -240,6 +250,11 @@ public class ProductServiceImpl implements IProductService {
 					"El producto está siendo usado por un combo y no puede eliminarse",
 					ErrorType.CONFLICT);
 		}
+
+		// Los grupos de opciones viven con ciclo propio de fila (FK real):
+		// borrarlos explícitamente evita que la FK de product_option_groups
+		// bloquee el delete del producto (S1: el dueño borra el producto entero).
+		optionGroupRepository.deleteByProductId(p.getId());
 
 		productRepository.delete(p);
 	}
@@ -373,6 +388,96 @@ public class ProductServiceImpl implements IProductService {
 
 		if (categoriaId == null)
 			throw new BusinessException("Categoria requerida", ErrorType.VALIDATION);
+	}
+
+	/**
+	 * Reemplazo completo de los grupos de opciones del producto (S1):
+	 * el PUT/Crea manda la lista entera y acá se rehace.
+	 *
+	 * Semántica de compatibilidad (S6): {@code null} = el campo no vino en el
+	 * JSON (cliente viejo) → los grupos guardados NO se tocan; lista vacía =
+	 * el dueño borró todos los grupos explícitamente → se limpian.
+	 *
+	 * Reglas validadas (400 con mensaje que nombra el problema):
+	 * - grupo con nombre obligatorio y al menos 1 opción;
+	 * - opciones con nombre obligatorio y recargo no negativo;
+	 * - grupo múltiple: min/max coherentes (min >= 0 cuando required=false,
+	 *   min >= 1 cuando required=true, min <= max, max >= 1);
+	 * - grupo no múltiple ignora min/max (elige exactamente 1).
+	 */
+	private void aplicarGruposOpciones(Product p, List<ProductOptionGroupDTO> grupos) {
+		if (grupos == null)
+			return; // campo ausente: compatibilidad S6, no tocar los guardados
+
+		if (grupos.isEmpty()) {
+			if (p.getOptionGroups() != null && !p.getOptionGroups().isEmpty()) {
+				optionGroupRepository.deleteByProductId(p.getId());
+				p.getOptionGroups().clear();
+			}
+			return;
+		}
+
+		validarGruposOpciones(grupos);
+
+		optionGroupRepository.deleteByProductId(p.getId());
+		if (p.getOptionGroups() == null)
+			p.setOptionGroups(new ArrayList<>());
+		else
+			p.getOptionGroups().clear();
+
+		for (ProductOptionGroupDTO grupoDto : grupos) {
+			ProductOptionGroup grupo = new ProductOptionGroup();
+			grupo.setProduct(p);
+			grupo.setName(grupoDto.getName().trim());
+			grupo.setRequired(Boolean.TRUE.equals(grupoDto.getRequired()));
+			grupo.setMultiple(Boolean.TRUE.equals(grupoDto.getMultiple()));
+			grupo.setMinSelections(grupoDto.getMinSelections());
+			grupo.setMaxSelections(grupoDto.getMaxSelections());
+
+			int posicion = 0;
+			for (ProductOptionDTO opcionDto : grupoDto.getOptions()) {
+				ProductOption opcion = new ProductOption();
+				opcion.setOptionGroup(grupo);
+				opcion.setName(opcionDto.getName().trim());
+				opcion.setPriceDelta(opcionDto.getPriceDelta() == null ? BigDecimal.ZERO : opcionDto.getPriceDelta());
+				opcion.setPosition(posicion++);
+				grupo.getOptions().add(opcion);
+			}
+			p.getOptionGroups().add(grupo);
+		}
+	}
+
+	private void validarGruposOpciones(List<ProductOptionGroupDTO> grupos) {
+		for (ProductOptionGroupDTO grupo : grupos) {
+			if (grupo.getName() == null || grupo.getName().isBlank())
+				throw new BusinessException("Cada grupo de opciones necesita nombre", ErrorType.VALIDATION);
+
+			if (grupo.getOptions() == null || grupo.getOptions().isEmpty())
+				throw new BusinessException("El grupo \"" + grupo.getName().trim() + "\" necesita al menos una opción",
+						ErrorType.VALIDATION);
+
+			for (ProductOptionDTO opcion : grupo.getOptions()) {
+				if (opcion.getName() == null || opcion.getName().isBlank())
+					throw new BusinessException("Cada opción del grupo \"" + grupo.getName().trim()
+							+ "\" necesita nombre", ErrorType.VALIDATION);
+				if (opcion.getPriceDelta() != null && opcion.getPriceDelta().signum() < 0)
+					throw new BusinessException("El recargo de una opción no puede ser negativo", ErrorType.VALIDATION);
+			}
+
+			if (Boolean.TRUE.equals(grupo.getMultiple())) {
+				Integer min = grupo.getMinSelections();
+				Integer max = grupo.getMaxSelections();
+				if (min != null && min < 0)
+					throw new BusinessException("El mínimo de selecciones no puede ser negativo", ErrorType.VALIDATION);
+				if (Boolean.TRUE.equals(grupo.getRequired()) && (min == null || min < 1))
+					throw new BusinessException("Un grupo obligatorio y múltiple necesita mínimo 1 selección",
+							ErrorType.VALIDATION);
+				if (max != null && max < 1)
+					throw new BusinessException("El máximo de selecciones tiene que ser al menos 1", ErrorType.VALIDATION);
+				if (min != null && max != null && min > max)
+					throw new BusinessException("El mínimo de selecciones no puede superar el máximo", ErrorType.VALIDATION);
+			}
+		}
 	}
 
 }

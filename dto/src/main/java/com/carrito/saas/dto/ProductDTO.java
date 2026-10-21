@@ -1,6 +1,7 @@
 package com.carrito.saas.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import com.carrito.saas.repository.enums.UnitMeasure;
 
@@ -33,6 +34,12 @@ public class ProductDTO {
 	private String imageUrl;
 
 	private UnitMeasure unitMeasure;
+
+	/**
+	 * Grupos de opciones definidos por el dueño (odd/tasks/product-options.md
+	 * S1-S3). Llegan igual al menú público vía MenuDTO.products.
+	 */
+	private List<ProductOptionGroupDTO> optionGroups;
 
 	public ProductDTO() {
 		super();
