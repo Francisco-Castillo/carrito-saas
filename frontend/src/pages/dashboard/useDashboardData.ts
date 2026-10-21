@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 import { checkAuth } from "./auth";
 import type {
   DashboardToday,
-  OrderStatusSummary,
+  ProductTrend,
+  SalesByDay,
   SalesByHour,
   TopProduct,
 } from "./api";
@@ -16,13 +17,85 @@ import type {
  * checkAuth primero, luego loads en paralelo. Los catch reproducen los
  * console.error del legacy: sin datos, la UI conserva los valores iniciales
  * en vez de romper la página.
+ *
+ * Auto-refresh: los cuatro loads se repiten cada REFRESH_MS mientras la
+ * pestaña esté visible — los pedidos cambian sin que el dueño recargue.
+ * Con la pestaña oculta el intervalo sigue pero se salta el fetch (los
+ * timers en background ya vienen throttled por el navegador; el salto
+ * evita también el ráfaga de requests al volver a varias pestañas).
  */
+const REFRESH_MS = 60_000;
+
+/** Cada loader del hook, identificado para el estado de error por sección. */
+type LoadKey = "today" | "topProducts" | "salesByHour" | "salesByDay" | "salesPrevWeek" | "trends";
+
+export interface DashboardErrors {
+  today: boolean;
+  topProducts: boolean;
+  salesByHour: boolean;
+  salesByDay: boolean;
+  salesPrevWeek: boolean;
+  trends: boolean;
+}
+
 export function useDashboardData(enabled: boolean) {
   const [today, setToday] = useState<DashboardToday | null>(null);
-  const [status, setStatus] = useState<OrderStatusSummary | null>(null);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [salesByHour, setSalesByHour] = useState<SalesByHour[] | null>(null);
+  const [salesByDay, setSalesByDay] = useState<SalesByDay[] | null>(null);
+  const [salesPrevWeek, setSalesPrevWeek] = useState<SalesByDay[] | null>(null);
+  const [trendsUp, setTrendsUp] = useState<ProductTrend[]>([]);
+  const [trendsDown, setTrendsDown] = useState<ProductTrend[]>([]);
   const [date, setDate] = useState("");
+
+  // Primera carga: los skeletons están arriba hasta que la tanda inicial
+  // termina (bien o mal). Los refetch del auto-refresh NO muestran skeletons:
+  // los datos en pantalla se actualizan en silencio.
+  const [loading, setLoading] = useState(true);
+  const [errors, setErrors] = useState<DashboardErrors>({
+    today: false,
+    topProducts: false,
+    salesByHour: false,
+    salesByDay: false,
+    salesPrevWeek: false,
+    trends: false,
+  });
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    checkAuth();
+
+    setDate(new Date().toLocaleDateString("es-ES"));
+  }, [enabled]);
+
+  const loadAll = useCallback(() => {
+    if (document.hidden) return;
+
+    const track = (key: LoadKey, promise: Promise<unknown>) =>
+      promise
+        .then(() => setErrors((prev) => ({ ...prev, [key]: false })))
+        .catch((e) => {
+          setErrors((prev) => ({ ...prev, [key]: true }));
+          console.error(`Error cargando ${key}`, e);
+        });
+
+    // Promise.allSettled: una sección fallida no tapa a las demás.
+    void Promise.allSettled([
+      track("today", api.getDashboardToday().then(setToday)),
+      track("topProducts", api.getTopProducts().then(setTopProducts)),
+      track("salesByHour", api.getSalesByHour().then(setSalesByHour)),
+      track("salesByDay", api.getSalesLast7Days().then(setSalesByDay)),
+      track("salesPrevWeek", api.getSalesPrevious7Days().then(setSalesPrevWeek)),
+      track(
+        "trends",
+        Promise.all([
+          api.getTrendsTopUp().then(setTrendsUp),
+          api.getTrendsTopDown().then(setTrendsDown),
+        ]),
+      ),
+    ]).then(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
@@ -31,26 +104,25 @@ export function useDashboardData(enabled: boolean) {
 
     setDate(new Date().toLocaleDateString("es-ES"));
 
-    api
-      .getDashboardToday()
-      .then(setToday)
-      .catch((e) => console.error("Error cargando dashboard", e));
+    loadAll();
 
-    api
-      .getOrderStatusSummary()
-      .then(setStatus)
-      .catch((e) => console.error("Error cargando estados", e));
+    const intervalId = setInterval(loadAll, REFRESH_MS);
 
-    api
-      .getTopProducts()
-      .then(setTopProducts)
-      .catch((e) => console.error("Error cargando top productos", e));
+    return () => clearInterval(intervalId);
+  }, [enabled, loadAll]);
 
-    api
-      .getSalesByHour()
-      .then(setSalesByHour)
-      .catch((e) => console.error("Error cargando grafico", e));
-  }, [enabled]);
-
-  return { today, status, topProducts, salesByHour, date };
+  return {
+    today,
+    topProducts,
+    salesByHour,
+    salesByDay,
+    salesPrevWeek,
+    trendsUp,
+    trendsDown,
+    date,
+    loading,
+    errors,
+    /** Refetch inmediato de todos los datos — lo dispara el indicador en vivo. */
+    refresh: loadAll,
+  };
 }

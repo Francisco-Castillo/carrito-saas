@@ -25,12 +25,6 @@ export interface DashboardToday {
   avgPrepTime: number;
 }
 
-export interface OrderStatusSummary {
-  NEW?: number;
-  PREPARING?: number;
-  READY?: number;
-}
-
 export interface TopProduct {
   productName: string;
   quantity: number;
@@ -39,6 +33,26 @@ export interface TopProduct {
 export interface SalesByHour {
   hour: string;
   revenue: number;
+}
+
+export interface SalesByDay {
+  day: string;
+  revenue: number;
+}
+
+/** Conteo de pedidos por estado activo — lo usa el indicador en vivo. */
+export interface OrderStatusSummary {
+  NEW?: number;
+  PREPARING?: number;
+  READY?: number;
+}
+
+/** Tendencia de un producto (sube/baja vs. período anterior). */
+export interface ProductTrend {
+  productId: number;
+  productName: string;
+  trendPercentage: number;
+  trendDirection: string;
 }
 
 /**
@@ -78,15 +92,31 @@ export const api = {
     return apiGet("/dashboard/today");
   },
 
-  getOrderStatusSummary(): Promise<OrderStatusSummary> {
-    return apiGet("/orders/status-summary");
-  },
-
   getTopProducts(): Promise<TopProduct[]> {
     return apiGet("/analytics/top-products");
   },
 
   getSalesByHour(): Promise<SalesByHour[]> {
     return apiGet("/analytics/sales-by-hour");
+  },
+
+  getSalesLast7Days(): Promise<SalesByDay[]> {
+    return apiGet("/analytics/sales-last-7-days");
+  },
+
+  getSalesPrevious7Days(): Promise<SalesByDay[]> {
+    return apiGet("/analytics/sales-previous-7-days");
+  },
+
+  getTrendsTopUp(limit = 5): Promise<ProductTrend[]> {
+    return apiGet(`/trends/top-up?limit=${limit}`);
+  },
+
+  getTrendsTopDown(limit = 5): Promise<ProductTrend[]> {
+    return apiGet(`/trends/top-down?limit=${limit}`);
+  },
+
+  getOrderStatusSummary(): Promise<OrderStatusSummary> {
+    return apiGet("/orders/status-summary");
   },
 };

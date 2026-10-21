@@ -7,18 +7,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.UUID;
-
-import org.junit.jupiter.api.BeforeAll;
-import org.springframework.test.context.DynamicPropertySource;
-
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
@@ -40,32 +31,24 @@ import com.carrito.saas.repository.jpa.ProductRepository;
 import com.carrito.saas.repository.jpa.RoleRepository;
 import com.carrito.saas.repository.jpa.UserRepository;
 import com.carrito.saas.security.JwtUtil;
+import com.carrito.saas.service.impl.ImageStorageService;
 
 /**
  * Contract for the product image endpoints: {@code POST /api/products/{id}/image}
- * (multipart upload, replace deletes the old file on disk) and
+ * (multipart upload, replace deletes the previous stored bytes) and
  * {@code DELETE /api/products/{id}/image}. Security matches the rest of the
  * admin CRUD — anonymous is 401 and a foreign product id is 404 — and
  * unsupported content types are rejected with 400 naming the allowed formats.
- * The stored URL is publicly servable under {@code /api/images/**}.
- *
- * <p>Uploads are pointed at a JUnit-managed temp dir via the
- * {@code app.uploads.dir} property, so tests never touch the developer's
- * real {@code ./uploads}.</p>
+ * The stored URL is publicly servable under {@code /api/images/**}: the bytes
+ * live in Postgres (uploaded_images), so the assertions go through
+ * {@link ImageStorageService#loadByUrl} instead of the filesystem.
  */
 @SpringBootTest
 @Transactional
 class ProductImageEndpointTests {
 
-	@BeforeAll
-	static void registerUploadsDir() {
-		System.setProperty("app.uploads.dir", uploadsDir.toString());
-	}
-
-	@DynamicPropertySource
-	static void uploadsProperties(org.springframework.test.context.DynamicPropertyRegistry registry) {
-		registry.add("app.uploads.dir", () -> uploadsDir.toString());
-	}
+	@Autowired
+	private ImageStorageService imageStorageService;
 
 	private static final Long BUSINESS_A_ID = 987_702_201L;
 	private static final Long BUSINESS_B_ID = 987_702_202L;
@@ -104,10 +87,6 @@ class ProductImageEndpointTests {
 	@Autowired
 	private ProductRepository productRepository;
 
-	/** Fixed uploads dir registered into the context via @DynamicPropertySource. */
-	static final Path uploadsDir = Path.of(System.getProperty("java.io.tmpdir"),
-			"product-image-upload-tests-" + UUID.randomUUID());
-
 	private MockMvc mockMvc;
 
 	private BusinessAuthSeed.AuthenticatedBusiness owner;
@@ -133,25 +112,10 @@ class ProductImageEndpointTests {
 	}
 
 	@AfterEach
-	void cleanUploads() throws Exception {
-		if (Files.exists(uploadsDir)) {
-			try (var files = Files.list(uploadsDir)) {
-				files.forEach(path -> deleteRecursively(path));
-			}
-		}
-	}
-
-	private static void deleteRecursively(Path path) {
-		try {
-			if (Files.isDirectory(path)) {
-				try (var files = Files.list(path)) {
-					files.forEach(ProductImageEndpointTests::deleteRecursively);
-				}
-			}
-			Files.deleteIfExists(path);
-		} catch (Exception ignored) {
-			// best effort cleanup
-		}
+	void cleanUploadedImages() {
+		// Los inserts de imágenes viajan en la MISMA transacción del test
+		// (@Transactional): el rollback los borra solos. No hay filesystem que
+		// limpiar — el storage vive en la base.
 	}
 
 	private Category category(Business business, String name) {
@@ -223,11 +187,11 @@ class ProductImageEndpointTests {
 		String url = com.jayway.jsonpath.JsonPath.read(body, "$.imageUrl");
 		assertThat(url).startsWith("/api/images/products/");
 
-		// The file exists on disk under the configured uploads dir.
-		String fileName = url.substring("/api/images/products/".length());
-		Path stored = uploadsDir.resolve("products").resolve(fileName);
-		assertThat(stored).exists();
-		assertThat(stored).hasBinaryContent(PNG_BYTES);
+		// The bytes live in Postgres: same content, right content type.
+		var stored = imageStorageService.loadByUrl(url);
+		assertThat(stored).isPresent();
+		assertThat(stored.get().contentType()).isEqualTo(MediaType.IMAGE_PNG_VALUE);
+		assertThat(stored.get().data()).isEqualTo(PNG_BYTES);
 
 		// The URL is publicly servable (no token): the digital menu needs it.
 		mockMvc.perform(get(url)).andExpect(status().isOk());
@@ -258,10 +222,9 @@ class ProductImageEndpointTests {
 				"$.imageUrl");
 
 		assertThat(secondUrl).isNotEqualTo(firstUrl);
-		assertThat(uploadsDir.resolve("products")
-				.resolve(firstUrl.substring("/api/images/products/".length()))).doesNotExist();
-		assertThat(uploadsDir.resolve("products")
-				.resolve(secondUrl.substring("/api/images/products/".length()))).exists();
+		// The first image is gone from storage; only the second is loadable.
+		assertThat(imageStorageService.loadByUrl(firstUrl)).isEmpty();
+		assertThat(imageStorageService.loadByUrl(secondUrl)).isPresent();
 	}
 
 	@Test
@@ -312,8 +275,8 @@ class ProductImageEndpointTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.imageUrl").value(org.hamcrest.Matchers.nullValue()));
 
-		assertThat(uploadsDir.resolve("products")
-				.resolve(url.substring("/api/images/products/".length()))).doesNotExist();
+		// The bytes are gone from storage after the DELETE.
+		assertThat(imageStorageService.loadByUrl(url)).isEmpty();
 		assertThat(productRepository.findById(p.getId()).orElseThrow().getImageUrl()).isNull();
 	}
 }

@@ -5,6 +5,10 @@ import type { SalesByHour } from "./api";
 interface SalesChartProps {
   /** null = sin datos aún: el canvas queda vacío, como el legacy antes de la respuesta. */
   data: SalesByHour[] | null;
+  /** Primera carga en curso: esqueleto del panel en vez del panel vacío. */
+  loading?: boolean;
+  /** La API falló y no hay datos: mensaje visible en vez del gráfico vacío. */
+  error?: boolean;
 }
 
 /**
@@ -12,7 +16,7 @@ interface SalesChartProps {
  * (dashboard.js): tipo line, fill, tension 0.3, sin leyenda, tooltips y
  * ticks formateados en es-AR.
  */
-export default function SalesChart({ data }: SalesChartProps) {
+export default function SalesChart({ data, loading = false, error = false }: SalesChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
 
@@ -85,9 +89,18 @@ export default function SalesChart({ data }: SalesChartProps) {
     <section className="chart-section panel glass-panel fade-up">
       <h2>Ventas hoy</h2>
 
-      <div className="chart-container">
-        <canvas ref={canvasRef} />
-      </div>
+      {loading && !data ? (
+        <div className="chart-container skeleton" aria-busy="true" aria-label="Cargando ventas de hoy" />
+      ) : error && !data ? (
+        <div className="section-error" aria-live="polite">
+          <span>No se pudieron cargar las ventas de hoy.</span>
+          <p>Reintentamos automáticamente cada minuto.</p>
+        </div>
+      ) : (
+        <div className="chart-container">
+          <canvas ref={canvasRef} />
+        </div>
+      )}
     </section>
   );
 }

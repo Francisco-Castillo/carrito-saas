@@ -111,17 +111,17 @@
 }
 
 /* El espacio entre secciones no es de la PANTALLA sino del COMPONENTE: el panel
-   admin renderiza las mismas secciones (stats, orders-status, chart-section,
-   top-products) dentro de `.admin-dashboard`, y con el selector atado a
-   `.dashboard-screen` quedaban pegadas — 0px medidos contra los 32px de acá.
-   Ojo al agregar variantes de pantalla: si el mismo componente se reusa, el
-   selector tiene que listarla o el espacio desaparece sin que nada falle. */
+   admin renderiza las mismas secciones (stats, chart-section, top-products)
+   dentro de `.admin-dashboard`, y con el selector atado a `.dashboard-screen`
+   quedaban pegadas — 0px medidos contra los 32px de acá. Ojo al agregar
+   variantes de pantalla: si el mismo componente se reusa, el selector tiene
+   que listarla o el espacio desaparece sin que nada falle. */
 .dashboard-screen main section,
 .admin-dashboard > section {
   margin-bottom: var(--space-8);
 }
 
-/* Panel de vidrio con padding (chart-section, top-products, orders-status) */
+/* Panel de vidrio con padding (chart-section, top-products) */
 .panel {
   padding: var(--space-5);
 }
@@ -136,6 +136,64 @@
 .table-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* ------------------------------------------------------------
+   Indicador en vivo (badge de pedidos activos en la topbar)
+   ------------------------------------------------------------ */
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: 999px;
+  background: var(--glass-bg-subtle);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.live-dot--on {
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.7);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+.live-dot--off {
+  background: var(--color-text-muted);
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot--on {
+    animation: none;
+  }
+}
+
+@media (max-width: 559px) {
+  .live-badge {
+    min-height: 36px;
+    padding: var(--space-1) var(--space-2);
+  }
 }
 
 /* ------------------------------------------------------------
@@ -164,30 +222,193 @@
 }
 
 /* ------------------------------------------------------------
-   Pedidos activos
+   Skeletons y estados de carga / error
    ------------------------------------------------------------ */
 
-.status-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--space-4);
-}
-
-.status-card {
-  background: var(--glass-bg-subtle);
-  border: 1px solid var(--glass-border-subtle);
+/* Bloque que pulsa mientras carga la sección. Sobre panel de vidrio. */
+.skeleton {
   border-radius: var(--radius-sm);
-  padding: var(--space-4);
-  text-align: center;
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.06) 40%,
+    rgba(255, 255, 255, 0.14) 50%,
+    rgba(255, 255, 255, 0.06) 60%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 
-.status-card span {
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Líneas de esqueleto dentro de cards y listas. */
+.skeleton-line {
+  height: 14px;
+  margin: 10px 0;
+}
+
+.skeleton-line--lg {
+  height: 28px;
+  width: 60%;
+  margin-top: var(--space-3);
+}
+
+/* Mensaje de error visible por sección: la API falló y no hay datos que
+   mostrar. Sin rojo agresivo sobre el vidrio: texto + nota de reintento. */
+.section-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: var(--radius-sm);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.section-error span {
+  font-weight: var(--font-weight-medium);
+}
+
+.section-error p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* Estado vacío honesto: la sección cargó bien pero no hay datos todavía. */
+.section-empty {
+  margin: 0;
   color: var(--color-text-muted);
 }
 
-.status-card h3 {
-  font-size: var(--font-size-xl);
-  margin: var(--space-2) 0 0;
+/* Header de panel con título + chip de variación alineados. */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.panel-header h2 {
+  margin: 0;
+}
+
+/* Chip de variación semanal: verde para subir, rojo para bajar, sobre vidrio. */
+.variation-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.variation-chip--up {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.variation-chip--down {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+/* Top productos y tendencias a la par: grid de dos columnas en pantallas
+   anchas, apiladas en móvil. El margen de sección va en el wrapper — los
+   sections de adentro ya no reciben el espaciado del selector general. */
+.top-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+
+.top-grid > section {
+  margin-bottom: 0;
+}
+
+@media (min-width: 960px) {
+  .top-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ------------------------------------------------------------
+   Tendencias de productos (suben / bajan)
+   ------------------------------------------------------------ */
+
+.trends-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+}
+
+@media (min-width: 560px) {
+  .trends-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.trends-heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.trends-heading--up {
+  color: #4ade80;
+}
+
+.trends-heading--down {
+  color: #f87171;
+}
+
+.trends-grid ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.trends-grid li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.trends-grid li:last-child {
+  border-bottom: none;
+}
+
+.trend-value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-value--up {
+  color: #4ade80;
+}
+
+.trend-value--down {
+  color: #f87171;
 }
 
 /* ------------------------------------------------------------
@@ -243,5 +464,21 @@
 @media (min-width: 960px) {
   .stats {
     grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Móvil: los charts pierden altura fija de desktop y no empujan medio scroll
+   vacío; el stack de secciones respeta el spacing de componente. */
+@media (max-width: 559px) {
+  .chart-container {
+    height: 240px;
+  }
+
+  .panel {
+    padding: var(--space-4);
+  }
+
+  .stat-card {
+    padding: var(--space-4);
   }
 }

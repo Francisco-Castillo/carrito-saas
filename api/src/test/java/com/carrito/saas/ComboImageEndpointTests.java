@@ -7,12 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.UUID;
-
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +16,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.web.FilterChainProxy;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,35 +35,22 @@ import com.carrito.saas.repository.jpa.ProductRepository;
 import com.carrito.saas.repository.jpa.RoleRepository;
 import com.carrito.saas.repository.jpa.UserRepository;
 import com.carrito.saas.security.JwtUtil;
+import com.carrito.saas.service.impl.ImageStorageService;
 
 /**
  * Contract for the combo image endpoints: {@code POST /api/combos/{id}/image}
  * and {@code DELETE /api/combos/{id}/image} — the same flow the products
- * already have (multipart upload, replace deletes the old file, tenant
- * isolation 404, anonymous 401), backed by {@code uploads/combos/} and served
+ * already have (multipart upload, replace deletes the previous stored
+ * bytes, tenant isolation 404, anonymous 401), stored in Postgres and served
  * publicly under {@code /api/images/combos/**}.
  *
  * <p>The point of the feature (odd/tasks/combo-images.md, S1): the public
  * menu payload carries the combo's OWN image when it has one — the frontend
  * derives it from the components only as a fallback.</p>
- *
- * <p>Uploads are pointed at a JUnit-managed temp dir via
- * {@code app.uploads.dir}, so tests never touch the developer's real
- * {@code ./uploads}.</p>
  */
 @SpringBootTest
 @Transactional
 class ComboImageEndpointTests {
-
-	@BeforeAll
-	static void registerUploadsDir() {
-		System.setProperty("app.uploads.dir", uploadsDir.toString());
-	}
-
-	@DynamicPropertySource
-	static void uploadsProperties(org.springframework.test.context.DynamicPropertyRegistry registry) {
-		registry.add("app.uploads.dir", () -> uploadsDir.toString());
-	}
 
 	private static final Long BUSINESS_A_ID = 987_716_101L;
 	private static final Long BUSINESS_B_ID = 987_716_102L;
@@ -114,9 +95,8 @@ class ComboImageEndpointTests {
 	@Autowired
 	private ComboProductRepository comboProductRepository;
 
-	/** Fixed uploads dir registered into the context via @DynamicPropertySource. */
-	static final Path uploadsDir = Path.of(System.getProperty("java.io.tmpdir"),
-			"combo-image-upload-tests-" + UUID.randomUUID());
+	@Autowired
+	private ImageStorageService imageStorageService;
 
 	private MockMvc mockMvc;
 
@@ -139,28 +119,6 @@ class ComboImageEndpointTests {
 
 		categoryA = categoryRepository.saveAndFlush(category(businessA, "Combo Image Cat A"));
 		categoryRepository.saveAndFlush(category(businessB, "Combo Image Cat B"));
-	}
-
-	@AfterEach
-	void cleanUploads() throws Exception {
-		if (Files.exists(uploadsDir)) {
-			try (var files = Files.list(uploadsDir)) {
-				files.forEach(path -> deleteRecursively(path));
-			}
-		}
-	}
-
-	private static void deleteRecursively(Path path) {
-		try {
-			if (Files.isDirectory(path)) {
-				try (var files = Files.list(path)) {
-					files.forEach(ComboImageEndpointTests::deleteRecursively);
-				}
-			}
-			Files.deleteIfExists(path);
-		} catch (Exception ignored) {
-			// best effort cleanup
-		}
 	}
 
 	private Category category(Business business, String name) {
@@ -224,11 +182,11 @@ class ComboImageEndpointTests {
 		String url = com.jayway.jsonpath.JsonPath.read(body, "$.imageUrl");
 		assertThat(url).startsWith("/api/images/combos/");
 
-		// El archivo vive en disco bajo el uploads dir configurado.
-		String fileName = url.substring("/api/images/combos/".length());
-		Path stored = uploadsDir.resolve("combos").resolve(fileName);
-		assertThat(stored).exists();
-		assertThat(stored).hasBinaryContent(PNG_BYTES);
+		// Los bytes viven en Postgres: mismo contenido, content type correcto.
+		var stored = imageStorageService.loadByUrl(url);
+		assertThat(stored).isPresent();
+		assertThat(stored.get().contentType()).isEqualTo(MediaType.IMAGE_PNG_VALUE);
+		assertThat(stored.get().data()).isEqualTo(PNG_BYTES);
 
 		// Y el payload PÚBLICO del menú lleva la imagen propia del combo.
 		mockMvc.perform(get("/api/menu/{slug}", SLUG_A))
