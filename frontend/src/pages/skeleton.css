@@ -1,0 +1,46 @@
+/* ------------------------------------------------------------
+   Skeletons compartidos por TODAS las pantallas del panel
+   (dashboard, admin, pedidos). Vive en su propia hoja — no en
+   Dashboard.css — para que el efecto de carga sea importable
+   desde cualquier vista sin arrastrar el tema del dashboard.
+   ------------------------------------------------------------ */
+
+/* Bloque que pulsa mientras carga la sección. Sobre panel de vidrio. */
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.06) 40%,
+    rgba(255, 255, 255, 0.14) 50%,
+    rgba(255, 255, 255, 0.06) 60%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Líneas de esqueleto dentro de cards y listas. */
+.skeleton-line {
+  height: 14px;
+  margin: 10px 0;
+}
+
+.skeleton-line--lg {
+  height: 28px;
+  width: 60%;
+  margin-top: var(--space-3);
+}

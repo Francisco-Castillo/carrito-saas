@@ -1,5 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 import "./Dashboard.css";
+import "./skeleton.css";
 import { hasPanelSession, enforceSession, logout } from "./dashboard/auth";
 import { useDashboardData } from "./dashboard/useDashboardData";
 import { useLiveOrders } from "./dashboard/useLiveOrders";

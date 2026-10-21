@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import "./Orders.css";
+import "./skeleton.css";
 import { enforceSession, getSessionRestaurantSlug, hasPanelSession } from "./dashboard/auth";
 import { attachAudioUnlockListeners } from "./kds/audio";
 import { showToast } from "./kds/toast";

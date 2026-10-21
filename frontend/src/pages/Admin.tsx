@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import "./Admin.css";
+import "./skeleton.css";
 import { enforceSession, hasUsableSession } from "./dashboard/auth";
 import { API, authHeader } from "./admin/api";
 import DashboardSection from "./admin/DashboardSection";
