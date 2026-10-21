@@ -12,6 +12,7 @@ import com.carrito.saas.dto.OrderDTO;
 import com.carrito.saas.dto.OrderItemDTO;
 import com.carrito.saas.repository.entity.Order;
 import com.carrito.saas.repository.entity.OrderItem;
+import com.carrito.saas.service.impl.OrderServiceImpl;
 import com.carrito.saas.service.mapper.interfaces.IOrderMapper;
 
 @Component
@@ -69,6 +70,9 @@ public class OrderMapperImpl implements IOrderMapper {
 				item.setPrice(orderItem.getPrice());
 				item.setCost(orderItem.getCost());
 				item.setSubtotal(orderItem.getSubtotal());
+				// Opciones elegidas (S5): snapshot resuelto con grupo, nombre y
+				// recargo, tal como quedó vendido.
+				item.setSelectedOptions(OrderServiceImpl.leerOpcionesJson(orderItem.getSelectedOptions()));
 				
 				itemsDTO.add(item);
 			}

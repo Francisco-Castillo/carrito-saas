@@ -17,6 +17,7 @@ import com.carrito.saas.dto.OrderItemDTO;
 import com.carrito.saas.dto.OrderKitchenDTO;
 import com.carrito.saas.dto.OrderManagementDTO;
 import com.carrito.saas.dto.OrderRequestDTO;
+import com.carrito.saas.dto.SelectedOptionDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
@@ -26,6 +27,8 @@ import com.carrito.saas.repository.entity.ComboProduct;
 import com.carrito.saas.repository.entity.Order;
 import com.carrito.saas.repository.entity.OrderItem;
 import com.carrito.saas.repository.entity.Product;
+import com.carrito.saas.repository.entity.ProductOption;
+import com.carrito.saas.repository.entity.ProductOptionGroup;
 import com.carrito.saas.repository.entity.RestaurantTable;
 import com.carrito.saas.repository.enums.OrderStatus;
 import com.carrito.saas.repository.enums.OrderType;
@@ -232,16 +235,26 @@ public class OrderServiceImpl implements IOrderService {
 					throw new BusinessException("Stock insuficiente: " + product.getName(), ErrorType.CONFLICT);
 				}
 
+				// Opciones elegidas (S4): resolver ids contra los grupos del
+				// producto, validar obligatorios/min/max y recalcular el precio
+				// unitario con los recargos. Snapshot persistido en el ítem.
+				List<SelectedOptionDTO> seleccionadas = resolverOpciones(product, dto.getSelectedOptionIds());
+				BigDecimal precioUnitario = product.getPrice();
+				for (SelectedOptionDTO opt : seleccionadas) {
+					precioUnitario = precioUnitario.add(opt.getPriceDelta());
+				}
+
 				OrderItem item = new OrderItem();
 				item.setOrder(order);
 				item.setProductId(product.getId());
 				item.setProductName(product.getName());
-				item.setPrice(product.getPrice());
+				item.setPrice(precioUnitario);
 				item.setCost(product.getCost());
 				item.setQuantity(quantity);
 				item.setComboRoot(false);
+				item.setSelectedOptions(seleccionadas.isEmpty() ? null : escribirJson(seleccionadas));
 
-				BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(quantity));
+				BigDecimal subtotal = precioUnitario.multiply(BigDecimal.valueOf(quantity));
 				item.setSubtotal(subtotal);
 
 				items.add(item);
@@ -443,6 +456,106 @@ public class OrderServiceImpl implements IOrderService {
 		Order saved = orderRepository.save(order);
 
 		return iOrderMapper.toDTO(saved);
+	}
+
+	/**
+	 * Resuelve los ids de opciones elegidas contra los grupos del producto y
+	 * valida las reglas del dueño (odd/tasks/product-options.md S4):
+	 * - toda opción tiene que pertenecer al producto pedido (404, igual que
+	 *   un producto ajeno);
+	 * - grupo obligatorio: al menos 1 elección (no múltiple: exactamente 1);
+	 * - grupo múltiple: cantidad entre minSelections y maxSelections.
+	 * El orden del resultado sigue el orden de definición de los grupos
+	 * (el mismo con el que el dueño los cargó).
+	 */
+	private List<SelectedOptionDTO> resolverOpciones(Product product, List<Long> opcionIds) {
+
+		List<ProductOptionGroup> grupos = product.getOptionGroups();
+		if (grupos == null || grupos.isEmpty()) {
+			if (opcionIds != null && !opcionIds.isEmpty()) {
+				throw new BusinessException("El producto " + product.getName() + " no tiene opciones",
+						ErrorType.VALIDATION);
+			}
+			return Collections.emptyList();
+		}
+
+		List<Long> elegidos = opcionIds == null ? Collections.emptyList() : opcionIds;
+		List<SelectedOptionDTO> resueltas = new ArrayList<>();
+		int elegidosRestantes = elegidos.size();
+
+		for (ProductOptionGroup grupo : grupos) {
+
+			List<SelectedOptionDTO> delGrupo = new ArrayList<>();
+			for (ProductOption opcion : grupo.getOptions()) {
+				if (elegidos.contains(opcion.getId())) {
+					SelectedOptionDTO dto = new SelectedOptionDTO();
+					dto.setOptionId(opcion.getId());
+					dto.setGroupName(grupo.getName());
+					dto.setOptionName(opcion.getName());
+					dto.setPriceDelta(opcion.getPriceDelta());
+					delGrupo.add(dto);
+				}
+			}
+			elegidosRestantes -= delGrupo.size();
+
+			int cantidad = delGrupo.size();
+			if (grupo.isRequired() && cantidad == 0) {
+				throw new BusinessException("Tenés que elegir una opción para \"" + grupo.getName() + "\"",
+						ErrorType.VALIDATION);
+			}
+			if (grupo.isMultiple()) {
+				Integer min = grupo.getMinSelections();
+				Integer max = grupo.getMaxSelections();
+				if (min != null && cantidad < min) {
+					throw new BusinessException("Elegí al menos " + min + " opción(es) para \"" + grupo.getName()
+							+ "\"", ErrorType.VALIDATION);
+				}
+				if (max != null && cantidad > max) {
+					throw new BusinessException("Podés elegir como máximo " + max + " opción(es) para \""
+							+ grupo.getName() + "\"", ErrorType.VALIDATION);
+				}
+			} else if (cantidad > 1) {
+				throw new BusinessException("En \"" + grupo.getName() + "\" podés elegir solo una opción",
+						ErrorType.VALIDATION);
+			}
+
+			resueltas.addAll(delGrupo);
+		}
+
+		if (elegidosRestantes > 0) {
+			// ids que no pertenecen a ningún grupo del producto
+			throw new BusinessException("Opción inválida para el producto " + product.getName(), ErrorType.NOT_FOUND);
+		}
+
+		return resueltas;
+	}
+
+	private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
+			new com.fasterxml.jackson.databind.ObjectMapper()
+					.disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
+	private String escribirJson(List<SelectedOptionDTO> seleccionadas) {
+		try {
+			return JSON.writeValueAsString(seleccionadas);
+		} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+			throw new IllegalStateException("No se pudo serializar las opciones elegidas", e);
+		}
+	}
+
+	/**
+	 * Lee el snapshot JSON de las opciones de un ítem (S5). Un JSON ilegible
+	 * no tira abajo el pedido: lista vacía y log (el pedido existe, mostrar
+	 * el resto es más importante que la selección).
+	 */
+	public static List<SelectedOptionDTO> leerOpcionesJson(String json) {
+		if (json == null || json.isBlank())
+			return Collections.emptyList();
+		try {
+			return JSON.readValue(json,
+					JSON.getTypeFactory().constructCollectionType(List.class, SelectedOptionDTO.class));
+		} catch (Exception e) {
+			return Collections.emptyList();
+		}
 	}
 
 }

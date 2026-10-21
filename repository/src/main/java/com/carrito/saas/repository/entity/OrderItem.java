@@ -52,4 +52,14 @@ public class OrderItem {
 	@Column(name = "is_combo_root")
 	private Boolean comboRoot;
 
+	/**
+	 * Opciones elegidas del ítem (odd/tasks/product-options.md S4/S5), JSON:
+	 * [{"optionId":..,"groupName":"..","optionName":"..","priceDelta":..}].
+	 * Snapshot al momento de la venta: cambiar los grupos del producto no
+	 * reescribe los pedidos pasados (mismo criterio que price/cost). Null =
+	 * producto sin opciones elegidas (S6).
+	 */
+	@Column(name = "selected_options", columnDefinition = "text")
+	private String selectedOptions;
+
 }
