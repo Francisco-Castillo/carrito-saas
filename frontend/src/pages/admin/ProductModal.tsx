@@ -361,7 +361,7 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="toast-modal" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">
+      <div className="toast-modal product-modal" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">
         <h3 id="product-modal-title">{creating ? "Nuevo producto" : "Editar producto"}</h3>
 
         {serverError && (
@@ -370,9 +370,13 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
           </p>
         )}
 
-        <div className="admin-product-form">
+        <section className="pm-section">
+          <h4 className="pm-section-title">Datos del producto</h4>
+          <div className="admin-product-form">
           <div className="admin-product-form--full">
-            <input
+            <label className="pm-field">
+              <span className="pm-label">Nombre</span>
+              <input
               ref={nameRef}
               className={`admin-input${hasError(name) ? " admin-input--error" : ""}`}
               type="text"
@@ -382,10 +386,13 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
               aria-invalid={hasError(name)}
               onChange={(e) => setName(e.target.value)}
             />
+            </label>
           </div>
 
           <div className="admin-product-form--full">
-            <textarea
+            <label className="pm-field">
+              <span className="pm-label">Descripción</span>
+              <textarea
               className={`admin-input${hasError(description) ? " admin-input--error" : ""}`}
               value={description}
               placeholder="Descripción"
@@ -394,44 +401,56 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
               rows={2}
               onChange={(e) => setDescription(e.target.value)}
             />
+            </label>
           </div>
 
-          <input
+          <label className="pm-field">
+            <span className="pm-label">Precio de venta</span>
+            <input
             className={`admin-input${hasError(price) ? " admin-input--error" : ""}`}
             type="number"
             min="0"
             step="0.01"
             value={price}
-            placeholder="Precio de venta"
+            placeholder="0.00"
             aria-label="Precio"
             aria-invalid={hasError(price)}
             onChange={(e) => setPrice(e.target.value)}
           />
+          </label>
 
-          <input
+          <label className="pm-field">
+            <span className="pm-label">Costo</span>
+            <input
             className={`admin-input${hasError(cost) ? " admin-input--error" : ""}`}
             type="number"
             min="0"
             step="0.01"
             value={cost}
-            placeholder="Costo"
+            placeholder="0.00"
             aria-label="Costo"
             aria-invalid={hasError(cost)}
             onChange={(e) => setCost(e.target.value)}
           />
+          </label>
 
-          <input
+          <label className="pm-field">
+            <span className="pm-label">Stock</span>
+            <input
             className="admin-input"
             type="number"
             min="0"
             step="1"
             value={stock}
-            placeholder="Stock (vacío = ilimitado)"
+            placeholder="Vacío = ilimitado"
             aria-label="Stock"
             onChange={(e) => setStock(e.target.value)}
           />
+          </label>
 
-          <select
+          <label className="pm-field">
+            <span className="pm-label">Categoría</span>
+            <select
             className={`admin-input${hasError(categoryId) ? " admin-input--error" : ""}`}
             value={categoryId}
             aria-label="Categoría"
@@ -445,8 +464,11 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
               </option>
             ))}
           </select>
+          </label>
 
-          <select
+          <label className="pm-field">
+            <span className="pm-label">Unidad de medida</span>
+            <select
             className="admin-input"
             value={unitMeasure}
             aria-label="Unidad de medida"
@@ -459,6 +481,7 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
               </option>
             ))}
           </select>
+          </label>
 
           <label className="admin-product-check">
             <input
@@ -469,18 +492,20 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
             />
             <span>Producto activo (visible en la carta)</span>
           </label>
-        </div>
+          </div>
+        </section>
 
-        <div className="admin-product-options">
+        <section className="pm-section">
+          <h4 className="pm-section-title">Opciones del producto</h4>
+          <div className="admin-product-options">
           <div className="admin-product-options--header">
-            <strong>Opciones del producto</strong>
+            <p className="admin-image-hint">
+              Ej: "Tipo de pan" (obligatorio, elegir 1) o "Extras" (opcional, elegir varios con recargo).
+            </p>
             <button type="button" className="btn-ghost" onClick={addGroup}>
               + Agregar grupo
             </button>
           </div>
-          <p className="admin-image-hint">
-            Ej: "Tipo de pan" (obligatorio, elegir 1) o "Extras" (opcional, elegir varios con recargo).
-          </p>
           {optionGroupsError && (
             <p className="name-error" role="alert">
               {optionGroupsError}
@@ -585,9 +610,12 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
               </button>
             </fieldset>
           ))}
-        </div>
+          </div>
+        </section>
 
-        <div className="admin-product-image">
+        <section className="pm-section">
+          <h4 className="pm-section-title">Imagen</h4>
+          <div className="admin-product-image">
           {imagePreview && (
             <img className="admin-product-image--preview" src={imagePreview} alt="Imagen del producto" />
           )}
@@ -614,7 +642,8 @@ export default function ProductModal({ product, onClose, onSaved }: ProductModal
               {imageError}
             </p>
           )}
-        </div>
+          </div>
+        </section>
 
         <div className="toast-modal-actions admin-product-form-actions">
           <button type="button" className="btn-ghost" onClick={onClose}>

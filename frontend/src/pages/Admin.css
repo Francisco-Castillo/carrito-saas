@@ -1514,3 +1514,66 @@
   flex: 1;
   min-width: 120px;
 }
+
+/* ProductModal — layout por secciones con etiquetas visibles (mejora de UX:
+   antes todo era placeholder y el modal heredaba text-align:center, así que
+   los campos quedaban pegados y sin distinguirse). */
+.product-modal {
+  text-align: left;
+  max-width: 560px;
+  width: 100%;
+  max-height: 92vh;
+  max-height: calc(100dvh - 2 * var(--space-3));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.product-modal h3 {
+  margin-bottom: var(--space-2);
+}
+
+.pm-section {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--glass-border, rgba(0, 0, 0, 0.08));
+}
+
+.pm-section:first-of-type {
+  margin-top: var(--space-3);
+  border-top: none;
+  padding-top: 0;
+}
+
+.pm-section-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-2);
+}
+
+.pm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pm-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.pm-field .admin-input {
+  width: 100%;
+}
+
+/* El grupo de opciones respira dentro de su sección. */
+.pm-section .admin-option-group {
+  margin-top: var(--space-2);
+}
+
+.pm-section .admin-product-options--header {
+  margin-bottom: var(--space-1);
+}
