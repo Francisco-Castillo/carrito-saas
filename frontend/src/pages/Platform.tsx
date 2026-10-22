@@ -117,6 +117,14 @@ export default function Platform() {
   const [userForm, setUserForm] = useState(EMPTY_USER_FORM);
   const [userError, setUserError] = useState<string | null>(null);
   const [userBusy, setUserBusy] = useState(false);
+  // UX del modal de usuarios (mejora 2026-10-22): alta colapsada, feedback
+  // de éxito, baja en dos pasos y las acciones que el backend ya tenía
+  // (cambio de rol, reset de clave, reactivar).
+  const [userFormOpen, setUserFormOpen] = useState(false);
+  const [userOk, setUserOk] = useState<string | null>(null);
+  const [pendingDeactivate, setPendingDeactivate] = useState<string | null>(null);
+  const [passwordFor, setPasswordFor] = useState<string | null>(null);
+  const [userNewPassword, setUserNewPassword] = useState("");
 
   useLayoutEffect(() => {
     if (!hasUsableSession()) return;
@@ -320,6 +328,11 @@ export default function Platform() {
     setUsersError(null);
     setUserForm(EMPTY_USER_FORM);
     setUserError(null);
+    setUserFormOpen(false);
+    setUserOk(null);
+    setPendingDeactivate(null);
+    setPasswordFor(null);
+    setUserNewPassword("");
     void loadUsers(client);
   }
 
@@ -328,63 +341,119 @@ export default function Platform() {
     setUsers(null);
     setUsersError(null);
     setUserError(null);
+    setUserFormOpen(false);
+    setUserOk(null);
+    setPendingDeactivate(null);
+    setPasswordFor(null);
+    setUserNewPassword("");
   }
 
   function setUserField(field: keyof typeof EMPTY_USER_FORM, value: string) {
     setUserForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  async function handleUserAlta(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!usersSection) return;
+  /** Acción contra la API de usuarios del local: busy, error inline y
+   * refresco del listado compartidos por todas las acciones del modal. */
+  async function userAction(url: string, method: string, body?: unknown): Promise<boolean> {
+    if (!usersSection) return false;
     setUserBusy(true);
     setUserError(null);
+    setUserOk(null);
     try {
-      const res = await fetch(`/api/platform/clients/${usersSection.client.businessId}/users`, {
-        method: "POST",
+      const res = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: "Bearer " + localStorage.getItem("token"),
         },
-        body: JSON.stringify({
-          username: userForm.username.trim(),
-          email: userForm.email.trim(),
-          password: userForm.password,
-          role: userForm.role,
-        }),
+        body: body === undefined ? undefined : JSON.stringify(body),
       });
       if (!res.ok) {
-        throw new Error(await legibleError(res, "No se pudo crear el usuario"));
+        throw new Error(await legibleError(res, "No se pudo completar la acción"));
       }
-      setUserForm(EMPTY_USER_FORM);
       await loadUsers(usersSection.client);
+      return true;
     } catch (err) {
       setUserError(err instanceof Error ? err.message : "Error inesperado");
+      return false;
     } finally {
       setUserBusy(false);
     }
   }
 
-  async function deactivateUser(user: PlatformUser) {
+  async function handleUserAlta(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     if (!usersSection) return;
-    setUserBusy(true);
-    setUserError(null);
-    try {
-      const res = await fetch(
-        `/api/platform/clients/${usersSection.client.businessId}/users/${user.username}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
-        },
-      );
-      if (!res.ok) {
-        throw new Error(await legibleError(res, "No se pudo dar de baja el usuario"));
-      }
-      await loadUsers(usersSection.client);
-    } catch (err) {
-      setUserError(err instanceof Error ? err.message : "Error inesperado");
-    } finally {
-      setUserBusy(false);
+    const ok = await userAction(`/api/platform/clients/${usersSection.client.businessId}/users`, "POST", {
+      username: userForm.username.trim(),
+      email: userForm.email.trim(),
+      password: userForm.password,
+      role: userForm.role,
+    });
+    if (ok) {
+      setUserForm(EMPTY_USER_FORM);
+      setUserOk(`Usuario ${userForm.username.trim()} creado`);
+    }
+  }
+
+  /** S3: cambio de rol del membership (ej. KITCHEN → OWNER). El backend
+   * protege el último OWNER activo con un 409 legible. */
+  async function changeUserRole(user: PlatformUser, role: string) {
+    if (!usersSection) return;
+    const ok = await userAction(
+      `/api/platform/clients/${usersSection.client.businessId}/users/${user.username}`,
+      "PUT",
+      { role },
+    );
+    if (ok) {
+      setUserOk(`Rol de ${user.username} actualizado a ${role}`);
+    }
+  }
+
+  /** S3: reset de clave de cualquier usuario del local. Validación ≥8
+   * client-side, igual que el resto del panel. */
+  async function resetUserPassword(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!usersSection || !passwordFor) return;
+    if (userNewPassword.length < 8) {
+      setUserError("La contraseña debe tener al menos 8 caracteres");
+      return;
+    }
+    const ok = await userAction(
+      `/api/platform/clients/${usersSection.client.businessId}/users/${passwordFor}/password`,
+      "POST",
+      { password: userNewPassword },
+    );
+    if (ok) {
+      setUserOk(`Clave de ${passwordFor} actualizada`);
+      setPasswordFor(null);
+      setUserNewPassword("");
+    }
+  }
+
+  /** S3/S4: baja LÓGICA en dos pasos (confirmación por fila) y su
+   * reversa: reactivar un usuario de baja vía PUT {active:true}. */
+  async function confirmDeactivateUser(user: PlatformUser) {
+    if (!usersSection) return;
+    const ok = await userAction(
+      `/api/platform/clients/${usersSection.client.businessId}/users/${user.username}`,
+      "DELETE",
+    );
+    if (ok) {
+      setPendingDeactivate(null);
+      setUserOk(`Usuario ${user.username} dado de baja`);
+    }
+  }
+
+  async function reactivateUser(user: PlatformUser) {
+    if (!usersSection) return;
+    const ok = await userAction(
+      `/api/platform/clients/${usersSection.client.businessId}/users/${user.username}`,
+      "PUT",
+      { active: true },
+    );
+    if (ok) {
+      setUserOk(`Usuario ${user.username} reactivado`);
     }
   }
 
@@ -415,7 +484,6 @@ export default function Platform() {
       </header>
 
       <section className="platform-alta glass-panel fade-up" aria-labelledby="platform-alta-title">
-        <h2 id="platform-alta-title">Dar de alta un cliente</h2>
         <h2 id="platform-alta-title">Dar de alta un cliente</h2>
         <form onSubmit={handleAlta} noValidate>
           <fieldset>
@@ -719,6 +787,11 @@ export default function Platform() {
                 {usersError}
               </p>
             )}
+            {userOk && (
+              <p className="platform-ok" role="status">
+                {userOk}
+              </p>
+            )}
 
             {users === null && !usersError && <p>Cargando…</p>}
             {users !== null && users.length === 0 && <p>El local todavía no tiene usuarios.</p>}
@@ -735,10 +808,28 @@ export default function Platform() {
                 </thead>
                 <tbody>
                   {users.map((user) => (
-                    <tr key={user.username}>
+                    <tr key={user.username} className={user.active === false ? "platform-inactive-row" : ""}>
                       <td>{user.username}</td>
                       <td>{user.email || "—"}</td>
-                      <td>{user.role}</td>
+                      <td>
+                        {user.active === false ? (
+                          user.role
+                        ) : (
+                          <select
+                            className="platform-role-select"
+                            aria-label={`Rol de ${user.username}`}
+                            value={user.role}
+                            onChange={(e) => void changeUserRole(user, e.target.value)}
+                            disabled={userBusy}
+                          >
+                            {/* Sin ADMIN: rol exclusivo de la plataforma
+                                (simplificacion-roles.md, S2); el backend lo rechaza. */}
+                            <option value="KITCHEN">KITCHEN</option>
+                            <option value="OWNER">OWNER</option>
+                            <option value="PEDIDOS">PEDIDOS</option>
+                          </select>
+                        )}
+                      </td>
                       <td>
                         {user.active === false ? (
                           <span className="platform-badge platform-badge--inactive">de baja</span>
@@ -746,16 +837,45 @@ export default function Platform() {
                           <span className="platform-badge platform-badge--active">activo</span>
                         )}
                       </td>
-                      <td>
-                        {user.active !== false && (
+                      <td className="platform-actions">
+                        {user.active === false ? (
                           <button
                             type="button"
-                            className="platform-danger"
-                            onClick={() => deactivateUser(user)}
+                            className="platform-btn"
+                            onClick={() => void reactivateUser(user)}
                             disabled={userBusy}
                           >
-                            Dar de baja
+                            Reactivar
                           </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="platform-btn"
+                              onClick={() => {
+                                setPasswordFor(user.username);
+                                setUserNewPassword("");
+                                setUserError(null);
+                              }}
+                              disabled={userBusy}
+                            >
+                              Nueva clave
+                            </button>
+                            <button
+                              type="button"
+                              className="platform-danger"
+                              onClick={() => {
+                                if (pendingDeactivate === user.username) {
+                                  void confirmDeactivateUser(user);
+                                } else {
+                                  setPendingDeactivate(user.username);
+                                }
+                              }}
+                              disabled={userBusy}
+                            >
+                              {pendingDeactivate === user.username ? "¿Confirmar baja?" : "Dar de baja"}
+                            </button>
+                          </>
                         )}
                       </td>
                     </tr>
@@ -764,8 +884,49 @@ export default function Platform() {
               </table>
             )}
 
-            <form onSubmit={handleUserAlta} className="platform-user-alta">
-              <h4>Crear usuario</h4>
+            {passwordFor && (
+              <form onSubmit={resetUserPassword} className="platform-user-password">
+                <h4>Nueva clave para {passwordFor}</h4>
+                <input
+                  type="password"
+                  placeholder="Nueva contraseña"
+                  value={userNewPassword}
+                  onChange={(e) => setUserNewPassword(e.target.value)}
+                  required
+                />
+                <div className="platform-modal-actions">
+                  <button type="submit" className="platform-btn platform-btn--primary" disabled={userBusy}>
+                    Confirmar
+                  </button>
+                  <button
+                    type="button"
+                    className="platform-btn"
+                    onClick={() => {
+                      setPasswordFor(null);
+                      setUserNewPassword("");
+                    }}
+                    disabled={userBusy}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <button
+              type="button"
+              className="platform-btn platform-user-toggle"
+              onClick={() => {
+                setUserFormOpen((prev) => !prev);
+                setUserError(null);
+              }}
+            >
+              {userFormOpen ? "Ocultar formulario" : "+ Nuevo usuario"}
+            </button>
+
+            {userFormOpen && (
+              <form onSubmit={handleUserAlta} className="platform-user-alta">
+                <h4>Crear usuario</h4>
               <div className="platform-user-fields">
                 <input
                   placeholder="Usuario"
@@ -814,6 +975,7 @@ export default function Platform() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

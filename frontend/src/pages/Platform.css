@@ -415,6 +415,51 @@
 
 .platform-users-modal {
   max-width: 720px;
+  /* El listado crece con las acciones por fila: el modal respira con
+     scroll propio en vez de estirar la página entera. */
+  max-height: min(85vh, 720px);
+  overflow: auto;
+}
+
+.platform-users-table select.platform-role-select {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  padding: 6px 8px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+}
+
+/* Panel de reset de clave de un usuario, debajo del listado. */
+.platform-user-password {
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.platform-user-password h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.platform-user-password input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  padding: 10px 12px;
+  font-size: var(--font-size-base);
+  font-family: inherit;
+}
+
+/* Toggle que abre/cierra el alta de usuario: mantiene el listado como
+   protagonista del modal. */
+.platform-user-toggle {
+  margin-bottom: var(--space-2);
 }
 
 .platform-users-table {

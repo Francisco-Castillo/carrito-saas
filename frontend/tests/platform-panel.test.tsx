@@ -401,7 +401,7 @@ describe('platform operator view', () => {
     expect(within(kitchenRow).getByText('de baja', { exact: true })).toBeTruthy()
   })
 
-  it('registers a locale user through the users section form', async () => {
+  it('registers a locale user through the collapsed alta form', async () => {
     const USERS = [
       { username: 'owner-uno', email: 'owner-uno@test.dev', role: 'OWNER', active: true },
     ]
@@ -434,10 +434,21 @@ describe('platform operator view', () => {
     await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
 
     await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /usuarios/i }))
+    const modal = await screen.findByRole('dialog')
+
+    // El alta vive COLAPSADA tras un toggle: el modal arranca mostrando
+    // sólo el listado (más aireado) y los campos no existen hasta abrirlo.
+    expect(screen.queryByPlaceholderText('Usuario')).toBeNull()
+    await user.click(within(modal).getByRole('button', { name: /nuevo usuario/i }))
+
     await user.type(await screen.findByPlaceholderText('Usuario'), 'cajero-uno')
     await user.type(screen.getByPlaceholderText('Email'), 'cajero-uno@test.dev')
     await user.type(screen.getByPlaceholderText('Contraseña'), 'cajero-pass-123')
-    await user.selectOptions(screen.getByLabelText(/rol/i), 'KITCHEN')
+    // El select de rol del ALTA vive dentro del formulario: las filas del
+    // listado tienen sus propios selects "Rol de <usuario>". El formulario
+    // se ancla por su heading (el botón submit también dice "Crear usuario").
+    const altaForm = screen.getByRole('heading', { name: 'Crear usuario' }).closest('form')!
+    await user.selectOptions(within(altaForm).getByLabelText(/^Rol$/), 'KITCHEN')
     await user.click(screen.getByRole('button', { name: /crear usuario/i }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
@@ -455,11 +466,13 @@ describe('platform operator view', () => {
       role: 'KITCHEN',
     })
 
-    // The list refreshes with the new user.
+    // The list refreshes with the new user and the success is announced
+    // (status, not alert) — the operator sees the effect of the action.
     expect(await screen.findByText('cajero-uno')).toBeTruthy()
+    expect(await screen.findByRole('status')).toHaveTextContent(/creado/i)
   })
 
-  it('deactivates a locale user through the users section', async () => {
+  it('deactivates a locale user through the users section after confirmation', async () => {
     const USERS = [
       { username: 'owner-uno', email: 'owner-uno@test.dev', role: 'OWNER', active: true },
       { username: 'kitchen-uno', email: 'kitchen-uno@test.dev', role: 'KITCHEN', active: true },
@@ -495,10 +508,149 @@ describe('platform operator view', () => {
     const kitchenRow = getByTextWithin(modal, 'kitchen-uno')
     await user.click(within(kitchenRow).getByRole('button', { name: /dar de baja/i }))
 
+    // The baja of a user is consequential: it asks for confirmation before
+    // the DELETE — the click-through does not happen silently.
+    expect(fetchMock.mock.calls.some(([u, init]) => init?.method === 'DELETE')).toBe(false)
+
+    await user.click(within(kitchenRow).getByRole('button', { name: /confirmar/i }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       '/api/platform/clients/1000000001/users/kitchen-uno',
       expect.objectContaining({ method: 'DELETE' }),
     ))
+  })
+
+  it('changes a locale user role inline through the row select', async () => {
+    const USERS = [
+      { username: 'owner-uno', email: 'owner-uno@test.dev', role: 'OWNER', active: true },
+      { username: 'kitchen-uno', email: 'kitchen-uno@test.dev', role: 'KITCHEN', active: true },
+    ]
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001/users/kitchen-uno' && init?.method === 'PUT') {
+        return { ok: true, status: 200, json: async () => ({ ...USERS[1], role: 'OWNER' }) }
+      }
+      if (u === '/api/platform/clients/1000000001/users') {
+        return okJson(USERS)
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(CLIENTS)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /usuarios/i }))
+    const modal = await screen.findByRole('dialog')
+    const kitchenRow = getByTextWithin(modal, 'kitchen-uno')
+
+    // S3 del feature: cambio de rol visible en la UI (el backend ya lo
+    // tenía; el select viaja en la fila, con etiqueta por usuario).
+    const roleSelect = within(kitchenRow).getByLabelText('Rol de kitchen-uno')
+    await user.selectOptions(roleSelect, 'OWNER')
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/platform/clients/1000000001/users/kitchen-uno',
+      expect.objectContaining({ method: 'PUT' }),
+    ))
+    const putCall = fetchMock.mock.calls.find(
+      ([u, init]) => String(u) === '/api/platform/clients/1000000001/users/kitchen-uno' && (init as RequestInit).method === 'PUT',
+    )
+    expect(JSON.parse(String((putCall![1] as RequestInit).body))).toEqual({ role: 'OWNER' })
+  })
+
+  it('resets a locale user password through the row action with a confirm panel', async () => {
+    const USERS = [
+      { username: 'kitchen-uno', email: 'kitchen-uno@test.dev', role: 'KITCHEN', active: true },
+    ]
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001/users/kitchen-uno/password' && init?.method === 'POST') {
+        return { ok: true, status: 200, json: async () => USERS[0] }
+      }
+      if (u === '/api/platform/clients/1000000001/users') {
+        return okJson(USERS)
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(CLIENTS)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /usuarios/i }))
+    const modal = await screen.findByRole('dialog')
+    const kitchenRow = getByTextWithin(modal, 'kitchen-uno')
+
+    // S3: reset de clave de CUALQUIER usuario del local (antes sólo se
+    // podía para el dueño desde la fila del cliente).
+    await user.click(within(kitchenRow).getByRole('button', { name: /nueva clave/i }))
+
+    const passwordInput = await screen.findByPlaceholderText('Nueva contraseña')
+    await user.type(passwordInput, 'nueva-clave-789')
+    await user.click(within(modal).getByRole('button', { name: /confirmar/i }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/platform/clients/1000000001/users/kitchen-uno/password',
+      expect.objectContaining({ method: 'POST' }),
+    ))
+    const postCall = fetchMock.mock.calls.find(
+      ([u, init]) => String(u) === '/api/platform/clients/1000000001/users/kitchen-uno/password',
+    )
+    expect(JSON.parse(String((postCall![1] as RequestInit).body))).toEqual({ password: 'nueva-clave-789' })
+  })
+
+  it('reactivates a deactivated locale user from the listing', async () => {
+    const USERS = [
+      { username: 'owner-uno', email: 'owner-uno@test.dev', role: 'OWNER', active: true },
+      { username: 'kitchen-uno', email: 'kitchen-uno@test.dev', role: 'KITCHEN', active: false },
+    ]
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001/users/kitchen-uno' && init?.method === 'PUT') {
+        return { ok: true, status: 200, json: async () => ({ ...USERS[1], active: true }) }
+      }
+      if (u === '/api/platform/clients/1000000001/users') {
+        return okJson(USERS)
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(CLIENTS)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /usuarios/i }))
+    const modal = await screen.findByRole('dialog')
+    const kitchenRow = getByTextWithin(modal, 'kitchen-uno')
+    expect(within(kitchenRow).getByText('de baja', { exact: true })).toBeTruthy()
+
+    // La baja es lógica y reversible: el usuario de baja tiene su botón
+    // de reactivación (el backend ya lo aceptaba vía PUT {active:true}).
+    await user.click(within(kitchenRow).getByRole('button', { name: /reactivar/i }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/platform/clients/1000000001/users/kitchen-uno',
+      expect.objectContaining({ method: 'PUT' }),
+    ))
+    const putCall = fetchMock.mock.calls.find(
+      ([u, init]) => String(u) === '/api/platform/clients/1000000001/users/kitchen-uno' && (init as RequestInit).method === 'PUT',
+    )
+    expect(JSON.parse(String((putCall![1] as RequestInit).body))).toEqual({ active: true })
   })
 })
 
