@@ -106,9 +106,17 @@ class AnalyticsSlugTenantGuardTests {
 	@Test
 	void unknownSlugGetsTheSame404() throws Exception {
 
-		mockMvc.perform(get("/api/restaurants/no-such-slug/analytics/top-products")
-						.header(HttpHeaders.AUTHORIZATION, foreignOwnerHeader))
-				.andExpect(status().isNotFound());
+		String[] routes = {
+				"/api/restaurants/no-such-slug/analytics/top-products",
+				"/api/restaurants/no-such-slug/analytics/sales-by-hour",
+				"/api/restaurants/no-such-slug/analytics/sales-last-7-days",
+				"/api/restaurants/no-such-slug/analytics/sales-previous-7-days",
+		};
+
+		for (String route : routes) {
+			mockMvc.perform(get(route).header(HttpHeaders.AUTHORIZATION, foreignOwnerHeader))
+					.andExpect(status().isNotFound());
+		}
 	}
 
 }

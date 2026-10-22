@@ -224,6 +224,31 @@ class RestaurantTrendsEndpointTests {
 				.andExpect(status().isOk());
 	}
 
+	/**
+	 * The limit is a page size, not a suggestion: with more seeded rows than
+	 * the limit, exactly {@code limit} rows come back — the top ones by trend
+	 * percentage for top-up (finding R3-limit-untested, review-b8efbb575f4aa7ab).
+	 */
+	@Test
+	void topUpTruncatesToTheRequestedLimit() throws Exception {
+
+		Category category = seedCategory("Trend category");
+		Product first = seedProduct(category, "First place");
+		Product second = seedProduct(category, "Second place");
+		Product third = seedProduct(category, "Third place");
+
+		seedTrend(BUSINESS_ID, first.getId(), 90.0, "UP");
+		seedTrend(BUSINESS_ID, second.getId(), 60.0, "UP");
+		seedTrend(BUSINESS_ID, third.getId(), 30.0, "UP");
+
+		mockMvc.perform(get("/api/restaurants/" + SLUG + "/trends/top-up?limit=2")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(2))
+				.andExpect(jsonPath("$[0].productName").value("First place"))
+				.andExpect(jsonPath("$[1].productName").value("Second place"));
+	}
+
 	@Test
 	void unknownSlugReturns404() throws Exception {
 
