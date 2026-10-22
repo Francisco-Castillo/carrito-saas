@@ -1,7 +1,7 @@
 import { useLayoutEffect, useState } from "react";
 import "./Dashboard.css";
 import "./skeleton.css";
-import { hasPanelSession, enforceSession, logout } from "./dashboard/auth";
+import { getSessionRestaurantSlug, hasPanelSession, enforceSession, logout } from "./dashboard/auth";
 import { useDashboardData } from "./dashboard/useDashboardData";
 import { useLiveOrders } from "./dashboard/useLiveOrders";
 import KpiCards from "./dashboard/KpiCards";
@@ -17,6 +17,11 @@ export default function Dashboard() {
   // una sesión con token pero sin slug vuelve al login por enforceSession
   // antes de renderizar o fetchear, nunca con paneles vacíos en silencio.
   const [sessionUsable] = useState(hasPanelSession);
+
+  // Slug de la sesión para los links internos (urls-por-slug.md, S2): la
+  // consola de pedidos vive bajo /{slug}/pedidos — sin URL intermedia sin
+  // slug ni doble recarga por el redirect del guard.
+  const slug = getSessionRestaurantSlug();
 
   useLayoutEffect(() => {
     if (!sessionUsable) {
@@ -69,7 +74,7 @@ export default function Dashboard() {
           {/* Entrada a la consola de pedidos (orders-console S3): mismo patrón
               que el botón de salir — un enlace de la topbar, sin rediseñar la
               navegación existente. */}
-          <a href="/pedidos" className="topbar-link">
+          <a href={slug ? `/${slug}/pedidos` : "/pedidos"} className="topbar-link">
             Pedidos
           </a>
           <button

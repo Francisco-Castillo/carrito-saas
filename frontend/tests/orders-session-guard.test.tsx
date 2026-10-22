@@ -76,6 +76,8 @@ describe('orders page — session guard', () => {
       String(url).startsWith('/api/business/orders')
     )
     const headers = (boardCall?.[1] as { headers?: Record<string, string> })?.headers ?? {}
-    expect(headers['Authorization']).toBe('Bearer header.payload.signature')
+    // El fixture mintea un token con exp futura (checkAuth del panel no lo
+    // expira): el header viaja con ESE token de sesión.
+    expect(headers['Authorization']).toBe(`Bearer ${localStorage.getItem('token')}`)
   })
 })

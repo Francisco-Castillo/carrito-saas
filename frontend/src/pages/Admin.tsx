@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import "./Admin.css";
 import "./skeleton.css";
-import { enforceSession, hasUsableSession } from "./dashboard/auth";
+import { enforceSession, getSessionRestaurantSlug, hasUsableSession } from "./dashboard/auth";
 import { API, authHeader } from "./admin/api";
 import DashboardSection from "./admin/DashboardSection";
 import ProductsTable from "./admin/ProductsTable";
@@ -162,6 +162,11 @@ export default function Admin() {
   // el slug vive en la sesión).
   const [sessionUsable] = useState(hasUsableSession);
 
+  // Slug de la sesión para los links internos (urls-por-slug.md, S2): los
+  // paneles hermanos viven bajo /{slug}/... — sin slug (sesión operador)
+  // caen al path limpio y el guard los manda a su lugar.
+  const slug = getSessionRestaurantSlug();
+
   useLayoutEffect(() => {
     if (!sessionUsable) {
       enforceSession();
@@ -256,13 +261,13 @@ export default function Admin() {
             {/* Consola de pedidos (orders-console S3): es una página propia
               (/pedidos), no una vista del panel — un enlace del sidebar con
               la misma presencia que los botones de navegación. */}
-          <a href="/pedidos" className="admin-nav-btn">
+          <a href={slug ? `/${slug}/pedidos` : "/pedidos"} className="admin-nav-btn">
             <OrdersIcon />
             <span>Pedidos</span>
           </a>
-          {/* KDS de cocina (/kds): página propia como Pedidos — la cocina y el
+          {/* KDS de cocina (/{slug}/kds): página propia como Pedidos — la cocina y el
               mostrador trabajan sobre pantallas distintas del mismo panel. */}
-          <a href="/kds" className="admin-nav-btn">
+          <a href={slug ? `/${slug}/kds` : "/kds"} className="admin-nav-btn">
             <KdsIcon />
             <span>KDS Cocina</span>
           </a>

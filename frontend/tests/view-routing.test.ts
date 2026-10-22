@@ -45,8 +45,8 @@ describe('view routing (one SPA, every entry path)', () => {
     expect(getView()).toBe(view)
   })
 
-  it('an unknown path falls back to the login view', () => {
-    at('/some-unknown-place')
+  it('un path multi-segmento desconocido cae al login (un slug-shaped suelto ahora es la carta pública del local, urls-por-slug.md S3)', () => {
+    at('/some/unknown/place')
     expect(getView()).toBe('login')
   })
 

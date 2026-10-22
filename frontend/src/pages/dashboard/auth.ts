@@ -61,6 +61,22 @@ export function getSessionRestaurantSlug(): string | null {
 }
 
 /**
+ * Rol de la sesión (localStorage "role", escrito por el login). El guard de
+ * vistas de App.tsx lo usa para decidir landing y redirects — misma lectura
+ * endurecida que token/slug: almacenamiento bloqueado o valor muerto → null.
+ * Nunca lanza.
+ */
+export function sessionRole(): string | null {
+  try {
+    const role = typeof localStorage.getItem("role") === "string" ? localStorage.getItem("role") : null;
+    const value = typeof role === "string" ? role.trim() : "";
+    return value !== "" && value !== "null" && value !== "undefined" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Predicado de panel (Dashboard/Kds), sin efectos secundarios: sesión usable
  * (token recortado no vacío y no "null"/"undefined") Y slug de sesión
  * legible. Cierra el hueco de los paneles silenciosamente vacíos: una sesión

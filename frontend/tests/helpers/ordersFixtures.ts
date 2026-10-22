@@ -29,6 +29,10 @@ export function managementOrder(overrides: Partial<ManagementOrder> = {}): Manag
 
 /** Session for a panel view: usable token + readable restaurant slug. */
 export function seedPanelSession(): void {
-  window.localStorage.setItem('token', 'header.payload.signature')
+  // Token con exp futura: el panel llama checkAuth() (isTokenExpired) al
+  // cargar — un token indigerible dispararía logout() y limpiaría la sesión
+  // a mitad del render, con la UI en su estado post-logout.
+  const payload = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }))
+  window.localStorage.setItem('token', `header.${payload}.signature`)
   window.localStorage.setItem('restaurantSlug', 'demo-pizzeria')
 }

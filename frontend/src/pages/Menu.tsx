@@ -109,10 +109,13 @@ function normalizePhone(value: string): string {
   return value.replace(/[\s+().-]/g, "");
 }
 
-export default function Menu() {
+export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) {
+  // Slug del local: la resolución de rutas pasa el del path (/{slug},
+  // urls-por-slug.md S3); el query param ?restaurant= queda por
+  // compatibilidad con QRs viejos y el deployment de un solo negocio.
   const slug = useMemo(
-    () => new URLSearchParams(window.location.search).get("restaurant"),
-    []
+    () => slugProp ?? new URLSearchParams(window.location.search).get("restaurant"),
+    [slugProp],
   );
 
   // QR de mesa (feature pedido-qr-mesa): el QR de una mesa abre la carta como

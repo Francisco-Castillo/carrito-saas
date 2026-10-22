@@ -3,11 +3,13 @@
  * (which executed the real legacy login/login.js in a vm sandbox).
  *
  * After login, every role must land on its own page with the restaurant slug
- * (taken from the login response, as in the legacy login.js):
+ * (taken from the login response, as in the legacy login.js). Role model of
+ * odd/tasks/simplificacion-roles.md (S1/S2): ADMIN is platform-exclusive and
+ * lands on /platform; OWNER inherited the business permissions of ADMIN.
  *
- *   OWNER   -> /dashboard   (slug via session, from the login response)
- *   KITCHEN -> /kds         (slug via session, from the login response)
- *   ADMIN   -> /admin       (slug via session, from the login response)
+ *   ADMIN   -> /platform   (no slug: the operator has no business)
+ *   OWNER   -> /{slug}/admin   (slug via session, from the login response)
+ *   KITCHEN -> /{slug}/kds     (slug via session, from the login response)
  */
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -56,29 +58,28 @@ async function submitLogin(role: string, restaurantSlug = RESTAURANT_SLUG) {
 }
 
 describe('login redirect chain (ported from api/src/test/js/page-guard.test.mjs)', () => {
-  it('OWNER lands on /dashboard (no slug in the URL; the session carries it)', async () => {
+  it('OWNER lands on /admin (inherits the business landing the old ADMIN had)', async () => {
+    // S1 de simplificacion-roles.md: OWNER hereda los permisos Y el landing
+    // de negocio del viejo ADMIN. El dashboard queda alcanzable por URL.
     const { location } = await submitLogin('OWNER')
-    await waitFor(() => expect(location.href).toBe(`/dashboard`))
+    await waitFor(() => expect(location.href).toBe(`/${RESTAURANT_SLUG}/admin`))
   })
 
-  it('KITCHEN lands on /kds (no slug in the URL; the session carries it)', async () => {
+  it('KITCHEN lands on /{slug}/kds (the session carries the slug)', async () => {
     const { location } = await submitLogin('KITCHEN')
-    await waitFor(() => expect(location.href).toBe(`/kds`))
+    await waitFor(() => expect(location.href).toBe(`/${RESTAURANT_SLUG}/kds`))
   })
 
-  it('ADMIN lands on /admin (no slug in the URL; the session carries it)', async () => {
-    const { location } = await submitLogin('ADMIN')
-    await waitFor(() => expect(location.href).toBe(`/admin`))
-  })
-
-  it('PEDIDOS lands on /pedidos (the orders console is its own role)', async () => {
-    const { location } = await submitLogin('PEDIDOS')
-    await waitFor(() => expect(location.href).toBe(`/pedidos`))
-  })
-
-  it('PLATFORM_ADMIN lands on /platform (the operator panel is its own role)', async () => {
-    const { location } = await submitLogin('PLATFORM_ADMIN', '')
+  it('ADMIN lands on /platform (the platform-exclusive role, no business slug)', async () => {
+    // S2 de simplificacion-roles.md: ADMIN es el rol exclusivo del panel de
+    // plataforma — ya no existe PLATFORM_ADMIN ni el /admin de negocio.
+    const { location } = await submitLogin('ADMIN', '')
     await waitFor(() => expect(location.href).toBe(`/platform`))
+  })
+
+  it('PEDIDOS lands on /{slug}/pedidos (the orders console is its own role)', async () => {
+    const { location } = await submitLogin('PEDIDOS')
+    await waitFor(() => expect(location.href).toBe(`/${RESTAURANT_SLUG}/pedidos`))
   })
 
   it('the restaurant slug from the login response is stored verbatim in the session', async () => {
@@ -86,7 +87,8 @@ describe('login redirect chain (ported from api/src/test/js/page-guard.test.mjs)
     // port must keep storing it verbatim — the session is now the only place
     // the slug travels through.
     const { location } = await submitLogin('OWNER', 'demo pizzeria norte')
-    await waitFor(() => expect(location.href).toBe('/dashboard'))
+    // El slug viaja verbatim también en la URL de destino (S1).
+    await waitFor(() => expect(location.href).toBe('/demo pizzeria norte/admin'))
 
     expect(localStorage.getItem('restaurantSlug')).toBe('demo pizzeria norte')
   })

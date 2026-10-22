@@ -1,16 +1,6 @@
 import { useState, type FormEvent } from "react";
+import { landingForRole } from "../view";
 import "./Login.css";
-
-function redirectPathForRole(role: string): string | null {
-  if (role.includes("OWNER")) return `/dashboard`;
-  if (role.includes("KITCHEN")) return `/kds`;
-  // PLATFORM_ADMIN va ANTES que ADMIN: "PLATFORM_ADMIN".includes("ADMIN")
-  // es true y el rol del operador caería en el panel de negocio.
-  if (role.includes("PLATFORM_ADMIN")) return `/platform`;
-  if (role.includes("ADMIN")) return `/admin`;
-  if (role.includes("PEDIDOS")) return `/pedidos`;
-  return null;
-}
 
 interface LoginResponse {
   token: string;
@@ -126,8 +116,11 @@ export default function Login() {
         localStorage.removeItem("restaurantSlug");
       }
 
-      const target = redirectPathForRole(data.role);
-      if (!target) throw new Error("Rol no permitido");
+      // landingForRole (src/view.ts) es la fuente única del mapeo rol+slug →
+      // pantalla: la usa el login y el guard de vistas de App.tsx. El slug
+      // del response es el del local del usuario (el operador no trae).
+      const target = landingForRole(data.role, data.restaurantSlug ?? null);
+      if (target === "/login") throw new Error("Rol no permitido");
 
       window.location.href = target;
     } catch (err) {
