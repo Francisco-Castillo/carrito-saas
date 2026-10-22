@@ -21,7 +21,7 @@
 
 ## Cierre
 
-**Feature completa (2026-10-21).** Pendiente fuera de alcance: PR/merge (decisión del usuario).
+**Feature completa (2026-10-21).** MERGE Y PUSH (coordinado con la sesión worktree-green-meadow-7c2b, propuesta aprobada por la par): develop actualizado en origin — 1e6b2d2..2190b7a — incluye product-options (7 commits de green-meadow, primero por acuerdo) + mis 5 commits (security/roles, spa slugs+guards, panel operador, stubs OWNER, fixup del aserto optionGroups de su test que quedó desactualizado con su último commit). Validación pre-push del árbol combinado: backend 470/0/0, frontend 421/421, e2e 2/2. Pendiente: que green-meadow sincronice su worktree (aviso enviado).
 
 ## Aprendizajes
 

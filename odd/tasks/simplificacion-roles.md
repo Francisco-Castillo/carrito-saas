@@ -21,7 +21,7 @@
 
 ## Cierre
 
-**Feature completa (2026-10-21).** Pendiente fuera de alcance: PR/merge (decisión del usuario). Advisory del verificador sin tratar: la vista `/admin` no tiene guard client-side por rol (el backend niega los datos; S3 se enforcea por redirect).
+**Feature completa (2026-10-21).** Pendientes menores anotados: (a) los 404 de /api/restaurants/{slug}/trends/top-up|down — endpoints de tendencias inexistentes en el backend, pre-existentes y fuera de este slice; (b) el recibo de revisión nativa RDD quedó sin correr (L7/L8) — la verificación independiente cubre el contrato, retomable con ABANDON + START si se corrige el defecto del reviewer risk. PR/merge a main: decisión del usuario. El advisory del guard client-side de /admin quedó RESUELTO por L9 (el guard de vistas por rol lo cubre).
 
 ## Log
 
