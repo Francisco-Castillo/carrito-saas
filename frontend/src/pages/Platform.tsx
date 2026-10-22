@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { hasUsableSession, enforceSession } from "./dashboard/auth";
 import "./Platform.css";
 
@@ -457,6 +457,18 @@ export default function Platform() {
     }
   }
 
+  // El modal de usuarios se cierra con ✕, Escape y click en el backdrop
+  // (bug 2026-10-22: con el alta colapsada, el único botón Cerrar quedaba
+  // dentro del formulario oculto y el modal no tenía salida).
+  useEffect(() => {
+    if (!usersSection) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !userBusy) closeUsers();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [usersSection, userBusy]);
+
   function logout() {
     for (const key of ["token", "businessId", "role", "username", "expiresAt", "restaurantSlug"]) {
       localStorage.removeItem(key);
@@ -778,9 +790,19 @@ export default function Platform() {
       )}
 
       {usersSection && (
-        <div className="platform-modal-backdrop">
+        <div
+          className="platform-modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !userBusy) closeUsers();
+          }}
+        >
           <div className="platform-modal platform-users-modal" role="dialog" aria-modal="true">
-            <h3>Usuarios de {usersSection.client.businessName}</h3>
+            <div className="platform-users-head">
+              <h3>Usuarios de {usersSection.client.businessName}</h3>
+              <button type="button" className="platform-modal-close" aria-label="Cerrar" onClick={closeUsers}>
+                ✕
+              </button>
+            </div>
 
             {usersError && (
               <p className="platform-error" role="alert">
@@ -969,9 +991,6 @@ export default function Platform() {
               <div className="platform-modal-actions">
                 <button type="submit" className="platform-btn platform-btn--primary" disabled={userBusy}>
                   {userBusy ? "Creando…" : "Crear usuario"}
-                </button>
-                <button type="button" className="platform-btn" onClick={closeUsers} disabled={userBusy}>
-                  Cerrar
                 </button>
               </div>
             </form>

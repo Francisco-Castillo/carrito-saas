@@ -519,6 +519,61 @@ describe('platform operator view', () => {
     ))
   })
 
+  it('closes the users modal with the header close button', async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001/users') {
+        return okJson([{ username: 'owner-uno', email: 'owner-uno@test.dev', role: 'OWNER', active: true }])
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(CLIENTS)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /usuarios/i }))
+    const modal = await screen.findByRole('dialog')
+
+    // El alta está colapsada: el cierre no puede depender del formulario.
+    // El ✕ del header es siempre visible (bug 2026-10-22: sin el form
+    // abierto, el modal quedaba sin salida).
+    await user.click(within(modal).getByRole('button', { name: 'Cerrar' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('closes the users modal with Escape', async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients/1000000001/users') {
+        return okJson([{ username: 'owner-uno', email: 'owner-uno@test.dev', role: 'OWNER', active: true }])
+      }
+      if (u === '/api/platform/clients') {
+        return okJson(CLIENTS)
+      }
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByText('Local Uno')).toBeTruthy())
+
+    await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /usuarios/i }))
+    await screen.findByRole('dialog')
+
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
   it('changes a locale user role inline through the row select', async () => {
     const USERS = [
       { username: 'owner-uno', email: 'owner-uno@test.dev', role: 'OWNER', active: true },

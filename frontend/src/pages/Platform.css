@@ -19,7 +19,11 @@
   z-index: 0;
 }
 
-.platform-page > *:not(.aurora) {
+/* El contenido del panel vive sobre la aurora — PERO los backdrops de los
+ * modales NO: position: fixed los saca del flujo y esta regla (más
+ * específica) los pisaba dejándolos en relative, al final de la página
+ * debajo de todo (bug reportado 2026-10-22). */
+.platform-page > *:not(.aurora):not(.platform-modal-backdrop) {
   position: relative;
   z-index: 1;
 }
@@ -419,6 +423,36 @@
      scroll propio en vez de estirar la página entera. */
   max-height: min(85vh, 720px);
   overflow: auto;
+}
+
+/* Header del modal: título + ✕ siempre visible (con el alta colapsada el
+   cierre no puede depender del formulario). */
+.platform-users-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.platform-users-head h3 {
+  margin: 0;
+}
+
+.platform-modal-close {
+  background: transparent;
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--font-size-md);
+  line-height: 1;
+  padding: 6px 10px;
+}
+
+.platform-modal-close:hover {
+  color: var(--color-text);
+  border-color: var(--glass-border);
 }
 
 .platform-users-table select.platform-role-select {
