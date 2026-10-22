@@ -18,4 +18,14 @@ public interface IProductTrendService {
 	
 	List<ProductTrendDTO> getTopDown(int limit);
 
+	/**
+	 * Slug-scoped variants used by the panel API
+	 * ({@code GET /api/restaurants/{slug}/trends/top-up|top-down}). The slug is
+	 * the authoritative tenant selector — an unknown slug is a 404, and only
+	 * that business's rows are returned.
+	 */
+	List<ProductTrendDTO> getTopUp(String slug, int limit);
+	
+	List<ProductTrendDTO> getTopDown(String slug, int limit);
+
 }

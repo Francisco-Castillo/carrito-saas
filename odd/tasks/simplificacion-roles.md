@@ -21,7 +21,7 @@
 
 ## Cierre
 
-**Feature completa (2026-10-21).** Pendientes menores anotados: (a) los 404 de /api/restaurants/{slug}/trends/top-up|down — endpoints de tendencias inexistentes en el backend, pre-existentes y fuera de este slice; (b) el recibo de revisión nativa RDD quedó sin correr (L7/L8) — la verificación independiente cubre el contrato, retomable con ABANDON + START si se corrige el defecto del reviewer risk. PR/merge a main: decisión del usuario. El advisory del guard client-side de /admin quedó RESUELTO por L9 (el guard de vistas por rol lo cubre).
+**Feature completa (2026-10-21).** Pendientes menores anotados: (a) RESUELTO (2026-10-22, sesión nueva): los endpoints /api/restaurants/{slug}/trends/top-up|top-down existen (RestaurantTrendController + variantes slug de IProductTrendService con verificación de que el caller pertenece al slug — 404 si es ajeno, hallazgo CRÍTICO del reviewer R3-authz-slug-scope corregido antes de aprobar); tests RestaurantTrendsEndpointTests 6/6; revisión nativa APPROVED y quemada (review-b8efbb575f4aa7ab); (b) el recibo de revisión nativa RDD quedó sin correr (L7/L8) — la verificación independiente cubre el contrato, retomable con ABANDON + START si se corrige el defecto del reviewer risk. PR/merge a main: decisión del usuario. El advisory del guard client-side de /admin quedó RESUELTO por L9 (el guard de vistas por rol lo cubre).
 
 ## Log
 
