@@ -74,7 +74,7 @@ function stubProfileFetch(profile: object) {
 function seedStorage() {
   localStorage.setItem('token', futureJwt())
   localStorage.setItem('businessId', '1')
-  localStorage.setItem('role', 'ADMIN')
+  localStorage.setItem('role', 'OWNER')
   localStorage.setItem('username', 'demo')
   localStorage.setItem('expiresAt', '2030-01-01T00:00:00Z')
   localStorage.setItem('restaurantSlug', 'demo-pizzeria')

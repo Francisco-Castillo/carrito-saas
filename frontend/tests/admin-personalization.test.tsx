@@ -65,7 +65,7 @@ function stubFetch(profile: typeof PROFILE = PROFILE) {
 function seedStorage() {
   localStorage.setItem("token", TOKEN);
   localStorage.setItem("businessId", "1");
-  localStorage.setItem("role", "ADMIN");
+  localStorage.setItem("role", "OWNER");
   localStorage.setItem("username", "demo");
   localStorage.setItem("expiresAt", "2030-01-01T00:00:00Z");
 }
