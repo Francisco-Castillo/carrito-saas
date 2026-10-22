@@ -92,7 +92,7 @@ public class ProductTrendServiceImpl implements IProductTrendService {
 	
 	@Override
 	public List<ProductTrendDTO> getTopUp(String slug, int limit) {
-		return repository.findTopUp(resolveAuthorizedBusinessId(slug), limit)
+		return repository.findTopUp(resolveAuthorizedBusinessId(slug), validLimit(limit))
 				.stream()
 				.map(productTrendMapper::toDTO)
 				.toList();
@@ -100,10 +100,22 @@ public class ProductTrendServiceImpl implements IProductTrendService {
 	
 	@Override
 	public List<ProductTrendDTO> getTopDown(String slug, int limit) {
-		return repository.findTopDown(resolveAuthorizedBusinessId(slug), limit)
+		return repository.findTopDown(resolveAuthorizedBusinessId(slug), validLimit(limit))
 				.stream()
 				.map(productTrendMapper::toDTO)
 				.toList();
+	}
+	
+	/**
+	 * The limit is a panel-controlled page size, but it crosses into SQL
+	 * LIMIT: out-of-band values are a client bug and get a 400 instead of
+	 * reaching the query.
+	 */
+	private int validLimit(int limit) {
+		if (limit < 1 || limit > 100) {
+			throw new BusinessException("limit debe estar entre 1 y 100", ErrorType.VALIDATION);
+		}
+		return limit;
 	}
 	
 	/**

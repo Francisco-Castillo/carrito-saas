@@ -194,6 +194,36 @@ class RestaurantTrendsEndpointTests {
 				.andExpect(jsonPath("$[1].trendPercentage").value(-20.0));
 	}
 
+	/**
+	 * The limit is a panel-controlled page size, but it crosses the repository
+	 * straight into SQL LIMIT: out-of-band values must be rejected with 400,
+	 * never forwarded (a negative or huge limit is a client bug, not a query).
+	 */
+	@Test
+	void invalidLimitsAreRejectedWith400() throws Exception {
+
+		for (String bad : new String[] { "0", "-3", "101" }) {
+			mockMvc.perform(get("/api/restaurants/" + SLUG + "/trends/top-up?limit=" + bad)
+							.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader()))
+					.andExpect(status().isBadRequest());
+			mockMvc.perform(get("/api/restaurants/" + SLUG + "/trends/top-down?limit=" + bad)
+							.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader()))
+					.andExpect(status().isBadRequest());
+		}
+	}
+
+	@Test
+	void boundaryLimitsAreAccepted() throws Exception {
+
+		mockMvc.perform(get("/api/restaurants/" + SLUG + "/trends/top-up?limit=1")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader()))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(get("/api/restaurants/" + SLUG + "/trends/top-down?limit=100")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader()))
+				.andExpect(status().isOk());
+	}
+
 	@Test
 	void unknownSlugReturns404() throws Exception {
 
