@@ -68,6 +68,24 @@ final class SingleBusinessTestIsolation {
 				""".formatted(keepBusinessId)).executeUpdate();
 
 		entityManager.createNativeQuery("""
+				delete from product_options where group_id in
+					(select g.id from product_option_groups g
+					 join products p on g.product_id = p.id
+					 join categories cg on p.category_id = cg.id
+					 where cg.business_id <> %d)
+				""".formatted(keepBusinessId)).executeUpdate();
+
+		// product_options/product_option_groups (feature product-options) hang
+		// off products with a NOT NULL FK: without these deletes the products
+		// delete below violates fk on any database that holds option groups of
+		// other businesses (the shared dev database keeps the demo's rows).
+		entityManager.createNativeQuery("""
+				delete from product_option_groups where product_id in
+					(select p.id from products p join categories cg on p.category_id = cg.id
+					 where cg.business_id <> %d)
+				""".formatted(keepBusinessId)).executeUpdate();
+
+		entityManager.createNativeQuery("""
 				delete from products where category_id in
 					(select id from categories where business_id <> %d)
 				""".formatted(keepBusinessId)).executeUpdate();
