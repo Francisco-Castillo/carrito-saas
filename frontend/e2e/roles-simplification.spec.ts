@@ -2,7 +2,8 @@ import { test, expect } from "@playwright/test";
 
 // e2e del nuevo modelo de roles (odd/tasks/simplificacion-roles.md, S1-S4):
 // - e2e-platform-admin (ADMIN sin membresía) entra a /platform y da de alta.
-// - e2e-admin (OWNER del negocio demo) aterriza en /dashboard y la API de
+// - e2e-admin (OWNER del negocio demo) aterriza en SU panel de negocio
+//   (/{slug}/admin desde urls-por-slug — antes /dashboard) y la API de
 //   plataforma le responde 403 con su token de negocio.
 test("roles: ADMIN opera la plataforma, OWNER no la toca", async ({ page }) => {
   const errors: string[] = [];
@@ -27,9 +28,11 @@ test("roles: ADMIN opera la plataforma, OWNER no la toca", async ({ page }) => {
   await page.waitForSelector('[role="status"]', { timeout: 8000 });
   console.log("ALTA:", await page.locator('[role="status"]').textContent());
 
-  // 2) Sin opción ADMIN en el alta de usuarios del local (S2).
+  // 2) Sin opción ADMIN en el alta de usuarios del local (S2). El alta
+  //    vive colapsada: abrir el toggle antes de leer el select.
   await page.click('button:has-text("Usuarios") >> nth=0');
-  await page.waitForTimeout(800);
+  await page.click('button:has-text("Nuevo usuario")');
+  await page.waitForSelector('.platform-user-fields select', { timeout: 8000 });
   const roles = await page.locator(".platform-user-fields select option").allTextContents();
   console.log("ROLES EN SELECT:", JSON.stringify(roles));
   if (roles.includes("ADMIN")) throw new Error("el select de roles de local ofrece ADMIN");
@@ -41,7 +44,7 @@ test("roles: ADMIN opera la plataforma, OWNER no la toca", async ({ page }) => {
   await page.click('button[type="submit"]');
   await page.waitForTimeout(1500);
   console.log("URL e2e-admin tras login:", page.url());
-  if (!page.url().includes("/dashboard")) throw new Error("e2e-admin no aterrizó en /dashboard: " + page.url());
+  if (!page.url().includes("/demo-e2e/admin")) throw new Error("e2e-admin no aterrizó en su panel: " + page.url());
 
   const res = await page.evaluate(async () => {
     const r = await fetch("/api/platform/clients", {
