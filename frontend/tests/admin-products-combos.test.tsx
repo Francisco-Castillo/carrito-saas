@@ -295,6 +295,10 @@ describe('Admin product create (modal)', () => {
       stock: 3,
       active: true,
       unitMeasure: 'PORCION',
+      // El modal de opciones viaja siempre en el DTO (vacío si no hay
+      // grupos configurados) — feature product-options de urls-por-slug
+      // co-rama green-meadow.
+      optionGroups: [],
     })
 
     // Success closes the modal and refreshes the list.
