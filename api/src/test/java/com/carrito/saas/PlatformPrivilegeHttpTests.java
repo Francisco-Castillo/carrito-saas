@@ -28,26 +28,27 @@ import com.carrito.saas.security.JwtUtil;
 
 /**
  * Privilege contract of the platform operator surface: the login branch for
- * {@code PLATFORM_ADMIN} and the security chain over {@code /api/platform/**}.
+ * {@code ADMIN} and the security chain over {@code /api/platform/**}.
  *
  * <p>The operator panel registers clients and their locales. That surface is
  * platform-wide: it must be unreachable for every business-scoped role
- * (OWNER, KITCHEN, ADMIN, PEDIDOS) and answer only to the new platform role
- * {@code PLATFORM_ADMIN}. Before this rule the paths fell under
- * {@code anyRequest().authenticated()}, which would have let any business
- * owner enumerate every client of the SaaS.</p>
+ * (OWNER, KITCHEN, PEDIDOS) and answer only to {@code ADMIN}, the
+ * platform-exclusive role since the role simplification
+ * (odd/tasks/simplificacion-roles.md, S2). Before this rule the paths fell
+ * under {@code anyRequest().authenticated()}, which would have let any
+ * business owner enumerate every client of the SaaS.</p>
  *
  * <p>The operator is a platform-level user with NO business membership, so
  * the login must mint a token WITHOUT the {@code businessId} claim — and the
  * JWT filter must authenticate such a token instead of discarding it (it used
  * to throw "JWT sin businessId", silently falling back to anonymous). The
  * membership-less 403 of the business login must stay for anyone without
- * {@code PLATFORM_ADMIN}.</p>
+ * {@code ADMIN}.</p>
  *
  * <p>Same HTTP-level style as {@code PredictionRunPrivilegeHttpTests}: manual
  * MockMvc with the real security {@link FilterChainProxy}, real users with
  * their roles seeded and rolled back, and real JWTs. The security question is
- * "who may reach the surface", not what the endpoints return — a PLATFORM_ADMIN
+ * "who may reach the surface", not what the endpoints return — an ADMIN
  * caller is only asserted to CROSS the chain (no 401/403), because the
  * controller may still answer 404 until the endpoint lands in its own task.</p>
  *
@@ -132,7 +133,7 @@ class PlatformPrivilegeHttpTests {
 	}
 
 	@Test
-	@DisplayName("PLATFORM_ADMIN login answers a platform token (no businessId) and crosses the chain")
+	@DisplayName("ADMIN login answers a platform token (no businessId) and crosses the chain")
 	void platformAdminLoginYieldsPlatformTokenThatCrossesTheChain() throws Exception {
 
 		seedPlatformAdminUser("platform-admin-login");
@@ -147,7 +148,7 @@ class PlatformPrivilegeHttpTests {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.role").value("PLATFORM_ADMIN"))
+				.andExpect(jsonPath("$.role").value("ADMIN"))
 				.andExpect(jsonPath("$.businessId").doesNotExist())
 				.andDo(result -> token[0] = com.jayway.jsonpath.JsonPath
 						.read(result.getResponse().getContentAsString(), "$.token"));
@@ -161,13 +162,13 @@ class PlatformPrivilegeHttpTests {
 						.header("Authorization", "Bearer " + token[0]))
 				.andExpect(result -> org.assertj.core.api.Assertions
 						.assertThat(result.getResponse().getStatus())
-						.as("PLATFORM_ADMIN token must cross the chain: not 401 and not 403 (actual: %d)",
+						.as("ADMIN token must cross the chain: not 401 and not 403 (actual: %d)",
 								result.getResponse().getStatus())
 						.isNotIn(401, 403));
 	}
 
 	@Test
-	@DisplayName("user without business membership and without PLATFORM_ADMIN keeps getting 403 at login")
+	@DisplayName("user without business membership and without ADMIN keeps getting 403 at login")
 	void loginWithoutMembershipAndWithoutPlatformRoleStaysForbidden() throws Exception {
 
 		seedUserWithSingleBusinessRole("roleless-no-business");
@@ -208,13 +209,13 @@ class PlatformPrivilegeHttpTests {
 	// ==================================================================
 
 	/**
-	 * Seeds a platform-level user: the PLATFORM_ADMIN authority through
+	 * Seeds a platform-level user: the ADMIN authority through
 	 * user_roles and NO business membership — mirroring what the seed does
 	 * for the operator (docs/dev-seed.sql).
 	 */
 	private void seedPlatformAdminUser(String username) {
 
-		Role role = findOrCreateRole("PLATFORM_ADMIN");
+		Role role = findOrCreateRole("ADMIN");
 
 		User user = new User();
 		user.setUsername(username);
@@ -226,7 +227,7 @@ class PlatformPrivilegeHttpTests {
 	/**
 	 * Seeds a membership-less user whose only role is a business one: the
 	 * regression guard for the platform login branch — the 403 of the
-	 * membership-less login must stay for anyone without PLATFORM_ADMIN.
+	 * membership-less login must stay for anyone without ADMIN.
 	 */
 	private void seedUserWithSingleBusinessRole(String username) {
 

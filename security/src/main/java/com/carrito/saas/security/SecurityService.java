@@ -54,12 +54,14 @@ public class SecurityService implements ISecurityService {
 		// que nombrar el motivo no filtra nada: 403, no 401 ni 500.
 		BusinessUser bu = resolveMembership(request);
 
-		// 2-bis. Operador de plataforma (odd/tasks/plataforma-altas.md): el
-		// PLATFORM_ADMIN no pertenece a ningún negocio, y la membresía era el
-		// único camino al token — el operador quedaba afuera con el 403 de
-		// "no pertenece a ningún negocio". El branch solo alcanza a usuarios
-		// SIN membresía que tienen el rol de plataforma en user_roles; un
-		// usuario de negocio conserva el comportamiento de siempre.
+		// 2-bis. Operador de plataforma (odd/tasks/plataforma-altas.md, ahora
+		// bajo el modelo de simplificacion-roles.md S5): el operador NO
+		// pertenece a ningún negocio, y la membresía era el único camino al
+		// token — quedaba afuera con el 403 de "no pertenece a ningún
+		// negocio". El branch solo alcanza a usuarios SIN membresía que tienen
+		// el rol ADMIN en user_roles (el rol exclusivo de la plataforma desde
+		// que PLATFORM_ADMIN dejó de existir); un usuario de negocio conserva
+		// el comportamiento de siempre.
 		if (bu == null) {
 			return platformLogin(request.getUsername());
 		}
@@ -114,8 +116,9 @@ public class SecurityService implements ISecurityService {
 	/**
 	 * Login del operador de plataforma: sin negocio, sin slug, sin membresía.
 	 * El token sale SIN el claim businessId (el JwtFilter autentica tokens sin
-	 * claim y no fija TenantContext), y el rol es el de plataforma. Un usuario
-	 * sin membresía y sin PLATFORM_ADMIN sigue recibiendo el 403 de siempre.
+	 * claim y no fija TenantContext), y el rol es ADMIN — el rol exclusivo de
+	 * la plataforma (simplificacion-roles.md, S2/S5). Un usuario sin membresía
+	 * y sin ADMIN sigue recibiendo el 403 de siempre.
 	 */
 	private LoginResponseDTO platformLogin(String username) {
 
@@ -123,7 +126,7 @@ public class SecurityService implements ISecurityService {
 				.orElseThrow(() -> new BusinessException("Usuario o contraseña incorrectos", ErrorType.UNAUTHORIZED));
 
 		Role platformRole = user.getRoles().stream()
-				.filter(role -> "PLATFORM_ADMIN".equals(role.getName()))
+				.filter(role -> "ADMIN".equals(role.getName()))
 				.findFirst()
 				.orElseThrow(() -> new BusinessException("El usuario no pertenece a ningún negocio", ErrorType.FORBIDDEN));
 

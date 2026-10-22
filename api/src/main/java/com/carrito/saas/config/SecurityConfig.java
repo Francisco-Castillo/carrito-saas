@@ -132,34 +132,59 @@ public class SecurityConfig {
 
 	            // Barrera de PRIVILEGIO (no de tenant): POST /api/predictions/run
 	            // dispara el recálculo GLOBAL de predicciones (todos los negocios),
-	            // no un job del negocio propio. Solo OWNER/ADMIN pueden lanzarlo.
+	            // no un job del negocio propio. Solo OWNER puede lanzarlo (S1 de
+	            // simplificacion-roles.md: hereda el permiso de negocio que tenía
+	            // ADMIN, que pasó a ser rol exclusivo de plataforma).
 	            // Honestidad del alcance: el job es global, así que un OWNER del
 	            // negocio A que lo invoca sigue recalculando las predicciones de
 	            // TODOS los negocios — esta regla no aísla negocios, solo limita
 	            // quién puede accionar el recálculo.
 	            // Un anónimo recibe 401 (entry point de la cadena, contrato
 	            // resuelto en odd/tasks/http-error-contract.md); un AUTENTICADO
-	            // sin OWNER/ADMIN recibe 403, que es el caso que esta regla
+	            // sin OWNER recibe 403, que es el caso que esta regla
 	            // castiga.
 	            // Consola de pedidos (S5 de odd/tasks/orders-console.md): la vista
             // del día con todos los estados es la pantalla que el KDS NO usa,
             // así que exige el rol propio de mostrador. PEDIDOS es el rol
-            // dedicado; OWNER/ADMIN conservan su acceso; los contratos del KDS
-            // (orders/active, status, cancel) siguen abiertos a cualquier
-            // usuario autenticado del negocio — gatearlos es otro slice.
-            .requestMatchers(HttpMethod.GET, "/api/business/orders").hasAnyRole("PEDIDOS", "OWNER", "ADMIN")
+            // dedicado; OWNER conserva su acceso (S1 de
+            // simplificacion-roles.md: hereda los permisos de negocio que
+            // tenía ADMIN, que pasó a ser rol exclusivo de plataforma). Los
+            // contratos del KDS (orders/active, status, cancel) siguen
+            // abiertos a cualquier usuario autenticado del negocio — gatearlos
+            // es otro slice.
+            .requestMatchers(HttpMethod.GET, "/api/business/orders").hasAnyRole("PEDIDOS", "OWNER")
 
-            .requestMatchers(HttpMethod.POST, "/api/predictions/run").hasAnyRole("OWNER", "ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/predictions/run").hasAnyRole("OWNER")
 
             // API del operador de plataforma (alta de clientes y sus locales,
-            // odd/tasks/plataforma-altas.md): superficie GLOBAL del SaaS. Ningun
-            // rol de negocio (OWNER/KITCHEN/ADMIN/PEDIDOS) la toca: un OWNER de
-            // un negocio no puede enumerar ni crear los clientes de la
-            // plataforma. Solo el rol dedicado PLATFORM_ADMIN pasa; un anónimo
-            // recibe 401 del entry point y un autenticado sin el rol, 403 del
+            // odd/tasks/plataforma-altas.md). Simplificación de roles
+            // (odd/tasks/simplificacion-roles.md, S2): ADMIN es el rol
+            // exclusivo de la superficie GLOBAL del SaaS — ya no existe
+            // PLATFORM_ADMIN. Ningún rol de negocio (OWNER/KITCHEN/PEDIDOS)
+            // la toca: un OWNER de un negocio no puede enumerar ni crear los
+            // clientes de la plataforma. Un anónimo recibe 401 del entry
+            // point y un autenticado sin el rol, 403 del
             // AccessDeniedHandler (contrato resuelto en
             // odd/tasks/http-error-contract.md).
-            .requestMatchers("/api/platform/**").hasRole("PLATFORM_ADMIN")
+            .requestMatchers("/api/platform/**").hasRole("ADMIN")
+
+            // Los segmentos de infraestructura conservan su 401/404 anónimo
+            // (odd/tasks/urls-por-slug.md): este catch ANTES del permitAll de
+            // slugs evita que /{slug}/{panel} convierta /api/xyz o /ws/xyz
+            // desconocidos en shells públicas.
+            .requestMatchers("/api/**", "/ws/**", "/dev-media/**", "/uploads/**").authenticated()
+
+            // Shells con slug dinámico (odd/tasks/urls-por-slug.md, S2/S3):
+            // /{slug} sirve la carta pública y /{slug}/{panel} la shell del
+            // panel de negocio (SlugViewController enruta los segmentos
+            // reservados a sus shells). Públicas: los DATOS del negocio
+            // quedan gateados por token y rol en sus endpoints.
+            .requestMatchers(
+                    "/{slug:[a-z0-9-]+}",
+                    "/{slug:[a-z0-9-]+}/",
+                    "/{slug:[a-z0-9-]+}/{panel:[a-z0-9-]+}",
+                    "/{slug:[a-z0-9-]+}/{panel:[a-z0-9-]+}/"
+            ).permitAll()
 
 	            .anyRequest().authenticated()
 	        )

@@ -231,6 +231,13 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 		if (roleName == null) {
 			throw new BusinessException("El rol es obligatorio", ErrorType.VALIDATION);
 		}
+		// ADMIN es el rol exclusivo de la plataforma (simplificacion-roles.md,
+		// S2): un usuario de local con ROLE_ADMIN tendría authorities globales
+		// y podría golpear /api/platform/** con token de negocio. Nunca se crea.
+		if ("ADMIN".equals(roleName)) {
+			throw new BusinessException("El rol ADMIN es exclusivo de la plataforma",
+					ErrorType.VALIDATION);
+		}
 		// Find-or-create (el catálogo puede estar vacío en una DB fresca de
 		// CI — no hay seed de roles): el nombre ES el contrato del rol.
 		Role role = roleRepository.findByName(roleName)
@@ -284,6 +291,12 @@ public class PlatformClientServiceImpl implements IPlatformClientService {
 			String roleName = blankToNull(request.getRole());
 			if (roleName == null) {
 				throw new BusinessException("El rol es obligatorio", ErrorType.VALIDATION);
+			}
+			// Mismo contrato que el alta (simplificacion-roles.md, S2): un
+			// usuario de local nunca puede terminar con el rol de plataforma.
+			if ("ADMIN".equals(roleName)) {
+				throw new BusinessException("El rol ADMIN es exclusivo de la plataforma",
+						ErrorType.VALIDATION);
 			}
 			Role newRole = roleRepository.findByName(roleName)
 					.orElseThrow(() -> new BusinessException("El rol indicado no existe", ErrorType.VALIDATION));

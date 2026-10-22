@@ -34,7 +34,7 @@ import com.carrito.saas.security.JwtUtil;
  * change, optional reactivation) and {@code DELETE
  * /api/platform/clients/{id}/users/{username}} (LOGICAL deactivation) —
  * S3/S4 of odd/tasks/plataforma-usuarios.md. Behind the existing
- * ROLE_PLATFORM_ADMIN barrier.
+ * ROLE_ADMIN barrier.
  *
  * <p>Rules under test:</p>
  *
@@ -181,6 +181,29 @@ class PlatformUsersRoleAndDeactivationHttpTests {
 	}
 
 	@Test
+	@DisplayName("PUT to role ADMIN answers 400: the platform-exclusive role never reaches a locale")
+	void putAdminRoleAnswersValidation() throws Exception {
+
+		// S2 de simplificacion-roles.md: ni por edición un usuario de local
+		// termina con el rol de plataforma.
+		String[] businessId = new String[1];
+		seedClientWithUsers(businessId);
+
+		String token = platformAdminToken();
+
+		String body = """
+				{"role": "ADMIN"}
+				""";
+
+		mockMvc.perform(put("/api/platform/clients/" + businessId[0] + "/users/kitchen-" + run)
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("El rol ADMIN es exclusivo de la plataforma"));
+	}
+
+	@Test
 	@DisplayName("DELETE deactivates logically (row survives) and is idempotent")
 	void deleteDeactivatesLogically() throws Exception {
 
@@ -295,13 +318,13 @@ class PlatformUsersRoleAndDeactivationHttpTests {
 		businessUserRepository.saveAndFlush(membership);
 	}
 
-	/** Logs a PLATFORM_ADMIN in through the real login endpoint. */
+	/** Logs a ADMIN in through the real login endpoint. */
 	private String platformAdminToken() throws Exception {
 
-		Role role = roleRepository.findByName("PLATFORM_ADMIN")
+		Role role = roleRepository.findByName("ADMIN")
 				.orElseGet(() -> {
 					Role created = new Role();
-					created.setName("PLATFORM_ADMIN");
+					created.setName("ADMIN");
 					return roleRepository.saveAndFlush(created);
 				});
 

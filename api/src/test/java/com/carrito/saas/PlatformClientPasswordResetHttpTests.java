@@ -227,15 +227,15 @@ class PlatformClientPasswordResetHttpTests {
 	}
 
 	/**
-	 * Logs a PLATFORM_ADMIN in through the real login endpoint and returns
+	 * Logs a ADMIN in through the real login endpoint and returns
 	 * the minted token: the same credential the operator panel will use.
 	 */
 	private String platformAdminToken() throws Exception {
 
-		Role role = roleRepository.findByName("PLATFORM_ADMIN")
+		Role role = roleRepository.findByName("ADMIN")
 				.orElseGet(() -> {
 					Role created = new Role();
-					created.setName("PLATFORM_ADMIN");
+					created.setName("ADMIN");
 					return roleRepository.saveAndFlush(created);
 				});
 

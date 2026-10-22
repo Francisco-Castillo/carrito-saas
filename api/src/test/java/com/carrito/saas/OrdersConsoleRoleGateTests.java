@@ -23,10 +23,13 @@ import com.carrito.saas.security.JwtUtil;
 /**
  * Role gate of the orders console: {@code GET /api/business/orders} is the
  * management day view — the one screen the KDS does not use — so it demands
- * {@code PEDIDOS}, {@code OWNER} or {@code ADMIN}. The KDS contracts are
- * untouched: {@code GET /api/business/orders/active} stays reachable by any
- * authenticated business user (KITCHEN included), because gating it belongs
- * to the still-open kitchen-authorization slice, not to this one.
+ * {@code PEDIDOS} or {@code OWNER} (ADMIN left the business scope in the role
+ * simplification, odd/tasks/simplificacion-roles.md S1/S2: OWNER inherited
+ * its business permissions and ADMIN became the platform-exclusive role).
+ * The KDS contracts are untouched: {@code GET /api/business/orders/active}
+ * stays reachable by any authenticated business user (KITCHEN included),
+ * because gating it belongs to the still-open kitchen-authorization slice,
+ * not to this one.
  *
  * <p>MockMvc with the real security filter chain and real JWTs (pattern of
  * {@link OrderManagementDayEndpointTests}); {@code @Transactional} rolls
@@ -75,7 +78,7 @@ class OrdersConsoleRoleGateTests {
 	}
 
 	// ------------------------------------------------------------------
-	// S5: the day view demands PEDIDOS / OWNER / ADMIN
+	// S5: the day view demands PEDIDOS / OWNER
 	// ------------------------------------------------------------------
 
 	@Test
@@ -84,6 +87,18 @@ class OrdersConsoleRoleGateTests {
 
 		mockMvc.perform(get("/api/business/orders")
 						.header(HttpHeaders.AUTHORIZATION, kitchen.authorizationHeader()))
+				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void adminAuthorityIsRejectedOnTheManagementDayView() throws Exception {
+		// S1/S2 de simplificacion-roles.md: ADMIN dejó de ser rol de negocio.
+		// La regla del día exige PEDIDOS/OWNER; una autoridad ROLE_ADMIN ya no
+		// cruza (regresión: antes OWNER/ADMIN compartían esta vista).
+		BusinessAuthSeed.AuthenticatedBusiness admin = seedUser("orders-gate-admin", "ADMIN");
+
+		mockMvc.perform(get("/api/business/orders")
+						.header(HttpHeaders.AUTHORIZATION, admin.authorizationHeader()))
 				.andExpect(status().isForbidden());
 	}
 

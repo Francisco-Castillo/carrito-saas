@@ -38,9 +38,12 @@ import com.carrito.saas.service.interfaces.IGeneratePredictionsForAllBusinessesU
  * (e.g. a KITCHEN role) could force a full recalculation of the whole platform.</p>
  *
  * <p>Required behaviour: an authenticated caller without a privileged role
- * (KITCHEN) → 403, and OWNER/ADMIN reach the use case (200). An anonymous
- * caller gets 401: the chain's entry point answers 401 to every anonymous
- * caller on a protected route — the 401-versus-403 question recorded in
+ * (KITCHEN) → 403, and OWNER reaches the use case (200). ADMIN does NOT:
+ * since the role simplification (odd/tasks/simplificacion-roles.md, S1/S2)
+ * ADMIN is the platform-exclusive role and no longer a business one, so the
+ * rule is OWNER-only. An anonymous caller gets 401: the chain's entry point
+ * answers 401 to every anonymous caller on a protected route — the
+ * 401-versus-403 question recorded in
  * {@code odd/tasks/http-error-contract.md} was resolved in favour of the
  * global 401, so "no session" (401) and "no privilege" (403) stay distinct.</p>
  *
@@ -149,17 +152,20 @@ class PredictionRunPrivilegeHttpTests {
 	}
 
 	@Test
-	@DisplayName("authenticated ADMIN caller reaches the global run use case (200)")
-	void adminCallerReachesRun() throws Exception {
+	@DisplayName("authenticated ADMIN authority does NOT reach the global run use case (403): ADMIN is platform-only")
+	void adminAuthorityIsForbiddenOnRun() throws Exception {
 
+		// S1/S2 de simplificacion-roles.md: ADMIN dejó de ser un rol de
+		// negocio (heredado por OWNER) y es el rol exclusivo de la plataforma.
+		// Un usuario con autoridad ROLE_ADMIN ya no cruza esta barrera.
 		String token = seedUserWithRole("admin-run-guard", "ADMIN", ADMIN_BUSINESS_ID,
 				"admin-run-guard-business");
 
 		mockMvc.perform(post("/api/predictions/run")
 						.header("Authorization", "Bearer " + token))
-				.andExpect(status().isOk());
+				.andExpect(status().isForbidden());
 
-		Mockito.verify(generateForAllBusinessesUseCase).execute();
+		Mockito.verifyNoInteractions(generateForAllBusinessesUseCase);
 	}
 
 	// ==================================================================

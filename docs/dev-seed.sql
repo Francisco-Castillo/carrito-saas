@@ -26,11 +26,12 @@
 
 BEGIN;
 
--- Roles (reuse by name, never duplicate)
+-- Roles (reuse by name, never duplicate).
+-- ADMIN es el rol exclusivo del panel de plataforma (S2 de
+-- odd/tasks/simplificacion-roles.md): ya no existe PLATFORM_ADMIN.
 INSERT INTO roles (id, name)
 SELECT v.id, v.name
-FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN'), (990004, 'PEDIDOS'),
-             (990005, 'PLATFORM_ADMIN')) AS v(id, name)
+FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN'), (990004, 'PEDIDOS')) AS v(id, name)
 WHERE NOT EXISTS (SELECT 1 FROM roles r WHERE r.name = v.name);
 
 -- Business
@@ -47,25 +48,27 @@ INSERT INTO users (id, username, email, password, active) VALUES
   (990005, 'e2e-platform-admin', 'e2e-platform-admin@demo.test', '$2a$10$bpCdNav/Sp.8IOE8kV4TweC5zpRUNCirGstxsaqpV/AL/eQ9sIOZ2', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Operador de plataforma (rol PLATFORM_ADMIN): no pertenece a ningún
--- business, sólo a la tabla de authorities. Es quien usa el panel de alta
--- de clientes (odd/tasks/plataforma-altas.md).
+-- Operador de plataforma (rol ADMIN, S2/S5 de simplificacion-roles.md): no
+-- pertenece a ningún business, sólo a la tabla de authorities. Es quien usa
+-- el panel de alta de clientes (odd/tasks/plataforma-altas.md).
 -- OJO: el login exige businessId en el token; ver docs del panel operador.
 
 -- Authorities (ROLE_ + roles.name) and business membership.
 -- Roles are looked up by name with MIN(id): the table may already hold many
 -- duplicate rows for the same name, and joining on the name alone would insert
 -- one row per duplicate.
+-- e2e-admin es OWNER (S4: los ADMIN de negocio migraron a OWNER — un usuario
+-- de negocio nunca lleva ADMIN, que ahora es rol de plataforma).
 INSERT INTO user_roles (user_id, role_id)
 SELECT v.user_id, (SELECT MIN(r.id) FROM roles r WHERE r.name = v.role)
-FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'ADMIN'), (990004, 'PEDIDOS'),
-             (990005, 'PLATFORM_ADMIN')) AS v(user_id, role)
+FROM (VALUES (990001, 'OWNER'), (990002, 'KITCHEN'), (990003, 'OWNER'), (990004, 'PEDIDOS'),
+             (990005, 'ADMIN')) AS v(user_id, role)
 WHERE EXISTS (SELECT 1 FROM roles r WHERE r.name = v.role)
 ON CONFLICT (user_id, role_id) DO NOTHING;
 
 INSERT INTO business_users (id, business_id, role_id, user_id)
 SELECT v.id, 990000001, (SELECT MIN(r.id) FROM roles r WHERE r.name = v.role), v.user_id
-FROM (VALUES (990001, 'OWNER', 990001), (990002, 'KITCHEN', 990002), (990003, 'ADMIN', 990003), (990004, 'PEDIDOS', 990004)) AS v(id, role, user_id)
+FROM (VALUES (990001, 'OWNER', 990001), (990002, 'KITCHEN', 990002), (990003, 'OWNER', 990003), (990004, 'PEDIDOS', 990004)) AS v(id, role, user_id)
 WHERE EXISTS (SELECT 1 FROM roles r WHERE r.name = v.role)
 ON CONFLICT (id) DO NOTHING;
 

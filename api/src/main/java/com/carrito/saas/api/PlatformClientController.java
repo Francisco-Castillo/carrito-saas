@@ -20,8 +20,9 @@ import com.carrito.saas.service.interfaces.IPlatformClientService;
 /**
  * Platform operator API (odd/tasks/plataforma-altas.md): the alta of clients
  * — owner user + locale — in one call. The privilege barrier for
- * {@code /api/platform/**} lives in {@code SecurityConfig}
- * (ROLE_PLATFORM_ADMIN only; see PlatformPrivilegeHttpTests).
+ * {@code /api/platform/**} lives in {@code SecurityConfig} (ROLE_ADMIN only
+ * since the role simplification of odd/tasks/simplificacion-roles.md; see
+ * PlatformPrivilegeHttpTests).
  */
 @RestController
 @RequestMapping("/api/platform")

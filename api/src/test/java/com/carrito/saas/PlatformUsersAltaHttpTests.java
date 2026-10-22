@@ -31,7 +31,7 @@ import com.carrito.saas.security.JwtUtil;
  * Contract of {@code POST /api/platform/clients/{id}/users}: the operator
  * registers a user for ANY client's locale, with a role and a working
  * password (S3 of odd/tasks/plataforma-usuarios.md). Behind the existing
- * ROLE_PLATFORM_ADMIN barrier.
+ * ROLE_ADMIN barrier.
  *
  * <p>Rules under test:</p>
  *
@@ -210,6 +210,40 @@ class PlatformUsersAltaHttpTests {
 	}
 
 	@Test
+	@DisplayName("alta with role ADMIN answers 400: the platform-exclusive role never reaches a locale")
+	void altaWithAdminRoleAnswersValidation() throws Exception {
+
+		// S2 de simplificacion-roles.md: ADMIN es el rol exclusivo de la
+		// plataforma. Un usuario de local con ROLE_ADMIN tendría authorities
+		// globales y podría golpear /api/platform/** con token de negocio.
+		String[] businessId = new String[1];
+		seedClient(businessId);
+
+		String token = platformAdminToken();
+
+		String body = """
+				{
+				  "username": "admin-%s",
+				  "email": "admin-%s@test.dev",
+				  "password": "admin-pass-123",
+				  "role": "ADMIN"
+				}
+				""".formatted(run, run);
+
+		mockMvc.perform(post("/api/platform/clients/" + businessId[0] + "/users")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("El rol ADMIN es exclusivo de la plataforma"));
+
+		// Ni el usuario ni la membresía ni la fila del rol quedan: el guard
+		// corre ANTES del find-or-create del catálogo.
+		assertThat(userRepository.findByUsername("admin-" + run)).isEmpty();
+		assertThat(businessUserRepository.findByUserUsernameAndBusinessSlug("admin-" + run, "biz-" + run)).isEmpty();
+	}
+
+	@Test
 	@DisplayName("alta with an unknown role creates the role on the fly (catalogue seeds itself)")
 	void altaWithUnknownRoleCreatesTheRole() throws Exception {
 
@@ -325,13 +359,13 @@ class PlatformUsersAltaHttpTests {
 		businessUserRepository.saveAndFlush(membership);
 	}
 
-	/** Logs a PLATFORM_ADMIN in through the real login endpoint. */
+	/** Logs a ADMIN in through the real login endpoint. */
 	private String platformAdminToken() throws Exception {
 
-		Role role = roleRepository.findByName("PLATFORM_ADMIN")
+		Role role = roleRepository.findByName("ADMIN")
 				.orElseGet(() -> {
 					Role created = new Role();
-					created.setName("PLATFORM_ADMIN");
+					created.setName("ADMIN");
 					return roleRepository.saveAndFlush(created);
 				});
 

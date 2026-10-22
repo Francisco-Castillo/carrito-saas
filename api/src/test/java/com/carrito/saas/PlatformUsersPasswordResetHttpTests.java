@@ -30,7 +30,7 @@ import com.carrito.saas.security.JwtUtil;
 /**
  * Contract of {@code POST /api/platform/clients/{id}/users/{username}/password}:
  * the operator resets ANY locale user's password (S3 of
- * odd/tasks/plataforma-usuarios.md). Behind the existing ROLE_PLATFORM_ADMIN
+ * odd/tasks/plataforma-usuarios.md). Behind the existing ROLE_ADMIN
  * barrier; same rules as the client-level reset.
  *
  * <p>Rules under test:</p>
@@ -234,13 +234,13 @@ class PlatformUsersPasswordResetHttpTests {
 		businessUserRepository.saveAndFlush(membership);
 	}
 
-	/** Logs a PLATFORM_ADMIN in through the real login endpoint. */
+	/** Logs a ADMIN in through the real login endpoint. */
 	private String platformAdminToken() throws Exception {
 
-		Role role = roleRepository.findByName("PLATFORM_ADMIN")
+		Role role = roleRepository.findByName("ADMIN")
 				.orElseGet(() -> {
 					Role created = new Role();
-					created.setName("PLATFORM_ADMIN");
+					created.setName("ADMIN");
 					return roleRepository.saveAndFlush(created);
 				});
 

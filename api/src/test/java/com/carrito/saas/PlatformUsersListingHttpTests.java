@@ -32,7 +32,7 @@ import com.carrito.saas.security.JwtUtil;
  * Contract of {@code GET /api/platform/clients/{id}/users}: the operator
  * lists the users of ANY client — username, email, role, deactivation state
  * (S2/S3 of odd/tasks/plataforma-usuarios.md). Behind the existing
- * ROLE_PLATFORM_ADMIN barrier.
+ * ROLE_ADMIN barrier.
  */
 @SpringBootTest
 @Transactional
@@ -158,13 +158,13 @@ class PlatformUsersListingHttpTests {
 		businessUserRepository.saveAndFlush(membership);
 	}
 
-	/** Logs a PLATFORM_ADMIN in through the real login endpoint. */
+	/** Logs a ADMIN in through the real login endpoint. */
 	private String platformAdminToken() throws Exception {
 
-		Role role = roleRepository.findByName("PLATFORM_ADMIN")
+		Role role = roleRepository.findByName("ADMIN")
 				.orElseGet(() -> {
 					Role created = new Role();
-					created.setName("PLATFORM_ADMIN");
+					created.setName("ADMIN");
 					return roleRepository.saveAndFlush(created);
 				});
 
