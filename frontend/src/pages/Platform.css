@@ -1,103 +1,264 @@
-/* Panel del operador de plataforma: layout simple de dos columnas sobre el
- * fondo neutro del SPA; sin compartir estilos con el admin de negocio. */
+/* ============================================================
+   Panel del operador de plataforma — Liquid Glass
+   Reutiliza tokens.css: aurora, glass-panel, fade-up, focus rings.
+   Layout: header + card de alta + card de listado; modales glass.
+   ============================================================ */
 
 .platform-page {
+  position: relative;
   min-height: 100vh;
-  padding: 24px 32px;
-  background: #0f1115;
-  color: #e8eaf0;
-  font-family: system-ui, sans-serif;
+  padding: var(--space-6) var(--space-6) var(--space-8);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
 }
+
+/* La capa aurora vive detrás de todo el contenido del panel. */
+.platform-page .aurora {
+  z-index: 0;
+}
+
+.platform-page > *:not(.aurora) {
+  position: relative;
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------
+   Header
+   ------------------------------------------------------------ */
 
 .platform-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  gap: var(--space-4);
+  max-width: 1120px;
+  margin: 0 auto var(--space-6);
 }
 
 .platform-header h1 {
-  font-size: 1.4rem;
   margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.platform-subtitle {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
 }
 
 .platform-logout {
-  background: transparent;
-  color: #e8eaf0;
-  border: 1px solid #3a3f4b;
-  border-radius: 8px;
-  padding: 8px 14px;
+  background: var(--glass-bg-subtle);
+  color: var(--color-text);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-size: var(--font-size-sm);
   cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out-soft),
+    background var(--duration-fast) var(--ease-out-soft);
 }
 
 .platform-logout:hover {
-  border-color: #6b7280;
+  border-color: var(--glass-border);
+  background: var(--glass-bg);
 }
+
+.platform-logout:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ------------------------------------------------------------
+   Cards (alta + listado)
+   ------------------------------------------------------------ */
 
 .platform-alta,
 .platform-listing {
-  background: #171a21;
-  border: 1px solid #2a2f3a;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 24px;
+  max-width: 1120px;
+  margin: 0 auto var(--space-6);
+  padding: var(--space-6);
 }
 
 .platform-alta h2,
 .platform-listing h2 {
-  font-size: 1.05rem;
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
 }
 
+.platform-listing-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.platform-count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-full);
+  padding: 2px 10px;
+}
+
+/* ------------------------------------------------------------
+   Formulario de alta
+   ------------------------------------------------------------ */
+
 .platform-alta fieldset {
-  border: 1px solid #2a2f3a;
-  border-radius: 8px;
-  margin: 0 0 12px;
-  padding: 12px;
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-md);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-4);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .platform-alta legend {
-  font-size: 0.85rem;
-  color: #9aa1ad;
-  padding: 0 6px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-faint);
+  padding: 0 var(--space-1);
+}
+
+.platform-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.platform-field > span {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }
 
 .platform-alta input {
-  background: #0f1115;
-  border: 1px solid #2a2f3a;
-  border-radius: 8px;
-  color: #e8eaf0;
-  padding: 9px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  padding: 10px 12px;
+  font-size: var(--font-size-base);
+  font-family: inherit;
   width: 100%;
   box-sizing: border-box;
+  transition: border-color var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft);
 }
 
-.platform-alta button[type="submit"] {
-  background: #2f6fed;
-  border: none;
-  border-radius: 8px;
-  color: #fff;
-  padding: 10px 18px;
+.platform-alta input::placeholder {
+  color: var(--color-text-faint);
+}
+
+.platform-alta input:hover {
+  border-color: var(--glass-border);
+}
+
+.platform-alta input:focus-visible {
+  outline: none;
+  border-color: var(--accent-indigo);
+  box-shadow: var(--focus-ring);
+}
+
+.platform-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+}
+
+.platform-field-error {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: #ff8a8a;
+}
+
+/* ------------------------------------------------------------
+   Botones
+   ------------------------------------------------------------ */
+
+.platform-btn {
+  background: var(--glass-bg-subtle);
+  color: var(--color-text);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
   cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out-soft),
+    background var(--duration-fast) var(--ease-out-soft),
+    transform var(--duration-fast) var(--ease-out-soft);
 }
 
-.platform-alta button[type="submit"]:disabled {
-  opacity: 0.6;
+.platform-btn:hover:not(:disabled) {
+  border-color: var(--glass-border);
+  background: var(--glass-bg);
+}
+
+.platform-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.platform-btn:disabled {
+  opacity: 0.5;
   cursor: default;
 }
 
+.platform-btn--primary {
+  background: var(--accent-gradient);
+  border: none;
+  color: #fff;
+  font-weight: var(--font-weight-medium);
+  box-shadow: var(--button-glow);
+}
+
+.platform-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--accent-gradient);
+}
+
+.platform-btn--danger {
+  color: #ff8a8a;
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.platform-btn--danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.platform-alta button[type="submit"] {
+  margin-top: var(--space-2);
+  padding: 11px 22px;
+  font-size: var(--font-size-base);
+}
+
+/* ------------------------------------------------------------
+   Feedback del alta
+   ------------------------------------------------------------ */
+
 .platform-error {
-  color: #ff7b7b;
-  margin: 10px 0;
+  color: #ff8a8a;
+  margin: var(--space-3) 0 0;
+  font-size: var(--font-size-sm);
 }
 
 .platform-ok {
   color: #7bd88f;
-  margin: 10px 0;
+  margin: var(--space-3) 0 0;
+  font-size: var(--font-size-sm);
 }
+
+/* ------------------------------------------------------------
+   Listado de clientes
+   ------------------------------------------------------------ */
 
 .platform-listing table {
   width: 100%;
@@ -107,17 +268,238 @@
 .platform-listing th,
 .platform-listing td {
   text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid #2a2f3a;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--glass-border-subtle);
+  font-size: var(--font-size-sm);
+}
+
+.platform-listing tbody tr {
+  transition: background var(--duration-fast) var(--ease-out-soft);
+}
+
+.platform-listing tbody tr:hover {
+  background: var(--glass-bg-subtle);
 }
 
 .platform-listing th {
-  color: #9aa1ad;
-  font-weight: 500;
-  font-size: 0.85rem;
+  color: var(--color-text-faint);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.platform-inactive-row {
+  opacity: 0.55;
 }
 
 .platform-no-owner {
-  color: #9aa1ad;
+  color: var(--color-text-faint);
   font-style: italic;
+}
+
+.platform-badge {
+  display: inline-block;
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-full);
+  padding: 2px 10px;
+  border: 1px solid transparent;
+}
+
+.platform-badge--active {
+  color: #7bd88f;
+  border-color: rgba(123, 216, 143, 0.35);
+  background: rgba(123, 216, 143, 0.1);
+}
+
+.platform-badge--inactive {
+  color: #ff8a8a;
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.platform-actions {
+  white-space: nowrap;
+}
+
+.platform-actions .platform-btn {
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
+
+/* ------------------------------------------------------------
+   Modales (editar / baja / clave / usuarios)
+   ------------------------------------------------------------ */
+
+.platform-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  z-index: 50;
+}
+
+.platform-modal {
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow), var(--glass-inset-highlight);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  padding: var(--space-6);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.platform-modal h3 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.platform-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.platform-modal input {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  padding: 10px 12px;
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.platform-modal input:focus-visible {
+  outline: none;
+  border-color: var(--accent-indigo);
+  box-shadow: var(--focus-ring);
+}
+
+.platform-modal p {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.platform-slug-note {
+  border-left: 3px solid var(--accent-indigo);
+  padding-left: var(--space-3);
+}
+
+.platform-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* ------------------------------------------------------------
+   Modal de usuarios
+   ------------------------------------------------------------ */
+
+.platform-users-modal {
+  max-width: 720px;
+}
+
+.platform-users-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--space-4);
+}
+
+.platform-users-table th,
+.platform-users-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--glass-border-subtle);
+  font-size: var(--font-size-sm);
+}
+
+.platform-users-table th {
+  color: var(--color-text-faint);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-xs);
+}
+
+.platform-user-alta h4 {
+  margin: var(--space-4) 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.platform-user-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.platform-user-fields input {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  padding: 10px 12px;
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.platform-user-fields input:focus-visible {
+  outline: none;
+  border-color: var(--accent-indigo);
+  box-shadow: var(--focus-ring);
+}
+
+/* ------------------------------------------------------------
+   Responsive
+   ------------------------------------------------------------ */
+
+@media (max-width: 720px) {
+  .platform-page {
+    padding: var(--space-4) var(--space-3) var(--space-6);
+  }
+
+  .platform-alta,
+  .platform-listing {
+    padding: var(--space-4);
+  }
+
+  .platform-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .platform-listing {
+    overflow-x: auto;
+  }
+
+  .platform-listing table {
+    min-width: 720px;
+  }
+
+  .platform-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .platform-modal-actions .platform-btn {
+    width: 100%;
+  }
 }

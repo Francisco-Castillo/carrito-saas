@@ -35,6 +35,37 @@ const EMPTY_FORM = {
   ownerPassword: "",
 };
 
+/** Shape del slug en el backend (PlatformClientServiceImpl.SLUG_SHAPE). */
+const SLUG_SHAPE = /^[a-z0-9-]+$/;
+/** Shape del teléfono en el backend (PHONE_SHAPE): 8-14 dígitos, sin 0 inicial. */
+const PHONE_SHAPE = /^[1-9][0-9]{7,13}$/;
+
+/** Normaliza un nombre de local a slug válido: minúsculas, sin acentos,
+ * espacios y símbolos a guiones. Así el operador no puede escribir un slug
+ * inválido por descuido — la causa más común del 400 en el alta. */
+function normalizeSlug(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Mapea el mensaje legible del backend al campo del formulario que hay que
+ * corregir; null = error general del alta. El orden importa: "nombre del
+ * local" es del negocio, el resto de "nombre" es del usuario dueño. */
+function mapAltaErrorField(message: string): keyof typeof EMPTY_FORM | null {
+  const m = message.toLowerCase();
+  if (m.includes("nombre del local")) return "businessName";
+  if (m.includes("slug")) return "slug";
+  if (m.includes("teléfono")) return "phone";
+  if (m.includes("contraseña")) return "ownerPassword";
+  if (m.includes("email")) return "ownerEmail";
+  if (m.includes("usuario") || m.includes("nombre")) return "ownerUsername";
+  return null;
+}
+
 /** Modal por fila (plataforma-editar-baja.md, S1). null = ninguno abierto. */
 type RowModal =
   | { kind: "edit"; client: PlatformClient }
@@ -68,6 +99,8 @@ export default function Platform() {
   const [clients, setClients] = useState<PlatformClient[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof typeof EMPTY_FORM, string>>>({});
   const [altaError, setAltaError] = useState<string | null>(null);
   const [altaOk, setAltaOk] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -110,10 +143,47 @@ export default function Platform() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  /** Nombre del local: mientras el operador no haya editado el slug a mano,
+   * el slug se regenera en vivo desde el nombre (ya normalizado). */
+  function handleBusinessName(value: string) {
+    setForm((prev) => ({
+      ...prev,
+      businessName: value,
+      slug: slugTouched ? prev.slug : normalizeSlug(value),
+    }));
+  }
+
+  /** Validación client-side con los mismos shapes que el backend: los
+   * errores aparecen junto al campo y el POST no sale si algo falla. */
+  function validateAltaForm(): Partial<Record<keyof typeof EMPTY_FORM, string>> | null {
+    const errors: Partial<Record<keyof typeof EMPTY_FORM, string>> = {};
+    const slug = form.slug.trim();
+    const phone = form.phone.trim();
+    if (!slug) {
+      errors.slug = "El slug es obligatorio";
+    } else if (!SLUG_SHAPE.test(slug)) {
+      errors.slug = "El slug sólo admite minúsculas, números y guiones";
+    }
+    if (phone && !PHONE_SHAPE.test(phone)) {
+      errors.phone = "El teléfono sólo admite dígitos: código de área y número, sin 0 ni 15";
+    }
+    if (form.ownerPassword.length < 8) {
+      errors.ownerPassword = "La contraseña debe tener al menos 8 caracteres";
+    }
+    return Object.keys(errors).length > 0 ? errors : null;
+  }
+
   async function handleAlta(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setAltaError(null);
     setAltaOk(null);
+
+    const errors = validateAltaForm();
+    if (errors) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
 
     setSubmitting(true);
     try {
@@ -143,10 +213,20 @@ export default function Platform() {
 
       const created = (await res.json()) as PlatformClient;
       setForm(EMPTY_FORM);
+      setSlugTouched(false);
+      setFieldErrors({});
       setAltaOk(`Cliente "${created.businessName}" dado de alta`);
       await loadClients();
     } catch (err) {
-      setAltaError(err instanceof Error ? err.message : "Error inesperado");
+      const message = err instanceof Error ? err.message : "Error inesperado";
+      // El error del backend va junto al campo que hay que corregir; si no
+      // se puede mapear a un campo, queda como error general del alta.
+      const field = mapAltaErrorField(message);
+      if (field) {
+        setFieldErrors({ [field]: message });
+      } else {
+        setAltaError(message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -317,58 +397,125 @@ export default function Platform() {
 
   return (
     <div className="platform-page">
+      <div className="aurora" aria-hidden="true">
+        <div className="aurora-blob aurora-blob--indigo" />
+        <div className="aurora-blob aurora-blob--violet" />
+        <div className="aurora-blob aurora-blob--fuchsia" />
+        <div className="aurora-blob aurora-blob--cyan" />
+      </div>
+
       <header className="platform-header">
-        <h1>Panel de operador</h1>
+        <div>
+          <h1>Panel de operador</h1>
+          <p className="platform-subtitle">Altas, bajas y cuentas de los locales de la plataforma</p>
+        </div>
         <button type="button" className="platform-logout" onClick={logout}>
           Cerrar sesión
         </button>
       </header>
 
-      <section className="platform-alta" aria-labelledby="platform-alta-title">
+      <section className="platform-alta glass-panel fade-up" aria-labelledby="platform-alta-title">
         <h2 id="platform-alta-title">Dar de alta un cliente</h2>
-        <form onSubmit={handleAlta}>
+        <h2 id="platform-alta-title">Dar de alta un cliente</h2>
+        <form onSubmit={handleAlta} noValidate>
           <fieldset>
             <legend>Local</legend>
-            <input
-              placeholder="Nombre del local"
-              value={form.businessName}
-              onChange={(e) => set("businessName", e.target.value)}
-              required
-            />
-            <input
-              placeholder="Slug"
-              value={form.slug}
-              onChange={(e) => set("slug", e.target.value)}
-              required
-            />
-            <input
-              placeholder="Teléfono"
-              value={form.phone}
-              onChange={(e) => set("phone", e.target.value)}
-            />
+            <label className="platform-field">
+              <span>Nombre del local</span>
+              <input
+                placeholder="Nombre del local"
+                value={form.businessName}
+                onChange={(e) => handleBusinessName(e.target.value)}
+                required
+              />
+              {fieldErrors.businessName && (
+                <p className="platform-field-error" role="alert">
+                  {fieldErrors.businessName}
+                </p>
+              )}
+            </label>
+            <label className="platform-field">
+              <span>Slug</span>
+              <input
+                placeholder="Slug"
+                value={form.slug}
+                onChange={(e) => {
+                  setSlugTouched(true);
+                  set("slug", e.target.value);
+                }}
+                required
+              />
+              <small className="platform-hint">
+                Se completa solo desde el nombre. Es la URL pública del menú (QRs impresos).
+              </small>
+              {fieldErrors.slug && (
+                <p className="platform-field-error" role="alert">
+                  {fieldErrors.slug}
+                </p>
+              )}
+            </label>
+            <label className="platform-field">
+              <span>Teléfono</span>
+              <input
+                placeholder="Teléfono"
+                inputMode="numeric"
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+              />
+              <small className="platform-hint">Sólo dígitos, sin 0 ni 15 (ej. 1150001111)</small>
+              {fieldErrors.phone && (
+                <p className="platform-field-error" role="alert">
+                  {fieldErrors.phone}
+                </p>
+              )}
+            </label>
           </fieldset>
           <fieldset>
             <legend>Dueño</legend>
-            <input
-              placeholder="Usuario del dueño"
-              value={form.ownerUsername}
-              onChange={(e) => set("ownerUsername", e.target.value)}
-              required
-            />
-            <input
-              type="email"
-              placeholder="Email del dueño"
-              value={form.ownerEmail}
-              onChange={(e) => set("ownerEmail", e.target.value)}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Contraseña del dueño"
-              value={form.ownerPassword}
-              onChange={(e) => set("ownerPassword", e.target.value)}
-              required
-            />
+            <label className="platform-field">
+              <span>Usuario del dueño</span>
+              <input
+                placeholder="Usuario del dueño"
+                value={form.ownerUsername}
+                onChange={(e) => set("ownerUsername", e.target.value)}
+                required
+              />
+              {fieldErrors.ownerUsername && (
+                <p className="platform-field-error" role="alert">
+                  {fieldErrors.ownerUsername}
+                </p>
+              )}
+            </label>
+            <label className="platform-field">
+              <span>Email del dueño</span>
+              <input
+                type="email"
+                placeholder="Email del dueño"
+                value={form.ownerEmail}
+                onChange={(e) => set("ownerEmail", e.target.value)}
+                required
+              />
+              {fieldErrors.ownerEmail && (
+                <p className="platform-field-error" role="alert">
+                  {fieldErrors.ownerEmail}
+                </p>
+              )}
+            </label>
+            <label className="platform-field">
+              <span>Contraseña del dueño</span>
+              <input
+                type="password"
+                placeholder="Contraseña del dueño"
+                value={form.ownerPassword}
+                onChange={(e) => set("ownerPassword", e.target.value)}
+                required
+              />
+              {fieldErrors.ownerPassword && (
+                <p className="platform-field-error" role="alert">
+                  {fieldErrors.ownerPassword}
+                </p>
+              )}
+            </label>
           </fieldset>
 
           {altaError && (
@@ -382,14 +529,21 @@ export default function Platform() {
             </p>
           )}
 
-          <button type="submit" disabled={submitting}>
+          <button type="submit" className="platform-btn platform-btn--primary" disabled={submitting}>
             {submitting ? "Dando de alta…" : "Dar de alta"}
           </button>
         </form>
       </section>
 
-      <section className="platform-listing" aria-labelledby="platform-listing-title">
-        <h2 id="platform-listing-title">Clientes</h2>
+      <section className="platform-listing glass-panel fade-up" aria-labelledby="platform-listing-title">
+        <div className="platform-listing-head">
+          <h2 id="platform-listing-title">Clientes</h2>
+          {clients !== null && (
+            <span className="platform-count">
+              {clients.length} {clients.length === 1 ? "local" : "locales"}
+            </span>
+          )}
+        </div>
         {listError && (
           <p className="platform-error" role="alert">
             {listError}
@@ -428,26 +582,27 @@ export default function Platform() {
                   )}
                   <td>
                     {client.active === false ? (
-                      <span className="platform-inactive-badge">de baja</span>
+                      <span className="platform-badge platform-badge--inactive">de baja</span>
                     ) : (
-                      "activo"
+                      <span className="platform-badge platform-badge--active">activo</span>
                     )}
                   </td>
                   <td className="platform-actions">
                     {client.active === false ? (
-                      <button type="button" onClick={() => reactivate(client)}>
+                      <button type="button" className="platform-btn" onClick={() => reactivate(client)}>
                         Reactivar
                       </button>
                     ) : (
                       <>
-                        <button type="button" onClick={() => openUsers(client)}>
+                        <button type="button" className="platform-btn" onClick={() => openUsers(client)}>
                           Usuarios
                         </button>
-                        <button type="button" onClick={() => openRowModal({ kind: "edit", client })}>
+                        <button type="button" className="platform-btn" onClick={() => openRowModal({ kind: "edit", client })}>
                           Editar
                         </button>
                         <button
                           type="button"
+                          className="platform-btn"
                           onClick={() => openRowModal({ kind: "password", client })}
                           disabled={!client.ownerUsername}
                           title={client.ownerUsername ? undefined : "Sin dueño"}
@@ -456,7 +611,7 @@ export default function Platform() {
                         </button>
                         <button
                           type="button"
-                          className="platform-danger"
+                          className="platform-btn platform-btn--danger"
                           onClick={() => openRowModal({ kind: "baja", client })}
                         >
                           Dar de baja
@@ -494,10 +649,10 @@ export default function Platform() {
                   identidad pública del local (QRs impresos, URLs del menú).
                 </p>
                 <div className="platform-modal-actions">
-                  <button type="button" onClick={saveEdit} disabled={rowBusy}>
+                  <button type="button" className="platform-btn platform-btn--primary" onClick={saveEdit} disabled={rowBusy}>
                     Guardar
                   </button>
-                  <button type="button" onClick={closeRowModal} disabled={rowBusy}>
+                  <button type="button" className="platform-btn" onClick={closeRowModal} disabled={rowBusy}>
                     Cancelar
                   </button>
                 </div>
@@ -512,10 +667,10 @@ export default function Platform() {
                   históricos se conservan y la baja es reversible.
                 </p>
                 <div className="platform-modal-actions">
-                  <button type="button" className="platform-danger" onClick={deactivate} disabled={rowBusy}>
+                  <button type="button" className="platform-btn platform-btn--danger" onClick={deactivate} disabled={rowBusy}>
                     Confirmar baja
                   </button>
-                  <button type="button" onClick={closeRowModal} disabled={rowBusy}>
+                  <button type="button" className="platform-btn" onClick={closeRowModal} disabled={rowBusy}>
                     Cancelar
                   </button>
                 </div>
@@ -535,10 +690,10 @@ export default function Platform() {
                   />
                 </label>
                 <div className="platform-modal-actions">
-                  <button type="button" onClick={resetPassword} disabled={rowBusy}>
+                  <button type="button" className="platform-btn platform-btn--primary" onClick={resetPassword} disabled={rowBusy}>
                     Confirmar
                   </button>
-                  <button type="button" onClick={closeRowModal} disabled={rowBusy}>
+                  <button type="button" className="platform-btn" onClick={closeRowModal} disabled={rowBusy}>
                     Cancelar
                   </button>
                 </div>
@@ -586,9 +741,9 @@ export default function Platform() {
                       <td>{user.role}</td>
                       <td>
                         {user.active === false ? (
-                          <span className="platform-inactive-badge">de baja</span>
+                          <span className="platform-badge platform-badge--inactive">de baja</span>
                         ) : (
-                          "activo"
+                          <span className="platform-badge platform-badge--active">activo</span>
                         )}
                       </td>
                       <td>
@@ -635,9 +790,10 @@ export default function Platform() {
                 <label>
                   Rol{" "}
                   <select value={userForm.role} onChange={(e) => setUserField("role", e.target.value)}>
+                    {/* Sin ADMIN: rol exclusivo de la plataforma
+                        (simplificacion-roles.md, S2); el backend lo rechaza. */}
                     <option value="KITCHEN">KITCHEN</option>
                     <option value="OWNER">OWNER</option>
-                    <option value="ADMIN">ADMIN</option>
                     <option value="PEDIDOS">PEDIDOS</option>
                   </select>
                 </label>
@@ -650,10 +806,10 @@ export default function Platform() {
               )}
 
               <div className="platform-modal-actions">
-                <button type="submit" disabled={userBusy}>
+                <button type="submit" className="platform-btn platform-btn--primary" disabled={userBusy}>
                   {userBusy ? "Creando…" : "Crear usuario"}
                 </button>
-                <button type="button" onClick={closeUsers} disabled={userBusy}>
+                <button type="button" className="platform-btn" onClick={closeUsers} disabled={userBusy}>
                   Cerrar
                 </button>
               </div>

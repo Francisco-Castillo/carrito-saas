@@ -55,7 +55,9 @@ function getByTextWithin(container: HTMLElement, text: string): HTMLElement {
 
 function stubSession() {
   localStorage.setItem('token', 'header.payload.signature')
-  localStorage.setItem('role', 'PLATFORM_ADMIN')
+  // ADMIN es el rol exclusivo de la plataforma (simplificacion-roles.md S2):
+  // ya no existe PLATFORM_ADMIN.
+  localStorage.setItem('role', 'ADMIN')
   localStorage.setItem('username', 'platform-admin')
   localStorage.setItem('expiresAt', String(Date.now() + 60_000))
 }
@@ -115,7 +117,8 @@ describe('platform operator view', () => {
     const user = userEvent.setup()
     await waitFor(() => expect(screen.getByPlaceholderText('Nombre del local')).toBeTruthy())
     await user.type(screen.getByPlaceholderText('Nombre del local'), 'Local Nuevo')
-    await user.type(screen.getByPlaceholderText('Slug'), 'local-nuevo')
+    // El slug se auto-completa desde el nombre ('local-nuevo'): el flujo
+    // normal ya no lo tipea a mano (ver los tests de UX de abajo).
     await user.type(screen.getByPlaceholderText('Teléfono'), '1150002222')
     await user.type(screen.getByPlaceholderText('Usuario del dueño'), 'owner-nuevo')
     await user.type(screen.getByPlaceholderText('Email del dueño'), 'owner-nuevo@test.dev')
@@ -496,5 +499,110 @@ describe('platform operator view', () => {
       '/api/platform/clients/1000000001/users/kitchen-uno',
       expect.objectContaining({ method: 'DELETE' }),
     ))
+  })
+})
+
+describe('alta form UX: slug automático y validación inline', () => {
+  it('auto-completa el slug normalizado desde el nombre del local', async () => {
+    const fetchMock = vi.fn(async () => okJson(CLIENTS))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByPlaceholderText('Nombre del local')).toBeTruthy())
+    await user.type(screen.getByPlaceholderText('Nombre del local'), 'Mi Café & Bar')
+
+    // El slug se genera en vivo: minúsculas, sin acentos, espacios y
+    // símbolos a guiones. El operador ya no puede escribir un slug inválido
+    // por descuido (causa histórica del 400 "sólo minúsculas").
+    const slug = screen.getByPlaceholderText('Slug') as HTMLInputElement
+    expect(slug.value).toBe('mi-cafe-bar')
+  })
+
+  it('no pisa el slug editado a mano por el operador', async () => {
+    const fetchMock = vi.fn(async () => okJson(CLIENTS))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByPlaceholderText('Nombre del local')).toBeTruthy())
+    await user.type(screen.getByPlaceholderText('Nombre del local'), 'Local Nuevo')
+    await user.clear(screen.getByPlaceholderText('Slug'))
+    await user.type(screen.getByPlaceholderText('Slug'), 'mi-slug-elegido')
+    // Seguir escribiendo el nombre NO regenera el slug que el operador eligió.
+    await user.type(screen.getByPlaceholderText('Nombre del local'), '!')
+
+    const slug = screen.getByPlaceholderText('Slug') as HTMLInputElement
+    expect(slug.value).toBe('mi-slug-elegido')
+  })
+
+  it('valida inline y NO envía el POST cuando un campo es inválido', async () => {
+    const fetchMock = vi.fn(async () => okJson(CLIENTS))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByPlaceholderText('Nombre del local')).toBeTruthy())
+    await user.type(screen.getByPlaceholderText('Nombre del local'), 'Local Valido')
+    await user.type(screen.getByPlaceholderText('Usuario del dueño'), 'owner-v')
+    await user.type(screen.getByPlaceholderText('Email del dueño'), 'owner-v@test.dev')
+    // Contraseña corta: el formulario debe frenarla ANTES de la red.
+    await user.type(screen.getByPlaceholderText('Contraseña del dueño'), 'corta')
+    await user.click(screen.getByRole('button', { name: /dar de alta/i }))
+
+    expect(await screen.findByText(/al menos 8 caracteres/i)).toBeTruthy()
+    expect(fetchMock.mock.calls.some(([u, init]) => String(u) === '/api/platform/clients' && (init as RequestInit)?.method === 'POST')).toBe(false)
+  })
+
+  it('valida inline el formato de teléfono con pistas de formato', async () => {
+    const fetchMock = vi.fn(async () => okJson(CLIENTS))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByPlaceholderText('Nombre del local')).toBeTruthy())
+    await user.type(screen.getByPlaceholderText('Nombre del local'), 'Local Valido')
+    await user.type(screen.getByPlaceholderText('Teléfono'), '11-2233-ab')
+    await user.type(screen.getByPlaceholderText('Usuario del dueño'), 'owner-v')
+    await user.type(screen.getByPlaceholderText('Email del dueño'), 'owner-v@test.dev')
+    await user.type(screen.getByPlaceholderText('Contraseña del dueño'), 'client-pass-123')
+    await user.click(screen.getByRole('button', { name: /dar de alta/i }))
+
+    // El error vive dentro del fieldset del teléfono (no el header de la
+    // tabla de clientes) y el POST nunca sale.
+    const phoneFieldset = screen.getByText('Teléfono', { selector: 'label > span' }).closest('fieldset')!
+    await waitFor(() => expect(within(phoneFieldset).getByText(/sólo admite dígitos/i)).toBeTruthy())
+    expect(fetchMock.mock.calls.some(([u, init]) => String(u) === '/api/platform/clients' && (init as RequestInit)?.method === 'POST')).toBe(false)
+  })
+
+  it('mapea el error 409 de slug del backend al campo slug', async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url instanceof Request ? url.url : url)
+      if (u === '/api/platform/clients' && init?.method === 'POST') {
+        return { ok: false, status: 409, json: async () => ({ message: 'Ya existe un local con ese slug' }) }
+      }
+      if (u === '/api/platform/clients') return okJson(CLIENTS)
+      throw new Error('unexpected fetch: ' + u)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Platform />)
+
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByPlaceholderText('Nombre del local')).toBeTruthy())
+    await user.type(screen.getByPlaceholderText('Nombre del local'), 'Duplicado')
+    await user.type(screen.getByPlaceholderText('Usuario del dueño'), 'owner-d')
+    await user.type(screen.getByPlaceholderText('Email del dueño'), 'owner-d@test.dev')
+    await user.type(screen.getByPlaceholderText('Contraseña del dueño'), 'client-pass-123')
+    await user.click(screen.getByRole('button', { name: /dar de alta/i }))
+
+    // El mensaje del backend vive dentro del fieldset del slug, junto al
+    // campo que hay que corregir.
+    const slugFieldset = screen.getByText('Slug', { selector: 'label > span' }).closest('fieldset')!
+    await waitFor(() => expect(within(slugFieldset).getByText('Ya existe un local con ese slug')).toBeTruthy())
   })
 })
