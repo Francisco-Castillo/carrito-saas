@@ -17,6 +17,7 @@ import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.OrderRepository;
+import com.carrito.saas.security.SecurityService;
 import com.carrito.saas.service.interfaces.IAnalyticsService;
 
 @Service
@@ -24,18 +25,20 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 
 	private final BusinessRepository businessRepository;
 	private final OrderRepository orderRepository;
+	private final SecurityService securityService;
 
-	public AnalyticsServiceImpl(BusinessRepository businessRepository, OrderRepository orderRepository) {
+	public AnalyticsServiceImpl(BusinessRepository businessRepository, OrderRepository orderRepository,
+			SecurityService securityService) {
 		super();
 		this.businessRepository = businessRepository;
 		this.orderRepository = orderRepository;
+		this.securityService = securityService;
 	}
 
 	@Override
 	public List<TopProductDTO> getTopProductsToday(String slug) {
 		
-		Business restaurant = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
+		Business restaurant = resolveAuthorizedBusiness(slug);
 
 	    LocalDate today = LocalDate.now();
 
@@ -53,10 +56,25 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	            .toList();
 	}
 
+	/**
+	 * The slug in the path only names the business whose data is requested:
+	 * the caller's own business (from the JWT) must match it — an unknown
+	 * slug and a foreign slug answer the same 404, so the route does not
+	 * reveal which slugs exist.
+	 */
+	private Business resolveAuthorizedBusiness(String slug) {
+		Business business = businessRepository.findBySlug(slug)
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
+		Long callerBusinessId = securityService.getCurrentBusinessId();
+		if (callerBusinessId == null || !callerBusinessId.equals(business.getId())) {
+			throw new BusinessException("Local no encontrado", ErrorType.NOT_FOUND);
+		}
+		return business;
+	}
+
 	@Override
 	public List<SalesByHourDTO> getSalesByHourToday(String slug) {
-		Business restaurant = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
+		Business restaurant = resolveAuthorizedBusiness(slug);
 
 		LocalDate today = LocalDate.now();
 
@@ -89,8 +107,7 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	}
 	@Override
 	public List<SalesByDayDTO> getSalesLast7Days(String slug) {
-		Business restaurant = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
+		Business restaurant = resolveAuthorizedBusiness(slug);
 
 		// Ventana de los últimos 7 días INCLUDING hoy: [hoy-6 00:00, mañana 00:00).
 		LocalDate today = LocalDate.now();
@@ -118,8 +135,7 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	}
 	@Override
 	public List<SalesByDayDTO> getSalesPrevious7Days(String slug) {
-		Business restaurant = businessRepository.findBySlug(slug)
-				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
+		Business restaurant = resolveAuthorizedBusiness(slug);
 
 		// Semana anterior completa: [hoy-13 00:00, hoy-6 00:00). Es la ventana
 		// que el gráfico compara contra getSalesLast7Days ([hoy-6, mañana)).
