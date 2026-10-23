@@ -100,3 +100,76 @@ describe('orders page — full-day, all-status view (S4)', () => {
     expect(screen.queryByText('#104')).toBeNull()
   })
 })
+
+describe('orders page — detail modal shows every order datum', () => {
+  it('shows the order status and the chosen options of each item', async () => {
+    const withOptions = managementOrder({
+      orderId: 9,
+      orderNumber: 109,
+      status: 'PREPARING',
+      items: [
+        {
+          name: 'Hamburguesa',
+          quantity: 1,
+          unitPrice: 3500,
+          subtotal: 3500,
+          selectedOptions: [
+            { groupName: 'Tipo de pan', optionName: 'Integral', priceDelta: 200 },
+            { groupName: 'Extras', optionName: 'Cheddar', priceDelta: 300 },
+          ],
+        },
+        { name: 'Papas', quantity: 2, unitPrice: 1500, subtotal: 3000, selectedOptions: [] },
+      ],
+    })
+    vi.stubGlobal('fetch', stubOrdersFetch([withOptions]))
+    const user = userEvent.setup()
+
+    render(<Orders />)
+
+    await user.click(await screen.findByRole('button', { name: 'Ver detalle' }))
+
+    const modal = screen.getByRole('dialog', { name: /Pedido #109/ })
+
+    // Estado del pedido: dato del card que el modal no repetía.
+    expect(within(modal).getByText('Estado')).toBeTruthy()
+    expect(within(modal).getByText('Preparando')).toBeTruthy()
+
+    // Opciones elegidas bajo el ítem, con el recargo resuelto (formatARS
+    // usa "$ 200" con espacio).
+    expect(within(modal).getByText(/Tipo de pan: Integral/)).toBeTruthy()
+    expect(within(modal).getByText(/\+\s*\$\s*200/)).toBeTruthy()
+    expect(within(modal).getByText(/Extras: Cheddar/)).toBeTruthy()
+    expect(within(modal).getByText(/\+\s*\$\s*300/)).toBeTruthy()
+    // El ítem sin opciones no muestra bloque de opciones.
+    expect(within(modal).queryAllByText(/:/).length).toBeGreaterThan(0)
+  })
+
+  it('an option without surcharge renders no price delta', async () => {
+    const freeOption = managementOrder({
+      orderId: 10,
+      orderNumber: 110,
+      status: 'NEW',
+      items: [
+        {
+          name: 'Hamburguesa',
+          quantity: 1,
+          unitPrice: 3200,
+          subtotal: 3200,
+          selectedOptions: [
+            { groupName: 'Tipo de pan', optionName: 'Blanco', priceDelta: 0 },
+          ],
+        },
+      ],
+    })
+    vi.stubGlobal('fetch', stubOrdersFetch([freeOption]))
+    const user = userEvent.setup()
+
+    render(<Orders />)
+
+    await user.click(await screen.findByRole('button', { name: 'Ver detalle' }))
+    const modal = screen.getByRole('dialog', { name: /Pedido #110/ })
+
+    expect(within(modal).getByText(/Tipo de pan: Blanco/)).toBeTruthy()
+    expect(within(modal).queryByText(/\+\s*\$\s*0/)).toBeNull()
+  })
+})

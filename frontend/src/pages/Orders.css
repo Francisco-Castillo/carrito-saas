@@ -479,6 +479,25 @@
   border-bottom: none;
 }
 
+/* Opciones elegidas del ítem (snapshot del backend): chips bajo el nombre,
+   mismo concepto visual que .item-options del KDS. */
+.orders-detail-item-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.orders-detail-item-option {
+  font-size: 0.72rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
 .orders-detail-timeline h4 {
   margin: 0 0 6px;
   font-size: 0.8rem;

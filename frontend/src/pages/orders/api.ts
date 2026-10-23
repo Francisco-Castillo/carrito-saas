@@ -23,11 +23,19 @@ export type OrderStatus = "NEW" | "PREPARING" | "READY" | "DELIVERED" | "CANCELL
 export type ManagementOrderType = "SALON" | "RETIRO" | "DELIVERY";
 export type ManagementPaymentMethod = "EFECTIVO" | "TRANSFERENCIA";
 
+export interface ManagementSelectedOption {
+  groupName: string;
+  optionName: string;
+  priceDelta: number;
+}
+
 export interface ManagementOrderItem {
   name: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  /** Opciones elegidas del ítem (snapshot del backend). Ausente en payloads viejos. */
+  selectedOptions?: ManagementSelectedOption[];
 }
 
 export interface ManagementOrderTable {
