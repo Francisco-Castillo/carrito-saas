@@ -14,6 +14,7 @@ import com.carrito.saas.dto.OrderManagementTimelineDTO;
 import com.carrito.saas.repository.entity.Order;
 import com.carrito.saas.repository.entity.OrderItem;
 import com.carrito.saas.repository.entity.RestaurantTable;
+import com.carrito.saas.service.impl.OrderServiceImpl;
 import com.carrito.saas.service.mapper.interfaces.IOrderManagementMapper;
 
 /**
@@ -103,6 +104,11 @@ public class OrderManagementMapperImpl implements IOrderManagementMapper {
 			dto.setNotes(item.getItemNotes());
 			dto.setUnitPrice(item.getPrice());
 			dto.setSubtotal(item.getSubtotal());
+			// Opciones elegidas (snapshot JSON del ítem): grupo, nombre y recargo
+			// resueltos, para el modal de detalle. Null/blank → lista vacía,
+			// misma convención del KDS (nunca null).
+			dto.setSelectedOptions(new ArrayList<>(
+					OrderServiceImpl.leerOpcionesJson(item.getSelectedOptions())));
 			list.add(dto);
 		}
 

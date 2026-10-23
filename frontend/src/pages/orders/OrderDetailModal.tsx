@@ -4,7 +4,9 @@ import CopyPhoneButton from "./CopyPhoneButton";
 import {
   ORDER_TYPE_LABELS,
   PAYMENT_LABELS,
+  STATUS_LABELS,
   type ManagementOrder,
+  type ManagementSelectedOption,
 } from "./api";
 import { whatsappUrl } from "./wa";
 
@@ -47,6 +49,10 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
         </header>
 
         <dl className="orders-detail-grid">
+          <div>
+            <dt>Estado</dt>
+            <dd>{STATUS_LABELS[order.status] ?? order.status}</dd>
+          </div>
           <div>
             <dt>Cliente</dt>
             <dd>{order.customerName}</dd>
@@ -104,6 +110,19 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
                 <td>
                   {item.name}
                   {item.notes && <span className="orders-item-note">{item.notes}</span>}
+                  {/* Opciones elegidas (snapshot del backend): debajo del
+                      producto, "Grupo: Opción" con su recargo — mismo orden
+                      en que el dueño definió los grupos. Sin opciones no
+                      muestra el bloque. */}
+                  {(item.selectedOptions ?? []).length > 0 && (
+                    <div className="orders-detail-item-options">
+                      {item.selectedOptions!.map((opt, optIdx) => (
+                        <span className="orders-detail-item-option" key={optIdx}>
+                          {optionLabel(opt)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td>{item.quantity}</td>
                 <td>{formatARS(item.unitPrice)}</td>
@@ -152,4 +171,12 @@ function formatTimestamp(value: string | null | undefined): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+}
+
+/** "Grupo: Opción" — el recargo solo se muestra cuando el cliente lo paga. */
+function optionLabel(opt: ManagementSelectedOption): string {
+  const delta = Number(opt.priceDelta ?? 0);
+  return delta > 0
+    ? `${opt.groupName}: ${opt.optionName} (+${formatARS(delta)})`
+    : `${opt.groupName}: ${opt.optionName}`;
 }
