@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,8 @@ import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.repository.entity.CancellationReason;
 import com.carrito.saas.repository.entity.Order;
 import com.carrito.saas.repository.entity.Product;
+import com.carrito.saas.repository.entity.ProductOption;
+import com.carrito.saas.repository.entity.ProductOptionGroup;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.BusinessUserRepository;
 import com.carrito.saas.repository.jpa.CategoryRepository;
@@ -135,8 +138,7 @@ class OrderManagementDayEndpointTests {
 	// Fixtures
 	// ------------------------------------------------------------------
 
-	private long seedProduct(String slug, String name) {
-		Business business = businessRepository.findBySlug(slug).orElseThrow();
+	private long seedProduct(String slug, String name) {		Business business = businessRepository.findBySlug(slug).orElseThrow();
 
 		Category category = new Category();
 		category.setBusiness(business);
@@ -151,6 +153,17 @@ class OrderManagementDayEndpointTests {
 		product.setStock(50);
 		product.setActive(true);
 		return productRepository.saveAndFlush(product).getId();
+	}
+
+	/** Nueva opción de grupo (los ids se asignan en el flush). */
+	private ProductOption option(ProductOptionGroup group, String name, String delta) {
+		ProductOption o = new ProductOption();
+		o.setOptionGroup(group);
+		o.setName(name);
+		o.setPriceDelta(new BigDecimal(delta));
+		o.setPosition(group.getOptions().size());
+		group.getOptions().add(o);
+		return o;
 	}
 
 	private long createOrder(String slug, String customerName, long productId) throws Exception {
@@ -274,6 +287,103 @@ class OrderManagementDayEndpointTests {
 		JsonNode viewB = getDayView(ownerB, null);
 		assertThat(viewB).hasSize(1);
 		assertThat(viewB.get(0).get("customerName").asText()).isEqualTo("Pedido Negocio B");
+	}
+
+	// ------------------------------------------------------------------
+	// Item options: selectedOptions reach the management payload (detail
+	// modal shows the customer's choices, like the KDS card already does)
+	// ------------------------------------------------------------------
+
+	@Test
+	void dayViewIncludesSelectedOptionsPerItem() throws Exception {
+
+		Business business = businessRepository.findBySlug(SLUG_A).orElseThrow();
+
+		Category category = new Category();
+		category.setBusiness(business);
+		category.setName("Cat Opciones Day");
+		category = categoryRepository.saveAndFlush(category);
+
+		Product product = new Product();
+		product.setCategory(category);
+		product.setName("Sándwich Day View");
+		product.setPrice(new BigDecimal("100.00"));
+		product.setCost(new BigDecimal("30.00"));
+		product.setStock(50);
+		product.setActive(true);
+		product.setOptionGroups(new ArrayList<>());
+
+		// Grupo sin requerido: el segundo ítem va sin opciones y sigue siendo
+		// un pedido válido (la validación de requeridos no debe bloquear el
+		// caso "ítem sin elecciones" que el payload debe tolerar).
+		ProductOptionGroup bread = new ProductOptionGroup();
+		bread.setProduct(product);
+		bread.setName("Tipo de pan");
+		bread.setRequired(false);
+		bread.setMultiple(false);
+		bread.setOptions(new ArrayList<>());
+		option(bread, "Integral", "200");
+
+		ProductOptionGroup extras = new ProductOptionGroup();
+		extras.setProduct(product);
+		extras.setName("Extras");
+		extras.setRequired(false);
+		extras.setMultiple(true);
+		extras.setMinSelections(0);
+		extras.setMaxSelections(2);
+		extras.setOptions(new ArrayList<>());
+		option(extras, "Cheddar", "300");
+
+		product.getOptionGroups().add(bread);
+		product.getOptionGroups().add(extras);
+		product = productRepository.saveAndFlush(product);
+
+		long breadOptionId = product.getOptionGroups().get(0).getOptions().get(0).getId();
+		long cheddarOptionId = product.getOptionGroups().get(1).getOptions().get(0).getId();
+
+		// One item WITH choices and one without: the empty case must stay a
+		// stable empty list (same convention as the KDS payload).
+		String body = """
+				{
+				  "customerName": "Cliente Opciones Day",
+				  "orderType": "RETIRO",
+				  "paymentMethod": "EFECTIVO",
+				  "items": [
+				    { "productId": %d, "quantity": 1, "selectedOptionIds": [%d, %d] },
+				    { "productId": %d, "quantity": 2 }
+				  ]
+				}
+				""".formatted(product.getId(), breadOptionId, cheddarOptionId, product.getId());
+
+		mockMvc.perform(post("/api/orders/menu/" + SLUG_A)
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(body))
+			.andExpect(status().isOk());
+
+		JsonNode orders = getDayView(ownerA, null);
+		assertThat(orders).hasSize(1);
+
+		JsonNode items = orders.get(0).get("items");
+		assertThat(items).hasSize(2);
+
+		// Item with choices: group, option name and resolved price delta.
+		JsonNode conOpciones = items.get(0);
+		assertThat(conOpciones.get("selectedOptions")).hasSize(2);
+		assertThat(conOpciones.get("selectedOptions").get(0).get("groupName").asText())
+				.isEqualTo("Tipo de pan");
+		assertThat(conOpciones.get("selectedOptions").get(0).get("optionName").asText())
+				.isEqualTo("Integral");
+		assertThat(conOpciones.get("selectedOptions").get(0).get("priceDelta").decimalValue())
+				.isEqualByComparingTo("200");
+		assertThat(conOpciones.get("selectedOptions").get(1).get("groupName").asText())
+				.isEqualTo("Extras");
+		assertThat(conOpciones.get("selectedOptions").get(1).get("optionName").asText())
+				.isEqualTo("Cheddar");
+		assertThat(conOpciones.get("selectedOptions").get(1).get("priceDelta").decimalValue())
+				.isEqualByComparingTo("300");
+
+		// Item without choices: empty list, never null.
+		assertThat(items.get(1).get("selectedOptions")).isEmpty();
 	}
 
 	// ------------------------------------------------------------------
