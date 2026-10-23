@@ -8,7 +8,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
  * Forwards dinámicos por slug de local (odd/tasks/urls-por-slug.md, S2/S3):
@@ -50,26 +49,32 @@ public class SlugViewController {
 	private static final Set<String> INFRA = Set.of(
 			"api", "assets", "ws", "dev-media", "uploads", "actuator");
 
-	private static final Pattern SLUG = Pattern.compile("^[a-z0-9-]+$");
+	/** El slug va en el PATRÓN del mapping (/{slug:[a-z0-9-]+}), no como
+	 * validación post-match: un path con punto (ding.mp3, favicon.svg,
+	 * favicon.ico) NUNCA matchea el controller y cae al resource handler de
+	 * Spring — antes el controller le ganaba y respondía 404, sombreando
+	 * TODO archivo estático de raíz (el ding del pedido nuevo dejó de sonar
+	 * en producción: bug 2026-10-22). El check post-match queda para el
+	 * caso infra, que igual debe responder 404 y no servir shell. */
 
-	@GetMapping({ "/{slug}", "/{slug}/" })
+	@GetMapping({ "/{slug:[a-z0-9-]+}", "/{slug:[a-z0-9-]+}/" })
 	public String slugMenu(@PathVariable("slug") String slug) {
 		if (RESERVED_SHELLS.containsKey(slug)) {
 			return "forward:" + RESERVED_SHELLS.get(slug);
 		}
-		if (INFRA.contains(slug) || !SLUG.matcher(slug).matches()) {
+		if (INFRA.contains(slug)) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 		}
 		return "forward:/menu/index.html";
 	}
 
-	@GetMapping({ "/{slug}/{panel:admin|dashboard|kds|pedidos}",
-			"/{slug}/{panel:admin|dashboard|kds|pedidos}/" })
+	@GetMapping({ "/{slug:[a-z0-9-]+}/{panel:admin|dashboard|kds|pedidos}",
+			"/{slug:[a-z0-9-]+}/{panel:admin|dashboard|kds|pedidos}/" })
 	public String slugPanel(@PathVariable("slug") String slug, @PathVariable("panel") String panel) {
 		if (RESERVED_SHELLS.containsKey(slug)) {
 			return "forward:" + RESERVED_SHELLS.get(slug);
 		}
-		if (INFRA.contains(slug) || !SLUG.matcher(slug).matches()) {
+		if (INFRA.contains(slug)) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 		}
 		// El panel SÍ se valida en el patrón: sólo los 4 paneles reales sirven

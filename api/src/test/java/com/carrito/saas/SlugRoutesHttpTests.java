@@ -55,6 +55,22 @@ class SlugRoutesHttpTests {
 	}
 
 	@Test
+	@DisplayName("root-level static files are NOT shadowed by the slug route (favicon.ico 200)")
+	void rootLevelStaticFilesAreServedByTheResourceHandler() throws Exception {
+
+		// BUG 2026-10-22: GET /{slug} matcheaba CUALQUIER segmento único —
+		// incluidos ding.mp3, ready.mp3, favicon.svg y favicon.ico — y el
+		// controller respondía 404 (el shape del slug rechaza el punto) ANTES
+		// de que el resource handler sirviera el archivo. El ding del pedido
+		// nuevo dejó de sonar en producción: el <audio> pedía /ding.mp3 y
+		// recibía 404 (NotSupportedError en play()). El patrón debe limitarse
+		// a slugs reales y dejar caer los paths con extensión al resource
+		// handler. favicon.ico está versionado en static/ → sirve en CI.
+		mockMvc.perform(get("/favicon.ico"))
+				.andExpect(status().isOk());
+	}
+
+	@Test
 	@DisplayName("anonymous GET /{slug} serves the public menu shell (200)")
 	void anonymousSlugServesMenuShell() throws Exception {
 
