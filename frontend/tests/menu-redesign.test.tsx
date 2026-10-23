@@ -311,6 +311,25 @@ describe("product detail sheet", () => {
     expect(document.activeElement).toHaveTextContent("Milanesa");
   });
 
+  it("the + button always opens the sheet, even with no option groups, and adds only from there", async () => {
+    await renderMenu();
+    const user = userEvent.setup();
+
+    // Milanesa has no option groups: the + must still open the detail sheet
+    // so the customer can pick quantity and notes before anything is added.
+    await user.click(screen.getByRole("button", { name: "Agregar Milanesa" }));
+    const dialog = screen.getByRole("dialog", { name: "Detalles de Milanesa" });
+    expect(dialog).toBeInTheDocument();
+
+    // Nothing reached the cart until the sheet's own add button is used.
+    expect(document.querySelector(".cart-bar")).toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: "Agregar al pedido" }));
+    expect(screen.queryByRole("dialog", { name: "Detalles de Milanesa" })).not.toBeInTheDocument();
+    expect(
+      within(document.querySelector(".cart-bar")!).getByText("1 ítem"),
+    ).toBeInTheDocument();
+  });
+
   it("closes on Escape and on backdrop click, but not on clicks inside the sheet", async () => {
     await renderMenu();
     const user = userEvent.setup();
@@ -340,12 +359,21 @@ describe("product detail sheet", () => {
 });
 
 describe("cart bar and cart sheet", () => {
+  /** The + always opens the detail sheet; one "Agregar al pedido" there adds
+   *  a single unit with the default quantity. */
+  async function addViaSheet(user: ReturnType<typeof userEvent.setup>, name: string) {
+    await user.click(screen.getByRole("button", { name: `Agregar ${name}` }));
+    const dialog = screen.getByRole("dialog", { name: `Detalles de ${name}` });
+    await user.click(within(dialog).getByRole("button", { name: "Agregar al pedido" }));
+  }
+
   it("shows item count and total, opens the cart as a sheet and lets the customer step lines", async () => {
     await renderMenu();
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: "Agregar Milanesa" }));
-    await user.click(screen.getByRole("button", { name: "Agregar Agua" }));
+    // The + opens the sheet for each product; the add happens from there.
+    await addViaSheet(user, "Milanesa");
+    await addViaSheet(user, "Agua");
     // Scoped to the bar: category section headings carry similar counts.
     const bar = () => document.querySelector(".cart-bar")!;
     expect(within(bar()).getByText("2 ítems")).toBeInTheDocument();

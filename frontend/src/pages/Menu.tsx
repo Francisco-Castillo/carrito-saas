@@ -754,16 +754,6 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
                             key={p.id}
                             product={p}
                             qty={cart[p.id]?.qty || 0}
-                            onAdd={() =>
-                              // Producto con grupos de opciones (S4): el + no
-                              // agrega directo, abre el detalle para que el
-                              // cliente elija (los obligatorios bloquean ahí).
-                              // Sin opciones se agrega directo (S6, igual que
-                              // siempre).
-                              p.optionGroups && p.optionGroups.length > 0
-                                ? setDetailProduct(p)
-                                : addItem(p)
-                            }
                             onRemove={() => removeItem(p.id)}
                             onOpen={() => setDetailProduct(p)}
                           />

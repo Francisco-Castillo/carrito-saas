@@ -12,7 +12,7 @@
  * answers 404, the menu falls back to today's behaviour (RETIRO/DELIVERY
  * selector, no badge, no tableId in the payload) — an old QR keeps working.
  */
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import CartPanel from '../src/pages/menu/CartPanel'
@@ -101,6 +101,7 @@ describe('Menu × QR de mesa (?table=<id>)', () => {
 
     await screen.findByText('Milanesa')
     await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Detalles de Milanesa' })).getByRole('button', { name: 'Agregar al pedido' }))
     await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
 
     // UI decisions BEFORE submitting: the sheet is open now (it closes on
@@ -144,6 +145,7 @@ describe('Menu × QR de mesa (?table=<id>)', () => {
 
     await screen.findByText('Milanesa')
     await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Detalles de Milanesa' })).getByRole('button', { name: 'Agregar al pedido' }))
     await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
 
     // UI fallback BEFORE submitting: the legacy selector is back, no badge.
@@ -191,6 +193,7 @@ describe('fallback: parámetro ?table= inválido o ausente', () => {
       expect(calls.some((call) => call.url.startsWith('/api/menu/table/'))).toBe(false)
 
       await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+      await user.click(within(screen.getByRole('dialog', { name: 'Detalles de Milanesa' })).getByRole('button', { name: 'Agregar al pedido' }))
       await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
 
       // UI BEFORE submitting: legacy selector, no badge (the sheet closes on
@@ -232,6 +235,7 @@ describe('fallback: parámetro ?table= inválido o ausente', () => {
 
     await screen.findByText('Milanesa')
     await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Detalles de Milanesa' })).getByRole('button', { name: 'Agregar al pedido' }))
     await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
 
     // ...but the fallback kicked in: legacy selector, no badge.

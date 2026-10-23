@@ -179,7 +179,9 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
     renderMenu(fetchMock)
 
     await screen.findByText('Milanesa')
+    // The + opens the detail sheet; the add happens from there.
     await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Detalles de Milanesa' })).getByRole('button', { name: 'Agregar al pedido' }))
     await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
     await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Sin Slug')
     await user.type(screen.getByPlaceholderText('Celular (ej. 11 5555 1234)'), '11 5555 1234')
@@ -257,7 +259,9 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
     // kept (cart and order payload do not change).
     await screen.findByText('Milanesa')
 
+    // The + opens the detail sheet; the add happens from there.
     await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Detalles de Milanesa' })).getByRole('button', { name: 'Agregar al pedido' }))
 
     // The redesigned phone-first cart is a floating bar; the order form lives
     // in the cart sheet it opens.
@@ -309,7 +313,9 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
     const { alertMock } = renderMenu(fetchMock)
 
     await screen.findByText('Milanesa')
+    // The + opens the detail sheet; the add happens from there.
     await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Detalles de Milanesa' })).getByRole('button', { name: 'Agregar al pedido' }))
     await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
 
     await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Test')
@@ -333,7 +339,9 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
     const { alertMock } = renderMenu(fetchMock)
 
     await screen.findByText('Milanesa')
+    // The + opens the detail sheet; the add happens from there.
     await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Detalles de Milanesa' })).getByRole('button', { name: 'Agregar al pedido' }))
     await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
 
     await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Test')
