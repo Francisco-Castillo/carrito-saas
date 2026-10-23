@@ -17,6 +17,9 @@ public class OrderItemDTO {
 	private String productName;
 
 	private Integer quantity;
+	/** Preferencias del cliente para este ítem ("sin mayonesa"): opcional,
+	 * máx 300 — validado y recortado en el servicio. */
+	private String notes;
 	private BigDecimal price; // precio unitario en el momento de la compra
 	private BigDecimal subtotal; // price * quantity
 	/**

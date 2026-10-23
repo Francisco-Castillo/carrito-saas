@@ -252,6 +252,7 @@ public class OrderServiceImpl implements IOrderService {
 				item.setCost(product.getCost());
 				item.setQuantity(quantity);
 				item.setComboRoot(false);
+				item.setItemNotes(notasItem(dto.getNotes()));
 				item.setSelectedOptions(seleccionadas.isEmpty() ? null : escribirJson(seleccionadas));
 
 				BigDecimal subtotal = precioUnitario.multiply(BigDecimal.valueOf(quantity));
@@ -281,6 +282,9 @@ public class OrderServiceImpl implements IOrderService {
 				root.setCost(BigDecimal.ZERO);
 				root.setQuantity(quantity);
 				root.setComboRoot(true);
+				// La preferencia del combo vive en el root (el ticket de cocina
+				// lo muestra junto al combo; los hijos son su descomposición).
+				root.setItemNotes(notasItem(dto.getNotes()));
 
 				BigDecimal comboSubtotal = combo.getPrice().multiply(BigDecimal.valueOf(quantity));
 				root.setSubtotal(comboSubtotal);
@@ -533,6 +537,24 @@ public class OrderServiceImpl implements IOrderService {
 	private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
 			new com.fasterxml.jackson.databind.ObjectMapper()
 					.disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
+	/** Normaliza las preferencias del ítem: trim, blank → null, y un límite
+	 * legible (400) para que un texto descontrolado no ensucie el ticket de
+	 * cocina. Mismo estilo que las validaciones del pedido. */
+	private String notasItem(String notas) {
+		if (notas == null) {
+			return null;
+		}
+		String recortada = notas.trim();
+		if (recortada.isEmpty()) {
+			return null;
+		}
+		if (recortada.length() > 300) {
+			throw new BusinessException("Las preferencias del producto no pueden superar 300 caracteres",
+					ErrorType.VALIDATION);
+		}
+		return recortada;
+	}
 
 	private String escribirJson(List<SelectedOptionDTO> seleccionadas) {
 		try {

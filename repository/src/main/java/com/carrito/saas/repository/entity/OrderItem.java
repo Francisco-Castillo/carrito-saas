@@ -62,4 +62,9 @@ public class OrderItem {
 	@Column(name = "selected_options", columnDefinition = "text")
 	private String selectedOptions;
 
+	/** Preferencias del cliente para este ítem ("sin mayonesa"): trim,
+	 * blank → null, máx 300 (validado en OrderServiceImpl). */
+	@Column(name = "item_notes", length = 300)
+	private String itemNotes;
+
 }

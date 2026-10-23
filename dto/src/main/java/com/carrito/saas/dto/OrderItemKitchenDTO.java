@@ -19,4 +19,8 @@ public class OrderItemKitchenDTO {
      */
     private List<String> selectedOptions = new ArrayList<>();
 
+	/** Preferencias del cliente ("sin mayonesa"): el KDS las muestra
+	 * debajo del ítem para que cocina las respete. */
+	private String notes;
+
 }

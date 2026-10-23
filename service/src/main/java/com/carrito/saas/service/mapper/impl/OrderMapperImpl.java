@@ -67,6 +67,8 @@ public class OrderMapperImpl implements IOrderMapper {
 				item.setComboRoot(orderItem.getComboRoot());
 				item.setQuantity(orderItem.getQuantity());
 				item.setProductName(orderItem.getProductName());
+				// La preferencia viaja en la respuesta (historial del cliente).
+				item.setNotes(orderItem.getItemNotes());
 				item.setPrice(orderItem.getPrice());
 				item.setCost(orderItem.getCost());
 				item.setSubtotal(orderItem.getSubtotal());

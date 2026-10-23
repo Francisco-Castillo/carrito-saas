@@ -100,6 +100,7 @@ public class OrderManagementMapperImpl implements IOrderManagementMapper {
 			OrderManagementItemDTO dto = new OrderManagementItemDTO();
 			dto.setName(item.getProductName());
 			dto.setQuantity(item.getQuantity());
+			dto.setNotes(item.getItemNotes());
 			dto.setUnitPrice(item.getPrice());
 			dto.setSubtotal(item.getSubtotal());
 			list.add(dto);

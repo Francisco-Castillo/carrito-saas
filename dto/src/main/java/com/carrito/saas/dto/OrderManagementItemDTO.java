@@ -15,6 +15,10 @@ public class OrderManagementItemDTO {
 
 	private Integer quantity;
 
+	/** Preferencias del cliente ("sin mayonesa"): la consola las muestra
+	 * junto al ítem en el histórico del día. */
+	private String notes;
+
 	private BigDecimal unitPrice;
 
 	private BigDecimal subtotal;

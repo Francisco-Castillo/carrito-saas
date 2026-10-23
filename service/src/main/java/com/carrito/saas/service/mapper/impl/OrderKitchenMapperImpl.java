@@ -44,6 +44,7 @@ public class OrderKitchenMapperImpl implements IOrderKitchenMapper {
 					OrderItemKitchenDTO orderItemKitchenDTO = new OrderItemKitchenDTO();
 					orderItemKitchenDTO.setProductName(orderItem.getProductName());
 					orderItemKitchenDTO.setQuantity(orderItem.getQuantity());
+					orderItemKitchenDTO.setNotes(orderItem.getItemNotes());
 					// Opciones elegidas (S5): "Grupo: Opción" en orden de carga.
 					for (com.carrito.saas.dto.SelectedOptionDTO opt
 							: com.carrito.saas.service.impl.OrderServiceImpl
