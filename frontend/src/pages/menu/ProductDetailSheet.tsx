@@ -34,6 +34,9 @@ export default function ProductDetailSheet({ product, onClose, onAdd }: ProductD
   // reemplaza; checkbox (múltiple) agrega/quita respetando maxSelections.
   const [selected, setSelected] = useState<number[]>([]);
   const [missingGroups, setMissingGroups] = useState<string[]>([]);
+  // Grupos colapsables (referencia del dueño): todos abren expandidos; la
+  // validación de obligatorios reabre los que falten (handleAdd).
+  const [collapsed, setCollapsed] = useState<string[]>([]);
   const sheetRef = useModalSheet<HTMLDivElement>(onClose);
 
   function toggleOption(group: ProductOptionGroup, optionId: number): void {
@@ -55,13 +58,15 @@ export default function ProductDetailSheet({ product, onClose, onAdd }: ProductD
 
   function handleAdd(): void {
     // S4: bloquear el alta al carrito mientras falte un grupo obligatorio,
-    // marcando los grupos incompletos en rojo.
+    // marcando los grupos incompletos en rojo y REABRIENDO los colapsados:
+    // el error de un grupo que no se ve no se puede corregir.
     const missing = groups
       .filter((g) => g.required)
       .filter((g) => !g.options.some((o) => selected.includes(o.id)))
       .map((g) => g.name);
     if (missing.length > 0) {
       setMissingGroups(missing);
+      setCollapsed((c) => c.filter((name) => !missing.includes(name)));
       return;
     }
     // Orden de envío: el orden de definición de los grupos (el backend
@@ -81,16 +86,39 @@ export default function ProductDetailSheet({ product, onClose, onAdd }: ProductD
     >
       <div
         ref={sheetRef}
-        className="sheet glass-panel"
+        className="sheet sheet--product glass-panel"
         role="dialog"
         aria-modal="true"
         aria-label={`Detalles de ${product.name}`}
         tabIndex={-1}
       >
-        <button type="button" className="sheet-close" onClick={onClose} aria-label="Cerrar detalles">
-          ×
-        </button>
+        {/* Encabezado fijo: título + X quedan a la vista mientras se escrollean
+            los grupos (pedido del dueño). La imagen del encabezado es la
+            miniatura de móvil; en desktop la imagen vive en su columna. */}
+        <div className="sheet-header">
+          <div className="sheet-header-title">
+            <div className="sheet-thumb">
+              <FoodImage
+                src={product.imageUrl}
+                alt={product.name}
+                categoryName={product.categoryName}
+              />
+            </div>
+            <div className="sheet-head-text">
+              {product.isCombo && (
+                <span className="product-badge product-badge--inline">Combo</span>
+              )}
+              <h2 className="sheet-name">{product.name}</h2>
+              {product.description && <p className="sheet-description">{product.description}</p>}
+            </div>
+          </div>
+          <button type="button" className="sheet-close" onClick={onClose} aria-label="Cerrar detalles">
+            ×
+          </button>
+        </div>
 
+        {/* La imagen es una columna propia en desktop (≥768px): alta y fija
+            mientras se eligen opciones. En móvil se oculta (va en el header). */}
         <div className="sheet-media">
           <FoodImage
             src={product.imageUrl}
@@ -99,52 +127,73 @@ export default function ProductDetailSheet({ product, onClose, onAdd }: ProductD
           />
         </div>
 
+        <div className="sheet-content">
         <div className="sheet-body">
-          {product.isCombo && (
-            <span className="product-badge product-badge--inline">Combo</span>
-          )}
-          <h2 className="sheet-name">{product.name}</h2>
-          {product.description && <p className="sheet-description">{product.description}</p>}
-
           {groups.map((group) => {
             const groupMissing = missingGroups.includes(group.name);
             return (
               <div key={group.name} className={`sheet-option-group${groupMissing ? " sheet-option-group--missing" : ""}`}>
-                <p className="sheet-option-group--name">
-                  {group.name}
-                  {group.required && <span className="sheet-option-required"> *</span>}
-                  {group.multiple && <span className="sheet-option-hint"> (hasta {group.maxSelections ?? "∞"})</span>}
-                </p>
+                <button
+                  type="button"
+                  className="sheet-option-group-toggle"
+                  aria-expanded={!collapsed.includes(group.name)}
+                  onClick={() =>
+                    setCollapsed((c) =>
+                      c.includes(group.name)
+                        ? c.filter((name) => name !== group.name)
+                        : [...c, group.name],
+                    )
+                  }
+                >
+                  <span className="sheet-option-group-head">
+                    <span className="sheet-option-group--name">
+                      {group.name}
+                      {group.multiple && <span className="sheet-option-hint"> (hasta {group.maxSelections ?? "∞"})</span>}
+                    </span>
+                    {group.required && <span className="sheet-option-required">Obligatorio</span>}
+                  </span>
+                  <span className="sheet-option-group-chevron" aria-hidden="true">
+                    {collapsed.includes(group.name) ? "▾" : "▴"}
+                  </span>
+                </button>
                 {groupMissing && (
                   <p className="sheet-option-error" role="alert">
                     Tenés que elegir una opción
                   </p>
                 )}
-                {group.options.map((option) => {
+                {!collapsed.includes(group.name) &&
+                group.options.map((option) => {
                   const checked = selected.includes(option.id);
                   return (
                     <label key={option.id} className="sheet-option">
+                      <span className="sheet-option-text">
+                        <span className="sheet-option-name">{option.name}</span>
+                        {option.priceDelta > 0 && (
+                          <span className="sheet-option-delta">+{formatARS(option.priceDelta)}</span>
+                        )}
+                      </span>
                       <input
                         type={group.multiple ? "checkbox" : "radio"}
                         name={`group-${product.id}-${group.name}`}
                         checked={checked}
                         onChange={() => toggleOption(group, option.id)}
                       />
-                      <span className="sheet-option-name">{option.name}</span>
-                      {option.priceDelta > 0 && (
-                        <span className="sheet-option-delta">+{formatARS(option.priceDelta)}</span>
-                      )}
                     </label>
                   );
                 })}
               </div>
             );
           })}
+        </div>
+        </div>
 
+        {/* Barra fija de acciones: hija directa de la hoja y sticky bottom,
+            abarcando ambas columnas — llega al ras del fondo porque su
+            contenedor es la hoja entera, no la columna de contenido. */}
+        <div className="sheet-actions">
           <p className="sheet-price">{formatARS(unitPrice)}</p>
 
-          <div className="sheet-actions">
-            <div className="qty-stepper">
+          <div className="qty-stepper">
               <button
                 type="button"
                 className="qty-btn qty-btn--minus"
@@ -177,7 +226,6 @@ export default function ProductDetailSheet({ product, onClose, onAdd }: ProductD
             >
               Agregar al pedido
             </button>
-          </div>
         </div>
       </div>
     </div>

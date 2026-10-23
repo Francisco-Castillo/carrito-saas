@@ -69,7 +69,7 @@ const MENU_PAYLOAD = {
 
 const okJson = (data: unknown) => ({ ok: true, status: 200, json: async () => data });
 
-function stubFetch(business?: unknown) {
+function stubFetch(business?: unknown, payload?: unknown) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string | URL | Request) => {
@@ -78,16 +78,17 @@ function stubFetch(business?: unknown) {
         return okJson({ name: "Local OK", whatsappNumber: "" });
       }
       if (u.startsWith("/api/menu/")) {
-        return okJson(business === undefined ? MENU_PAYLOAD : { ...MENU_PAYLOAD, business });
+        const base = payload ?? (business === undefined ? MENU_PAYLOAD : { ...MENU_PAYLOAD, business });
+        return okJson(base);
       }
       return okJson({});
     }),
   );
 }
 
-async function renderMenu() {
+async function renderMenu(payload?: unknown) {
   window.history.replaceState({}, "", `/?restaurant=${SLUG}`);
-  stubFetch();
+  stubFetch(undefined, payload);
   render(<Menu />);
   await screen.findByText("Milanesa");
 }
@@ -330,6 +331,18 @@ describe("product detail sheet", () => {
     ).toBeInTheDocument();
   });
 
+  it("locks the page scroll while a sheet is open and restores it on close", async () => {
+    await renderMenu();
+    const user = userEvent.setup();
+
+    expect(document.body.style.overflow).not.toBe("hidden");
+    await user.click(screen.getByRole("button", { name: "Agregar Milanesa" }));
+    expect(document.body.style.overflow).toBe("hidden");
+
+    await user.keyboard("{Escape}");
+    expect(document.body.style.overflow).not.toBe("hidden");
+  });
+
   it("closes on Escape and on backdrop click, but not on clicks inside the sheet", async () => {
     await renderMenu();
     const user = userEvent.setup();
@@ -355,6 +368,65 @@ describe("product detail sheet", () => {
     await user.click(screen.getByText("Flan"));
     await user.click(screen.getByRole("dialog", { name: "Detalles de Flan" }));
     expect(screen.getByRole("dialog", { name: "Detalles de Flan" })).toBeInTheDocument();
+  });
+});
+
+describe("collapsible option groups", () => {
+  it("toggles a group open/closed and reopens a missing required group on failed add", async () => {
+    await renderMenu({
+      ...MENU_PAYLOAD,
+      products: [
+        ...MENU_PAYLOAD.products,
+        {
+          id: 404,
+          name: "Lomo",
+          description: "completo",
+          price: 200,
+          categoryId: 1,
+          categoryName: "Platos",
+          imageUrl: "img-lomo.jpg",
+          optionGroups: [
+            {
+              name: "Carne",
+              required: true,
+              multiple: false,
+              options: [
+                { id: 1, name: "Carne", priceDelta: 0 },
+                { id: 2, name: "Pollo", priceDelta: 0 },
+              ],
+            },
+            {
+              name: "Adicionales",
+              required: false,
+              multiple: true,
+              options: [{ id: 3, name: "Cheddar", priceDelta: 50 }],
+            },
+          ],
+        },
+      ],
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Agregar Lomo" }));
+    const dialog = screen.getByRole("dialog", { name: "Detalles de Lomo" });
+
+    // Groups start expanded: every option is visible without a click.
+    expect(within(dialog).getByText("Pollo")).toBeInTheDocument();
+
+    // Collapsing a group hides its options but keeps the header.
+    await user.click(within(dialog).getByRole("button", { name: /Adicionales/ }));
+    expect(within(dialog).queryByText("Cheddar")).not.toBeInTheDocument();
+
+    // Reopening brings them back.
+    await user.click(within(dialog).getByRole("button", { name: /Adicionales/ }));
+    expect(within(dialog).getByText("Cheddar")).toBeInTheDocument();
+
+    // Collapsed required group: the failed add reopens it and shows the error.
+    await user.click(within(dialog).getByRole("button", { name: /Carne/ }));
+    expect(within(dialog).queryByText("Pollo")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Agregar al pedido" }));
+    expect(within(dialog).getByText("Tenés que elegir una opción")).toBeInTheDocument();
+    expect(within(dialog).getByText("Pollo")).toBeInTheDocument();
   });
 });
 
