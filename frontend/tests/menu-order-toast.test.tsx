@@ -3,7 +3,7 @@
  * de validación del pedido se muestran como toast in-app (patrón compartido
  * con kds y admin), nunca como un diálogo nativo que corta la experiencia.
  */
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { UserEvent } from "@testing-library/user-event/dist/cjs/setup/setup";
@@ -73,6 +73,7 @@ async function renderMenuWithItem(orderResponse?: { ok: boolean; status: number 
   await screen.findByText("Milanesa");
 
   await user.click(screen.getByRole("button", { name: "Agregar Milanesa" }));
+  await user.click(within(screen.getByRole("dialog", { name: "Detalles de Milanesa" })).getByRole("button", { name: "Agregar al pedido" }));
   await user.click(screen.getByRole("button", { name: "Ver pedido" }));
   return user;
 }

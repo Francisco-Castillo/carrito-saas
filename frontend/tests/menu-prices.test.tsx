@@ -11,7 +11,7 @@
  * La aserción que las cubre a todas de una vez es el regex sobre el texto de
  * la página: `$` pegado a un dígito es exactamente el formato crudo.
  */
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Menu from "../src/pages/Menu";
@@ -85,6 +85,7 @@ function textOf(selector: string): string {
 /** Agrega una unidad y abre la hoja del carrito (el formulario vive ahí adentro). */
 async function openCart(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "Agregar Milanesa" }));
+  await user.click(within(screen.getByRole("dialog", { name: "Detalles de Milanesa" })).getByRole("button", { name: "Agregar al pedido" }));
   await user.click(screen.getByRole("button", { name: "Ver pedido" }));
   await screen.findByRole("complementary", { name: "Tu pedido" });
 }
@@ -116,8 +117,10 @@ describe("precios de la carta", () => {
 
     // Se vuelve a buscar el botón en cada click: al primer ítem la tarjeta
     // reemplaza el "+" por el stepper, así que el nodo anterior queda suelto.
-    await user.click(screen.getByRole("button", { name: "Agregar Milanesa" }));
-    await user.click(screen.getByRole("button", { name: "Agregar Milanesa" }));
+    for (let i = 0; i < 2; i++) {
+      await user.click(screen.getByRole("button", { name: "Agregar Milanesa" }));
+      await user.click(within(screen.getByRole("dialog", { name: "Detalles de Milanesa" })).getByRole("button", { name: "Agregar al pedido" }));
+    }
     await user.click(screen.getByRole("button", { name: "Ver pedido" }));
     await screen.findByRole("complementary", { name: "Tu pedido" });
 

@@ -5,13 +5,13 @@ import type { Product } from "./types";
 interface ProductCardProps {
   product: Product;
   qty: number;
-  onAdd: () => void;
   onRemove: () => void;
-  /** Opens the detail sheet (card body tap; add controls stay separate). */
+  /** Opens the detail sheet: card body tap AND both + controls — the
+   *  customer always picks quantity/notes there before anything is added. */
   onOpen: () => void;
 }
 
-export default function ProductCard({ product, qty, onAdd, onRemove, onOpen }: ProductCardProps) {
+export default function ProductCard({ product, qty, onRemove, onOpen }: ProductCardProps) {
   return (
     <article className="product-card glass-panel">
       <button type="button" className="product-open" onClick={onOpen}>
@@ -35,7 +35,7 @@ export default function ProductCard({ product, qty, onAdd, onRemove, onOpen }: P
           <button
             type="button"
             className="qty-btn qty-btn--plus"
-            onClick={onAdd}
+            onClick={onOpen}
             aria-label={`Agregar ${product.name}`}
           >
             +
@@ -60,7 +60,7 @@ export default function ProductCard({ product, qty, onAdd, onRemove, onOpen }: P
             <button
               type="button"
               className="qty-btn qty-btn--plus"
-              onClick={onAdd}
+              onClick={onOpen}
               aria-label={`Agregar ${product.name}`}
             >
               +

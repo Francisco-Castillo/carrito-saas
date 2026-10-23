@@ -1074,26 +1074,174 @@
 
 /* --- Hoja de detalle de producto --- */
 
-.sheet-media {
-  aspect-ratio: 16 / 9;
+/* La hoja de detalle es una grilla de dos columnas: la imagen a la izquierda y
+   el contenido (nombre, descripción, opciones, acciones) a la derecha. En móvil
+   la imagen es la miniatura compacta del encabezado; en desktop (≥768px) es
+   una columna alta que queda fija mientras se eligen opciones (sticky sobre
+   el scroll de la hoja). Referencia del dueño: imagen a la izquierda, todo
+   lo elegible a la derecha. Scopeado a la hoja de producto: el carrito
+   comparte .sheet y NO debe heredar la grilla. */
+.sheet--product {
+  display: grid;
+  /* Móvil: UNA sola columna — la imagen va en el header (display:none acá
+     abajo) y el contenido ocupa todo el ancho. Dos columnas sólo ≥768px. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+  /* Sin padding inferior: lo aporta la barra fija de acciones, así el sticky
+     llega al ras del fondo de la hoja. */
+  padding: var(--space-5) var(--space-5) 0;
+  /* Sin scrollbar propia (decisión del dueño): chocaba con la barra fija de
+     acciones. El scrolleo sigue funcionando con rueda, touch y teclado. */
+  scrollbar-width: none;
+}
+
+.sheet--product::-webkit-scrollbar {
+  display: none;
+}
+
+/* Encabezado fijo del detalle: título, badge, descripción y X permanecen
+   mientras se escrollean los grupos. En móvil lleva la miniatura del plato;
+   en desktop la miniatura se oculta porque la imagen tiene su columna. */
+.sheet-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  position: sticky;
+  top: calc(var(--space-5) * -1);
+  margin: calc(var(--space-5) * -1) calc(var(--space-5) * -1) var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--primary-surface, rgba(15, 23, 42, 0.95));
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border-subtle);
+  z-index: 3;
+}
+
+.sheet-header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  flex: 1;
+}
+
+.sheet-thumb {
+  flex: 0 0 auto;
+  width: 88px;
+  height: 88px;
   overflow: hidden;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
   background: var(--glass-bg-subtle);
 }
 
-.sheet-media img,
-.sheet-media .food-placeholder {
+.sheet-thumb img,
+.sheet-thumb .food-placeholder {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
+.sheet-media {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .sheet-thumb {
+    display: none;
+  }
+
+  .sheet-media {
+    display: block;
+  }
+}
+
+/* En el detalle, la X vive dentro del header fijo (el position:absolute
+   de .sheet-close es para las otras hojas, como el carrito). */
+.sheet-header .sheet-close {
+  position: static;
+  flex-shrink: 0;
+}
+
+.sheet-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sheet-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sheet-head-text .product-badge--inline {
+  align-self: flex-start;
+}
+
+@media (min-width: 768px) {
+  .sheet--product {
+    grid-template-columns: minmax(240px, 36%) minmax(0, 1fr);
+    gap: var(--space-6);
+    /* Encabezado fijo / contenido que scrollea / barra de acciones fija:
+       la altura de la hoja es fija y scrollea SOLO la columna derecha. Así
+       la imagen de la izquierda no se mueve jamás (pedido explícito). */
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: min(88vh, 760px);
+    overflow: hidden;
+    /* La base usa align-items:start; acá cada columna debe medir EXACTAMENTE
+       su fila, si no la columna derecha crece más que la pista y se recorta
+       sin scroll (el contenido "desaparece"). */
+    align-items: stretch;
+  }
+
+  .sheet--product .sheet-media {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg-subtle);
+    border-radius: var(--radius-md);
+    /* Sin sticky: la imagen ES la columna, estática de arriba a abajo.
+       contain: la columna es más alta que ancha y cover recortaba el plato
+       — el producto se ve completo, enmarcado sobre vidrio. */
+  }
+
+  .sheet--product .sheet-media img,
+  .sheet--product .sheet-media .food-placeholder {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: var(--space-3);
+    box-sizing: border-box;
+  }
+
+  .sheet--product .sheet-content {
+    overflow-y: auto;
+    min-height: 0;
+    /* Aire para que el último grupo no muera pegado a la barra de acciones. */
+    padding-bottom: var(--space-2);
+  }
+
+  .sheet--product .sheet-actions {
+    /* Fila propia del grid: sin sticky ni sangrado, ya es fija de fábrica. */
+    position: static;
+    margin: 0 calc(var(--space-5) * -1) 0;
+    padding: var(--space-3) var(--space-5) var(--space-5);
+  }
+}
+
 .sheet-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-5);
 }
 
 .sheet-name {
@@ -1112,14 +1260,27 @@
 
 .sheet-price {
   font-size: var(--font-size-lg);
+  text-align: right;
 }
 
 .sheet-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-3);
-  margin-top: var(--space-2);
+  /* Barra fija de acciones: sticky bottom abarcando ambas columnas; llega
+     al ras del fondo porque su contenedor es la hoja entera. Sin scrollbar
+     propia no hay nada que pisar. */
+  grid-column: 1 / -1;
+  position: sticky;
+  bottom: 0;
+  margin: var(--space-2) calc(var(--space-5) * -1) 0;
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  background: var(--primary-surface, rgba(15, 23, 42, 0.95));
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-top: 1px solid var(--glass-border-subtle);
+  z-index: 2;
 }
 
 .sheet-add {
@@ -1459,12 +1620,57 @@
   }
 }
 
-/* Opciones de producto en el sheet (odd/tasks/product-options.md, T5). */
+/* Opciones de producto en el sheet (odd/tasks/product-options.md, T5).
+   Estilo de la referencia del dueño: grupos enmarcados con encabezado
+   (nombre a la izquierda, badge "Obligatorio" a la derecha) y filas con
+   nombre + recargo apilados a la izquierda y el control a la derecha. La
+   fila elegida se marca con el acento del local. */
 .sheet-option-group {
-  margin-top: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
-  border-radius: 10px;
+  padding: var(--space-4);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-subtle, rgba(255, 255, 255, 0.03));
+}
+
+.sheet-option-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* El encabezado del grupo es el toggle del colapso (referencia del dueño). */
+.sheet-option-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  margin: calc(var(--space-3) * -1) calc(var(--space-3) * -1) var(--space-2);
+  padding: var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-option-group-toggle:hover .sheet-option-group--name {
+  color: var(--color-text);
+}
+
+.sheet-option-group-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.sheet-option-group-chevron {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85em;
 }
 
 .sheet-option-group--missing {
@@ -1473,11 +1679,17 @@
 
 .sheet-option-group--name {
   font-weight: 600;
-  margin: 0 0 6px;
+  margin: 0;
 }
 
 .sheet-option-required {
-  color: #d64545;
+  flex-shrink: 0;
+  padding: 3px var(--space-3);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--primary-color, #7c3aed) 22%, transparent);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
 }
 
 .sheet-option-hint {
@@ -1489,24 +1701,60 @@
 .sheet-option-error {
   color: #d64545;
   font-size: 0.85rem;
-  margin: 0 0 6px;
+  margin: 0 0 var(--space-2);
 }
 
 .sheet-option {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 0;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  margin: 0 calc(var(--space-3) * -1);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
   cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out-soft),
+    border-color var(--duration-fast) var(--ease-out-soft);
+}
+
+.sheet-option:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sheet-option:has(input:checked) {
+  border-color: var(--primary-color, #7c3aed);
+  background: color-mix(in srgb, var(--primary-color, #7c3aed) 18%, transparent);
+}
+
+.sheet-option:has(input:focus-visible) {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.sheet-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sheet-option input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-color, #7c3aed);
 }
 
 .sheet-option-name {
-  flex: 1;
+  font-size: var(--font-size-base);
 }
 
 .sheet-option-delta {
-  color: var(--muted, #666);
-  font-size: 0.9em;
+  color: var(--color-text-muted);
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
 }
 
 .cart-line-options {

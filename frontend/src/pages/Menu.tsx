@@ -192,6 +192,19 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
+  // Modal abierto (detalle de producto o pedido): el fondo no scrollea y la
+  // scrollbar del navegador desaparece — sin barra de scroll de la carta
+  // conviviendo con la hoja (reporte del dueño). Se restaura al cerrar.
+  const anySheetOpen = detailProduct !== null || cartSheetOpen;
+  useEffect(() => {
+    if (!anySheetOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [anySheetOpen]);
+
   // Navegación de categorías: píldora activa por scroll-spy.
   const [activeCategory, setActiveCategory] = useState(0);
   // Vidrio de la barra de píldoras: sólo cuando está realmente pegada arriba.
@@ -754,16 +767,6 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
                             key={p.id}
                             product={p}
                             qty={cart[p.id]?.qty || 0}
-                            onAdd={() =>
-                              // Producto con grupos de opciones (S4): el + no
-                              // agrega directo, abre el detalle para que el
-                              // cliente elija (los obligatorios bloquean ahí).
-                              // Sin opciones se agrega directo (S6, igual que
-                              // siempre).
-                              p.optionGroups && p.optionGroups.length > 0
-                                ? setDetailProduct(p)
-                                : addItem(p)
-                            }
                             onRemove={() => removeItem(p.id)}
                             onOpen={() => setDetailProduct(p)}
                           />
