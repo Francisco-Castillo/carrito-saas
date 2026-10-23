@@ -24,6 +24,7 @@ public class BusinessMapperImpl implements IBusinessMapper{
         dto.setBannerUrl(entity.getBannerUrl());
         dto.setAddress(entity.getAddress());
         dto.setInstagramUrl(entity.getInstagramUrl());
+        dto.setTiktokUrl(entity.getTiktokUrl());
         dto.setPrimaryColor(entity.getPrimaryColor());
         dto.setMenuFont(entity.getMenuFont());
         // Las horas y las fechas especiales las completa el llamador

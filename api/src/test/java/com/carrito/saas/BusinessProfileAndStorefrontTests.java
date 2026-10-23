@@ -1245,4 +1245,43 @@ class BusinessProfileAndStorefrontTests {
 		assertThat(foreignHours.get(0).getDayOfWeek()).isEqualTo(2);
 	}
 
+	// ------------------------------------------------------------------
+	// TikTok (red social extra, iconos en la carta)
+	// ------------------------------------------------------------------
+
+	/** PUT con tiktokUrl: persiste, vuelve en la respuesta y llega al payload
+	 *  público del menú junto a instagramUrl. */
+	@Test
+	void putTiktokUrlPersistsAndReachesPublicPayload() throws Exception {
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"tiktokUrl\":\"https://www.tiktok.com/@foodtruckdemo\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.tiktokUrl").value("https://www.tiktok.com/@foodtruckdemo"));
+
+		entityManager.flush();
+		entityManager.clear();
+		assertThat(businessA().getTiktokUrl()).as("el tiktokUrl quedó en la base")
+				.isEqualTo("https://www.tiktok.com/@foodtruckdemo");
+
+		mockMvc.perform(get("/api/menu/" + SLUG_A))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.business.tiktokUrl").value("https://www.tiktok.com/@foodtruckdemo"));
+	}
+
+	/** tiktokUrl con forma inválida es 400, mismo contrato que instagramUrl. */
+	@Test
+	void putRejectsInvalidTiktokUrl() throws Exception {
+
+		mockMvc.perform(put("/api/business/profile")
+						.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"tiktokUrl\":\"no-es-una-url\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message")
+						.value("tiktokUrl debe ser una URL absoluta http(s) o una ruta relativa que comience con /"));
+	}
+
 }

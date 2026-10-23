@@ -147,6 +147,10 @@ public class Business {
     @Column(length = 500)
     private String instagramUrl;
 
+    /** Perfil de TikTok del local (icono en la carta pública). */
+    @Column(length = 500)
+    private String tiktokUrl;
+
     /**
      * Brand color of the business as a {@code #RRGGBB} hex string, or NULL
      * when the owner has not set one (the menu falls back to its default

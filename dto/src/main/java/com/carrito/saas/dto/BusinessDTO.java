@@ -29,6 +29,9 @@ public class BusinessDTO {
 
     private String instagramUrl;
 
+    /** Perfil de TikTok del local (icono en la carta). */
+    private String tiktokUrl;
+
     /** Brand color del local como hex {@code #RRGGBB}, o null si no cargó uno. */
     private String primaryColor;
 

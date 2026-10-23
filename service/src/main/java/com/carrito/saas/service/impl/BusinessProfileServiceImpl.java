@@ -213,6 +213,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		dto.setBannerUrl(business.getBannerUrl());
 		dto.setAddress(business.getAddress());
 		dto.setInstagramUrl(business.getInstagramUrl());
+		dto.setTiktokUrl(business.getTiktokUrl());
 		dto.setPrimaryColor(business.getPrimaryColor());
 		dto.setMenuFont(business.getMenuFont());
 		dto.setHours(toHoursDTOs(business.getId()));
@@ -236,6 +237,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		validateUrl("logoUrl", dto.getLogoUrl(), MAX_URL_LENGTH);
 		validateUrl("bannerUrl", dto.getBannerUrl(), MAX_URL_LENGTH);
 		validateUrl("instagramUrl", dto.getInstagramUrl(), MAX_URL_LENGTH);
+		validateUrl("tiktokUrl", dto.getTiktokUrl(), MAX_URL_LENGTH);
 		validateAddress(dto.getAddress());
 		validatePrimaryColor(dto.getPrimaryColor());
 		validateMenuFont(dto.getMenuFont());
@@ -283,6 +285,9 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		}
 		if (dto.getInstagramUrl() != null) {
 			business.setInstagramUrl(normalize(dto.getInstagramUrl()));
+		}
+		if (dto.getTiktokUrl() != null) {
+			business.setTiktokUrl(normalize(dto.getTiktokUrl()));
 		}
 		if (dto.getPrimaryColor() != null) {
 			// Mismo contrato parcial que los demás textos: ausente conserva lo
@@ -360,6 +365,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		result.setBannerUrl(business.getBannerUrl());
 		result.setAddress(business.getAddress());
 		result.setInstagramUrl(business.getInstagramUrl());
+		result.setTiktokUrl(business.getTiktokUrl());
 		result.setPrimaryColor(business.getPrimaryColor());
 		result.setMenuFont(business.getMenuFont());
 		result.setHours(toHoursDTOs(business.getId()));

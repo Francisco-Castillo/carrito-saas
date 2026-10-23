@@ -37,6 +37,10 @@ public class BusinessProfileDTO {
 
     private String instagramUrl;
 
+    /** Perfil de TikTok del local. Mismo contrato que {@code instagramUrl}:
+     *  null = no tocar (actualización parcial); vacío limpia; inválida es 400. */
+    private String tiktokUrl;
+
     /** Color de marca del local como hex {@code #RRGGBB}. null = no tocar
      *  (actualización parcial); vacío limpia; inválido es 400. */
     private String primaryColor;
