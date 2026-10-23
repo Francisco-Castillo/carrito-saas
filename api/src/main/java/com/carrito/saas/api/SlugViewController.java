@@ -82,9 +82,8 @@ public class SlugViewController {
 		// el camino viejo POST /api/productos) cae al 404 de siempre en vez de
 		// un 405 por colisión de método.
 		// La shell es la del dashboard (el build copia la misma raíz en cada
-		// entry): /index.html NO está servida por el resource handler — 404
-		// verificado en vivo — y el SPA resuelve vista+slug desde el pathname,
-		// así que da igual qué entry copia la sirva.
+		// entry) y el SPA resuelve vista+slug desde el pathname, así que da
+		// igual qué entry copia la sirva.
 		return "forward:/dashboard/index.html";
 	}
 }
