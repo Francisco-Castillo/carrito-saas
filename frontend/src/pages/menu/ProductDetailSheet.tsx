@@ -188,25 +188,27 @@ export default function ProductDetailSheet({ product, onClose, onAdd }: ProductD
               </div>
             );
           })}
-        </div>
-        </div>
 
-        {/* Preferencias del cliente ("sin mayonesa"): texto libre por ítem,
-            opcional, con el mismo límite que valida el backend (300). */}
-        <div className="sheet-notes">
-          <label className="sheet-notes-label" htmlFor={`sheet-notes-${product.id}`}>
-            Preferencias <span className="sheet-notes-hint">(opcional)</span>
-          </label>
-          <textarea
-            id={`sheet-notes-${product.id}`}
-            className="sheet-notes-input"
-            maxLength={300}
-            rows={2}
-            placeholder="Sin mayonesa, sin lechuga, bien cocida…"
-            value={note}
-            onChange={(e) => setNote(e.target.value.slice(0, 300))}
-          />
-          <span className="sheet-notes-count" aria-live="polite">{note.length}/300</span>
+          {/* Preferencias del cliente ("sin mayonesa"): texto libre por ítem,
+              opcional, con el mismo límite que valida el backend (300). Vive
+              DENTRO de la columna de contenido, junto a los grupos de
+              opciones — no debajo de la imagen (bug de diseño 2026-10-22). */}
+          <div className="sheet-notes">
+            <label className="sheet-notes-label" htmlFor={`sheet-notes-${product.id}`}>
+              Preferencias <span className="sheet-notes-hint">(opcional)</span>
+            </label>
+            <textarea
+              id={`sheet-notes-${product.id}`}
+              className="sheet-notes-input"
+              maxLength={300}
+              rows={2}
+              placeholder="Sin mayonesa, sin lechuga, bien cocida…"
+              value={note}
+              onChange={(e) => setNote(e.target.value.slice(0, 300))}
+            />
+            <span className="sheet-notes-count" aria-live="polite">{note.length}/300</span>
+          </div>
+        </div>
         </div>
 
         {/* Barra fija de acciones: hija directa de la hoja y sticky bottom,

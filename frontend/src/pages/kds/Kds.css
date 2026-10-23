@@ -1,9 +1,0 @@
-
-/* Preferencias del cliente ("sin mayonesa"): visibles para la cocina,
-   debajo de las opciones del ítem. */
-.item-note {
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
-  font-style: italic;
-  margin-top: 2px;
-}
