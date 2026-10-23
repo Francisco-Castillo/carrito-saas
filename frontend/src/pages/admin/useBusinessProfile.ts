@@ -62,6 +62,7 @@ export interface BusinessProfile {
   bannerUrl?: string | null;
   address?: string | null;
   instagramUrl?: string | null;
+  tiktokUrl?: string | null;
   primaryColor?: string | null;
   /** Slug de la fuente curada elegida por el dueño (o null: Inter). */
   menuFont?: string | null;
@@ -160,6 +161,7 @@ export function useBusinessProfile() {
   const [bannerUrl, setBannerUrl] = useState("");
   const [address, setAddress] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
+  const [tiktokUrl, setTiktokUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("");
   // Tipografía de la carta: slug de la lista blanca curada ("" = sin elegir,
   // la carta usa Inter). La valida el backend contra su whitelist.
@@ -185,6 +187,7 @@ export function useBusinessProfile() {
         setBannerUrl(data.bannerUrl ?? "");
         setAddress(data.address ?? "");
         setInstagramUrl(data.instagramUrl ?? "");
+        setTiktokUrl(data.tiktokUrl ?? "");
         setPrimaryColor(data.primaryColor ?? "");
         setMenuFont(data.menuFont ?? "");
         const byDay = new Map((data.hours ?? []).map((h) => [h.dayOfWeek, h]));
@@ -312,6 +315,7 @@ export function useBusinessProfile() {
           bannerUrl,
           address,
           instagramUrl,
+          tiktokUrl,
           // Color de marca tal cual: "" limpia (el backend interpreta la
           // cadena vacía como borrado) y un valor presente reemplaza. Enviar
           // null significaría "no tocar" y el color viejo seguiría activo.
@@ -369,6 +373,8 @@ export function useBusinessProfile() {
     setAddress,
     instagramUrl,
     setInstagramUrl,
+    tiktokUrl,
+    setTiktokUrl,
     primaryColor,
     setPrimaryColor,
     menuFont,

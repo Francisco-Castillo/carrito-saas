@@ -1907,3 +1907,20 @@
     font-size: var(--font-size-base);
   }
 }
+
+/* Redes sociales como ICONOS (feedback del dueño 2026-10-23): botón
+   circular con el svg de la marca, mismo objetivo táctil ≥44px. La
+   dirección sigue siendo pill de texto (.storefront-link a secas). */
+.storefront-link--icon {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  justify-content: center;
+}
+
+.storefront-link--icon svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}

@@ -195,6 +195,8 @@ export default function DatosSection({ profile }: { profile: BusinessProfileHook
     setAddress,
     instagramUrl,
     setInstagramUrl,
+    tiktokUrl,
+    setTiktokUrl,
     saving,
     error,
     save,
@@ -276,6 +278,17 @@ export default function DatosSection({ profile }: { profile: BusinessProfileHook
             aria-label="URL de Instagram"
             value={instagramUrl}
             onChange={(e) => setInstagramUrl(e.target.value)}
+          />
+        </div>
+
+        <div className="admin-profile-field">
+          <label htmlFor="profile-tiktok">URL de TikTok</label>
+          <input
+            id="profile-tiktok"
+            className="admin-input"
+            aria-label="URL de TikTok"
+            value={tiktokUrl}
+            onChange={(e) => setTiktokUrl(e.target.value)}
           />
         </div>
       </div>

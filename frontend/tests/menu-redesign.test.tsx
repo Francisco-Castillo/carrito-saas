@@ -101,7 +101,8 @@ const STOREFRONT_BUSINESS = {
   logoUrl: null,
   bannerUrl: null,
   address: "Calle Falsa 123",
-  instagramUrl: null,
+  instagramUrl: "https://instagram.com/foodtruckdemo",
+  tiktokUrl: "https://tiktok.com/@foodtruckdemo",
   hours: [],
 };
 
@@ -227,6 +228,30 @@ describe("category nav pills (scroll-spy)", () => {
 });
 
 describe("menu block: heading + pills in place", () => {
+  it("las redes sociales son iconos con aria-label e incluyen TikTok; la dirección sigue siendo pill de texto", async () => {
+    await renderMenuWithStorefront();
+
+    const contact = document.querySelector(".storefront-contact")!;
+    const links = Array.from(contact.querySelectorAll("a"));
+    const byLabel = (name: string) => links.find((l) => l.getAttribute("aria-label") === name);
+
+    // 3 redes sociales con su href correcto, identificados por aria-label.
+    expect(byLabel("WhatsApp")?.getAttribute("href")).toBe("https://wa.me/1155556666");
+    expect(byLabel("Instagram")?.getAttribute("href")).toBe("https://instagram.com/foodtruckdemo");
+    expect(byLabel("TikTok")?.getAttribute("href")).toBe("https://tiktok.com/@foodtruckdemo");
+
+    // Son ICONOS: sin texto visible, con un svg adentro.
+    for (const name of ["WhatsApp", "Instagram", "TikTok"]) {
+      const link = byLabel(name)!;
+      expect(link.textContent?.trim()).toBe("");
+      expect(link.querySelector("svg")).toBeTruthy();
+    }
+
+    // La dirección NO es red social: sigue siendo pill de texto con Maps.
+    const address = links.find((l) => l.getAttribute("href")?.includes("google.com/maps"));
+    expect(address?.textContent).toContain("Calle Falsa 123");
+  });
+
   it("renders the pills inside the menu block, after the storefront, under a real heading", async () => {
     stubScrollSpy();
     await renderMenuWithStorefront();

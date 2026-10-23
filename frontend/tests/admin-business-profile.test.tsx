@@ -35,6 +35,7 @@ const PROFILE = {
   bannerUrl: '/dev-media/banner-local.jpg',
   address: 'Av. Siempreviva 742, Springfield',
   instagramUrl: 'https://instagram.com/foodtruckdemo',
+  tiktokUrl: 'https://tiktok.com/@foodtruckdemo',
   dateExceptions: [
     { date: '2026-12-24', shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
     { date: '2026-12-25', shifts: [] },
@@ -165,6 +166,7 @@ describe('Admin "Local" view — business profile editor', () => {
     expect(screen.getByLabelText('Nombre del local')).toHaveValue('Foodtruck Demo')
     expect(screen.getByLabelText('Dirección')).toHaveValue('Av. Siempreviva 742, Springfield')
     expect(screen.getByLabelText('URL de Instagram')).toHaveValue('https://instagram.com/foodtruckdemo')
+    expect(screen.getByLabelText('URL de TikTok')).toHaveValue('https://tiktok.com/@foodtruckdemo')
     expect(screen.getByAltText('Vista previa del logo')).toHaveAttribute('src', '/dev-media/logo-local.jpg')
     expect(screen.getByAltText('Vista previa del banner')).toHaveAttribute('src', '/dev-media/banner-local.jpg')
 
@@ -257,6 +259,7 @@ describe('Admin "Local" view — business profile editor', () => {
       bannerUrl: '/dev-media/banner-local.jpg',
       address: 'Av. Siempreviva 742, Springfield',
       instagramUrl: 'https://instagram.com/foodtruckdemo',
+      tiktokUrl: 'https://tiktok.com/@foodtruckdemo',
       primaryColor: '',
       menuFont: '',
       dateExceptions: [
