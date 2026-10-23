@@ -11,8 +11,10 @@ interface ProductDetailSheetProps {
    * Adds `qty` units to the cart; the parent closes the sheet afterwards.
    * `selectedOptionIds` son las opciones elegidas (odd/tasks/product-options.md
    * S4): llegan validadas (obligatorios completos) y ordenadas por grupo.
+   * `note` son las preferencias del cliente para el ítem ("sin mayonesa"):
+   * opcional, máx 300 (el backend valida y recorta).
    */
-  onAdd: (qty: number, selectedOptionIds: number[]) => void;
+  onAdd: (qty: number, selectedOptionIds: number[], note: string) => void;
 }
 
 /** Precio unitario del producto con los recargos de las opciones elegidas. */
@@ -37,6 +39,8 @@ export default function ProductDetailSheet({ product, onClose, onAdd }: ProductD
   // Grupos colapsables (referencia del dueño): todos abren expandidos; la
   // validación de obligatorios reabre los que falten (handleAdd).
   const [collapsed, setCollapsed] = useState<string[]>([]);
+  // Preferencias del cliente para este ítem ("sin mayonesa"): opcional.
+  const [note, setNote] = useState("");
   const sheetRef = useModalSheet<HTMLDivElement>(onClose);
 
   function toggleOption(group: ProductOptionGroup, optionId: number): void {
@@ -72,7 +76,7 @@ export default function ProductDetailSheet({ product, onClose, onAdd }: ProductD
     // Orden de envío: el orden de definición de los grupos (el backend
     // valida por grupo, así el mensaje de error también es determinista).
     const ordered = groups.flatMap((g) => g.options.map((o) => o.id)).filter((id) => selected.includes(id));
-    onAdd(qty, ordered);
+    onAdd(qty, ordered, note.trim());
   }
 
   const unitPrice = priceWithSelections(product, selected);
@@ -185,6 +189,24 @@ export default function ProductDetailSheet({ product, onClose, onAdd }: ProductD
             );
           })}
         </div>
+        </div>
+
+        {/* Preferencias del cliente ("sin mayonesa"): texto libre por ítem,
+            opcional, con el mismo límite que valida el backend (300). */}
+        <div className="sheet-notes">
+          <label className="sheet-notes-label" htmlFor={`sheet-notes-${product.id}`}>
+            Preferencias <span className="sheet-notes-hint">(opcional)</span>
+          </label>
+          <textarea
+            id={`sheet-notes-${product.id}`}
+            className="sheet-notes-input"
+            maxLength={300}
+            rows={2}
+            placeholder="Sin mayonesa, sin lechuga, bien cocida…"
+            value={note}
+            onChange={(e) => setNote(e.target.value.slice(0, 300))}
+          />
+          <span className="sheet-notes-count" aria-live="polite">{note.length}/300</span>
         </div>
 
         {/* Barra fija de acciones: hija directa de la hoja y sticky bottom,

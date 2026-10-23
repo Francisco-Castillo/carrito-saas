@@ -419,11 +419,15 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
    * con opciones (S4) → id + combinación elegida, para que dos elecciones
    * distintas convivan como líneas separadas.
    */
-  function cartKey(productId: string, selectedOptionIds: number[]): string {
-    return selectedOptionIds.length > 0 ? `${productId}|${selectedOptionIds.join(",")}` : productId;
+  function cartKey(productId: string, selectedOptionIds: number[], notes = ""): string {
+    // Las notas participan de la clave: dos líneas del mismo producto con
+    // preferencias distintas NO se mezclan. encodeURIComponent evita que el
+    // texto rompa el formato "id|opciones|nota".
+    const base = selectedOptionIds.length > 0 ? `${productId}|${selectedOptionIds.join(",")}` : productId;
+    return notes ? `${base}|n:${encodeURIComponent(notes)}` : base;
   }
 
-  function addItem(product: Product, qty = 1, selectedOptionIds: number[] = []) {
+  function addItem(product: Product, qty = 1, selectedOptionIds: number[] = [], notes = "") {
     // Precio unitario con recargos, calculado al agregar (S4).
     let unitPrice = product.price;
     for (const group of product.optionGroups ?? []) {
@@ -431,10 +435,10 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
         if (selectedOptionIds.includes(option.id)) unitPrice += option.priceDelta;
       }
     }
-    const id = cartKey(product.id, selectedOptionIds);
+    const id = cartKey(product.id, selectedOptionIds, notes);
     const next: Cart = { ...cart };
     if (!next[id]) {
-      next[id] = { product, qty: 0, isCombo: product.isCombo || false, selectedOptionIds, unitPrice };
+      next[id] = { product, qty: 0, isCombo: product.isCombo || false, selectedOptionIds, notes: notes || undefined, unitPrice };
     }
     next[id] = { ...next[id], qty: next[id].qty + qty };
     saveCart(next);
@@ -550,16 +554,21 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
     }
 
     // El pedido entra primero a la cocina. Las líneas con opciones viajan
-    // con selectedOptionIds (S4); la clave de línea es "productId|opciones".
+    // con selectedOptionIds (S4); las preferencias del cliente viajan por
+    // ítem (items[].notes, máx 300). La clave es "productId|opciones|n:nota".
     const items = Object.entries(cart).map(([id, item]) => {
       if (item.isCombo) {
-        return { comboId: Number(id.replace("combo-", "")), quantity: item.qty };
+        return {
+          comboId: Number(id.split("|")[0].replace("combo-", "")),
+          quantity: item.qty,
+          notes: item.notes || undefined,
+        };
       }
       const productId = Number(id.split("|")[0]);
       if (item.selectedOptionIds && item.selectedOptionIds.length > 0) {
-        return { productId, quantity: item.qty, selectedOptionIds: item.selectedOptionIds };
+        return { productId, quantity: item.qty, selectedOptionIds: item.selectedOptionIds, notes: item.notes || undefined };
       }
-      return { productId, quantity: item.qty };
+      return { productId, quantity: item.qty, notes: item.notes || undefined };
     });
 
     const payload: Record<string, unknown> = table
@@ -851,8 +860,8 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
         <ProductDetailSheet
           product={detailProduct}
           onClose={() => setDetailProduct(null)}
-          onAdd={(qty, selectedOptionIds) => {
-            addItem(detailProduct, qty, selectedOptionIds);
+          onAdd={(qty, selectedOptionIds, note) => {
+            addItem(detailProduct, qty, selectedOptionIds, note);
             setDetailProduct(null);
           }}
         />

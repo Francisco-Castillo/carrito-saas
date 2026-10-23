@@ -89,6 +89,7 @@ export default function CartPanel({
                   </span>
                 )}
               </span>
+              {item.notes && <span className="cart-line-note">{item.notes}</span>}
               <span className="cart-line-total">
                 {formatARS(item.qty * (item.unitPrice ?? item.product.price))}
               </span>

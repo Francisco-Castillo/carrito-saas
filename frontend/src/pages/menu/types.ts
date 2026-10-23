@@ -141,6 +141,8 @@ export interface CartEntry {
    * Vacío/ausente = producto sin opciones (S6).
    */
   selectedOptionIds?: number[];
+  /** Preferencias del cliente ("sin mayonesa"): opcional, máx 300. */
+  notes?: string;
   /** Precio unitario con recargos, ya calculado al agregar. */
   unitPrice: number;
 }

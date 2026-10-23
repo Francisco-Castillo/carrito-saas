@@ -74,6 +74,7 @@ export default function OrderListCard({
         {order.items.map((item, i) => (
           <li key={i}>
             {item.quantity}× {item.name}
+            {item.notes && <span className="orders-item-note">{item.notes}</span>}
           </li>
         ))}
       </ul>

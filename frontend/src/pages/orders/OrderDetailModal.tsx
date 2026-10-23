@@ -101,7 +101,10 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
           <tbody>
             {order.items.map((item, i) => (
               <tr key={i}>
-                <td>{item.name}</td>
+                <td>
+                  {item.name}
+                  {item.notes && <span className="orders-item-note">{item.notes}</span>}
+                </td>
                 <td>{item.quantity}</td>
                 <td>{formatARS(item.unitPrice)}</td>
                 <td>{formatARS(item.subtotal)}</td>

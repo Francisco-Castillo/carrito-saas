@@ -284,6 +284,7 @@ export default function OrderCard({
                   ))}
                 </div>
               )}
+              {i.notes && <div className="item-note">{i.notes}</div>}
             </div>
           ))}
         </div>

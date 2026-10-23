@@ -40,6 +40,16 @@ function renderCard(order: KdsOrder) {
 describe("KDS order card — customer phone", () => {
   afterEach(cleanup);
 
+  // Preferencias por ítem ("sin mayonesa"): la cocina las tiene que ver en
+  // la tarjeta, junto al ítem — es el destino final de la feature.
+  it("renders the item note next to the item for the kitchen", () => {
+    renderCard(buildOrder({
+      items: [{ quantity: 1, productName: "Milanesa", notes: "sin mayonesa, sin lechuga" }],
+    }));
+
+    expect(screen.getByText("sin mayonesa, sin lechuga")).toBeTruthy();
+  });
+
   // El KDS prioriza la información del pedido (S6 de odd/tasks/orders-console.md):
   // el teléfono ya no se muestra — el contacto con el cliente vive en la consola
   // de /pedidos, que abre WhatsApp. La cocina no llama ni chatea.

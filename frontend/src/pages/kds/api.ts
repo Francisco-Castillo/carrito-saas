@@ -19,6 +19,8 @@ export interface KdsOrderItem {
    * "Grupo: Opción" resueltas por el backend. Vacío = producto sin opciones.
    */
   selectedOptions?: string[];
+  /** Preferencias del cliente ("sin mayonesa"): cocina las ve en la tarjeta. */
+  notes?: string | null;
 }
 
 export interface KdsOrder {

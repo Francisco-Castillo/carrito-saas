@@ -732,3 +732,12 @@
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* Preferencias del cliente por ítem en la consola. */
+.orders-item-note {
+  display: block;
+  width: 100%;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+}

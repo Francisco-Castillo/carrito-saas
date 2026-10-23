@@ -26,6 +26,9 @@ export type ManagementPaymentMethod = "EFECTIVO" | "TRANSFERENCIA";
 export interface ManagementOrderItem {
   name: string;
   quantity: number;
+  /** Preferencias del cliente ("sin mayonesa"): opcional, las muestra la
+   * consola junto al ítem. */
+  notes?: string | null;
   unitPrice: number;
   subtotal: number;
 }
