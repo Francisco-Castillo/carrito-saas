@@ -1882,11 +1882,10 @@
   }
 
   .product-description {
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    font-size: var(--font-size-xs);
+    /* Sin descripción en la fila mobile: el nombre respira y se lee mejor
+       (feedback del dueño 2026-10-23). La descripción completa sigue viva
+       en el sheet de detalle. */
+    display: none;
   }
 
   .product-footer {
