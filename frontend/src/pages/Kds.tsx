@@ -63,16 +63,11 @@ export default function Kds() {
     attachAudioUnlockListeners();
   }, []);
 
-  // kds.js:299-303 — fullscreen en el primer clic (una sola vez).
-  useEffect(() => {
-    function onFirstClick() {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      }
-    }
-    document.addEventListener("click", onFirstClick, { once: true });
-    return () => document.removeEventListener("click", onFirstClick);
-  }, []);
+  // El fullscreen automático del legacy (kds.js:299-303, requestFullscreen
+  // en el primer click) fue ELIMINADO: el primer click del operador suele
+  // ser el cambio de estado de una card y el navegador entraba en pantalla
+  // completa pintando negro (reporte 2026-10-23). El desbloqueo de audio
+  // queda; si la cocina quiere fullscreen, será un control explícito.
 
   const { sortedOrders, live, fatal, refresh, advance } = useKdsOrders(
     slug,
