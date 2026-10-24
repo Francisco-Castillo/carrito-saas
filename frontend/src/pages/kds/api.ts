@@ -11,16 +11,66 @@
 import { getSessionRestaurantSlug } from "../dashboard/auth";
 import { showToast } from "./toast";
 
+/** Snapshot crudo de opción del backend (OrderItemDTO.selectedOptions). */
+export interface KdsSelectedOption {
+  groupName?: string;
+  optionId?: number;
+  optionName?: string;
+  priceDelta?: number;
+}
+
 export interface KdsOrderItem {
   quantity: number;
   productName: string;
   /**
    * Opciones elegidas del ítem (odd/tasks/product-options.md S5), como
    * "Grupo: Opción" resueltas por el backend. Vacío = producto sin opciones.
+   *
+   * Contrato de render: SIEMPRE strings. El payload crudo puede llegar en
+   * dos formas (strings por REST /orders/active, snapshot de objetos por el
+   * WebSocket) — normalizeSelectedOptions/normalizeKdsOrder lo dejan en
+   * strings antes de que llegue a la tarjeta.
    */
   selectedOptions?: string[];
   /** Preferencias del cliente ("sin mayonesa"): cocina las ve en la tarjeta. */
   notes?: string | null;
+}
+
+/**
+ * Normaliza las opciones de un ítem al formato de cocina "Grupo: Opción"
+ * (mismo formato que OrderKitchenMapperImpl del backend). Acepta ambos
+ * shapes que emite el backend: strings ya resueltos (REST /orders/active)
+ * y el snapshot de objetos {groupName, optionId, optionName, priceDelta}
+ * (eventos del WebSocket en OrderDTO). Renderizar el snapshot como child
+ * de React rompe el tablero completo ("Objects are not valid as a React
+ * child") apenas el eco del cambio de estado vuelve por el WebSocket.
+ */
+export function normalizeSelectedOptions(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((opt) => {
+    if (typeof opt === "string") return opt;
+    const o = (opt ?? {}) as KdsSelectedOption;
+    const group = typeof o.groupName === "string" ? o.groupName.trim() : "";
+    const name = typeof o.optionName === "string" ? o.optionName.trim() : "";
+    return group && name ? `${group}: ${name}` : name || group;
+  });
+}
+
+/**
+ * Copia del pedido con las opciones de cada ítem normalizadas a strings.
+ * Punto único de ingestión del KDS: REST (loadOrders) y WebSocket
+ * (handleOrderEvent) pasan por acá antes de tocar el estado.
+ */
+export function normalizeKdsOrder(order: KdsOrder): KdsOrder {
+  return {
+    ...order,
+    items: (order.items ?? []).map((item) => ({
+      ...item,
+      selectedOptions: normalizeSelectedOptions(
+        (item as { selectedOptions?: unknown }).selectedOptions
+      ),
+    })),
+  };
 }
 
 export interface KdsOrder {
@@ -74,7 +124,9 @@ export async function loadOrders(): Promise<KdsOrder[]> {
     }
     if (!response.ok) throw new Error("Error cargando pedidos");
 
-    return (await response.json()) as KdsOrder[];
+    // Opciones del ítem: strings "Grupo: Opción" ya resueltos, se pasan por
+    // el normalizador igual que el WebSocket (misma forma de ingesta).
+    return (await response.json() as KdsOrder[]).map(normalizeKdsOrder);
   } catch (e) {
     if (e instanceof RestaurantNotFoundError) throw e;
     // kds.js:76-77: el legacy solo loguea y sigue con la UI actual.

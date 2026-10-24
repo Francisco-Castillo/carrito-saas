@@ -3,6 +3,7 @@ import { Client } from "@stomp/stompjs";
 import {
   advanceOrder,
   loadOrders as apiLoadOrders,
+  normalizeKdsOrder,
   RestaurantNotFoundError,
   type KdsOrder,
 } from "./api";
@@ -86,7 +87,11 @@ export function useKdsOrders(
   }, [detectNewOrders]);
 
   // kds.js:692-728 — handleOrderEvent(): pedido nuevo o actualizado.
-  const handleOrderEvent = useCallback((order: KdsOrder): void => {
+  const handleOrderEvent = useCallback((raw: KdsOrder): void => {
+    // El evento del WebSocket viaja en OrderDTO: las opciones del ítem son
+    // el snapshot de objetos, no strings de cocina. Normalizar ANTES de
+    // tocar el estado (renderizar el objeto rompe el tablero).
+    const order = normalizeKdsOrder(raw);
     const exists = ordersRef.current.some((p) => p.orderId === order.orderId);
 
     // PEDIDO NUEVO (kds.js:698-711): solo suena si entra como NEW.
