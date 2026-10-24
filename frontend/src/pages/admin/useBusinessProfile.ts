@@ -66,6 +66,9 @@ export interface BusinessProfile {
   primaryColor?: string | null;
   /** Slug de la fuente curada elegida por el dueño (o null: Inter). */
   menuFont?: string | null;
+  /** Impresión de comandas (master) y auto-print al entrar pedido. */
+  comandaPrintingEnabled?: boolean | null;
+  comandaAutoPrint?: boolean | null;
   hours?: BusinessHours[] | null;
   dateExceptions?: DateException[] | null;
 }
@@ -166,6 +169,11 @@ export function useBusinessProfile() {
   // Tipografía de la carta: slug de la lista blanca curada ("" = sin elegir,
   // la carta usa Inter). La valida el backend contra su whitelist.
   const [menuFont, setMenuFont] = useState("");
+  // Impresión de comandas (flags del negocio, default OFF): el master habilita
+  // el botón Imprimir del panel de pedidos y el auto-print adicional. Ambos
+  // viajan SIEMPRE en el PUT (el perfil se reemplaza completo).
+  const [comandaPrintingEnabled, setComandaPrintingEnabled] = useState(false);
+  const [comandaAutoPrint, setComandaAutoPrint] = useState(false);
   const [days, setDays] = useState<ShiftRow[][]>(emptyDays);
   const [exceptions, setExceptions] = useState<ExceptionRow[]>([]);
   const [newExceptionDate, setNewExceptionDate] = useState("");
@@ -190,6 +198,9 @@ export function useBusinessProfile() {
         setTiktokUrl(data.tiktokUrl ?? "");
         setPrimaryColor(data.primaryColor ?? "");
         setMenuFont(data.menuFont ?? "");
+        // Flags booleanos del backend (NOT NULL): ausente (payload viejo) carga OFF.
+        setComandaPrintingEnabled(data.comandaPrintingEnabled === true);
+        setComandaAutoPrint(data.comandaAutoPrint === true);
         const byDay = new Map((data.hours ?? []).map((h) => [h.dayOfWeek, h]));
         setDays(DAYS.map((_, i) => dayFromEntry(byDay.get(i + 1))));
         setExceptions(
@@ -324,6 +335,10 @@ export function useBusinessProfile() {
           // y la carta vuelve a Inter). El backend revalida contra su
           // whitelist: un slug fuera de la lista es 400 con mensaje legible.
           menuFont,
+          // Flags de comandas: siempre viajan (el PUT reemplaza el perfil
+          // completo); booleans planos, sin "vacío" posible.
+          comandaPrintingEnabled,
+          comandaAutoPrint,
           // Los siete días SIEMPRE van, cada uno con su lista de turnos
           // (un día cerrado viaja como `[]`): el backend reemplaza todo.
           hours: days.map((shifts, i) => ({
@@ -379,6 +394,10 @@ export function useBusinessProfile() {
     setPrimaryColor,
     menuFont,
     setMenuFont,
+    comandaPrintingEnabled,
+    setComandaPrintingEnabled,
+    comandaAutoPrint,
+    setComandaAutoPrint,
     days,
     exceptions,
     newExceptionDate,

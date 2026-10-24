@@ -9,6 +9,9 @@ import CancelOrderModal from "./kds/CancelOrderModal";
 import OrderListCard from "./orders/OrderListCard";
 import OrderDetailModal from "./orders/OrderDetailModal";
 import PosPanel from "./orders/PosPanel";
+import Comanda from "./orders/Comanda";
+import { useComandaPrint } from "./orders/useComandaPrint";
+import { useComandaSettings } from "./orders/useComandaSettings";
 import { useOrdersFeed } from "./orders/useOrdersFeed";
 import {
   advanceOrderStatus,
@@ -61,9 +64,27 @@ export default function Orders() {
     attachAudioUnlockListeners();
   }, []);
 
+  // Impresión de comandas: configuración del negocio (Admin → Datos del
+  // local). Master OFF = sin botón ni auto; auto sólo con master ON.
+  const { printingEnabled, autoPrint } = useComandaSettings(
+    sessionUsable && Boolean(slug)
+  );
+
+  // Cola serial sobre el ticket print-only (Comanda). Auto: cada pedido que
+  // entra como NUEVO (callback del feed, misma regla del ding) SÓLO si el
+  // dueño activó la impresión automática. Manual: botón Imprimir de cada
+  // card, visible sólo con el master ON. window.print() abre el diálogo
+  // apuntado a la impresora del equipo (térmica 80mm via Comanda.css).
+  const { printOrder, current: printedComanda } = useComandaPrint();
+
   const { orders, live, refresh } = useOrdersFeed(
     slug,
-    sessionUsable && Boolean(slug)
+    sessionUsable && Boolean(slug),
+    (order) => {
+      if (printingEnabled && autoPrint) {
+        printOrder(order);
+      }
+    }
   );
 
   const [filter, setFilter] = useState<StatusFilter>("ALL");
@@ -207,6 +228,8 @@ export default function Orders() {
             onAdvance={(id, status) => void handleAdvance(id, status)}
             onCancel={setCancelOrderId}
             onDetail={setDetailOrderId}
+            onPrint={printOrder}
+            canPrint={printingEnabled}
             busy={busyOrderId === order.orderId}
           />
         ))}
@@ -245,6 +268,9 @@ export default function Orders() {
       )}
 
       <KdsToastHost />
+
+      {/* Ticket print-only: oculto en pantalla, único visible en @media print. */}
+      {printedComanda && <Comanda order={printedComanda} />}
 
       {/* Mismos ids y rutas que el KDS: las páginas nunca se montan juntas. */}
       <audio id="newOrderSound" src="/ding.mp3" preload="auto" />

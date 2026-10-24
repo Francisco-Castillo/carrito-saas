@@ -14,6 +14,9 @@ interface OrderListCardProps {
   onAdvance: (orderId: number, status: OrderStatus) => void;
   onCancel: (orderId: number) => void;
   onDetail: (orderId: number) => void;
+  onPrint: (order: ManagementOrder) => void;
+  /** Master de impresión de comandas del negocio: OFF no renderiza el botón. */
+  canPrint: boolean;
   busy: boolean;
 }
 
@@ -30,6 +33,8 @@ export default function OrderListCard({
   onAdvance,
   onCancel,
   onDetail,
+  onPrint,
+  canPrint,
   busy,
 }: OrderListCardProps) {
   const statusClass = order.status.toLowerCase();
@@ -129,6 +134,16 @@ export default function OrderListCard({
               onClick={() => onCancel(order.orderId)}
             >
               Cancelar
+            </button>
+          )}
+          {canPrint && (
+            <button
+              type="button"
+              className="btn-action btn-action--print"
+              onClick={() => onPrint(order)}
+              title="Imprimir comanda"
+            >
+              Imprimir
             </button>
           )}
           <button

@@ -1026,6 +1026,30 @@
   font-size: var(--font-size-xs);
 }
 
+/* Bloque de comandas del perfil (Datos del local): master + auto dependiente,
+   cada uno con su hint explicando el efecto real en el panel de pedidos. */
+.admin-comandas .admin-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 2px;
+  cursor: pointer;
+}
+
+.admin-comandas .admin-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary, #6366f1);
+}
+
+.admin-comandas .admin-toggle input:disabled + span {
+  opacity: 0.5;
+}
+
+.admin-comandas .admin-toggle input:disabled {
+  cursor: default;
+}
+
 @media (max-width: 640px) {
   .admin-product-form {
     grid-template-columns: 1fr;

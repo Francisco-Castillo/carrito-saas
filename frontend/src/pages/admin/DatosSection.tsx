@@ -197,6 +197,10 @@ export default function DatosSection({ profile }: { profile: BusinessProfileHook
     setInstagramUrl,
     tiktokUrl,
     setTiktokUrl,
+    comandaPrintingEnabled,
+    setComandaPrintingEnabled,
+    comandaAutoPrint,
+    setComandaAutoPrint,
     saving,
     error,
     save,
@@ -290,6 +294,39 @@ export default function DatosSection({ profile }: { profile: BusinessProfileHook
             value={tiktokUrl}
             onChange={(e) => setTiktokUrl(e.target.value)}
           />
+        </div>
+
+        {/* Comandas impresas (config por negocio): master + auto dependiente.
+            El master OFF deshabilita el auto y apaga toda la impresión en el
+            panel de pedidos; ambos viajan siempre en el PUT del perfil. */}
+        <div className="admin-profile-field admin-profile-field--wide admin-comandas">
+          <span className="admin-profile-image-label">Comandas impresas</span>
+          <label className="admin-toggle">
+            <input
+              type="checkbox"
+              checked={comandaPrintingEnabled}
+              onChange={(e) => setComandaPrintingEnabled(e.target.checked)}
+            />
+            <span>Impresión de comandas</span>
+          </label>
+          <p className="admin-image-hint">
+            Habilita el botón Imprimir en el panel de pedidos (ticket de 80mm
+            para impresora térmica). La impresora se elige en el navegador.
+          </p>
+          <label className="admin-toggle">
+            <input
+              type="checkbox"
+              checked={comandaAutoPrint}
+              disabled={!comandaPrintingEnabled}
+              onChange={(e) => setComandaAutoPrint(e.target.checked)}
+            />
+            <span>Impresión automática al entrar pedido</span>
+          </label>
+          <p className="admin-image-hint">
+            Con el master activo: cada pedido nuevo imprime su comanda sola,
+            sin confirmar nada. Requiere Chrome con kiosk printing para que
+            no aparezca el diálogo.
+          </p>
         </div>
       </div>
 

@@ -1,0 +1,100 @@
+/*
+ * Comanda print styles: the ticket lives in the orders panel DOM but is
+ * invisible on screen; inside @media print it becomes the ONLY visible
+ * content so window.print() outputs just the ticket — sized for a 80mm
+ * thermal roll (content width 76mm inside the page margin).
+ *
+ * The visibility strategy (body * hidden, ticket subtree visible) works no
+ * matter where the component mounts in the tree, including inside modals.
+ */
+
+.comanda-print {
+  display: none;
+}
+
+@media print {
+  @page {
+    /* 80mm roll, auto height: the printer cuts per page. */
+    size: 80mm auto;
+    margin: 2mm;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .comanda-print,
+  .comanda-print * {
+    visibility: visible;
+  }
+
+  .comanda-print {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 76mm;
+    /* Thermal printers render monospaced fonts cleanly at small sizes. */
+    font-family: "Courier New", ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.35;
+    color: #000;
+    background: #fff;
+    text-align: left;
+  }
+
+  .comanda-print .comanda-head {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 14px;
+  }
+
+  .comanda-print .comanda-meta {
+    margin-top: 2mm;
+    padding-bottom: 2mm;
+    border-bottom: 1px dashed #000;
+  }
+
+  .comanda-print .comanda-items {
+    list-style: none;
+    margin: 0;
+    padding: 2mm 0;
+    border-bottom: 1px dashed #000;
+  }
+
+  .comanda-print .comanda-item {
+    display: block;
+    margin-bottom: 1.5mm;
+  }
+
+  .comanda-print .comanda-item-line {
+    display: block;
+    font-weight: bold;
+  }
+
+  .comanda-print .comanda-item-option,
+  .comanda-print .comanda-item-note {
+    display: block;
+    padding-left: 4mm;
+    font-size: 11px;
+  }
+
+  .comanda-print .comanda-section {
+    padding: 2mm 0;
+    border-bottom: 1px dashed #000;
+  }
+
+  .comanda-print .comanda-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 2mm 0;
+    font-weight: bold;
+    font-size: 14px;
+  }
+
+  .comanda-print .comanda-notes {
+    padding-top: 2mm;
+    font-size: 11px;
+  }
+}

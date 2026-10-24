@@ -23,7 +23,8 @@ import { playNewOrderSound, playReadySound } from "../kds/audio";
  */
 export function useOrdersFeed(
   slug: string | null,
-  enabled: boolean
+  enabled: boolean,
+  onNewOrder?: (order: ManagementOrder) => void
 ): {
   orders: ManagementOrder[];
   lastUpdated: Date | null;
@@ -44,6 +45,15 @@ export function useOrdersFeed(
   // no suena nada, o abrir la consola con pedidos del día sonaría en ráfaga.
   const previousOrdersRef = useRef<ManagementOrder[] | null>(null);
 
+  // El callback vive en un ref: el efecto del WebSocket depende de
+  // refresh/scheduleRefresh (que dependen de detectChanges), y un callback
+  // recreado en cada render reconectaria el socket en cada render. El ref
+  // mantiene detectChanges estable sin congelar la callback del caller.
+  const onNewOrderRef = useRef(onNewOrder);
+  useEffect(() => {
+    onNewOrderRef.current = onNewOrder;
+  }, [onNewOrder]);
+
   /** Igual que detectNewOrders del KDS, pero contra la lista del día: suena
    *  el ding por cada pedido que no existía y entra como NEW, y el ready
    *  cuando un pedido existente PASA a READY (cocina lo marcó listo). Un
@@ -55,6 +65,10 @@ export function useOrdersFeed(
       const before = prev.find((p) => p.orderId === order.orderId);
       if (!before && order.status === "NEW") {
         playNewOrderSound();
+        // Mismo disparador del ding: el panel imprime la comanda del pedido
+        // recién entrado (useComandaPrint). Nada en la primera carga: prev
+        // es null y el guard de arriba ya retornó.
+        onNewOrderRef.current?.(order);
       } else if (before && before.status !== "READY" && order.status === "READY") {
         playReadySound();
       }

@@ -374,6 +374,11 @@
   color: #fca5a5;
 }
 
+.btn-action--print {
+  border-color: rgba(34, 211, 238, 0.6);
+  opacity: 0.9;
+}
+
 .btn-action--detail {
   opacity: 0.85;
 }
