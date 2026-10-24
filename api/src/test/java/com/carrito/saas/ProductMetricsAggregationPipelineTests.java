@@ -175,6 +175,66 @@ class ProductMetricsAggregationPipelineTests {
 				java.sql.Timestamp.valueOf(createdAt), order.getId());
 	}
 
+	/**
+	 * Combo root items carry no {@code product_id} (the root exists so kitchen
+	 * tickets can render the combo as one unit): the aggregation must skip
+	 * them instead of trying to insert a NULL product_id group into
+	 * {@code product_daily_sales}, whose NOT NULL constraint rejects it —
+	 * that exact insert is what crashed the scheduler on production
+	 * (Render, 2026-10-24) and left the metrics stale.
+	 *
+	 * <p>Combo revenue is still counted through the decomposed component
+	 * items, which do carry a product_id. The combo root itself has no
+	 * per-product row to belong to: {@code product_daily_sales} is keyed by
+	 * (business_id, product_id, date) and has no combo dimension.</p>
+	 */
+	@Test
+	void aggregationSkipsComboRootItemsWithoutProductId() {
+
+		seedOrder(todayAtNoon(), 1, "100.00");
+		seedComboRootOrder(todayAtNoon(), 2, "9000.00");
+
+		aggregateUseCase.execute();
+
+		Long nullProductRows = jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM product_daily_sales WHERE business_id = ? AND product_id IS NULL",
+				Long.class, BUSINESS_ID);
+		assertThat(nullProductRows)
+				.as("combo roots must not produce NULL product_id rows")
+				.isZero();
+		assertThat(countDailySalesRows())
+				.as("only the product item is aggregated")
+				.isEqualTo(1);
+	}
+
+	/**
+	 * Like {@link #seedOrder}, but the item is a combo root: no product_id,
+	 * combo set, comboRoot true — exactly how
+	 * {@code OrderServiceImpl} builds them at ingestion.
+	 */
+	private void seedComboRootOrder(LocalDateTime createdAt, int quantity, String unitPrice) {
+
+		Business business = businessRepository.findById(BUSINESS_ID).orElseThrow();
+
+		Order order = new Order();
+		order.setBusiness(business);
+		order.setTotal(new BigDecimal(unitPrice).multiply(BigDecimal.valueOf(quantity)));
+		order = orderRepository.saveAndFlush(order);
+
+		OrderItem root = new OrderItem();
+		root.setOrder(order);
+		root.setProductName("Combo Familiar");
+		root.setPrice(new BigDecimal(unitPrice));
+		root.setQuantity(quantity);
+		root.setComboRoot(true);
+		root.setSubtotal(new BigDecimal(unitPrice).multiply(BigDecimal.valueOf(quantity)));
+		order.setItems(new ArrayList<>(List.of(root)));
+		orderRepository.saveAndFlush(order);
+
+		jdbcTemplate.update("UPDATE orders SET created_at = ? WHERE id = ?",
+				java.sql.Timestamp.valueOf(createdAt), order.getId());
+	}
+
 	private Map<String, Object> dailySalesRow(LocalDate date) {
 		List<Map<String, Object>> rows = jdbcTemplate.queryForList(
 				"SELECT quantity_sold, revenue FROM product_daily_sales "

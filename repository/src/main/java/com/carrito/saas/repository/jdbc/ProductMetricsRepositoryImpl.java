@@ -29,6 +29,12 @@ public class ProductMetricsRepositoryImpl implements ProductMetricsRepository {
 	            JOIN order_items oi ON oi.order_id = o.id
 	            WHERE o.created_at >= :startDate
 	              AND o.created_at < CAST(:endDate AS date) + INTERVAL '1 day'
+	              -- Los roots de combo no tienen product_id (el root existe para
+	              -- el ticket de cocina): meterlos en el GROUP BY genera un grupo
+	              -- con NULL que la tabla rechaza (NOT NULL) y tumba el job
+	              -- entero. El revenue del combo entra igual por sus componentes,
+	              -- que sí llevan product_id.
+	              AND oi.product_id IS NOT NULL
 	            GROUP BY o.business_id, oi.product_id, DATE(o.created_at)
 	            ON CONFLICT (business_id, product_id, date)
 	            DO UPDATE SET
