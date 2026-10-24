@@ -152,6 +152,24 @@ public class Business {
     private String tiktokUrl;
 
     /**
+     * Impresión de comandas (S de comandas-config): switch maestro que habilita
+     * la impresión de tickets en el panel de pedidos (botón manual y, si
+     * {@code comandaAutoPrint} también está ON, la impresión automática al
+     * entrar pedido). Default OFF: activar la feature nunca cambia el
+     * comportamiento de un local hasta que el dueño la encienda.
+     */
+    @Column(nullable = false)
+    private Boolean comandaPrintingEnabled = false;
+
+    /**
+     * Impresión automática de comandas al entrar pedido nuevo. Solo tiene
+     * efecto cuando {@code comandaPrintingEnabled} está ON; con el master OFF
+     * este flag no hace nada. Default OFF.
+     */
+    @Column(nullable = false)
+    private Boolean comandaAutoPrint = false;
+
+    /**
      * Brand color of the business as a {@code #RRGGBB} hex string, or NULL
      * when the owner has not set one (the menu falls back to its default
      * palette). Validated by {@code BusinessProfileServiceImpl}; the public

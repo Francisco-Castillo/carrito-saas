@@ -216,6 +216,8 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		dto.setTiktokUrl(business.getTiktokUrl());
 		dto.setPrimaryColor(business.getPrimaryColor());
 		dto.setMenuFont(business.getMenuFont());
+		dto.setComandaPrintingEnabled(Boolean.TRUE.equals(business.getComandaPrintingEnabled()));
+		dto.setComandaAutoPrint(Boolean.TRUE.equals(business.getComandaAutoPrint()));
 		dto.setHours(toHoursDTOs(business.getId()));
 		dto.setDateExceptions(toDateExceptionDTOs(business.getId()));
 
@@ -302,6 +304,15 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 			String normalized = normalize(dto.getMenuFont());
 			business.setMenuFont(normalized == null ? null : normalized.toLowerCase());
 		}
+		if (dto.getComandaPrintingEnabled() != null) {
+			// Flags booleanos de comandas: sin normalización — ausente conserva
+			// lo guardado, true/false setea explícitamente (false es la única
+			// forma de apagar; la columna es NOT NULL, no existe el "limpiar").
+			business.setComandaPrintingEnabled(dto.getComandaPrintingEnabled());
+		}
+		if (dto.getComandaAutoPrint() != null) {
+			business.setComandaAutoPrint(dto.getComandaAutoPrint());
+		}
 		businessRepository.save(business);
 
 		if (hoursToStore != null) {
@@ -368,6 +379,10 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		result.setTiktokUrl(business.getTiktokUrl());
 		result.setPrimaryColor(business.getPrimaryColor());
 		result.setMenuFont(business.getMenuFont());
+		// Mismo eco que toProfileDTO: la respuesta del PUT siempre lleva los
+		// flags ya guardados (el test del contrato los lee acá).
+		result.setComandaPrintingEnabled(Boolean.TRUE.equals(business.getComandaPrintingEnabled()));
+		result.setComandaAutoPrint(Boolean.TRUE.equals(business.getComandaAutoPrint()));
 		result.setHours(toHoursDTOs(business.getId()));
 		result.setDateExceptions(toDateExceptionDTOs(business.getId()));
 

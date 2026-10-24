@@ -360,6 +360,142 @@ class BusinessProfileAndStorefrontTests {
 		assertThat(savedHours.get(0).getClosesAt()).isEqualTo(LocalTime.parse("13:00:00"));
 	}
 
+	/**
+	 * Comanda printing flags (S de comandas-config): a fresh business defaults
+	 * to OFF on both — enabling printing must never change behavior of existing
+	 * tenants until the owner turns it on in the admin panel.
+	 */
+	@Test
+	void getProfileDefaultsComandaPrintingToOff() throws Exception {
+
+		mockMvc.perform(get("/api/business/profile")
+					.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.comandaPrintingEnabled").value(false))
+			.andExpect(jsonPath("$.comandaAutoPrint").value(false));
+	}
+
+	/** PUT saves both comanda flags and the response echoes them. */
+	@Test
+	void putProfileSavesComandaFlags() throws Exception {
+
+		BusinessProfileDTO payload = profileWithHours(
+				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección 1",
+				"https://instagram.com/negocio", List.of());
+		payload.setComandaPrintingEnabled(true);
+		payload.setComandaAutoPrint(true);
+
+		mockMvc.perform(put("/api/business/profile")
+					.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(body(payload)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.comandaPrintingEnabled").value(true))
+			.andExpect(jsonPath("$.comandaAutoPrint").value(true));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		Business saved = businessA();
+		assertThat(saved.getComandaPrintingEnabled()).as("la impresión de comandas queda ON")
+				.isTrue();
+		assertThat(saved.getComandaAutoPrint()).as("la impresión automática queda ON").isTrue();
+	}
+
+	/**
+	 * Partial update: a PUT whose comanda flags are absent (null) keeps the
+	 * stored values — the same "no tocar" contract as every other profile
+	 * field; explicit false is the only way to turn them off.
+	 */
+	@Test
+	void putProfileWithoutComandaFlagsKeepsStoredValues() throws Exception {
+
+		BusinessProfileDTO enabling = profileWithHours(
+				"https://cdn.ejemplo.com/l.png", "https://cdn.ejemplo.com/b.jpg", "Dirección 1",
+				"https://instagram.com/negocio", List.of());
+		enabling.setComandaPrintingEnabled(true);
+		enabling.setComandaAutoPrint(true);
+
+		mockMvc.perform(put("/api/business/profile")
+					.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(body(enabling)))
+			.andExpect(status().isOk());
+
+		entityManager.flush();
+		entityManager.clear();
+
+		// Segundo PUT sin los flags (profileWithHours los deja en null).
+		BusinessProfileDTO partial = profileWithHours(
+				"https://cdn.ejemplo.com/otro.png", "https://cdn.ejemplo.com/b.jpg", "Dirección 2",
+				"https://instagram.com/negocio", List.of());
+
+		mockMvc.perform(put("/api/business/profile")
+					.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(body(partial)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.comandaPrintingEnabled").value(true))
+			.andExpect(jsonPath("$.comandaAutoPrint").value(true));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		Business saved = businessA();
+		assertThat(saved.getComandaPrintingEnabled()).isTrue();
+		assertThat(saved.getComandaAutoPrint()).isTrue();
+	}
+
+	/**
+	 * Probe de regresión (verificación independiente): explicit false apaga
+	 * ambos flags — la única forma de apagar, ya que la columna es NOT NULL
+	 * y no existe el "vacío".
+	 */
+	@Test
+	void probeExplicitFalseTurnsComandaFlagsOff() throws Exception {
+		BusinessProfileDTO on = profileWithHours("https://cdn.ejemplo.com/l.png",
+				"https://cdn.ejemplo.com/b.jpg", "Direccion 1", "https://instagram.com/negocio", List.of());
+		on.setComandaPrintingEnabled(true); on.setComandaAutoPrint(true);
+		mockMvc.perform(put("/api/business/profile").header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+					.contentType(MediaType.APPLICATION_JSON).content(body(on))).andExpect(status().isOk());
+		entityManager.flush(); entityManager.clear();
+		BusinessProfileDTO off = profileWithHours("https://cdn.ejemplo.com/otro.png",
+				"https://cdn.ejemplo.com/b.jpg", "Direccion 2", "https://instagram.com/negocio", List.of());
+		off.setComandaPrintingEnabled(false); off.setComandaAutoPrint(false);
+		mockMvc.perform(put("/api/business/profile").header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+					.contentType(MediaType.APPLICATION_JSON).content(body(off)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.comandaPrintingEnabled").value(false))
+			.andExpect(jsonPath("$.comandaAutoPrint").value(false));
+		entityManager.flush(); entityManager.clear();
+		Business saved = businessA();
+		assertThat(saved.getComandaPrintingEnabled()).isFalse();
+		assertThat(saved.getComandaAutoPrint()).isFalse();
+	}
+
+	/**
+	 * Probe de regresión (verificación independiente): null explícito en el
+	 * JSON nunca escribe — el campo ausente y el null son "no tocar".
+	 */
+	@Test
+	void probeExplicitNullInJsonNeverWrites() throws Exception {
+		BusinessProfileDTO on = profileWithHours("https://cdn.ejemplo.com/l.png",
+				"https://cdn.ejemplo.com/b.jpg", "Direccion 1", "https://instagram.com/negocio", List.of());
+		on.setComandaPrintingEnabled(true); on.setComandaAutoPrint(true);
+		mockMvc.perform(put("/api/business/profile").header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+					.contentType(MediaType.APPLICATION_JSON).content(body(on))).andExpect(status().isOk());
+		entityManager.flush(); entityManager.clear();
+		mockMvc.perform(put("/api/business/profile").header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"name\":\"Negocio Storefront\",\"comandaPrintingEnabled\":null,\"comandaAutoPrint\":null}"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.comandaPrintingEnabled").value(true))
+			.andExpect(jsonPath("$.comandaAutoPrint").value(true));
+		entityManager.flush(); entityManager.clear();
+		assertThat(businessA().getComandaPrintingEnabled()).isTrue();
+		assertThat(businessA().getComandaAutoPrint()).isTrue();
+	}
+
 	/** The hours list is replaced wholesale: a day missing from the payload is deleted. */
 	@Test
 	void secondPutOmittingDayDeletesIt() throws Exception {

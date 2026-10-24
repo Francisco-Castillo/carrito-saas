@@ -50,6 +50,15 @@ public class BusinessProfileDTO {
      *  a Inter); un slug que no está en la lista es 400. */
     private String menuFont;
 
+    /** Impresión de comandas (switch maestro del panel de pedidos). null = no
+     *  tocar (actualización parcial); true/false setea explícitamente — false
+     *  es la única forma de apagarlo. */
+    private Boolean comandaPrintingEnabled;
+
+    /** Impresión automática de comanda al entrar pedido. Solo tiene efecto
+     *  con el master ON; mismo contrato parcial que el master. */
+    private Boolean comandaAutoPrint;
+
     private List<BusinessHoursDTO> hours;
 
     /** Fechas especiales, ordenadas por fecha; vacío cuando no hay ninguna. */
