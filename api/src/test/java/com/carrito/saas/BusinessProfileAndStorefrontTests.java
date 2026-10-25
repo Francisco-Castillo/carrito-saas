@@ -372,7 +372,8 @@ class BusinessProfileAndStorefrontTests {
 					.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader()))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.comandaPrintingEnabled").value(false))
-			.andExpect(jsonPath("$.comandaAutoPrint").value(false));
+			.andExpect(jsonPath("$.comandaAutoPrint").value(false))
+			.andExpect(jsonPath("$.comandaDeliveryCopy").value(false));
 	}
 
 	/** PUT saves both comanda flags and the response echoes them. */
@@ -384,6 +385,7 @@ class BusinessProfileAndStorefrontTests {
 				"https://instagram.com/negocio", List.of());
 		payload.setComandaPrintingEnabled(true);
 		payload.setComandaAutoPrint(true);
+		payload.setComandaDeliveryCopy(true);
 
 		mockMvc.perform(put("/api/business/profile")
 					.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
@@ -391,7 +393,8 @@ class BusinessProfileAndStorefrontTests {
 					.content(body(payload)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.comandaPrintingEnabled").value(true))
-			.andExpect(jsonPath("$.comandaAutoPrint").value(true));
+			.andExpect(jsonPath("$.comandaAutoPrint").value(true))
+			.andExpect(jsonPath("$.comandaDeliveryCopy").value(true));
 
 		entityManager.flush();
 		entityManager.clear();
@@ -415,6 +418,7 @@ class BusinessProfileAndStorefrontTests {
 				"https://instagram.com/negocio", List.of());
 		enabling.setComandaPrintingEnabled(true);
 		enabling.setComandaAutoPrint(true);
+		enabling.setComandaDeliveryCopy(true);
 
 		mockMvc.perform(put("/api/business/profile")
 					.header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
@@ -436,7 +440,8 @@ class BusinessProfileAndStorefrontTests {
 					.content(body(partial)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.comandaPrintingEnabled").value(true))
-			.andExpect(jsonPath("$.comandaAutoPrint").value(true));
+			.andExpect(jsonPath("$.comandaAutoPrint").value(true))
+			.andExpect(jsonPath("$.comandaDeliveryCopy").value(true));
 
 		entityManager.flush();
 		entityManager.clear();
@@ -455,22 +460,24 @@ class BusinessProfileAndStorefrontTests {
 	void probeExplicitFalseTurnsComandaFlagsOff() throws Exception {
 		BusinessProfileDTO on = profileWithHours("https://cdn.ejemplo.com/l.png",
 				"https://cdn.ejemplo.com/b.jpg", "Direccion 1", "https://instagram.com/negocio", List.of());
-		on.setComandaPrintingEnabled(true); on.setComandaAutoPrint(true);
+		on.setComandaPrintingEnabled(true); on.setComandaAutoPrint(true); on.setComandaDeliveryCopy(true);
 		mockMvc.perform(put("/api/business/profile").header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 					.contentType(MediaType.APPLICATION_JSON).content(body(on))).andExpect(status().isOk());
 		entityManager.flush(); entityManager.clear();
 		BusinessProfileDTO off = profileWithHours("https://cdn.ejemplo.com/otro.png",
 				"https://cdn.ejemplo.com/b.jpg", "Direccion 2", "https://instagram.com/negocio", List.of());
-		off.setComandaPrintingEnabled(false); off.setComandaAutoPrint(false);
+		off.setComandaPrintingEnabled(false); off.setComandaAutoPrint(false); off.setComandaDeliveryCopy(false);
 		mockMvc.perform(put("/api/business/profile").header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 					.contentType(MediaType.APPLICATION_JSON).content(body(off)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.comandaPrintingEnabled").value(false))
-			.andExpect(jsonPath("$.comandaAutoPrint").value(false));
+			.andExpect(jsonPath("$.comandaAutoPrint").value(false))
+			.andExpect(jsonPath("$.comandaDeliveryCopy").value(false));
 		entityManager.flush(); entityManager.clear();
 		Business saved = businessA();
 		assertThat(saved.getComandaPrintingEnabled()).isFalse();
 		assertThat(saved.getComandaAutoPrint()).isFalse();
+		assertThat(saved.getComandaDeliveryCopy()).isFalse();
 	}
 
 	/**
@@ -481,19 +488,21 @@ class BusinessProfileAndStorefrontTests {
 	void probeExplicitNullInJsonNeverWrites() throws Exception {
 		BusinessProfileDTO on = profileWithHours("https://cdn.ejemplo.com/l.png",
 				"https://cdn.ejemplo.com/b.jpg", "Direccion 1", "https://instagram.com/negocio", List.of());
-		on.setComandaPrintingEnabled(true); on.setComandaAutoPrint(true);
+		on.setComandaPrintingEnabled(true); on.setComandaAutoPrint(true); on.setComandaDeliveryCopy(true);
 		mockMvc.perform(put("/api/business/profile").header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 					.contentType(MediaType.APPLICATION_JSON).content(body(on))).andExpect(status().isOk());
 		entityManager.flush(); entityManager.clear();
 		mockMvc.perform(put("/api/business/profile").header(HttpHeaders.AUTHORIZATION, owner.authorizationHeader())
 					.contentType(MediaType.APPLICATION_JSON)
-					.content("{\"name\":\"Negocio Storefront\",\"comandaPrintingEnabled\":null,\"comandaAutoPrint\":null}"))
+					.content("{\"name\":\"Negocio Storefront\",\"comandaPrintingEnabled\":null,\"comandaAutoPrint\":null,\"comandaDeliveryCopy\":null}"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.comandaPrintingEnabled").value(true))
-			.andExpect(jsonPath("$.comandaAutoPrint").value(true));
+			.andExpect(jsonPath("$.comandaAutoPrint").value(true))
+			.andExpect(jsonPath("$.comandaDeliveryCopy").value(true));
 		entityManager.flush(); entityManager.clear();
 		assertThat(businessA().getComandaPrintingEnabled()).isTrue();
 		assertThat(businessA().getComandaAutoPrint()).isTrue();
+		assertThat(businessA().getComandaDeliveryCopy()).isTrue();
 	}
 
 	/** The hours list is replaced wholesale: a day missing from the payload is deleted. */

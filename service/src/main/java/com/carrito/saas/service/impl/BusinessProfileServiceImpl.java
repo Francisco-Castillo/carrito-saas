@@ -218,6 +218,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		dto.setMenuFont(business.getMenuFont());
 		dto.setComandaPrintingEnabled(Boolean.TRUE.equals(business.getComandaPrintingEnabled()));
 		dto.setComandaAutoPrint(Boolean.TRUE.equals(business.getComandaAutoPrint()));
+		dto.setComandaDeliveryCopy(Boolean.TRUE.equals(business.getComandaDeliveryCopy()));
 		dto.setHours(toHoursDTOs(business.getId()));
 		dto.setDateExceptions(toDateExceptionDTOs(business.getId()));
 
@@ -313,6 +314,9 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		if (dto.getComandaAutoPrint() != null) {
 			business.setComandaAutoPrint(dto.getComandaAutoPrint());
 		}
+		if (dto.getComandaDeliveryCopy() != null) {
+			business.setComandaDeliveryCopy(dto.getComandaDeliveryCopy());
+		}
 		businessRepository.save(business);
 
 		if (hoursToStore != null) {
@@ -383,6 +387,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		// flags ya guardados (el test del contrato los lee acá).
 		result.setComandaPrintingEnabled(Boolean.TRUE.equals(business.getComandaPrintingEnabled()));
 		result.setComandaAutoPrint(Boolean.TRUE.equals(business.getComandaAutoPrint()));
+		result.setComandaDeliveryCopy(Boolean.TRUE.equals(business.getComandaDeliveryCopy()));
 		result.setHours(toHoursDTOs(business.getId()));
 		result.setDateExceptions(toDateExceptionDTOs(business.getId()));
 

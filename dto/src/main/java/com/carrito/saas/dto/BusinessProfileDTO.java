@@ -59,6 +59,10 @@ public class BusinessProfileDTO {
      *  con el master ON; mismo contrato parcial que el master. */
     private Boolean comandaAutoPrint;
 
+    /** Copia de entrega junto a la comanda (delivery-ticket-copy S2). null =
+     * no tocar; el default del negocio es OFF. */
+    private Boolean comandaDeliveryCopy;
+
     private List<BusinessHoursDTO> hours;
 
     /** Fechas especiales, ordenadas por fecha; vacío cuando no hay ninguna. */

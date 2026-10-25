@@ -170,6 +170,16 @@ public class Business {
     private Boolean comandaAutoPrint = false;
 
     /**
+     * Copia de entrega junto a la comanda (S2 de delivery-ticket-copy): con
+     * este flag ON, cada impresión de comanda (automática o manual) sale
+     * acompañada del ticket de ENTREGA que la cocina entrega al repartidor
+     * cuando el pedido queda LISTO. Solo tiene efecto con el master ON.
+     * Default OFF.
+     */
+    @Column(nullable = false)
+    private Boolean comandaDeliveryCopy = false;
+
+    /**
      * Brand color of the business as a {@code #RRGGBB} hex string, or NULL
      * when the owner has not set one (the menu falls back to its default
      * palette). Validated by {@code BusinessProfileServiceImpl}; the public
