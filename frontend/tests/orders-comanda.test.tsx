@@ -109,7 +109,7 @@ const FULL_ORDER = managementOrder({
 })
 
 describe('comanda ticket layout', () => {
-  it('renders every kitchen-relevant datum of the order', () => {
+  it('renders only kitchen-relevant data: items, options, notes — no money, no contact', () => {
     render(<Comanda order={FULL_ORDER} />)
 
     const ticket = screen.getByTestId('comanda')
@@ -117,12 +117,16 @@ describe('comanda ticket layout', () => {
     expect(within(ticket).getByText(/Delivery/)).toBeTruthy()
     expect(within(ticket).getByText(/2\s*×\s*Hamburguesa/)).toBeTruthy()
     expect(within(ticket).getByText(/sin cebolla/)).toBeTruthy()
+    // Options WITHOUT the surcharge: money is not kitchen data.
     expect(within(ticket).getByText(/Tipo de pan: Integral/)).toBeTruthy()
+    expect(within(ticket).queryByText(/\+\$\s*200/)).toBeNull()
+    // The customer name stays (calling out retiro orders); phone, address,
+    // payment method and TOTAL do not — none of it is kitchen data.
     expect(within(ticket).getByText(/Cliente Test/)).toBeTruthy()
-    expect(within(ticket).getByText(/1155551234/)).toBeTruthy()
-    expect(within(ticket).getByText(/Calle Falsa 123/)).toBeTruthy()
-    expect(within(ticket).getByText(/Efectivo/)).toBeTruthy()
-    expect(within(ticket).getByText(/\$\s*6\.400/)).toBeTruthy()
+    expect(within(ticket).queryByText(/1155551234/)).toBeNull()
+    expect(within(ticket).queryByText(/Calle Falsa 123/)).toBeNull()
+    expect(within(ticket).queryByText(/Efectivo/)).toBeNull()
+    expect(within(ticket).queryByText(/TOTAL/i)).toBeNull()
     expect(within(ticket).getByText(/Tocar timbre/)).toBeTruthy()
   })
 

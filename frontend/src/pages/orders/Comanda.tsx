@@ -1,7 +1,5 @@
-import { formatARS } from "../../format";
 import {
   ORDER_TYPE_LABELS,
-  PAYMENT_LABELS,
   type ManagementOrder,
   type ManagementSelectedOption,
 } from "./api";
@@ -12,27 +10,29 @@ interface ComandaProps {
 }
 
 /**
- * Print-only ticket (comanda) for a thermal printer (~80mm roll):
+ * Print-only ticket (comanda) for a thermal printer (~80mm roll) —
+ * KITCHEN-FACING ONLY:
  *
  *   COMANDA  #101
  *   Delivery · 12:00
  *   --------------------------------
  *   2× Hamburguesa
- *      Tipo de pan: Integral (+$ 200)
+ *      Tipo de pan: Integral
  *      -- sin cebolla
  *   --------------------------------
- *   Cliente / Tel / Dirección / Mesa / Pago
- *   TOTAL  $ 6.400
+ *   Cliente: ...
  *   Obs: Tocar timbre
+ *
+ * Sobra para la cocina (y fuera del ticket): TOTAL y recargos de opciones
+ * (dinero = caja), teléfono y dirección (contacto/reparto = consola) y
+ * método de pago (caja). El nombre del cliente queda: sirve para llamar el
+ * pedido en retiro.
  *
  * The component renders always but stays hidden on screen (Comanda.css,
  * display:none) and becomes the ONLY visible content inside @media print —
  * window.print() on the orders panel then sends exactly this ticket to the
  * printer the browser has configured (the machine's default or the one the
  * operator picks in the dialog).
- *
- * All copy is kitchen-facing Spanish; money uses the shared formatARS
- * (integer pesos, "$ 3.200").
  */
 export default function Comanda({ order }: ComandaProps) {
   return (
@@ -68,17 +68,7 @@ export default function Comanda({ order }: ComandaProps) {
 
       <div className="comanda-section comanda-customer">
         {order.customerName && <div>Cliente: {order.customerName}</div>}
-        {order.customerPhone && <div>Tel: {order.customerPhone}</div>}
-        {order.customerAddress && <div>Dirección: {order.customerAddress}</div>}
         {order.table && <div>Mesa: {order.table.name}</div>}
-        {order.paymentMethod && (
-          <div>Pago: {PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod}</div>
-        )}
-      </div>
-
-      <div className="comanda-total">
-        <span>TOTAL</span>
-        <span>{formatARS(order.total)}</span>
       </div>
 
       {order.notes && <div className="comanda-notes">Obs: {order.notes}</div>}
@@ -92,10 +82,7 @@ function formatTime(iso: string): string {
   return date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 }
 
-/** "Grupo: Opción (+$ recargo)" — same layout the detail modal shows. */
+/** "Grupo: Opción" — los recargos son dinero (caja), no cocina. */
 function optionLabel(opt: ManagementSelectedOption): string {
-  const delta = Number(opt.priceDelta ?? 0);
-  return delta > 0
-    ? `${opt.groupName}: ${opt.optionName} (+${formatARS(delta)})`
-    : `${opt.groupName}: ${opt.optionName}`;
+  return `${opt.groupName}: ${opt.optionName}`;
 }

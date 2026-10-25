@@ -65,19 +65,25 @@
 
   .comanda-print .comanda-item {
     display: block;
-    margin-bottom: 1.5mm;
+    margin-bottom: 2.5mm;
   }
 
   .comanda-print .comanda-item-line {
     display: block;
     font-weight: bold;
+    font-size: 15px;
   }
 
   .comanda-print .comanda-item-option,
   .comanda-print .comanda-item-note {
     display: block;
     padding-left: 4mm;
-    font-size: 11px;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .comanda-print .comanda-item-note {
+    font-weight: bold;
   }
 
   .comanda-print .comanda-section {
@@ -85,16 +91,8 @@
     border-bottom: 1px dashed #000;
   }
 
-  .comanda-print .comanda-total {
-    display: flex;
-    justify-content: space-between;
-    padding: 2mm 0;
-    font-weight: bold;
-    font-size: 14px;
-  }
-
   .comanda-print .comanda-notes {
     padding-top: 2mm;
-    font-size: 11px;
+    font-size: 12px;
   }
 }
