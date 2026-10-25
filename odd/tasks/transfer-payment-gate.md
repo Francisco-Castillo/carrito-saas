@@ -69,5 +69,18 @@ eso es parte del flujo del kds. El flujo de Pedidos deberia ser Aceptar,
 Cancelar, imprimir y confirmar el pago solo en aquellos pedidos que llegan dle
 menu publico con el metdo de pago por transferencia, que te parece ?"
 
+L3 (revisión nativa RDD, activada por el usuario): lineage
+`review-fe58cb3f6d9d45be`, riesgo medio, lente `review-reliability`, 12
+archivos / 2043 líneas → **approved** (receipt quemado,
+`gentle-ai.review-acknowledged/v1`). Hallazgos NO bloqueantes
+(informational, trabajo posterior, no reabren la revisión):
+ - R3-print-unconfirmed (WARNING, useOrdersFeed.ts:63-70): el auto-print y el
+   ding disparan también para pedidos PENDING_PAYMENT (comanda de una
+   transferencia aún sin confirmar).
+ - R3-removed-toast (WARNING, Orders.tsx:130-133): toast de PREPARING quedó
+   como código muerto (la consola ya no puede transicionar a PREPARING).
+ - R3-test-substr (SUGGESTION, TransferPaymentGateHttpTests.java:163-168):
+   aserción por substring sobre JSON serializado puede dar falso positivo.
+
 L2 (decisiones del usuario, Q&A): todo `TRANSFERENCIA` pende del pago (sin
 campo de origen); una sola acción de aceptar/confirmar.
