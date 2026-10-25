@@ -759,15 +759,16 @@
 }
 
 /* ============ POS: paso de selección de opciones ============
-   Mismo lenguaje visual que el sheet del menú público
-   (Menu.css .sheet-option*): fila seleccionada con el primario,
-   badge de obligatorio, delta tabular. Alcance POS-scoped. */
+   Head y footer fijos (título + precio vivo), grupos con scroll al
+   centro, opciones tipo tarjeta con check y estados de grupo
+   (✓ Listo / Obligatorio / n de máx). Mismo lenguaje visual que el
+   sheet del menú público, alcance POS-scoped. */
 
 .orders-pos-select {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   min-height: 0;
+  flex: 1;
 }
 
 .orders-pos-select-head {
@@ -775,12 +776,18 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.orders-pos-select-headtext {
+  min-width: 0;
 }
 
 .orders-pos-select-title {
   margin: 0;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 1.02rem;
 }
 
 .orders-pos-select-hint {
@@ -798,10 +805,42 @@
   background: rgba(255, 255, 255, 0.06);
   color: inherit;
   cursor: pointer;
+  transition: background 120ms ease-out;
 }
 
 .orders-pos-select-cancel:hover {
   background: rgba(255, 255, 255, 0.14);
+}
+
+/* Los grupos scrollean; head y footer quedan a la vista. */
+.orders-pos-select-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 2px;
+}
+
+.orders-pos-select-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.orders-pos-select-price {
+  margin: 0;
+  flex: 1;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.orders-pos-select-add {
+  flex: 2;
 }
 
 .orders-pos-opt-group {
@@ -815,19 +854,44 @@
 }
 
 .orders-pos-opt-group-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0 0 6px;
   font-weight: 600;
   font-size: 0.88rem;
+}
+
+/* Estado del grupo: punto mientras falta, check verde cuando cumple. */
+.orders-pos-opt-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.orders-pos-opt-state.is-done {
+  border-color: rgba(34, 197, 94, 0.7);
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
 }
 
 .orders-pos-opt-hint {
   font-weight: 400;
   font-size: 0.82em;
   color: rgba(255, 255, 255, 0.55);
+  font-variant-numeric: tabular-nums;
 }
 
+/* El badge cambia con el estado: gris "Obligatorio" → verde "Listo". */
 .orders-pos-opt-required {
-  margin-left: 8px;
+  margin-left: auto;
   padding: 2px 8px;
   border-radius: 999px;
   background: rgba(124, 58, 237, 0.25);
@@ -835,25 +899,36 @@
   font-weight: 600;
 }
 
+.orders-pos-opt-group:has(.orders-pos-opt-state.is-done) .orders-pos-opt-required {
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+}
+
 .orders-pos-opt {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  min-height: 42px;
-  padding: 6px 10px;
-  margin: 0 -10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
-  transition: background 120ms ease-out, border-color 120ms ease-out;
+  transition: background 120ms ease-out, border-color 120ms ease-out,
+    transform 120ms ease-out;
 }
 
 .orders-pos-opt:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
-.orders-pos-opt:has(input:checked) {
+.orders-pos-opt:active {
+  transform: scale(0.99);
+}
+
+/* Seleccionada: aro del primario + fondo tenue; el check tapa el input. */
+.orders-pos-opt.is-checked {
   border-color: var(--primary-color, #7c3aed);
   background: color-mix(in srgb, var(--primary-color, #7c3aed) 18%, transparent);
 }
@@ -863,18 +938,40 @@
   box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.55);
 }
 
+.orders-pos-opt-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.7rem;
+  color: transparent;
+}
+
+.orders-pos-opt.is-checked .orders-pos-opt-check {
+  border-color: var(--primary-color, #a78bfa);
+  background: var(--primary-color, #7c3aed);
+  color: #fff;
+}
+
 .orders-pos-opt-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  flex: 1;
 }
 
+/* El input real queda dentro pero fuera de vista: el check es la skin. */
 .orders-pos-opt input {
-  flex: 0 0 auto;
-  width: 17px;
-  height: 17px;
-  accent-color: var(--primary-color, #7c3aed);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .orders-pos-opt-name {

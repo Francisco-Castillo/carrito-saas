@@ -286,9 +286,13 @@ export default function PosPanel({ onClose, onCreated }: PosPanelProps) {
             {selecting ? (
               <div className="orders-pos-select">
                 <header className="orders-pos-select-head">
-                  <div>
+                  <div className="orders-pos-select-headtext">
                     <p className="orders-pos-select-title">{selecting.name}</p>
-                    <p className="orders-pos-select-hint">Elegí las opciones y agregá al pedido</p>
+                    <p className="orders-pos-select-hint">
+                      {selecting.optionGroups?.some((g) => g.required)
+                        ? "Elegí las opciones obligatorias para agregar"
+                        : "Elegí las opciones y agregá al pedido"}
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -304,19 +308,43 @@ export default function PosPanel({ onClose, onCreated }: PosPanelProps) {
                   </button>
                 </header>
 
-                {(selecting.optionGroups ?? []).map((group) => (
+                <div className="orders-pos-select-body">
+                {(selecting.optionGroups ?? []).map((group) => {
+                  const groupSelected = selectedOptions.filter((id) =>
+                    group.options.some((o) => o.id === id)
+                  );
+                  const satisfied = !group.required || groupSelected.length > 0;
+                  return (
                   <div key={group.name} className="orders-pos-opt-group">
                     <p className="orders-pos-opt-group-name">
+                      <span
+                        className={`orders-pos-opt-state${satisfied ? " is-done" : ""}`}
+                        aria-hidden="true"
+                      >
+                        {satisfied ? "✓" : "·"}
+                      </span>
                       {group.name}
                       {group.multiple && (
-                        <span className="orders-pos-opt-hint"> (hasta {group.maxSelections ?? "∞"})</span>
+                        <span className="orders-pos-opt-hint">
+                          {" "}({groupSelected.length}/{group.maxSelections ?? "∞"})
+                        </span>
                       )}
-                      {group.required && <span className="orders-pos-opt-required">Obligatorio</span>}
+                      {group.required && (
+                        <span className="orders-pos-opt-required">
+                          {satisfied ? "Listo" : "Obligatorio"}
+                        </span>
+                      )}
                     </p>
                     {group.options.map((option) => {
                       const checked = selectedOptions.includes(option.id);
                       return (
-                        <label key={option.id} className="orders-pos-opt">
+                        <label
+                          key={option.id}
+                          className={`orders-pos-opt${checked ? " is-checked" : ""}`}
+                        >
+                          <span className="orders-pos-opt-check" aria-hidden="true">
+                            {checked ? "✓" : ""}
+                          </span>
                           <span className="orders-pos-opt-text">
                             <span className="orders-pos-opt-name">{option.name}</span>
                             {option.priceDelta > 0 && (
@@ -333,21 +361,28 @@ export default function PosPanel({ onClose, onCreated }: PosPanelProps) {
                       );
                     })}
                   </div>
-                ))}
+                  );
+                })}
 
                 {selectError && (
                   <p className="orders-pos-error" role="alert">
                     {selectError}
                   </p>
                 )}
+                </div>
 
-                <button
-                  type="button"
-                  className="orders-pos-submit"
-                  onClick={confirmSelection}
-                >
-                  Agregar al pedido
-                </button>
+                <footer className="orders-pos-select-foot">
+                  <p className="orders-pos-select-price" aria-live="polite">
+                    {formatARS(unitPriceWithSelections(selecting, selectedOptions))}
+                  </p>
+                  <button
+                    type="button"
+                    className="orders-pos-submit orders-pos-select-add"
+                    onClick={confirmSelection}
+                  >
+                    Agregar al pedido
+                  </button>
+                </footer>
               </div>
             ) : (
             <>

@@ -148,7 +148,7 @@ describe('POS option selection step', () => {
     expect(await screen.findByText('Tipo de pan')).toBeTruthy()
     await user.click(screen.getByRole('radio', { name: /Integral/ }))
     await user.click(screen.getByRole('checkbox', { name: /Cheddar/ }))
-    await user.click(screen.getByRole('button', { name: 'Agregar al pedido' }))
+    await user.click(screen.getByRole('button', { name: /Agregar al pedido/ }))
 
     // Back to the cart view: the line shows the chosen options and the form
     // is available again for the rest of the order.
@@ -177,7 +177,7 @@ describe('POS option selection step', () => {
 
     await screen.findByText('Tipo de pan')
     await user.click(screen.getByRole('checkbox', { name: /Cheddar/ }))
-    await user.click(screen.getByRole('button', { name: 'Agregar al pedido' }))
+    await user.click(screen.getByRole('button', { name: /Agregar al pedido/ }))
 
     // The add is blocked client-side with the Spanish message; the selection
     // step stays open and no POST leaves the panel.
