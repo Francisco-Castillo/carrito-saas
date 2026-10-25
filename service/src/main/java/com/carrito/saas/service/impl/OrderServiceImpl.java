@@ -31,6 +31,7 @@ import com.carrito.saas.repository.entity.ProductOption;
 import com.carrito.saas.repository.entity.ProductOptionGroup;
 import com.carrito.saas.repository.entity.RestaurantTable;
 import com.carrito.saas.repository.enums.OrderStatus;
+import com.carrito.saas.repository.enums.PaymentMethod;
 import com.carrito.saas.repository.enums.OrderType;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.CancellationReasonRepository;
@@ -147,7 +148,12 @@ public class OrderServiceImpl implements IOrderService {
 		}
 
 		Order order = new Order();
-		order.setStatus(OrderStatus.NEW);
+		// Transferencia: el operador verifica el pago en la consola de Pedidos
+		// y lo acepta desde PENDING_PAYMENT → NEW (S1/S4 de
+		// odd/tasks/transfer-payment-gate.md). Efectivo entra directo al KDS.
+		order.setStatus(request.getPaymentMethod() == PaymentMethod.TRANSFERENCIA
+				? OrderStatus.PENDING_PAYMENT
+				: OrderStatus.NEW);
 		order.setBusiness(business);
 		// En salón un nombre/phone en blanco se guarda como null (anónimo), no
 		// como cadena vacía.
@@ -432,8 +438,9 @@ public class OrderServiceImpl implements IOrderService {
 					ErrorType.CONFLICT);
 		}
 
-		// devolver stock si corresponde
-		if (order.getStatus() == OrderStatus.NEW) {
+		// devolver stock si corresponde (NEW y PENDING_PAYMENT reservaron stock
+		// al crearse: la transferencia aún sin confirmar ya descuenta insumos)
+		if (order.getStatus() == OrderStatus.NEW || order.getStatus() == OrderStatus.PENDING_PAYMENT) {
 
 			for (OrderItem item : order.getItems()) {
 
