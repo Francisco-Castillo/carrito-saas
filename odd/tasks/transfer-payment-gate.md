@@ -98,3 +98,7 @@ PATCH falla, warning y la consola lo confirma a mano), y la confirmación
 de pago (manual o del POS) dispara el auto-print de la comanda via feed
 (PENDING_PAYMENT → NEW). Tests: orders-pos-flow.test.tsx (2) y comanda
 (1). Sin cambios de backend.
+
+Nota de entorno: un `pnpm build` suelto deja
+las entradas legacy con bundle viejo (falla `build-artifacts.test.ts`);
+`pnpm build:spring` regenera todas.
