@@ -68,7 +68,7 @@ function stubOrdersFetch(
       return {
         ok: true,
         status: 200,
-        json: async () => options?.profile ?? { comandaPrintingEnabled: true, comandaAutoPrint: true },
+        json: async () => options?.profile ?? { comandaPrintingEnabled: true, comandaAutoPrint: true, comandaDeliveryCopy: false },
       }
     }
     return { ok: false, status: 500, json: async () => ({}) }
@@ -440,5 +440,79 @@ describe('orders feed — onNewOrder callback', () => {
       await result.current.refresh()
     })
     expect(onNewOrder).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * Double ticket jobs (delivery-ticket-copy S2): the auto-print and the
+ * manual Imprimir print the kitchen comanda PLUS the delivery copy when the
+ * owner enabled `comanda_delivery_copy` — one window.print() call, two
+ * page-broken tickets. The manual "Entrega" button prints ONLY the delivery
+ * copy (reprint when the original got lost or at dispatch).
+ */
+describe('orders panel — double ticket (kitchen + delivery copy)', () => {
+  async function autoPrintWithProfile(profile: Record<string, unknown>): Promise<number> {
+    let printed = 0
+    const print = printSpy()
+    print.mockImplementation(() => {
+      printed += 1
+    })
+
+    // El perfil (settings) se lee UNA vez al montar: el primer stub ya debe
+    // traer la configuración bajo test.
+    const fetchMock = stubOrdersFetch([], { profile })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<Orders />)
+
+    await screen.findByText(/No hay pedidos/)
+
+    // Snapshot 2: el pedido llega por el broadcast del WS.
+    fetchMock.mockImplementation(stubOrdersFetch([FULL_ORDER], { profile }) as typeof fetch)
+    act(() => {
+      emitOrdersEvent()
+    })
+    await waitFor(() => expect(printed).toBe(1), { timeout: 3000 })
+    return printed
+  }
+
+  it('auto-print with the copy ON renders BOTH tickets in one print call', async () => {
+    await autoPrintWithProfile({
+      comandaPrintingEnabled: true,
+      comandaAutoPrint: true,
+      comandaDeliveryCopy: true,
+    })
+
+    expect(screen.getByTestId('comanda')).toBeTruthy()
+    expect(screen.getByTestId('delivery-ticket')).toBeTruthy()
+  })
+
+  it('auto-print with the copy OFF renders only the kitchen comanda', async () => {
+    await autoPrintWithProfile({
+      comandaPrintingEnabled: true,
+      comandaAutoPrint: true,
+      comandaDeliveryCopy: false,
+    })
+
+    expect(screen.getByTestId('comanda')).toBeTruthy()
+    expect(screen.queryByTestId('delivery-ticket')).toBeNull()
+  })
+
+  it('the Entrega button prints ONLY the delivery copy', async () => {
+    let printed = 0
+    const print = printSpy()
+    print.mockImplementation(() => {
+      printed += 1
+    })
+
+    const user = userEvent.setup()
+    const fetchMock = stubOrdersFetch([FULL_ORDER])
+    vi.stubGlobal('fetch', fetchMock)
+    render(<Orders />)
+
+    await user.click(await screen.findByRole('button', { name: 'Entrega' }))
+    await waitFor(() => expect(printed).toBe(1), { timeout: 3000 })
+
+    expect(screen.getByTestId('delivery-ticket')).toBeTruthy()
+    expect(screen.queryByTestId('comanda')).toBeNull()
   })
 })

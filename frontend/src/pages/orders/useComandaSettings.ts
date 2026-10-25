@@ -17,11 +17,14 @@ import { useEffect, useState } from "react";
 export interface ComandaSettings {
   printingEnabled: boolean;
   autoPrint: boolean;
+  /** Copia de entrega junto a la comanda (delivery-ticket-copy S2). */
+  deliveryCopy: boolean;
 }
 
 export function useComandaSettings(enabled: boolean): ComandaSettings {
   const [printingEnabled, setPrintingEnabled] = useState(false);
   const [autoPrint, setAutoPrint] = useState(false);
+  const [deliveryCopy, setDeliveryCopy] = useState(false);
 
   useEffect(() => {
     if (!enabled) return;
@@ -37,10 +40,12 @@ export function useComandaSettings(enabled: boolean): ComandaSettings {
         const data = (await response.json()) as {
           comandaPrintingEnabled?: boolean;
           comandaAutoPrint?: boolean;
+          comandaDeliveryCopy?: boolean;
         };
         if (cancelled) return;
         setPrintingEnabled(data.comandaPrintingEnabled === true);
         setAutoPrint(data.comandaAutoPrint === true);
+        setDeliveryCopy(data.comandaDeliveryCopy === true);
       } catch (e) {
         // Sin perfil no se imprime: OFF es el default seguro.
         console.error("Error cargando la configuración de comandas", e);
@@ -51,5 +56,5 @@ export function useComandaSettings(enabled: boolean): ComandaSettings {
     };
   }, [enabled]);
 
-  return { printingEnabled, autoPrint };
+  return { printingEnabled, autoPrint, deliveryCopy };
 }

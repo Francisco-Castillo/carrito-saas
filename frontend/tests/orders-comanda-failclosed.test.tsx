@@ -35,23 +35,23 @@ describe('probe: useComandaSettings fails closed', () => {
   it('defaults OFF while the fetch is in flight and after a 500', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })))
     const { result } = renderHook(() => useComandaSettings(true))
-    expect(result.current).toEqual({ printingEnabled: false, autoPrint: false })
+    expect(result.current).toEqual({ printingEnabled: false, autoPrint: false, deliveryCopy: false })
     await waitFor(() => {})
-    expect(result.current).toEqual({ printingEnabled: false, autoPrint: false })
+    expect(result.current).toEqual({ printingEnabled: false, autoPrint: false, deliveryCopy: false })
   })
 
   it('stays OFF when the profile fetch rejects (network error)', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('boom') }))
     const { result } = renderHook(() => useComandaSettings(true))
     await waitFor(() => {})
-    expect(result.current).toEqual({ printingEnabled: false, autoPrint: false })
+    expect(result.current).toEqual({ printingEnabled: false, autoPrint: false, deliveryCopy: false })
   })
 
   it('stays OFF when the flags are absent or not exactly boolean true', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) })))
     const { result, rerender } = renderHook(() => useComandaSettings(true))
     await waitFor(() => {})
-    expect(result.current).toEqual({ printingEnabled: false, autoPrint: false })
+    expect(result.current).toEqual({ printingEnabled: false, autoPrint: false, deliveryCopy: false })
 
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true, status: 200,
@@ -59,7 +59,7 @@ describe('probe: useComandaSettings fails closed', () => {
     })))
     rerender()
     await waitFor(() => {})
-    expect(result.current).toEqual({ printingEnabled: false, autoPrint: false })
+    expect(result.current).toEqual({ printingEnabled: false, autoPrint: false, deliveryCopy: false })
   })
 
   it('is OFF while disabled (never fetches, never prints)', async () => {
@@ -68,7 +68,7 @@ describe('probe: useComandaSettings fails closed', () => {
     const { result } = renderHook(() => useComandaSettings(false))
     await waitFor(() => {})
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(result.current).toEqual({ printingEnabled: false, autoPrint: false })
+    expect(result.current).toEqual({ printingEnabled: false, autoPrint: false, deliveryCopy: false })
   })
 })
 

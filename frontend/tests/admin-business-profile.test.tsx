@@ -266,6 +266,7 @@ describe('Admin "Local" view — business profile editor', () => {
       // reemplaza completo); el stub de perfil no los trae, cargan OFF.
       comandaPrintingEnabled: false,
       comandaAutoPrint: false,
+      comandaDeliveryCopy: false,
       dateExceptions: [
         { date: '2026-12-24', yearly: false, shifts: [{ opensAt: '11:00:00', closesAt: '18:00:00' }] },
         { date: '2026-12-25', yearly: false, shifts: [] },

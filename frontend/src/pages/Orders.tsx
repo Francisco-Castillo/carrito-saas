@@ -10,6 +10,7 @@ import OrderListCard from "./orders/OrderListCard";
 import OrderDetailModal from "./orders/OrderDetailModal";
 import PosPanel from "./orders/PosPanel";
 import Comanda from "./orders/Comanda";
+import DeliveryTicket from "./orders/DeliveryTicket";
 import { useComandaPrint } from "./orders/useComandaPrint";
 import { useComandaSettings } from "./orders/useComandaSettings";
 import { useOrdersFeed } from "./orders/useOrdersFeed";
@@ -68,7 +69,7 @@ export default function Orders() {
 
   // Impresión de comandas: configuración del negocio (Admin → Datos del
   // local). Master OFF = sin botón ni auto; auto sólo con master ON.
-  const { printingEnabled, autoPrint } = useComandaSettings(
+  const { printingEnabled, autoPrint, deliveryCopy } = useComandaSettings(
     sessionUsable && Boolean(slug)
   );
 
@@ -77,7 +78,7 @@ export default function Orders() {
   // dueño activó la impresión automática. Manual: botón Imprimir de cada
   // card, visible sólo con el master ON. window.print() abre el diálogo
   // apuntado a la impresora del equipo (térmica 80mm via Comanda.css).
-  const { printOrder, current: printedComanda } = useComandaPrint();
+  const { printOrder, current: printedJob } = useComandaPrint();
 
   const { orders, live, refresh } = useOrdersFeed(
     slug,
@@ -87,16 +88,18 @@ export default function Orders() {
       // que entra como PENDING_PAYMENT no imprimió aún su pago (R3
       // -print-unconfirmed); el ding suena igual porque la consola es donde
       // se confirma. El ding lo maneja el feed; acá sólo el auto-print.
+      // Copia de entrega ON (delivery-ticket-copy S2): el trabajo es doble —
+      // comanda + entrega, un solo window.print(), dos páginas.
       if (printingEnabled && autoPrint && order.status === "NEW") {
-        printOrder(order);
+        printOrder(order, deliveryCopy ? "double" : "kitchen");
       }
     },
     (order) => {
       // Pago confirmado: la comanda sale recién acá, tanto si la confirmó
       // el botón de la consola como si la confirmó el POS en el mismo paso
-      // de creación.
+      // de creación. Misma regla de copia de entrega.
       if (printingEnabled && autoPrint) {
-        printOrder(order);
+        printOrder(order, deliveryCopy ? "double" : "kitchen");
       }
     }
   );
@@ -241,6 +244,7 @@ export default function Orders() {
             onCancel={setCancelOrderId}
             onDetail={setDetailOrderId}
             onPrint={printOrder}
+            onPrintDelivery={(order) => printOrder(order, "delivery")}
             canPrint={printingEnabled}
             busy={busyOrderId === order.orderId}
           />
@@ -282,7 +286,14 @@ export default function Orders() {
       <KdsToastHost />
 
       {/* Ticket print-only: oculto en pantalla, único visible en @media print. */}
-      {printedComanda && <Comanda order={printedComanda} />}
+      {/* Trabajo impreso: los tickets (cocina y/o entrega según kind) se
+          montan ocultos y se vuelven los únicos visibles en @media print. */}
+      {printedJob && (printedJob.kind === "kitchen" || printedJob.kind === "double") && (
+        <Comanda order={printedJob.order} />
+      )}
+      {printedJob && (printedJob.kind === "delivery" || printedJob.kind === "double") && (
+        <DeliveryTicket order={printedJob.order} />
+      )}
 
       {/* Mismos ids y rutas que el KDS: las páginas nunca se montan juntas. */}
       <audio id="newOrderSound" src="/ding.mp3" preload="auto" />

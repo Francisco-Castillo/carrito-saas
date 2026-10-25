@@ -2,38 +2,50 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ManagementOrder } from "./api";
 
 /**
- * Comanda print queue for the orders panel.
+ * Print jobs of the orders panel (delivery-ticket-copy S2).
  *
- * `printOrder(order)` enqueues an order; the head of the queue is rendered
- * by <Comanda> (print-only ticket) and, once it has painted, window.print()
- * opens the browser print dialog aimed at the machine's printer (thermal
- * 80mm layout comes from Comanda.css @media print). window.print() blocks
- * the event loop until the dialog closes, so the queue drains one ticket
- * per dialog — a burst of arriving orders prints sequentially instead of
- * racing several dialogs.
+ * A job is an order plus WHAT to print:
  *
- * The last printed order stays mounted (hidden on screen) so the ticket
- * DOM remains inspectable after the dialog closes.
+ *   - kitchen:  the kitchen comanda only (the original behavior).
+ *   - delivery: ONLY the delivery copy (manual "Entrega" reprint).
+ *   - double:   comanda + delivery copy, one window.print(), two pages.
+ *
+ * `printOrder(order, kind)` enqueues a job; the head renders its ticket(s)
+ * (print-only components) and, once painted, window.print() opens the
+ * browser dialog aimed at the machine's printer (thermal 80mm layout comes
+ * from Comanda.css @media print). window.print() blocks the event loop until
+ * the dialog closes, so the queue drains one job per dialog — a burst of
+ * arriving orders prints sequentially instead of racing several dialogs.
+ *
+ * The last printed job stays mounted (hidden on screen) so the ticket DOM
+ * remains inspectable after the dialog closes.
  */
+export type PrintJobKind = "kitchen" | "delivery" | "double";
+
+export interface ComandaPrintJob {
+  order: ManagementOrder;
+  kind: PrintJobKind;
+}
+
 export function useComandaPrint(
   printFn: () => void = () => window.print()
 ): {
-  printOrder: (order: ManagementOrder) => void;
-  /** Order currently being printed, or the last one printed. */
-  current: ManagementOrder | null;
+  printOrder: (order: ManagementOrder, kind?: PrintJobKind) => void;
+  /** Job currently being printed, or the last one printed. */
+  current: ComandaPrintJob | null;
 } {
-  const [queue, setQueue] = useState<ManagementOrder[]>([]);
-  const [lastPrinted, setLastPrinted] = useState<ManagementOrder | null>(null);
+  const [queue, setQueue] = useState<ComandaPrintJob[]>([]);
+  const [lastPrinted, setLastPrinted] = useState<ComandaPrintJob | null>(null);
   const printFnRef = useRef(printFn);
   useEffect(() => {
     printFnRef.current = printFn;
   }, [printFn]);
 
-  const printOrder = useCallback((order: ManagementOrder) => {
+  const printOrder = useCallback((order: ManagementOrder, kind: PrintJobKind = "kitchen") => {
     setQueue((q) => {
-      // No duplicate tickets for the same order while it is still pending.
-      if (q.some((o) => o.orderId === order.orderId)) return q;
-      return [...q, order];
+      // No duplicate jobs for the same order+kind while still pending.
+      if (q.some((j) => j.order.orderId === order.orderId && j.kind === kind)) return q;
+      return [...q, { order, kind }];
     });
   }, []);
 
