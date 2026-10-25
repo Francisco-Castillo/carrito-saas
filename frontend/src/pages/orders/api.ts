@@ -19,7 +19,7 @@
 
 import { getSessionRestaurantSlug } from "../dashboard/auth";
 
-export type OrderStatus = "NEW" | "PREPARING" | "READY" | "DELIVERED" | "CANCELLED";
+export type OrderStatus = "PENDING_PAYMENT" | "NEW" | "PREPARING" | "READY" | "DELIVERED" | "CANCELLED";
 export type ManagementOrderType = "SALON" | "RETIRO" | "DELIVERY";
 export type ManagementPaymentMethod = "EFECTIVO" | "TRANSFERENCIA";
 
@@ -79,8 +79,9 @@ export interface ManagementOrder {
   cancellationNote: string | null;
 }
 
-/** Spanish labels of the five statuses (filter pills + cards). */
+/** Spanish labels of the six statuses (filter pills + cards). */
 export const STATUS_LABELS: Record<OrderStatus, string> = {
+  PENDING_PAYMENT: "Pago pendiente",
   NEW: "Nuevos",
   PREPARING: "Preparando",
   READY: "Listos",
@@ -102,8 +103,12 @@ export const PAYMENT_LABELS: Record<string, string> = {
 /**
  * Transition graph of the backend (canTransitionTo): the UI only ever offers
  * these targets, so invalid transitions are prevented before any request.
+ *
+ * Console actions (S2 de odd/tasks/transfer-payment-gate.md): la consola
+ * SOLO acepta/cancela — preparar, listo y entregado son flujo del KDS.
  */
 export const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  PENDING_PAYMENT: ["NEW", "CANCELLED"],
   NEW: ["PREPARING", "CANCELLED"],
   PREPARING: ["READY", "CANCELLED"],
   READY: ["DELIVERED"],

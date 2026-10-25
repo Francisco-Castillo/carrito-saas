@@ -39,7 +39,9 @@ import {
 
 type StatusFilter = "ALL" | OrderStatus;
 
-const FILTERS: StatusFilter[] = ["ALL", "NEW", "PREPARING", "READY", "DELIVERED", "CANCELLED"];
+// "Pago pendiente" primero: es la cola que el operador atiende en la
+// consola (transferencias por confirmar) antes de que entren al KDS.
+const FILTERS: StatusFilter[] = ["ALL", "PENDING_PAYMENT", "NEW", "PREPARING", "READY", "DELIVERED", "CANCELLED"];
 
 function titleCaseSlug(slug: string): string {
   return slug
@@ -81,7 +83,11 @@ export default function Orders() {
     slug,
     sessionUsable && Boolean(slug),
     (order) => {
-      if (printingEnabled && autoPrint) {
+      // Sólo un pedido que entra como NEW imprime comanda: una transferencia
+      // que entra como PENDING_PAYMENT no imprimió aún su pago (R3
+      // -print-unconfirmed); el ding suena igual porque la consola es donde
+      // se confirma. El ding lo maneja el feed; acá sólo el auto-print.
+      if (printingEnabled && autoPrint && order.status === "NEW") {
         printOrder(order);
       }
     }
@@ -126,9 +132,7 @@ export default function Orders() {
         await refresh();
         return;
       }
-      if (status === "READY") showToast("Pedido listo", "success");
-      if (status === "DELIVERED") showToast("Pedido entregado", "success");
-      if (status === "PREPARING") showToast("Pedido en preparación", "success");
+      if (status === "NEW") showToast("Pago confirmado: pedido aceptado", "success");
     } finally {
       setBusyOrderId(null);
     }

@@ -357,16 +357,8 @@
   cursor: default;
 }
 
-.btn-action--start {
-  border-color: rgba(245, 158, 11, 0.6);
-}
-
-.btn-action--ready {
+.btn-action--accept {
   border-color: rgba(34, 197, 94, 0.6);
-}
-
-.btn-action--deliver {
-  border-color: rgba(99, 102, 241, 0.6);
 }
 
 .btn-action--cancel {

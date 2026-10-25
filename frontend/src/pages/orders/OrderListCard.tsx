@@ -22,11 +22,12 @@ interface OrderListCardProps {
 
 /**
  * Card of the day list. The action buttons are derived ONLY from
- * ALLOWED_TRANSITIONS, so an invalid transition never renders a button:
- *   NEW       → "Empezar a preparar" + "Cancelar"
- *   PREPARING → "Marcar listo" + "Cancelar"
- *   READY     → "Marcar entregado"
- *   DELIVERED / CANCELLED → no actions (cancelled shows its reason).
+ * ALLOWED_TRANSITIONS, so an invalid transition never renders a button.
+ * Console contract (S2/S3 de odd/tasks/transfer-payment-gate.md): la
+ * consola ACEPTA, no cocina — preparar/listo/entregado viven en el KDS.
+ *   PENDING_PAYMENT → "Confirmar y aceptar" (transferencia) / "Aceptar"
+ *   PENDING_PAYMENT / NEW / PREPARING → "Cancelar"
+ *   READY / DELIVERED / CANCELLED → no actions (cancelled shows its reason).
  */
 export default function OrderListCard({
   order,
@@ -96,34 +97,16 @@ export default function OrderListCard({
       <footer className="orders-card-foot">
         <span className="orders-card-total">{formatARS(order.total)}</span>
         <div className="orders-card-actions">
-          {canTransition(order.status, "PREPARING") && (
+          {canTransition(order.status, "NEW") && (
             <button
               type="button"
-              className="btn-action btn-action--start"
+              className="btn-action btn-action--accept"
               disabled={busy}
-              onClick={() => onAdvance(order.orderId, "PREPARING")}
+              onClick={() => onAdvance(order.orderId, "NEW")}
             >
-              Empezar a preparar
-            </button>
-          )}
-          {canTransition(order.status, "READY") && (
-            <button
-              type="button"
-              className="btn-action btn-action--ready"
-              disabled={busy}
-              onClick={() => onAdvance(order.orderId, "READY")}
-            >
-              Marcar listo
-            </button>
-          )}
-          {canTransition(order.status, "DELIVERED") && (
-            <button
-              type="button"
-              className="btn-action btn-action--deliver"
-              disabled={busy}
-              onClick={() => onAdvance(order.orderId, "DELIVERED")}
-            >
-              Marcar entregado
+              {order.paymentMethod === "TRANSFERENCIA"
+                ? "Confirmar y aceptar"
+                : "Aceptar"}
             </button>
           )}
           {canTransition(order.status, "CANCELLED") && (
@@ -161,6 +144,7 @@ export default function OrderListCard({
 
 function statusLabel(status: OrderStatus): string {
   const labels: Record<OrderStatus, string> = {
+    PENDING_PAYMENT: "Pago pendiente",
     NEW: "Nuevo",
     PREPARING: "Preparando",
     READY: "Listo",

@@ -27,7 +27,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 			FROM Order o
 			LEFT JOIN FETCH o.items
 			WHERE o.business.id = :businessId
-			AND o.status NOT IN ('DELIVERED','CANCELLED')
+			AND o.status NOT IN ('DELIVERED','CANCELLED','PENDING_PAYMENT')
 			ORDER BY o.createdAt ASC
 			""")
 	List<Order> findActiveOrders(Long businessId);
