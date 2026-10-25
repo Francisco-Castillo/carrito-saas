@@ -84,3 +84,12 @@ archivos / 2043 líneas → **approved** (receipt quemado,
    como código muerto (la consola ya no puede transicionar a PREPARING).
  - R3-test-substr (SUGGESTION, TransferPaymentGateHttpTests.java:163-168):
    aserción por substring sobre JSON serializado puede dar falso positivo.
+
+L4 (corrección de los 3 hallazgos, commit `afe72d3`): auto-print sólo para
+pedidos que nacen NEW (la transferencia sin confirmar ya no imprime comanda;
+el ding sigue en ambos), toast PREPARING muerto eliminado, aserciones del
+feed KDS estructurales por orderId. RED→GREEN con test diferencial de
+auto-print (`orders-comanda.test.tsx`, 11 tests). Suite completa: 466 tests
+frontend + 4/4 backend, verde. Nota de entorno: un `pnpm build` suelto deja
+las entradas legacy con bundle viejo (falla `build-artifacts.test.ts`);
+`pnpm build:spring` regenera todas.
