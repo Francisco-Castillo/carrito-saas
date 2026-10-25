@@ -80,3 +80,67 @@ describe("KDS order card — customer phone", () => {
     expect(screen.queryByText("null")).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Mouse drag of a KDS order card (reported defect: "mover la card con el
+ * mouse no funciona como debería"). The card binds mousemove/mouseup to
+ * ITSELF and aborts the whole gesture on mouseleave — but a card that
+ * follows the pointer while rotating can momentarily slide out from under
+ * it: the pointer leaves the node, the drag dies mid-gesture and the card
+ * snaps back. Pinned here: the mouse gesture tracks at WINDOW level (it
+ * survives the pointer leaving the card) and ends on mouseup anywhere.
+ */
+function mouseCard() {
+  const utils = renderCard(buildOrder({ orderId: 7, status: "NEW" }));
+  const card = utils.container.querySelector(".order-card") as HTMLElement;
+  return { utils, card };
+}
+
+function fireMouse(el: EventTarget, type: string, x = 0, y = 0): void {
+  el.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true }));
+}
+
+describe("KDS order card — mouse drag", () => {
+  it("tracks the pointer at window level even when it leaves the card", () => {
+    const { card } = mouseCard();
+
+    fireMouse(card, "mousedown", 100, 100);
+    // Pointer moves on the WINDOW (outside the card node): the drag must
+    // keep following it, not die.
+    fireMouse(window, "mousemove", 60, 100);
+    expect(card.style.transform).toContain("translate(-40px");
+
+    // A mouseleave of the card mid-gesture must NOT cancel the drag.
+    card.dispatchEvent(new MouseEvent("mouseleave"));
+    expect(card.style.transform).toContain("translate(-40px");
+
+    fireMouse(window, "mouseup", 60, 100);
+  });
+
+  it("advances the order when the mouse swipe passes the threshold", () => {
+    const onAdvance = vi.fn();
+    const utils = render(
+      <OrderCard order={buildOrder({ orderId: 7, status: "NEW" })} now={new Date()} animate={false} onAdvance={onAdvance} onRequestCancel={vi.fn()} />
+    );
+    const card = utils.container.querySelector(".order-card") as HTMLElement;
+
+    fireMouse(card, "mousedown", 100, 100);
+    fireMouse(window, "mousemove", 190, 100); // +90px > 80 threshold
+    fireMouse(window, "mouseup", 190, 100);
+
+    expect(onAdvance).toHaveBeenCalledWith(7, "PREPARING");
+  });
+
+  it("snaps back when the mouse swipe stays under the threshold", async () => {
+    const { card } = mouseCard();
+
+    fireMouse(card, "mousedown", 100, 100);
+    fireMouse(window, "mousemove", 120, 100); // +20px < 80 threshold
+    fireMouse(window, "mouseup", 120, 100);
+
+    // dragCancel runs the return animation on a 300ms timer.
+    await vi.waitFor(() => {
+      expect(card.classList.contains("dragging")).toBe(false);
+    });
+  });
+});
