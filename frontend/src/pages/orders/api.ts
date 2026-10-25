@@ -195,6 +195,9 @@ export interface PosProduct {
   name: string;
   price: number;
   active?: boolean;
+  /** Grupos de opciones del producto (ProductDTO): el paso de selección del
+   *  POS los consume; un producto sin grupos agrega con un solo toque. */
+  optionGroups?: import("../menu/types").ProductOptionGroup[] | null;
 }
 
 export interface PosCombo {

@@ -20,7 +20,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildOrderRequest,
+  optionNamesFor,
+  posLineKey,
+  unitPriceWithSelections,
   validatePosOrder,
+  validatePosSelection,
   type PosCartItem,
   type PosOrderForm,
 } from '../src/pages/orders/pos'
@@ -163,5 +167,105 @@ describe('POS client-side validation (Spanish copy)', () => {
 
   it('accepts a complete RETIRO order', () => {
     expect(validatePosOrder(form(), [productLine(1)])).toBeNull()
+  })
+})
+
+/**
+ * Option-group selection in the POS (transfer-payment-gate follow-up): the
+ * catalog (GET /api/products → ProductDTO) already carries optionGroups and
+ * the backend validates selectedOptionIds per item — the POS ignored both.
+ * Pinned here: line identity (same product, different options = separate
+ * lines), the ordered payload field, the unit price with surcharges and the
+ * Spanish required-group validation.
+ */
+import type { ProductOptionGroup } from '../src/pages/menu/types'
+
+const BREAD_GROUP: ProductOptionGroup = {
+  name: 'Tipo de pan',
+  required: true,
+  multiple: false,
+  options: [
+    { id: 11, name: 'Blanco', priceDelta: 0 },
+    { id: 12, name: 'Integral', priceDelta: 200 },
+  ],
+}
+
+const EXTRAS_GROUP: ProductOptionGroup = {
+  name: 'Extras',
+  required: false,
+  multiple: true,
+  maxSelections: 2,
+  options: [
+    { id: 21, name: 'Cheddar', priceDelta: 500 },
+    { id: 22, name: 'Bacon', priceDelta: 700 },
+    { id: 23, name: 'Huevo', priceDelta: 400 },
+  ],
+}
+
+const PRODUCT_WITH_GROUPS = {
+  id: '5',
+  name: 'Hamburguesa',
+  price: 3200,
+  isCombo: false,
+  optionGroups: [BREAD_GROUP, EXTRAS_GROUP],
+}
+
+describe('POS option selection — line identity and display', () => {
+  it('two lines of the same product with different options have different keys', () => {
+    expect(posLineKey('5', [12])).not.toBe(posLineKey('5', [11]))
+    expect(posLineKey('5', [])).toBe(posLineKey('5', []))
+    expect(posLineKey('5', [12, 21])).toBe(posLineKey('5', [21, 12]))
+  })
+
+  it('the unit price adds every selected surcharge', () => {
+    expect(unitPriceWithSelections(PRODUCT_WITH_GROUPS, [])).toBe(3200)
+    expect(unitPriceWithSelections(PRODUCT_WITH_GROUPS, [12, 21, 22])).toBe(4600)
+  })
+
+  it('the option names render in group definition order', () => {
+    expect(optionNamesFor(PRODUCT_WITH_GROUPS, [22, 12])).toEqual(['Integral', 'Bacon'])
+  })
+})
+
+describe('POS option selection — required groups (Spanish copy)', () => {
+  it('blocks adding while a required group has no selection', () => {
+    expect(validatePosSelection(PRODUCT_WITH_GROUPS, [21])).toBe(
+      'Elegí una opción de "Tipo de pan"'
+    )
+  })
+
+  it('accepts a selection covering every required group', () => {
+    expect(validatePosSelection(PRODUCT_WITH_GROUPS, [11, 22])).toBeNull()
+  })
+
+  it('a product without required groups always validates', () => {
+    const product = { ...PRODUCT_WITH_GROUPS, optionGroups: [EXTRAS_GROUP] }
+    expect(validatePosSelection(product, [])).toBeNull()
+  })
+})
+
+describe('POS payload with option selections', () => {
+  it('a line with selections carries selectedOptionIds as stored (already ordered by the line builder)', () => {
+    // La línea se crea con orderedSelection (orden de definición de grupos);
+    // el payload la transmite intacta.
+    const items: PosCartItem[] = [
+      { id: '5', name: 'Hamburguesa', price: 4600, isCombo: false, qty: 1, selectedOptionIds: [12, 22] },
+    ]
+    const payload = buildOrderRequest(form(), items)
+    expect(payload.items[0].selectedOptionIds).toEqual([12, 22])
+  })
+
+  it('a line without selections sends no selectedOptionIds (same payload as today)', () => {
+    const payload = buildOrderRequest(form(), [productLine(1)])
+    expect(payload.items[0]).not.toHaveProperty('selectedOptionIds')
+  })
+
+  it('the sent price is the unit price with surcharges (catalog-truthful, inert)', () => {
+    const items: PosCartItem[] = [
+      { id: '5', name: 'Hamburguesa', price: 4600, isCombo: false, qty: 2, selectedOptionIds: [12, 22] },
+    ]
+    const payload = buildOrderRequest(form(), items)
+    expect(payload.items[0].price).toBe(4600)
+    expect(payload.items[0].subtotal).toBe(9200)
   })
 })

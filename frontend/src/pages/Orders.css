@@ -590,36 +590,62 @@
 
 .orders-pos-lines {
   list-style: none;
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 30vh;
+  gap: 4px;
+  max-height: 34vh;
   overflow-y: auto;
 }
 
+/* Línea como fila aireada: nombre + opciones a la izquierda, stepper y
+   precio a la derecha, separadas por un divisor tenue (nada pisado). */
 .orders-pos-line {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
   font-size: 0.88rem;
 }
 
+.orders-pos-line + .orders-pos-line {
+  margin-top: 2px;
+}
+
 .orders-pos-line-name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   flex: 1;
   min-width: 0;
+  font-weight: 600;
+}
+
+/* El stepper no pisa el texto: se agranda y el precio fija su columna. */
+.orders-pos-line .orders-pos-stepper {
+  flex-shrink: 0;
+}
+
+.orders-pos-line .orders-pos-price {
+  flex-shrink: 0;
+  min-width: 76px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .orders-pos-stepper {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 
 .orders-pos-stepper button {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.2));
   background: rgba(255, 255, 255, 0.08);
@@ -628,14 +654,20 @@
 }
 
 .orders-pos-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 10px 0 14px;
+  padding: 12px 4px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   font-weight: 700;
-  margin: 8px 0 12px;
+  font-size: 1rem;
 }
 
 .orders-pos-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .orders-pos-form input,
@@ -756,4 +788,246 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   font-style: italic;
+}
+
+/* ============ POS: paso de selección de opciones ============
+   Head y footer fijos (título + precio vivo), grupos con scroll al
+   centro, opciones tipo tarjeta con check y estados de grupo
+   (✓ Listo / Obligatorio / n de máx). Mismo lenguaje visual que el
+   sheet del menú público, alcance POS-scoped. */
+
+.orders-pos-select {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.orders-pos-select-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.orders-pos-select-headtext {
+  min-width: 0;
+}
+
+.orders-pos-select-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.02rem;
+}
+
+.orders-pos-select-hint {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.orders-pos-select-cancel {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  cursor: pointer;
+  transition: background 120ms ease-out;
+}
+
+.orders-pos-select-cancel:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Los grupos scrollean; head y footer quedan a la vista. */
+.orders-pos-select-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 2px;
+}
+
+.orders-pos-select-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.orders-pos-select-price {
+  margin: 0;
+  flex: 1;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.orders-pos-select-add {
+  flex: 2;
+}
+
+.orders-pos-opt-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.orders-pos-opt-group-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+/* Estado del grupo: punto mientras falta, check verde cuando cumple. */
+.orders-pos-opt-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.orders-pos-opt-state.is-done {
+  border-color: rgba(34, 197, 94, 0.7);
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+}
+
+.orders-pos-opt-hint {
+  font-weight: 400;
+  font-size: 0.82em;
+  color: rgba(255, 255, 255, 0.55);
+  font-variant-numeric: tabular-nums;
+}
+
+/* El badge cambia con el estado: gris "Obligatorio" → verde "Listo". */
+.orders-pos-opt-required {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.25);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.orders-pos-opt-group:has(.orders-pos-opt-state.is-done) .orders-pos-opt-required {
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+}
+
+.orders-pos-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: background 120ms ease-out, border-color 120ms ease-out,
+    transform 120ms ease-out;
+}
+
+.orders-pos-opt:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.orders-pos-opt:active {
+  transform: scale(0.99);
+}
+
+/* Seleccionada: aro del primario + fondo tenue; el check tapa el input. */
+.orders-pos-opt.is-checked {
+  border-color: var(--primary-color, #7c3aed);
+  background: color-mix(in srgb, var(--primary-color, #7c3aed) 18%, transparent);
+}
+
+.orders-pos-opt:has(input:focus-visible) {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.55);
+}
+
+.orders-pos-opt-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.7rem;
+  color: transparent;
+}
+
+.orders-pos-opt.is-checked .orders-pos-opt-check {
+  border-color: var(--primary-color, #a78bfa);
+  background: var(--primary-color, #7c3aed);
+  color: #fff;
+}
+
+.orders-pos-opt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+/* El input real queda dentro pero fuera de vista: el check es la skin. */
+.orders-pos-opt input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.orders-pos-opt-name {
+  font-size: 0.88rem;
+}
+
+.orders-pos-opt-delta {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Opciones elegidas bajo el nombre de la línea del carrito. */
+.orders-pos-line-opts {
+  display: block;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.orders-pos-total-value {
+  font-size: 1.12rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.orders-pos-line-opts {
+  font-weight: 400;
 }
