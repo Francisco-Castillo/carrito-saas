@@ -15,8 +15,6 @@ interface OrderListCardProps {
   onCancel: (orderId: number) => void;
   onDetail: (orderId: number) => void;
   onPrint: (order: ManagementOrder) => void;
-  /** Reimprime SOLO el ticket de entrega (delivery-ticket-copy S2). */
-  onPrintDelivery: (order: ManagementOrder) => void;
   /** Master de impresión de comandas del negocio: OFF no renderiza el botón. */
   canPrint: boolean;
   busy: boolean;
@@ -37,7 +35,6 @@ export default function OrderListCard({
   onCancel,
   onDetail,
   onPrint,
-  onPrintDelivery,
   canPrint,
   busy,
 }: OrderListCardProps) {
@@ -130,16 +127,6 @@ export default function OrderListCard({
               title="Imprimir comanda"
             >
               Imprimir
-            </button>
-          )}
-          {canPrint && (
-            <button
-              type="button"
-              className="btn-action btn-action--print"
-              onClick={() => onPrintDelivery(order)}
-              title="Imprimir ticket de entrega"
-            >
-              Entrega
             </button>
           )}
           <button

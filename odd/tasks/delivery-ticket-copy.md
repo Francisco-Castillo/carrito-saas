@@ -13,9 +13,14 @@ ticked al delivery"
 
 S2 (decisión del usuario): configurable + botones — flag nuevo en Admin → Datos
 del local (`comanda_delivery_copy`); al imprimir la comanda (auto o manual) sale
-también la copia de entrega en el mismo trabajo; botón manual "Entrega"
-reimprime solo el ticket de entrega. El auto-print con copia ON imprime AMBOS
-juntos al entrar el pedido (decisión del usuario: "que si salga juntos").
+también la copia de entrega en el mismo trabajo. El auto-print con copia ON
+imprime AMBOS juntos al entrar el pedido (decisión del usuario: "que si salga
+juntos").
+
+S2' (corrección del usuario, L3): "no habiamos quedado de que seria un solo
+boton? osea que automaticamente salen los 2 tickets" — UN solo botón Imprimir:
+con la copia ON saca los dos tickets automáticamente; el botón separado
+"Entrega" quedó fuera.
 
 S3 (decisión del usuario): el ticket de entrega lleva TODO lo del repartidor:
 cliente, teléfono, dirección, número, tipo/hora, ítems con opciones, TOTAL y
@@ -43,3 +48,7 @@ ticked al delivery"
 
 L2 (decisión del usuario, Q&A): configurable + botones; ticket completo con
 total y pago; los tickets salen juntos al crear el pedido.
+
+L3 (corrección, verbatim): "no habiamos quedado de que seria un solo boton ?
+osea que automaticamente salen los 2 tickets" — se elimina el botón "Entrega":
+un solo Imprimir, salida doble automática según el flag.

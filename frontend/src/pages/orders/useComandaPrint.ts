@@ -6,9 +6,10 @@ import type { ManagementOrder } from "./api";
  *
  * A job is an order plus WHAT to print:
  *
- *   - kitchen:  the kitchen comanda only (the original behavior).
- *   - delivery: ONLY the delivery copy (manual "Entrega" reprint).
- *   - double:   comanda + delivery copy, one window.print(), two pages.
+ *   - kitchen:  the kitchen comanda only (copy flag OFF — original behavior).
+ *   - double:   comanda + delivery copy, one window.print(), two pages
+ *     (copy flag ON: the single Imprimir button and the auto-print output
+ *     both tickets automatically — S2 of delivery-ticket-copy).
  *
  * `printOrder(order, kind)` enqueues a job; the head renders its ticket(s)
  * (print-only components) and, once painted, window.print() opens the
@@ -20,7 +21,7 @@ import type { ManagementOrder } from "./api";
  * The last printed job stays mounted (hidden on screen) so the ticket DOM
  * remains inspectable after the dialog closes.
  */
-export type PrintJobKind = "kitchen" | "delivery" | "double";
+export type PrintJobKind = "kitchen" | "double";
 
 export interface ComandaPrintJob {
   order: ManagementOrder;

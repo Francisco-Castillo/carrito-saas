@@ -497,22 +497,4 @@ describe('orders panel — double ticket (kitchen + delivery copy)', () => {
     expect(screen.queryByTestId('delivery-ticket')).toBeNull()
   })
 
-  it('the Entrega button prints ONLY the delivery copy', async () => {
-    let printed = 0
-    const print = printSpy()
-    print.mockImplementation(() => {
-      printed += 1
-    })
-
-    const user = userEvent.setup()
-    const fetchMock = stubOrdersFetch([FULL_ORDER])
-    vi.stubGlobal('fetch', fetchMock)
-    render(<Orders />)
-
-    await user.click(await screen.findByRole('button', { name: 'Entrega' }))
-    await waitFor(() => expect(printed).toBe(1), { timeout: 3000 })
-
-    expect(screen.getByTestId('delivery-ticket')).toBeTruthy()
-    expect(screen.queryByTestId('comanda')).toBeNull()
-  })
 })
