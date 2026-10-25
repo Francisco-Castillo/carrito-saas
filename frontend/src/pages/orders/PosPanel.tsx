@@ -418,7 +418,10 @@ export default function PosPanel({ onClose, onCreated }: PosPanelProps) {
               {cart.length === 0 && <li className="orders-pos-empty">Carrito vacío</li>}
             </ul>
 
-            <p className="orders-pos-total">Total: {formatARS(total)}</p>
+            <p className="orders-pos-total">
+              <span>Total</span>
+              <span className="orders-pos-total-value">{formatARS(total)}</span>
+            </p>
 
             <div className="orders-pos-form">
               <select

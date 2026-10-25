@@ -590,36 +590,62 @@
 
 .orders-pos-lines {
   list-style: none;
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 30vh;
+  gap: 4px;
+  max-height: 34vh;
   overflow-y: auto;
 }
 
+/* Línea como fila aireada: nombre + opciones a la izquierda, stepper y
+   precio a la derecha, separadas por un divisor tenue (nada pisado). */
 .orders-pos-line {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
   font-size: 0.88rem;
 }
 
+.orders-pos-line + .orders-pos-line {
+  margin-top: 2px;
+}
+
 .orders-pos-line-name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   flex: 1;
   min-width: 0;
+  font-weight: 600;
+}
+
+/* El stepper no pisa el texto: se agranda y el precio fija su columna. */
+.orders-pos-line .orders-pos-stepper {
+  flex-shrink: 0;
+}
+
+.orders-pos-line .orders-pos-price {
+  flex-shrink: 0;
+  min-width: 76px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .orders-pos-stepper {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 
 .orders-pos-stepper button {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.2));
   background: rgba(255, 255, 255, 0.08);
@@ -628,14 +654,20 @@
 }
 
 .orders-pos-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 10px 0 14px;
+  padding: 12px 4px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   font-weight: 700;
-  margin: 8px 0 12px;
+  font-size: 1rem;
 }
 
 .orders-pos-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .orders-pos-form input,
@@ -989,4 +1021,13 @@
   display: block;
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.6);
+}
+
+.orders-pos-total-value {
+  font-size: 1.12rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.orders-pos-line-opts {
+  font-weight: 400;
 }
