@@ -24,7 +24,8 @@ import { playNewOrderSound, playReadySound } from "../kds/audio";
 export function useOrdersFeed(
   slug: string | null,
   enabled: boolean,
-  onNewOrder?: (order: ManagementOrder) => void
+  onNewOrder?: (order: ManagementOrder) => void,
+  onOrderConfirmed?: (order: ManagementOrder) => void
 ): {
   orders: ManagementOrder[];
   lastUpdated: Date | null;
@@ -53,6 +54,10 @@ export function useOrdersFeed(
   useEffect(() => {
     onNewOrderRef.current = onNewOrder;
   }, [onNewOrder]);
+  const onOrderConfirmedRef = useRef(onOrderConfirmed);
+  useEffect(() => {
+    onOrderConfirmedRef.current = onOrderConfirmed;
+  }, [onOrderConfirmed]);
 
   /** Igual que detectNewOrders del KDS, pero contra la lista del día: suena
    *  el ding por cada pedido que no existía y entra como NEW o como
@@ -73,6 +78,12 @@ export function useOrdersFeed(
         // atiende). Nada en la primera carga: prev es null y el guard de
         // arriba ya retornó.
         onNewOrderRef.current?.(order);
+      } else if (before && before.status === "PENDING_PAYMENT" && order.status === "NEW") {
+        // Pago confirmado (botón de la consola o cadena del POS): la cocina
+        // ya puede cocinar, así que acá sale también la comanda si el
+        // auto-print está activo (R3-print-unconfirmed en sentido inverso:
+        // se imprime CUANDO se confirma, no antes).
+        onOrderConfirmedRef.current?.(order);
       } else if (before && before.status !== "READY" && order.status === "READY") {
         playReadySound();
       }

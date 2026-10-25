@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatARS } from "../../format";
 import {
+  advanceOrderStatus,
   createCounterOrder,
   loadPosCatalog,
   loadTables,
@@ -8,6 +9,7 @@ import {
   type PosProduct,
   type PosTable,
 } from "./api";
+import { showToast } from "../kds/toast";
 import {
   buildOrderRequest,
   validatePosOrder,
@@ -137,6 +139,20 @@ export default function PosPanel({ onClose, onCreated }: PosPanelProps) {
         // El mensaje del backend llega en español: se muestra tal cual.
         setError(result.message);
         return;
+      }
+      // Gate de pago (S4 de transfer-payment-gate.md): toda TRANSFERENCIA
+      // nace PENDING_PAYMENT, pero acá el operador está presente y ya
+      // verificó la transferencia al cobrar — el POS confirma en el mismo
+      // paso. Si el PATCH falla, el pedido queda en "Pago pendiente" y la
+      // consola lo puede confirmar a mano.
+      if (form.paymentMethod === "TRANSFERENCIA" && result.orderId !== null) {
+        const confirmed = await advanceOrderStatus(result.orderId, "NEW");
+        if (!confirmed.ok) {
+          showToast(
+            "El pedido se creó, pero no se pudo confirmar el pago: confirmalo desde la consola",
+            "warning"
+          );
+        }
       }
       onCreated();
     } finally {

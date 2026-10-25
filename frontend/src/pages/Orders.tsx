@@ -90,6 +90,14 @@ export default function Orders() {
       if (printingEnabled && autoPrint && order.status === "NEW") {
         printOrder(order);
       }
+    },
+    (order) => {
+      // Pago confirmado: la comanda sale recién acá, tanto si la confirmó
+      // el botón de la consola como si la confirmó el POS en el mismo paso
+      // de creación.
+      if (printingEnabled && autoPrint) {
+        printOrder(order);
+      }
     }
   );
 
