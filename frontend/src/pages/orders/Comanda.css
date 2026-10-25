@@ -24,11 +24,22 @@
   }
 
   .comanda-print,
-  .comanda-print * {
+  .comanda-print *,
+  .delivery-ticket-print,
+  .delivery-ticket-print * {
     visibility: visible;
   }
 
-  .comanda-print {
+  /* Trabajo doble (delivery-ticket-copy): comanda + entrega en el mismo
+     window.print(), cada ticket en su página — la térmica corta por página.
+     El último ticket no fuerza página en blanco. */
+  .comanda-print:not(:last-child),
+  .delivery-ticket-print:not(:last-child) {
+    page-break-after: always;
+  }
+
+  .comanda-print,
+  .delivery-ticket-print {
     display: block !important;
     position: absolute;
     left: 0;
@@ -92,6 +103,36 @@
   }
 
   .comanda-print .comanda-notes {
+    padding-top: 2mm;
+    font-size: 12px;
+  }
+
+  /* ---- Ticket de ENTREGA (delivery-ticket-copy S3) ---- */
+
+  .delivery-ticket-print .delivery-customer {
+    padding: 2mm 0;
+    border-bottom: 1px dashed #000;
+  }
+
+  .delivery-ticket-print .delivery-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 2mm 0 1mm;
+    font-weight: bold;
+    font-size: 14px;
+  }
+
+  /* La línea de cobro es la más grande del ticket: el repartidor la lee a
+     distancia y de un vistazo. PAGADO (transferencia, garantizado por el
+     gate) vs COBRAR $ X (efectivo). */
+  .delivery-ticket-print .delivery-payment {
+    padding: 1mm 0 2mm;
+    font-weight: bold;
+    font-size: 16px;
+    border-bottom: 1px dashed #000;
+  }
+
+  .delivery-ticket-print .comanda-notes {
     padding-top: 2mm;
     font-size: 12px;
   }
