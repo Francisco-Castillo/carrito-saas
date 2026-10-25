@@ -757,3 +757,139 @@
   color: var(--color-text-muted);
   font-style: italic;
 }
+
+/* ============ POS: paso de selección de opciones ============
+   Mismo lenguaje visual que el sheet del menú público
+   (Menu.css .sheet-option*): fila seleccionada con el primario,
+   badge de obligatorio, delta tabular. Alcance POS-scoped. */
+
+.orders-pos-select {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.orders-pos-select-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.orders-pos-select-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.orders-pos-select-hint {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.orders-pos-select-cancel {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  cursor: pointer;
+}
+
+.orders-pos-select-cancel:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.orders-pos-opt-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.orders-pos-opt-group-name {
+  margin: 0 0 6px;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.orders-pos-opt-hint {
+  font-weight: 400;
+  font-size: 0.82em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.orders-pos-opt-required {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.25);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.orders-pos-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 6px 10px;
+  margin: 0 -10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms ease-out, border-color 120ms ease-out;
+}
+
+.orders-pos-opt:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.orders-pos-opt:has(input:checked) {
+  border-color: var(--primary-color, #7c3aed);
+  background: color-mix(in srgb, var(--primary-color, #7c3aed) 18%, transparent);
+}
+
+.orders-pos-opt:has(input:focus-visible) {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.55);
+}
+
+.orders-pos-opt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.orders-pos-opt input {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  accent-color: var(--primary-color, #7c3aed);
+}
+
+.orders-pos-opt-name {
+  font-size: 0.88rem;
+}
+
+.orders-pos-opt-delta {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Opciones elegidas bajo el nombre de la línea del carrito. */
+.orders-pos-line-opts {
+  display: block;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}

@@ -12,7 +12,12 @@ import {
 import { showToast } from "../kds/toast";
 import {
   buildOrderRequest,
+  optionNamesFor,
+  orderedSelection,
+  posLineKey,
+  unitPriceWithSelections,
   validatePosOrder,
+  validatePosSelection,
   type PosCartItem,
   type PosOrderForm,
   type PosOrderType,
@@ -41,6 +46,11 @@ export default function PosPanel({ onClose, onCreated }: PosPanelProps) {
   const [cart, setCart] = useState<PosCartItem[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Paso de selección de opciones: un producto CON grupos no agrega directo —
+  // abre este paso (mismo flujo que el sheet del menú público). null = off.
+  const [selecting, setSelecting] = useState<PosProduct | null>(null);
+  const [selectedOptions, setSelectedOptions] = useState<number[]>([]);
+  const [selectError, setSelectError] = useState<string | null>(null);
   const [form, setForm] = useState<PosOrderForm>({
     orderType: "RETIRO",
     tableId: null,
@@ -101,15 +111,73 @@ export default function PosPanel({ onClose, onCreated }: PosPanelProps) {
   }, [products, combos, query]);
 
   function addToCart(item: Omit<PosCartItem, "qty">): void {
+    const key = posLineKey(item.id, item.selectedOptionIds);
     setCart((prev) => {
-      const existing = prev.find((line) => line.id === item.id);
+      const existing = prev.find((line) => posLineKey(line.id, line.selectedOptionIds) === key);
       if (existing) {
         return prev.map((line) =>
-          line.id === item.id ? { ...line, qty: line.qty + 1 } : line
+          posLineKey(line.id, line.selectedOptionIds) === key
+            ? { ...line, qty: line.qty + 1 }
+            : line
         );
       }
       return [...prev, { ...item, qty: 1 }];
     });
+  }
+
+  /** Click en el catálogo: producto con grupos abre el paso de selección;
+   *  combo o producto sin grupos agrega directo (un toque, como siempre). */
+  function handleCatalogClick(item: Omit<PosCartItem, "qty">): void {
+    const product = products?.find((p) => String(p.id) === item.id);
+    if (product?.optionGroups?.length) {
+      setSelecting(product);
+      setSelectedOptions([]);
+      setSelectError(null);
+      return;
+    }
+    addToCart(item);
+  }
+
+  /** Radio reemplaza; checkbox agrega/quita respetando maxSelections. */
+  function toggleOption(
+    group: NonNullable<PosProduct["optionGroups"]>[number],
+    optionId: number
+  ): void {
+    setSelectError(null);
+    setSelectedOptions((current) => {
+      if (current.includes(optionId)) {
+        return current.filter((id) => id !== optionId);
+      }
+      if (!group.multiple) {
+        return [...current.filter((id) => !group.options.some((o) => o.id === id)), optionId];
+      }
+      if (group.maxSelections != null && current.length >= group.maxSelections) {
+        return current;
+      }
+      return [...current, optionId];
+    });
+  }
+
+  /** Confirma la selección y agrega la línea (1 unidad; el stepper ajusta). */
+  function confirmSelection(): void {
+    if (!selecting) return;
+    const validationError = validatePosSelection(selecting, selectedOptions);
+    if (validationError !== null) {
+      setSelectError(validationError);
+      return;
+    }
+    const ordered = orderedSelection(selecting, selectedOptions);
+    addToCart({
+      id: String(selecting.id),
+      name: selecting.name,
+      price: unitPriceWithSelections(selecting, ordered),
+      isCombo: false,
+      selectedOptionIds: ordered,
+      optionNames: optionNamesFor(selecting, ordered),
+    });
+    setSelecting(null);
+    setSelectedOptions([]);
+    setSelectError(null);
   }
 
   function changeQty(id: string, delta: number): void {
@@ -199,7 +267,7 @@ export default function PosPanel({ onClose, onCreated }: PosPanelProps) {
                     type="button"
                     className="orders-pos-result"
                     onClick={() =>
-                      addToCart({ id: item.id, name: item.name, price: item.price, isCombo: item.isCombo })
+                      handleCatalogClick({ id: item.id, name: item.name, price: item.price, isCombo: item.isCombo })
                     }
                   >
                     <span>{item.name}</span>
@@ -215,10 +283,83 @@ export default function PosPanel({ onClose, onCreated }: PosPanelProps) {
           </section>
 
           <section className="orders-pos-cart" aria-label="Pedido en curso">
+            {selecting ? (
+              <div className="orders-pos-select">
+                <header className="orders-pos-select-head">
+                  <div>
+                    <p className="orders-pos-select-title">{selecting.name}</p>
+                    <p className="orders-pos-select-hint">Elegí las opciones y agregá al pedido</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="orders-pos-select-cancel"
+                    onClick={() => {
+                      setSelecting(null);
+                      setSelectedOptions([]);
+                      setSelectError(null);
+                    }}
+                    aria-label="Cancelar selección"
+                  >
+                    ✕
+                  </button>
+                </header>
+
+                {(selecting.optionGroups ?? []).map((group) => (
+                  <div key={group.name} className="orders-pos-opt-group">
+                    <p className="orders-pos-opt-group-name">
+                      {group.name}
+                      {group.multiple && (
+                        <span className="orders-pos-opt-hint"> (hasta {group.maxSelections ?? "∞"})</span>
+                      )}
+                      {group.required && <span className="orders-pos-opt-required">Obligatorio</span>}
+                    </p>
+                    {group.options.map((option) => {
+                      const checked = selectedOptions.includes(option.id);
+                      return (
+                        <label key={option.id} className="orders-pos-opt">
+                          <span className="orders-pos-opt-text">
+                            <span className="orders-pos-opt-name">{option.name}</span>
+                            {option.priceDelta > 0 && (
+                              <span className="orders-pos-opt-delta">+{formatARS(option.priceDelta)}</span>
+                            )}
+                          </span>
+                          <input
+                            type={group.multiple ? "checkbox" : "radio"}
+                            name={`pos-opt-${selecting.id}-${group.name}`}
+                            checked={checked}
+                            onChange={() => toggleOption(group, option.id)}
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                ))}
+
+                {selectError && (
+                  <p className="orders-pos-error" role="alert">
+                    {selectError}
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  className="orders-pos-submit"
+                  onClick={confirmSelection}
+                >
+                  Agregar al pedido
+                </button>
+              </div>
+            ) : (
+            <>
             <ul className="orders-pos-lines">
               {cart.map((line) => (
-                <li key={line.id} className="orders-pos-line">
-                  <span className="orders-pos-line-name">{line.name}</span>
+                <li key={posLineKey(line.id, line.selectedOptionIds)} className="orders-pos-line">
+                  <span className="orders-pos-line-name">
+                    {line.name}
+                    {(line.optionNames?.length ?? 0) > 0 && (
+                      <span className="orders-pos-line-opts">{line.optionNames!.join(", ")}</span>
+                    )}
+                  </span>
                   <div className="orders-pos-stepper">
                     <button
                       type="button"
@@ -350,6 +491,8 @@ export default function PosPanel({ onClose, onCreated }: PosPanelProps) {
             >
               {sending ? "Enviando…" : "Crear pedido"}
             </button>
+            </>
+            )}
           </section>
         </div>
       </div>

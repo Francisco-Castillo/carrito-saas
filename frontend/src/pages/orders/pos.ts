@@ -22,9 +22,16 @@ export interface PosCartItem {
   /** Product id, or the menu combo id with its "combo-" prefix. */
   id: string;
   name: string;
+  /** Unit price: product price + the surcharges of the selected options. */
   price: number;
   isCombo: boolean;
   qty: number;
+  /** Opciones elegidas del producto, ordenadas por definición de grupo
+   * (mismo contrato que el menú público, S4 de product-options.md). Ausente
+   * en combos y en líneas sin opciones. */
+  selectedOptionIds?: number[];
+  /** Nombres de las opciones elegidas, para mostrar la línea en el carrito. */
+  optionNames?: string[];
 }
 
 export interface PosOrderForm {
@@ -44,6 +51,9 @@ export interface PosOrderItemPayload {
   quantity: number;
   price: number;
   subtotal: number;
+  /** Opciones elegidas (S4 de product-options.md): ids ordenados por grupo.
+   * El backend valida obligatorios/min/max y recalcula el precio. */
+  selectedOptionIds?: number[];
 }
 
 export interface PosOrderRequestPayload {
@@ -61,6 +71,71 @@ export interface PosOrderRequestPayload {
 /** "combo-3" → 3; "5" → 5. Same stripping the menu flow applies. */
 function numericId(id: string): number {
   return Number(id.replace("combo-", ""));
+}
+
+/**
+ * Identidad de una línea del carrito: mismo producto con opciones distintas
+ * son líneas separadas ("Hamburguesa con cheddar" ≠ "Hamburguesa con bacon").
+ * Los ids van ordenados para que el orden de selección no cree líneas nuevas.
+ */
+export function posLineKey(id: string, optionIds: number[] | undefined): string {
+  const sorted = [...(optionIds ?? [])].sort((a, b) => a - b).join("-");
+  return sorted === "" ? id : `${id}#${sorted}`;
+}
+
+/** Precio unitario del producto con los recargos de las opciones elegidas. */
+export function unitPriceWithSelections(
+  product: { price: number; optionGroups?: { options: { id: number; priceDelta: number }[] }[] | null },
+  selected: number[]
+): number {
+  let total = product.price;
+  for (const group of product.optionGroups ?? []) {
+    for (const option of group.options) {
+      if (selected.includes(option.id)) total += option.priceDelta;
+    }
+  }
+  return total;
+}
+
+/** Nombres de las opciones elegidas, en orden de definición de grupos. */
+export function optionNamesFor(
+  product: { optionGroups?: { options: { id: number; name: string }[] }[] | null },
+  selected: number[]
+): string[] {
+  return (product.optionGroups ?? [])
+    .flatMap((g) => g.options)
+    .filter((o) => selected.includes(o.id))
+    .map((o) => o.name);
+}
+
+/**
+ * Selección ordenada por definición de grupos (el backend valida por grupo:
+ * mismo contrato que el sheet del menú público). Filtra ids desconocidos.
+ */
+export function orderedSelection(
+  product: { optionGroups?: { options: { id: number }[] }[] | null },
+  selected: number[]
+): number[] {
+  return (product.optionGroups ?? [])
+    .flatMap((g) => g.options.map((o) => o.id))
+    .filter((id) => selected.includes(id));
+}
+
+/**
+ * Validación client-side de la selección de un producto con grupos: un grupo
+ * obligatorio sin elección bloquea el alta (mismo mensaje-en-español del
+ * resto del POS). El min/max de los grupos múltiples lo impide el toggle.
+ */
+export function validatePosSelection(
+  product: { optionGroups?: { name: string; required: boolean; options: { id: number }[] }[] | null },
+  selected: number[]
+): string | null {
+  for (const group of product.optionGroups ?? []) {
+    if (group.required && !group.options.some((o) => selected.includes(o.id))) {
+      return `Elegí una opción de "${group.name}"`;
+    }
+  }
+  return null;
 }
 
 /** Builds the POST body for the menu order endpoint from the POS state. */
@@ -83,6 +158,9 @@ export function buildOrderRequest(
       quantity: item.qty,
       price: item.price,
       subtotal: item.price * item.qty,
+      // selectedOptionIds ya viaja ordenado por grupo (posLineKey/ordered);
+      // sin selecciones no viaja: mismo payload de siempre.
+      ...((item.selectedOptionIds?.length ?? 0) > 0 ? { selectedOptionIds: item.selectedOptionIds } : {}),
     })),
   };
 
