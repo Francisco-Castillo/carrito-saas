@@ -99,6 +99,7 @@ export default function OrderCard({
 
     let dragged = false; // el legacy usaba draggedCard = card; aquí la card ES el nodo
     let dragContainer: HTMLElement | null = null;
+    let mouseDragging = false; // listeners de mouse en window activos
     let startX = 0;
     let startY = 0;
     let currentX = 0;
@@ -124,12 +125,12 @@ export default function OrderCard({
 
     function dragStart(e: MouseEvent | TouchEvent): void {
       const target = e.target as HTMLElement;
-      // kds.js:355-357 — los botones no inician drag.
+      // kds.js:355-357 — los botones no inician drag; click derecho tampoco.
       if (target.classList.contains("btn") || target.closest("button")) return;
+      if (!("touches" in e) && e.button !== 0) return;
 
       dragged = true;
       moved = false;
-
       const rect = card!.getBoundingClientRect();
 
       // position:fixed NO siempre es viewport-relativo: un ancestro con
@@ -171,6 +172,13 @@ export default function OrderCard({
           }
         }, LONG_PRESS_MS);
       }
+
+      // Mouse: el gesto vive en window (ver el comentario de los listeners).
+      if (!("touches" in e)) {
+        mouseDragging = true;
+        window.addEventListener("mousemove", dragMove);
+        window.addEventListener("mouseup", dragEnd);
+      }
     }
 
     function dragMove(e: MouseEvent | TouchEvent): void {
@@ -198,6 +206,9 @@ export default function OrderCard({
     function dragEnd(): void {
       if (!dragged) return;
       if (longPressTimeout !== null) window.clearTimeout(longPressTimeout); // kds.js:416
+      window.removeEventListener("mousemove", dragMove);
+      window.removeEventListener("mouseup", dragEnd);
+      mouseDragging = false;
 
       const diffX = currentX - startX;
       const orderId = Number(card!.dataset.id);
@@ -223,32 +234,41 @@ export default function OrderCard({
     }
 
     function dragAbort(): void {
-      // kds.js:461-462 — mouseleave/touchcancel también cancelan.
+      // kds.js:461-462 — touchcancel cancela. mouseleave YA NO: la card rota
+      // mientras sigue al puntero y puede deslizar fuera de sí misma un
+      // instante — abortar ahí mataba el gesto a mitad de arrastre.
       if (longPressTimeout !== null) window.clearTimeout(longPressTimeout);
+      if (mouseDragging) {
+        window.removeEventListener("mousemove", dragMove);
+        window.removeEventListener("mouseup", dragEnd);
+        mouseDragging = false;
+      }
       dragCancel();
     }
 
-    // kds.js:334-350 — enableDrag(): mismos listeners, touchmove no pasivo
-    // para poder hacer preventDefault durante el arrastre.
+    // kds.js:334-350 — enableDrag(), adaptado por puntero:
+    //  - touch: los touchmove/touchend retargetizan al elemento del touchstart,
+    //    así que viven en la card (touchmove no pasivo para preventDefault).
+    //  - mouse: los listeners viven en WINDOW mientras dura el gesto. En la
+    //    card, cualquier salida momentánea del puntero (la card rota y puede
+    //    deslizar fuera de sí misma) huérfanaba el drag o lo cancelaba
+    //    (mouseleave): el gesto moría a mitad de arrastre — el defecto
+    //    reportado. Con window, mouseup cierra el drag pase lo que pase.
     card.addEventListener("mousedown", dragStart);
     card.addEventListener("touchstart", dragStart, { passive: true });
-    card.addEventListener("mousemove", dragMove);
     card.addEventListener("touchmove", dragMove, { passive: false });
-    card.addEventListener("mouseup", dragEnd);
     card.addEventListener("touchend", dragEnd);
-    card.addEventListener("mouseleave", dragAbort);
     card.addEventListener("touchcancel", dragAbort);
 
     return () => {
       if (longPressTimeout !== null) window.clearTimeout(longPressTimeout);
       card.removeEventListener("mousedown", dragStart);
       card.removeEventListener("touchstart", dragStart);
-      card.removeEventListener("mousemove", dragMove);
       card.removeEventListener("touchmove", dragMove);
-      card.removeEventListener("mouseup", dragEnd);
       card.removeEventListener("touchend", dragEnd);
-      card.removeEventListener("mouseleave", dragAbort);
       card.removeEventListener("touchcancel", dragAbort);
+      window.removeEventListener("mousemove", dragMove);
+      window.removeEventListener("mouseup", dragEnd);
     };
   }, [onAdvance, onRequestCancel]);
 
