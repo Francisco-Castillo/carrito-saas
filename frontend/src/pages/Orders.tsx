@@ -39,7 +39,9 @@ import {
 
 type StatusFilter = "ALL" | OrderStatus;
 
-const FILTERS: StatusFilter[] = ["ALL", "NEW", "PREPARING", "READY", "DELIVERED", "CANCELLED"];
+// "Pago pendiente" primero: es la cola que el operador atiende en la
+// consola (transferencias por confirmar) antes de que entren al KDS.
+const FILTERS: StatusFilter[] = ["ALL", "PENDING_PAYMENT", "NEW", "PREPARING", "READY", "DELIVERED", "CANCELLED"];
 
 function titleCaseSlug(slug: string): string {
   return slug
@@ -126,8 +128,7 @@ export default function Orders() {
         await refresh();
         return;
       }
-      if (status === "READY") showToast("Pedido listo", "success");
-      if (status === "DELIVERED") showToast("Pedido entregado", "success");
+      if (status === "NEW") showToast("Pago confirmado: pedido aceptado", "success");
       if (status === "PREPARING") showToast("Pedido en preparación", "success");
     } finally {
       setBusyOrderId(null);

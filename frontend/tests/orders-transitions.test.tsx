@@ -1,10 +1,10 @@
 /**
- * Orders console transition wiring (T3): the action buttons must respect the
- * backend transition graph (NEW→PREPARING|CANCELLED, PREPARING→READY|
- * CANCELLED, READY→DELIVERED) by only ever offering valid PATCH targets, and
- * a 409 rejection must surface the server message as a toast and re-sync the
- * board with a fresh GET (the KDS contract, fix fb07a32, ported to the
- * console).
+ * Orders console contract (S2/S3 de odd/tasks/transfer-payment-gate.md):
+ * the console ACCEPTS orders, it does not cook them — preparing/ready/
+ * delivered live in the KDS. A transferencia order starts PENDING_PAYMENT
+ * and only "Confirmar y aceptar" (PATCH status=NEW) sends it to the kitchen.
+ * A 409 rejection still surfaces the server message as a toast and re-syncs
+ * the board with a fresh GET (the KDS contract, fix fb07a32).
  */
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -45,35 +45,51 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
-describe('orders page — transition actions', () => {
-  it('a NEW order PATCHes status=PREPARING when the cook starts it', async () => {
-    const fetchMock = stubOrdersFetch([managementOrder({ orderId: 7, orderNumber: 7, status: 'NEW' })])
+describe('orders page — payment gate and console actions', () => {
+  it('a PENDING_PAYMENT transferencia order confirms payment via PATCH status=NEW', async () => {
+    const fetchMock = stubOrdersFetch([
+      managementOrder({ orderId: 7, orderNumber: 7, status: 'PENDING_PAYMENT', paymentMethod: 'TRANSFERENCIA' }),
+    ])
     vi.stubGlobal('fetch', fetchMock)
     const user = userEvent.setup()
 
     render(<Orders />)
-    await user.click(await screen.findByRole('button', { name: 'Empezar a preparar' }))
+    await user.click(await screen.findByRole('button', { name: 'Confirmar y aceptar' }))
 
     const patch = fetchMock.mock.calls.find(
       ([url, init]) =>
-        String(url) === '/api/orders/7/status?status=PREPARING' && init?.method === 'PATCH'
+        String(url) === '/api/orders/7/status?status=NEW' && init?.method === 'PATCH'
     )
     expect(patch).toBeTruthy()
   })
 
-  it('a READY order PATCHes status=DELIVERED when it is handed over', async () => {
-    const fetchMock = stubOrdersFetch([managementOrder({ orderId: 9, orderNumber: 9, status: 'READY' })])
-    vi.stubGlobal('fetch', fetchMock)
-    const user = userEvent.setup()
+  it('a PENDING_PAYMENT order without transferencia shows the plain "Aceptar" label', async () => {
+    vi.stubGlobal(
+      'fetch',
+      stubOrdersFetch([managementOrder({ orderId: 8, orderNumber: 8, status: 'PENDING_PAYMENT' })])
+    )
 
     render(<Orders />)
-    await user.click(await screen.findByRole('button', { name: 'Marcar entregado' }))
+    await screen.findByText('#8')
+    expect(screen.queryByRole('button', { name: 'Confirmar y aceptar' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Aceptar' })).toBeTruthy()
+  })
 
-    const patch = fetchMock.mock.calls.find(
-      ([url, init]) =>
-        String(url) === '/api/orders/9/status?status=DELIVERED' && init?.method === 'PATCH'
+  it('a NEW order offers no kitchen transitions: preparing/ready/delivered live in the KDS', async () => {
+    vi.stubGlobal(
+      'fetch',
+      stubOrdersFetch([managementOrder({ orderId: 9, orderNumber: 9, status: 'NEW' })])
     )
-    expect(patch).toBeTruthy()
+
+    render(<Orders />)
+    await screen.findByText('#9')
+    expect(screen.queryByRole('button', { name: 'Empezar a preparar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Marcar listo' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Marcar entregado' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Aceptar' })).toBeNull()
+    // Cancelar e Imprimir siguen siendo acciones de la consola.
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeTruthy()
   })
 
   it('terminal orders offer no transition buttons (invalid transitions are prevented in the UI)', async () => {
@@ -88,9 +104,16 @@ describe('orders page — transition actions', () => {
     render(<Orders />)
 
     await screen.findByText('#11')
-    expect(screen.queryByRole('button', { name: 'Empezar a preparar' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Marcar entregado' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Confirmar y aceptar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Aceptar' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Cancelar' })).toBeNull()
+  })
+
+  it('the status filter pills include the payment-gate queue', async () => {
+    vi.stubGlobal('fetch', stubOrdersFetch([]))
+
+    render(<Orders />)
+    expect(await screen.findByRole('button', { name: /Pago pendiente/ })).toBeTruthy()
   })
 
   it('a 409 rejection toasts the server message and refreshes the board', async () => {
@@ -98,7 +121,13 @@ describe('orders page — transition actions', () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (url.startsWith('/api/business/orders')) {
-        return { ok: true, status: 200, json: async () => [managementOrder({ orderId: 7, orderNumber: 7, status: 'NEW' })] }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [
+            managementOrder({ orderId: 7, orderNumber: 7, status: 'PENDING_PAYMENT', paymentMethod: 'TRANSFERENCIA' }),
+          ],
+        }
       }
       if (init?.method === 'PATCH') {
         return {
@@ -106,7 +135,7 @@ describe('orders page — transition actions', () => {
           status: 409,
           json: async () => ({
             status: 409,
-            message: 'Transición inválida: DELIVERED -> READY',
+            message: 'Transición inválida: PENDING_PAYMENT -> NEW',
             path: '/api/orders/7/status',
           }),
         }
@@ -122,7 +151,7 @@ describe('orders page — transition actions', () => {
       String(url).startsWith('/api/business/orders')
     ).length
 
-    await user.click(screen.getByRole('button', { name: 'Empezar a preparar' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmar y aceptar' }))
 
     // The toast carries the backend message (Spanish)...
     await vi.waitFor(() => expect(toasts).toHaveLength(1))
