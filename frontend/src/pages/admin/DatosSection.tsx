@@ -201,6 +201,8 @@ export default function DatosSection({ profile }: { profile: BusinessProfileHook
     setComandaPrintingEnabled,
     comandaAutoPrint,
     setComandaAutoPrint,
+    comandaDeliveryCopy,
+    setComandaDeliveryCopy,
     saving,
     error,
     save,
@@ -326,6 +328,20 @@ export default function DatosSection({ profile }: { profile: BusinessProfileHook
             Con el master activo: cada pedido nuevo imprime su comanda sola,
             sin confirmar nada. Requiere Chrome con kiosk printing para que
             no aparezca el diálogo.
+          </p>
+          <label className="admin-toggle">
+            <input
+              type="checkbox"
+              checked={comandaDeliveryCopy}
+              disabled={!comandaPrintingEnabled}
+              onChange={(e) => setComandaDeliveryCopy(e.target.checked)}
+            />
+            <span>Copia de entrega junto a la comanda</span>
+          </label>
+          <p className="admin-image-hint">
+            Con el master activo: cada comanda imprime también el ticket de
+            ENTREGA (cliente, dirección, total y cobro) que la cocina entrega
+            al repartidor cuando el pedido queda listo.
           </p>
         </div>
       </div>

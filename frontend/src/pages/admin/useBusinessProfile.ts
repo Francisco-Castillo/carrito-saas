@@ -66,9 +66,11 @@ export interface BusinessProfile {
   primaryColor?: string | null;
   /** Slug de la fuente curada elegida por el dueño (o null: Inter). */
   menuFont?: string | null;
-  /** Impresión de comandas (master) y auto-print al entrar pedido. */
+  /** Impresión de comandas (master), auto-print al entrar pedido y copia de
+   *  entrega junto a la comanda (delivery-ticket-copy S2). */
   comandaPrintingEnabled?: boolean | null;
   comandaAutoPrint?: boolean | null;
+  comandaDeliveryCopy?: boolean | null;
   hours?: BusinessHours[] | null;
   dateExceptions?: DateException[] | null;
 }
@@ -174,6 +176,7 @@ export function useBusinessProfile() {
   // viajan SIEMPRE en el PUT (el perfil se reemplaza completo).
   const [comandaPrintingEnabled, setComandaPrintingEnabled] = useState(false);
   const [comandaAutoPrint, setComandaAutoPrint] = useState(false);
+  const [comandaDeliveryCopy, setComandaDeliveryCopy] = useState(false);
   const [days, setDays] = useState<ShiftRow[][]>(emptyDays);
   const [exceptions, setExceptions] = useState<ExceptionRow[]>([]);
   const [newExceptionDate, setNewExceptionDate] = useState("");
@@ -201,6 +204,7 @@ export function useBusinessProfile() {
         // Flags booleanos del backend (NOT NULL): ausente (payload viejo) carga OFF.
         setComandaPrintingEnabled(data.comandaPrintingEnabled === true);
         setComandaAutoPrint(data.comandaAutoPrint === true);
+        setComandaDeliveryCopy(data.comandaDeliveryCopy === true);
         const byDay = new Map((data.hours ?? []).map((h) => [h.dayOfWeek, h]));
         setDays(DAYS.map((_, i) => dayFromEntry(byDay.get(i + 1))));
         setExceptions(
@@ -339,6 +343,7 @@ export function useBusinessProfile() {
           // completo); booleans planos, sin "vacío" posible.
           comandaPrintingEnabled,
           comandaAutoPrint,
+          comandaDeliveryCopy,
           // Los siete días SIEMPRE van, cada uno con su lista de turnos
           // (un día cerrado viaja como `[]`): el backend reemplaza todo.
           hours: days.map((shifts, i) => ({
@@ -398,6 +403,8 @@ export function useBusinessProfile() {
     setComandaPrintingEnabled,
     comandaAutoPrint,
     setComandaAutoPrint,
+    comandaDeliveryCopy,
+    setComandaDeliveryCopy,
     days,
     exceptions,
     newExceptionDate,
