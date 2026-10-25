@@ -191,12 +191,13 @@ class TransferPaymentGateHttpTests {
 		long pendingId = createOrder(productId, "TRANSFERENCIA");
 		long efectivoId = createOrder(productId, "EFECTIVO");
 
-		JsonNode active = activeKdsOrders();
-		Assertions.assertThat(active.toString())
+		// Aserción estructural (no por substring: un id contenido en otro
+		// número, un campo o un total daría un falso positivo).
+		Assertions.assertThat(orderIdsIn(activeKdsOrders()))
 				.as("el KDS no ve el pedido con transferencia sin confirmar")
-				.doesNotContain(String.valueOf(pendingId))
+				.doesNotContain(pendingId)
 				.as("el KDS ve el pedido en efectivo normalmente")
-				.contains(String.valueOf(efectivoId));
+				.contains(efectivoId);
 
 		// Confirmar pago: PENDING_PAYMENT -> NEW (transición válida).
 		mockMvc.perform(patch("/api/orders/{id}/status", pendingId)
@@ -204,9 +205,19 @@ class TransferPaymentGateHttpTests {
 						.header("Authorization", auth.authorizationHeader()))
 				.andExpect(status().isOk());
 
-		Assertions.assertThat(activeKdsOrders().toString())
+		Assertions.assertThat(orderIdsIn(activeKdsOrders()))
 				.as("confirmado el pago, el pedido entra al KDS")
-				.contains(String.valueOf(pendingId));
+				.contains(pendingId);
+	}
+
+	/** Ids de los pedidos del array del feed KDS, parseados del JSON. */
+	private java.util.List<Long> orderIdsIn(JsonNode orders) {
+
+		java.util.List<Long> ids = new java.util.ArrayList<>();
+		for (JsonNode order : orders) {
+			ids.add(order.get("orderId").asLong());
+		}
+		return ids;
 	}
 
 	@Test

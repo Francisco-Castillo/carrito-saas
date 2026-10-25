@@ -197,6 +197,52 @@ describe('orders panel — automatic comanda printing', () => {
     expect(printed).toBe(1)
   })
 
+  it('an unconfirmed transferencia (PENDING_PAYMENT) does not auto-print', async () => {
+    let printed = 0
+    const print = printSpy()
+    print.mockImplementation(() => {
+      printed += 1
+    })
+
+    const fetchMock = stubOrdersFetch([])
+    vi.stubGlobal('fetch', fetchMock)
+    render(<Orders />)
+
+    await screen.findByText(/No hay pedidos/)
+
+    // Positive control: a NEW order through the WS broadcast prints once —
+    // this proves the print pipeline is live inside this test.
+    fetchMock.mockImplementation(stubOrdersFetch([FULL_ORDER]) as typeof fetch)
+    act(() => {
+      emitOrdersEvent()
+    })
+    await waitFor(() => expect(printed).toBe(1), { timeout: 3000 })
+
+    // A new TRANSFERENCIA order arrives as PENDING_PAYMENT — the payment
+    // was not confirmed yet, so no comanda prints. The ding still plays
+    // (same feed, different sink); printing waits for confirmation
+    // (R3-print-unconfirmed).
+    fetchMock.mockImplementation(
+      stubOrdersFetch([
+        FULL_ORDER,
+        managementOrder({
+          orderId: 21,
+          orderNumber: 121,
+          status: 'PENDING_PAYMENT',
+          paymentMethod: 'TRANSFERENCIA',
+        }),
+      ]) as typeof fetch
+    )
+    act(() => {
+      emitOrdersEvent()
+    })
+    await screen.findByText('#121')
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 700))
+    })
+    expect(printed).toBe(1)
+  })
+
   it('a POS-created order born READY does not print', async () => {
     let printed = 0
     const print = printSpy()

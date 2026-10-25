@@ -67,8 +67,11 @@ export function useOrdersFeed(
       if (!before && (order.status === "NEW" || order.status === "PENDING_PAYMENT")) {
         playNewOrderSound();
         // Mismo disparador del ding: el panel imprime la comanda del pedido
-        // recién entrado (useComandaPrint). Nada en la primera carga: prev
-        // es null y el guard de arriba ya retornó.
+        // recién entrado SÓLO si nace NEW — una transferencia que entra como
+        // PENDING_PAYMENT no imprime hasta confirmarse el pago (el caller
+        // filtra por status; el ding suena igual, la consola es donde se
+        // atiende). Nada en la primera carga: prev es null y el guard de
+        // arriba ya retornó.
         onNewOrderRef.current?.(order);
       } else if (before && before.status !== "READY" && order.status === "READY") {
         playReadySound();

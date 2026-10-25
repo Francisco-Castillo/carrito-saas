@@ -83,7 +83,11 @@ export default function Orders() {
     slug,
     sessionUsable && Boolean(slug),
     (order) => {
-      if (printingEnabled && autoPrint) {
+      // Sólo un pedido que entra como NEW imprime comanda: una transferencia
+      // que entra como PENDING_PAYMENT no imprimió aún su pago (R3
+      // -print-unconfirmed); el ding suena igual porque la consola es donde
+      // se confirma. El ding lo maneja el feed; acá sólo el auto-print.
+      if (printingEnabled && autoPrint && order.status === "NEW") {
         printOrder(order);
       }
     }
@@ -129,7 +133,6 @@ export default function Orders() {
         return;
       }
       if (status === "NEW") showToast("Pago confirmado: pedido aceptado", "success");
-      if (status === "PREPARING") showToast("Pedido en preparación", "success");
     } finally {
       setBusyOrderId(null);
     }
