@@ -287,10 +287,10 @@ export default function Orders() {
       {/* Ticket print-only: oculto en pantalla, único visible en @media print. */}
       {/* Trabajo impreso: los tickets (cocina y/o entrega según kind) se
           montan ocultos y se vuelven los únicos visibles en @media print. */}
+      {printedJob && <Comanda order={printedJob.order} />}
       {printedJob && printedJob.kind === "double" && (
         <DeliveryTicket order={printedJob.order} />
       )}
-      {printedJob && <Comanda order={printedJob.order} />}
 
       {/* Mismos ids y rutas que el KDS: las páginas nunca se montan juntas. */}
       <audio id="newOrderSound" src="/ding.mp3" preload="auto" />

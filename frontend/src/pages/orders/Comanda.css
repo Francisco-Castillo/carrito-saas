@@ -19,31 +19,33 @@
     margin: 2mm;
   }
 
-  body * {
-    visibility: hidden;
+  /* Los hermanos de los tickets (toda la consola: topbar, filtros, cards,
+     audio) NO van al papel. visibility: hidden NO servía — reserva el layout
+     y la pantalla entera generaba páginas en blanco; display: none los saca
+     del papel de verdad. Los tickets son hijos directos de .orders-screen. */
+  .orders-screen > *:not(.comanda-print):not(.delivery-ticket-print) {
+    display: none !important;
   }
 
-  .comanda-print,
-  .comanda-print *,
-  .delivery-ticket-print,
-  .delivery-ticket-print * {
-    visibility: visible;
+  .orders-screen {
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
   }
 
-  /* Trabajo doble (delivery-ticket-copy): comanda + entrega en el mismo
-     window.print(), cada ticket en su página — la térmica corta por página.
-     El último ticket no fuerza página en blanco. */
-  .comanda-print:not(:last-child),
-  .delivery-ticket-print:not(:last-child) {
-    page-break-after: always;
+  body {
+    margin: 0;
+    background: #fff;
   }
 
   .comanda-print,
   .delivery-ticket-print {
     display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
+    /* Flujo normal: los tickets se apilan y el salto de página entre ellos
+       funciona (position: absolute los apilaba encima: se veía una sola). */
+    position: static;
     width: 76mm;
     /* Thermal printers render monospaced fonts cleanly at small sizes. */
     font-family: "Courier New", ui-monospace, monospace;
@@ -52,6 +54,13 @@
     color: #000;
     background: #fff;
     text-align: left;
+  }
+
+  /* Trabajo doble (delivery-ticket-copy): la entrega arranca en hoja nueva
+     DESPUÉS de la comanda (el selector de hermanos hace que el corte SOLO
+     exista cuando hay dos tickets — uno solo no genera hoja en blanco). */
+  .comanda-print ~ .delivery-ticket-print {
+    page-break-before: always;
   }
 
   .comanda-print .comanda-head {
