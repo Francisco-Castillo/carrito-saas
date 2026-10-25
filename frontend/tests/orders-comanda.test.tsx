@@ -243,6 +243,50 @@ describe('orders panel — automatic comanda printing', () => {
     expect(printed).toBe(1)
   })
 
+  it('a transferencia whose payment gets confirmed (PENDING_PAYMENT → NEW) prints once', async () => {
+    let printed = 0
+    const print = printSpy()
+    print.mockImplementation(() => {
+      printed += 1
+    })
+
+    const pending = managementOrder({
+      orderId: 31,
+      orderNumber: 131,
+      status: 'PENDING_PAYMENT',
+      paymentMethod: 'TRANSFERENCIA',
+    })
+    const fetchMock = stubOrdersFetch([pending])
+    vi.stubGlobal('fetch', fetchMock)
+    render(<Orders />)
+
+    // Snapshot 1: the unconfirmed transferencia arrives — no comanda.
+    await screen.findByText('#131')
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 700))
+    })
+    expect(printed).toBe(0)
+
+    // Snapshot 2: the payment is confirmed (console button or POS chain) —
+    // the kitchen can cook, so the comanda prints exactly once.
+    fetchMock.mockImplementation(
+      stubOrdersFetch([{ ...pending, status: 'NEW' }]) as typeof fetch
+    )
+    act(() => {
+      emitOrdersEvent()
+    })
+    await waitFor(() => expect(printed).toBe(1), { timeout: 3000 })
+
+    // Further broadcasts with the same confirmed order print nothing more.
+    act(() => {
+      emitOrdersEvent()
+    })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 700))
+    })
+    expect(printed).toBe(1)
+  })
+
   it('a POS-created order born READY does not print', async () => {
     let printed = 0
     const print = printSpy()

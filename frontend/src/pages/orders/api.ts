@@ -243,6 +243,9 @@ export async function loadTables(): Promise<PosTable[]> {
 export interface CreateOrderResult {
   ok: boolean;
   message: string;
+  /** Id del pedido creado (OrderDTO.orderId): el POS lo usa para confirmar
+   * el pago en el mismo paso cuando el método es TRANSFERENCIA. */
+  orderId: number | null;
 }
 
 /**
@@ -253,7 +256,7 @@ export interface CreateOrderResult {
 export async function createCounterOrder(body: unknown): Promise<CreateOrderResult> {
   const slug = getSessionRestaurantSlug();
   if (slug === null) {
-    return { ok: false, message: "Restaurante no especificado" };
+    return { ok: false, message: "Restaurante no especificado", orderId: null };
   }
   try {
     const response = await fetch(`/api/orders/menu/${slug}`, {
@@ -263,11 +266,12 @@ export async function createCounterOrder(body: unknown): Promise<CreateOrderResu
     });
     if (!response.ok) {
       const message = (await serverErrorMessage(response)) ?? "El local rechazó el pedido";
-      return { ok: false, message };
+      return { ok: false, message, orderId: null };
     }
-    return { ok: true, message: "" };
+    const created = (await response.json()) as { orderId?: number };
+    return { ok: true, message: "", orderId: created.orderId ?? null };
   } catch (e) {
     console.error("Error creando el pedido", e);
-    return { ok: false, message: "No se pudo crear el pedido" };
+    return { ok: false, message: "No se pudo crear el pedido", orderId: null };
   }
 }

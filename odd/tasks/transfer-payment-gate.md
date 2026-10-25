@@ -90,6 +90,11 @@ pedidos que nacen NEW (la transferencia sin confirmar ya no imprime comanda;
 el ding sigue en ambos), toast PREPARING muerto eliminado, aserciones del
 feed KDS estructurales por orderId. RED→GREEN con test diferencial de
 auto-print (`orders-comanda.test.tsx`, 11 tests). Suite completa: 466 tests
-frontend + 4/4 backend, verde. Nota de entorno: un `pnpm build` suelto deja
-las entradas legacy con bundle viejo (falla `build-artifacts.test.ts`);
-`pnpm build:spring` regenera todas.
+frontend + 4/4 backend, verde. L5 (corrección de desincronización del POS, reportada por el usuario): el
+POS de mostrador creaba la orden con TRANSFERENCIA y quedaba en "Pago
+pendiente" exigiendo un segundo click al operador que acaba de cobrar.
+Ahora el POS confirma el pago en el mismo paso (create → PATCH NEW; si el
+PATCH falla, warning y la consola lo confirma a mano), y la confirmación
+de pago (manual o del POS) dispara el auto-print de la comanda via feed
+(PENDING_PAYMENT → NEW). Tests: orders-pos-flow.test.tsx (2) y comanda
+(1). Sin cambios de backend.
