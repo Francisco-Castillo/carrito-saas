@@ -26,6 +26,13 @@ public class OrderRequestDTO {
      */
     private Long tableId;
 
+    /**
+     * Sucursal del pedido (multi-sucursal, T3): opcional. Ajena o inactiva →
+     * 404 sin crear el pedido; ausente → la primera sucursal activa del
+     * negocio (sucursal default).
+     */
+    private Long branchId;
+
     private String notes;
 
     private List<OrderItemDTO> items;

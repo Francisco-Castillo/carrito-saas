@@ -10,12 +10,14 @@ import org.springframework.stereotype.Service;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.BusinessUser;
+import com.carrito.saas.repository.entity.Branch;
 import com.carrito.saas.repository.entity.Role;
 import com.carrito.saas.repository.entity.User;
 
 import java.util.List;
 
 import com.carrito.saas.repository.jpa.BusinessUserRepository;
+import com.carrito.saas.repository.jpa.BranchRepository;
 import com.carrito.saas.repository.jpa.UserRepository;
 
 @Service
@@ -25,14 +27,16 @@ public class SecurityService implements ISecurityService {
 	private final BusinessUserRepository businessUserRepository;
 	private final UserRepository userRepository;
 	private final JwtUtil jwtUtil;
+	private final BranchRepository branchRepository;
 
 	public SecurityService(AuthenticationManager authenticationManager, BusinessUserRepository businessUserRepository,
-			UserRepository userRepository, JwtUtil jwtUtil) {
+			UserRepository userRepository, JwtUtil jwtUtil, BranchRepository branchRepository) {
 		super();
 		this.authenticationManager = authenticationManager;
 		this.businessUserRepository = businessUserRepository;
 		this.userRepository = userRepository;
 		this.jwtUtil = jwtUtil;
+		this.branchRepository = branchRepository;
 	}
 
 	@Override
@@ -145,6 +149,46 @@ public class SecurityService implements ISecurityService {
 		String token = (String) auth.getCredentials(); // lo recuperás
 
 		return jwtUtil.extractBusinessId(token); // acá lo usás
+	}
+
+	@Override
+	public Long getCurrentBranchId() {
+
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+		String token = (String) auth.getCredentials();
+
+		// 1. El claim manda: un token emitido por select/{id} ya fija la
+		// sucursal y no se re-resuelve (el dueño puede cambiar de sucursal
+		// aunque el negocio siga teniendo varias).
+		Long branchId = jwtUtil.extractBranchId(token);
+		if (branchId != null) {
+			return branchId;
+		}
+
+		Long businessId = jwtUtil.extractBusinessId(token);
+		if (businessId == null) {
+			// Operador de plataforma: no opera sucursales de ningún negocio.
+			throw new BusinessException("El operador de plataforma no tiene sucursales", ErrorType.FORBIDDEN);
+		}
+
+		// 2. Fallback para tokens sin claim (login viejo, sesión ya abierta):
+		// una sola sucursal activa se resuelve sola; ninguna → null (vista a
+		// nivel negocio, compatibilidad pre-multi-sucursal); varias → 400
+		// pidiendo selección explícita, NUNCA una vista mezclada de dos
+		// sucursales (mismo criterio que el login orgánico: cero → resolver,
+		// varias → pedir el dato).
+		List<Branch> activas = branchRepository.findByBusinessIdAndActiveTrueOrderByIdAsc(businessId);
+
+		if (activas.size() == 1) {
+			return activas.get(0).getId();
+		}
+
+		if (activas.isEmpty()) {
+			return null;
+		}
+
+		throw new BusinessException("Seleccioná una sucursal para continuar", ErrorType.VALIDATION);
 	}
 
 }

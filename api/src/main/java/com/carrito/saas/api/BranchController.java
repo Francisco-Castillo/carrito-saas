@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.carrito.saas.dto.BranchDTO;
+import com.carrito.saas.dto.SelectBranchResponseDTO;
 import com.carrito.saas.service.interfaces.IBranchService;
 
 /**
@@ -49,6 +50,16 @@ public class BranchController {
 	@DeleteMapping("/{id}")
 	public BranchDTO eliminar(@PathVariable Long id) {
 		return branchService.eliminar(id);
+	}
+
+	/**
+	 * Selecciona la sucursal activa del usuario (T3): devuelve un token nuevo
+	 * con el claim {@code branchId}. El negocio sale del JWT; un id ajeno o
+	 * inactivo resuelve 404.
+	 */
+	@PostMapping("/select/{id}")
+	public SelectBranchResponseDTO seleccionar(@PathVariable Long id) {
+		return branchService.seleccionar(id);
 	}
 
 }

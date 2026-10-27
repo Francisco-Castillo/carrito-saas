@@ -29,4 +29,10 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
 
     long countByBusinessId(Long businessId);
 
+    /** Sucursales activas del negocio, ordenadas por alta (fallback y default del checkout). */
+    List<Branch> findByBusinessIdAndActiveTrueOrderByIdAsc(Long businessId);
+
+    /** Primera sucursal activa (la "default"): destino del pedido sin branchId. */
+    Branch findFirstByBusinessIdAndActiveTrueOrderByIdAsc(Long businessId);
+
 }

@@ -6,12 +6,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.carrito.saas.dto.BranchDTO;
+import com.carrito.saas.dto.SelectBranchResponseDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Branch;
 import com.carrito.saas.repository.entity.Business;
 import com.carrito.saas.repository.jpa.BranchRepository;
 import com.carrito.saas.repository.jpa.BusinessRepository;
+import com.carrito.saas.security.JwtUtil;
 import com.carrito.saas.security.SecurityService;
 import com.carrito.saas.service.interfaces.IBranchService;
 import com.carrito.saas.service.mapper.interfaces.IBranchMapper;
@@ -29,13 +31,15 @@ public class BranchServiceImpl implements IBranchService {
 	private final BusinessRepository businessRepository;
 	private final IBranchMapper branchMapper;
 	private final SecurityService securityService;
+	private final JwtUtil jwtUtil;
 
 	public BranchServiceImpl(BranchRepository branchRepository, BusinessRepository businessRepository,
-			IBranchMapper branchMapper, SecurityService securityService) {
+			IBranchMapper branchMapper, SecurityService securityService, JwtUtil jwtUtil) {
 		this.branchRepository = branchRepository;
 		this.businessRepository = businessRepository;
 		this.branchMapper = branchMapper;
 		this.securityService = securityService;
+		this.jwtUtil = jwtUtil;
 	}
 
 	@Override
@@ -99,6 +103,28 @@ public class BranchServiceImpl implements IBranchService {
 		branch.setActive(Boolean.FALSE);
 
 		return branchMapper.toDTO(branchRepository.save(branch));
+	}
+
+	@Override
+	@Transactional
+	public SelectBranchResponseDTO seleccionar(Long id) {
+
+		Long businessId = currentBusinessId();
+
+		// Sucursal propia y activa: un id ajeno y uno dado de baja resuelven
+		// igual (404) — no se revela si el id existe en otro negocio.
+		Branch branch = branchRepository.findByIdAndBusinessId(id, businessId)
+				.filter(b -> Boolean.TRUE.equals(b.getActive()))
+				.orElseThrow(() -> new BusinessException("Sucursal no encontrada", ErrorType.NOT_FOUND));
+
+		org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder
+				.getContext().getAuthentication();
+		String username = auth.getName();
+
+		String token = jwtUtil.generateToken(username, businessId, branch.getId());
+		long expiresAt = System.currentTimeMillis() + jwtUtil.getExpirationMillis();
+
+		return new SelectBranchResponseDTO(token, branch.getId(), branch.getName(), expiresAt);
 	}
 
 	// ------------------------------------------------------------------

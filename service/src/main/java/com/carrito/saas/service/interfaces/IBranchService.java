@@ -3,6 +3,7 @@ package com.carrito.saas.service.interfaces;
 import java.util.List;
 
 import com.carrito.saas.dto.BranchDTO;
+import com.carrito.saas.dto.SelectBranchResponseDTO;
 
 /**
  * Sucursales del negocio del JWT (multi-sucursal, odd/tasks/multi-sucursal.md,
@@ -20,5 +21,11 @@ public interface IBranchService {
 
 	/** Baja lógica: {@code active=false}. Reversible; el historial no se toca. */
 	BranchDTO eliminar(Long id);
+
+	/**
+	 * Selecciona la sucursal activa del usuario (T3): valida propia y activa,
+	 * emite token nuevo con el claim branchId.
+	 */
+	SelectBranchResponseDTO seleccionar(Long id);
 
 }
