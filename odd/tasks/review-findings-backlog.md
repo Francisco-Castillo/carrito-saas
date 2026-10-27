@@ -169,3 +169,11 @@ bloqueantes (advisory), trabajo aparte:
 - R3-workhere-refresh-error-swallowed SUGGESTION BranchesSection.tsx:228-232
 
 Receipt: store_revision sha256:19ca6dd16fec9334052df55663a30ecf02f508831c5badee6dd510f770126902.
+
+## Fix lectura de perfil (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada del slice fix (lineage review-b12851c7bbe0716a,
+lens reliability, tier high — hot path de seguridad). 2 findings NO
+bloqueantes (advisory): R3-default-read-no-branch-echo y
+R3-fallback-platform-token-403-read (SecurityService:186-206).
+Receipt: store_revision sha256:914071a7a7e49c8abfa210a33941830bae0dd4774dd4002410052bac7be636cf.
