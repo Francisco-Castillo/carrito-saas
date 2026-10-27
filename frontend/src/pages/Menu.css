@@ -1924,3 +1924,157 @@
   height: 22px;
   display: block;
 }
+
+/* -------------------------------------------------------------------------
+   Pantalla previa de elección de sucursal (multi-sucursal, S4/T8)
+   Se elige ANTES de entrar a la carta: la carta nunca muestra el control.
+   Usa los tokens del design system (vidrio + acento) para no inventar una
+   estética paralela a la del storefront.
+   ------------------------------------------------------------------------- */
+
+.branch-picker {
+  /* Pantalla completa: la elección se presenta centrada, no como un bloque
+     colgado arriba de un vacío (la carta todavía no existe en este paso). */
+  width: 100%;
+  max-width: 30rem;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: var(--space-6) var(--space-4);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.branch-picker-card {
+  width: 100%;
+  padding: var(--space-6);
+}
+
+.branch-picker-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.branch-picker-mark {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+  background: var(--accent-gradient);
+  box-shadow: var(--glass-shadow);
+  color: #fff;
+}
+
+.branch-picker-brand-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.branch-picker-brand-hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.65;
+}
+
+.branch-picker-title {
+  margin: 0 0 var(--space-5);
+  font-size: 1.35rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.branch-picker-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.branch-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4);
+  box-sizing: border-box;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-subtle);
+  box-shadow: var(--glass-inset-highlight);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.branch-option:hover,
+.branch-option:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--accent-indigo);
+  background: var(--glass-bg-strong);
+  outline: none;
+}
+
+.branch-option:active {
+  transform: translateY(0);
+}
+
+.branch-option-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  opacity: 0.9;
+}
+
+.branch-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.branch-option-name {
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.branch-option-address {
+  font-size: 0.82rem;
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branch-option-chevron {
+  margin-left: auto;
+  flex: 0 0 auto;
+  opacity: 0.45;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.branch-option:hover .branch-option-chevron,
+.branch-option:focus-visible .branch-option-chevron {
+  transform: translateX(2px);
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .branch-option,
+  .branch-option-chevron {
+    transition: none;
+  }
+}

@@ -4,9 +4,8 @@ import type { MenuBranch } from "./types";
  * Pantalla previa de elección de sucursal (multi-sucursal,
  * odd/tasks/multi-sucursal.md, S4/T8): con DOS o más sucursales activas y la
  * URL sin `?sucursal=`, el link del grupo abre ESTA pantalla en lugar de la
- * carta. Lista las sucursales activas (nombre + dirección) como opciones
- * grandes tocables; al elegir, Menu.tsx refleja `?sucursal=<id>` en la URL y
- * vuelve a pedir el menú YA scopeado a esa sucursal.
+ * carta. Al elegir, Menu.tsx refleja `?sucursal=<id>` en la URL y vuelve a
+ * pedir el menú YA scopeado a esa sucursal.
  *
  * El selector NO vive dentro de la carta (corrección de producto L10): la
  * carta nunca muestra un control de sucursal — esta pantalla es el único
@@ -17,8 +16,9 @@ import type { MenuBranch } from "./types";
  * el QR por sucursal, T6); la lista no cambia productos ni precios: la carta
  * es compartida (S2).
  *
- * Estilos inline porque la pantalla no toca Menu.css (fuera de las superficies
- * de esta unidad): se apoya en las clases de vidrio existentes.
+ * Estética: clases de `Menu.css` sobre los tokens del design system (vidrio +
+ * acento), no estilos inline — así la pantalla se ve parte del storefront y
+ * no una capa pegada encima.
  */
 export default function BranchPicker({
   businessName,
@@ -32,66 +32,77 @@ export default function BranchPicker({
   onSelect: (id: number) => void;
 }) {
   return (
-    <section
-      className="storefront stagger"
-      aria-label="Elegí una sucursal"
-      style={{
-        maxWidth: "28rem",
-        margin: "3rem auto 0",
-        padding: "0 1rem",
-        width: "100%",
-        boxSizing: "border-box",
-      }}
-    >
-      <div className="glass-panel" style={{ padding: "1.5rem", textAlign: "center" }}>
-        <h2 style={{ margin: "0 0 0.25rem", fontSize: "1.4rem" }}>
-          Elegí una sucursal
-        </h2>
-        <p style={{ margin: "0 0 1.25rem", opacity: 0.75 }}>
-          {businessName
-            ? `¿En qué local de ${businessName} vas a pedir?`
-            : "¿En qué local vas a pedir?"}
-        </p>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.75rem",
-          }}
-        >
+    <section className="branch-picker stagger" aria-label="Elegí una sucursal">
+      <div className="glass-panel branch-picker-card">
+        <div className="branch-picker-brand">
+          <span className="branch-picker-mark" aria-hidden="true">
+            <StoreIcon />
+          </span>
+          <div>
+            <p className="branch-picker-brand-name">{businessName ?? "Nuestros locales"}</p>
+            <p className="branch-picker-brand-hint">Carta compartida en todas las sucursales</p>
+          </div>
+        </div>
+
+        <h2 className="branch-picker-title">¿En qué sucursal vas a pedir?</h2>
+
+        <div className="branch-picker-options">
           {branches.map((b) => {
             const address = b.address?.trim() || "";
             return (
               <button
                 key={b.id}
                 type="button"
-                className="storefront-branch"
+                className="branch-option"
                 onClick={() => onSelect(b.id)}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: "0.15rem",
-                  width: "100%",
-                  padding: "1rem 1.1rem",
-                  borderRadius: "0.9rem",
-                  border: "1px solid rgba(15, 23, 42, 0.15)",
-                  background: "rgba(255, 255, 255, 0.6)",
-                  color: "inherit",
-                  font: "inherit",
-                  textAlign: "left",
-                  cursor: "pointer",
-                }}
               >
-                <span style={{ fontWeight: 700, fontSize: "1.05rem" }}>{b.name}</span>
-                {address && (
-                  <span style={{ fontSize: "0.85rem", opacity: 0.75 }}>{address}</span>
-                )}
+                <span className="branch-option-icon" aria-hidden="true">
+                  <PinIcon />
+                </span>
+                <span className="branch-option-text">
+                  <span className="branch-option-name">{b.name}</span>
+                  {address && <span className="branch-option-address">{address}</span>}
+                </span>
+                <span className="branch-option-chevron" aria-hidden="true">
+                  <ChevronIcon />
+                </span>
               </button>
             );
           })}
         </div>
       </div>
     </section>
+  );
+}
+
+/** Íconos inline: la carta no trae librería de íconos y no vale una dependencia. */
+function StoreIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9.5 4.5 4h15L21 9.5" />
+      <path d="M3 9.5a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 3 0" />
+      <path d="M5 11v9h14v-9" />
+      <path d="M10 20v-5h4v5" />
+    </svg>
+  );
+}
+
+function PinIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round">
+      <path d="m9 6 6 6-6 6" />
+    </svg>
   );
 }

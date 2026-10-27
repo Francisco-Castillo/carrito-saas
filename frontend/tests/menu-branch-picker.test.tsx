@@ -123,7 +123,7 @@ describe('Pantalla previa de sucursales y carta scopeada (S4/T8-T10)', () => {
     render(<Menu slug={SLUG} />)
 
     // La pantalla previa lista las activas (nombre + dirección).
-    expect(await screen.findByRole('heading', { name: 'Elegí una sucursal' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '¿En qué sucursal vas a pedir?' })).toBeInTheDocument()
     expect(screen.getByText('Casa central')).toBeInTheDocument()
     expect(screen.getByText('Av. Siempre Viva 742')).toBeInTheDocument()
     expect(screen.getByText('Palermo')).toBeInTheDocument()
@@ -142,7 +142,7 @@ describe('Pantalla previa de sucursales y carta scopeada (S4/T8-T10)', () => {
     vi.stubGlobal('fetch', fetchMock)
     render(<Menu slug={SLUG} />)
 
-    await screen.findByRole('heading', { name: 'Elegí una sucursal' })
+    await screen.findByRole('heading', { name: '¿En qué sucursal vas a pedir?' })
 
     await user.click(screen.getByRole('button', { name: /Palermo/ }))
 
@@ -163,7 +163,7 @@ describe('Pantalla previa de sucursales y carta scopeada (S4/T8-T10)', () => {
 
     // Sin pantalla previa: directo a la carta.
     expect(await screen.findByText('Milanesa')).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Elegí una sucursal' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '¿En qué sucursal vas a pedir?' })).not.toBeInTheDocument()
     expect(calls.some((call) => call.url === `/api/menu/${SLUG}?sucursal=9`)).toBe(true)
   })
 
@@ -175,7 +175,7 @@ describe('Pantalla previa de sucursales y carta scopeada (S4/T8-T10)', () => {
     render(<Menu slug={SLUG} />)
 
     expect(await screen.findByText('Milanesa')).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Elegí una sucursal' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '¿En qué sucursal vas a pedir?' })).not.toBeInTheDocument()
     // El fetch no manda sucursal: mismo contrato de hoy.
     expect(calls.some((call) => call.url === `/api/menu/${SLUG}`)).toBe(true)
     expect(calls.some((call) => call.url.includes('sucursal'))).toBe(false)
@@ -199,7 +199,7 @@ describe('Pantalla previa de sucursales y carta scopeada (S4/T8-T10)', () => {
     expect(await screen.findByText('Milanesa')).toBeInTheDocument()
     // Ningún grupo, heading ni botón con nombres de sucursales: el selector no
     // vive dentro de la carta (T10).
-    expect(screen.queryByRole('heading', { name: 'Elegí una sucursal' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '¿En qué sucursal vas a pedir?' })).not.toBeInTheDocument()
     expect(screen.queryByText('Casa central')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Casa central/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Palermo/ })).not.toBeInTheDocument()
