@@ -24,4 +24,21 @@ public interface IMenuUrlBuilder {
 	 * @return the absolute URL of the anonymous menu page
 	 */
 	String buildMenuUrl(String slug);
+
+	/**
+	 * Builds the public menu URL of ONE BRANCH (multi-sucursal,
+	 * odd/tasks/multi-sucursal.md, S3/T6): the group menu URL carrying the
+	 * branch's public identity as {@code ?sucursal=<id>} — a NUMERIC id, never
+	 * an invented branch slug. The storefront's selector (S4) reads the same
+	 * parameter, and the checkout posts the chosen {@code branchId}.
+	 *
+	 * <p>The separator adapts: {@code ?} when the base URL carries no query
+	 * yet, {@code &} when it already does (e.g. a future combined
+	 * {@code ?table=} + {@code ?sucursal=} URL).</p>
+	 *
+	 * @param slug the public slug of the business
+	 * @param branchId the id of the branch the QR belongs to
+	 * @return the absolute URL of the anonymous menu page identifying the branch
+	 */
+	String buildMenuUrl(String slug, Long branchId);
 }

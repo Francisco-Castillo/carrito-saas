@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.carrito.saas.dto.BusinessDTO;
+import com.carrito.saas.dto.BranchDTO;
 import com.carrito.saas.dto.BusinessHoursDTO;
 import com.carrito.saas.dto.BusinessShiftDTO;
 import com.carrito.saas.dto.CategoryDTO;
@@ -113,6 +114,11 @@ public class MenuServiceImpl implements IMenuService {
 
 	@Override
 	public MenuDTO getMenu(String slug) {
+		return getMenu(slug, null);
+	}
+
+	@Override
+	public MenuDTO getMenu(String slug, Long requestedBranchId) {
 		// Slugless mode (single-business deployment): the public QR URL no longer
 		// carries ?restaurant=<slug>, so a null/blank slug resolves the deployment's
 		// only business. A present slug keeps the legacy path untouched.
@@ -148,20 +154,20 @@ public class MenuServiceImpl implements IMenuService {
 		// respuesta lleva siempre los siete días (1..7) con su lista de
 		// turnos — vacía cuando el día está cerrado—, así la carta no tiene
 		// que inferir "el día que falta es un día cerrado".
-		// Multi-sucursal (odd/tasks/multi-sucursal.md, S3/T4): la carta
-		// pública sirve las horas de la sucursal default del negocio (la
-		// primera activa por id); negocio sin sucursales → vista legacy a
-		// nivel negocio. La selección explícita de sucursal es T7.
-		Branch defaultBranch = branchRepository.findFirstByBusinessIdAndActiveTrueOrderByIdAsc(business.getId());
-		Long menuBranchId = defaultBranch == null ? null : defaultBranch.getId();
+		// Multi-sucursal (odd/tasks/multi-sucursal.md, S3/T4 y S4/T7): la
+		// carta pública sirve las horas de la sucursal pedida por ?sucursal=
+		// cuando es propia y activa; si no, la default (la primera activa por
+		// id); negocio sin sucursales → vista legacy a nivel negocio.
+		Branch menuBranch = resolveMenuBranch(business, requestedBranchId);
+		Long menuBranchId = menuBranch == null ? null : menuBranch.getId();
 
 		// WhatsApp por sucursal (multi-sucursal, odd/tasks/multi-sucursal.md,
-		// S3/T5): el wa.me de la carta usa el número de la sucursal default si
+		// S3/T5): el wa.me de la carta usa el número de la sucursal servida si
 		// tiene uno propio; si no, el del negocio (fallback legacy, el que el
 		// mapper ya trajo). Negocio sin sucursales → exactamente el número del
 		// negocio, comportamiento anterior intacto.
-		if (defaultBranch != null && defaultBranch.getPhone() != null) {
-			menu.getBusiness().setWhatsappNumber(defaultBranch.getPhone());
+		if (menuBranch != null && menuBranch.getPhone() != null) {
+			menu.getBusiness().setWhatsappNumber(menuBranch.getPhone());
 		}
 		menu.getBusiness().setHours(toSevenDayDTOs(businessHoursRepository
 				.findByBusinessIdAndOptionalBranch(business.getId(), menuBranchId)));
@@ -175,6 +181,29 @@ public class MenuServiceImpl implements IMenuService {
 		List<CategoryDTO> categoryDTOs = categories.stream().map(iCategoryMapper::toDTO).collect(Collectors.toList());
 
 		menu.setCategories(categoryDTOs);
+
+		// Selector público de sucursales (multi-sucursal,
+		// odd/tasks/multi-sucursal.md, S4/T7): el payload del menú lleva la
+		// lista de sucursales ACTIVAS (id/name/address, ordenadas por id) para
+		// que el storefront ofrezca la elección — el parámetro ?sucursal= y el
+		// branchId del checkout (S4) apuntan a estos ids. La carta es compartida
+		// (S2): la lista identifica lugares, NO bifurca productos ni precios.
+		// Negocio sin sucursales → lista vacía, UI idéntica a la de hoy. Sólo
+		// viajan los tres campos públicos del selector: el resto del BranchDTO
+		// queda null (phone/active/businessId son datos del panel, no de la
+		// carta anónima).
+		List<BranchDTO> branchDTOs = branchRepository
+				.findByBusinessIdAndActiveTrueOrderByIdAsc(business.getId())
+				.stream()
+				.map(branch -> {
+					BranchDTO dto = new BranchDTO();
+					dto.setId(branch.getId());
+					dto.setName(branch.getName());
+					dto.setAddress(branch.getAddress());
+					return dto;
+				})
+				.collect(Collectors.toList());
+		menu.setBranches(branchDTOs);
 
 		List<ProductDTO> productDTOs = products.stream().map(iProductMapper::toDTO).collect(Collectors.toList());
 
@@ -241,6 +270,29 @@ public class MenuServiceImpl implements IMenuService {
 			dates.add(dto);
 		}
 		return dates;
+	}
+
+	/**
+	 * Sucursal servida por la carta (multi-sucursal, S4/T7): la pedida por
+	 * ?sucursal= cuando es propia y activa; inválida/ajena/inactiva o sin
+	 * parámetro → la default (primera activa). FALLBACK SILENCIOSO a
+	 * propósito: un link con una sucursal dada de baja no puede romper la
+	 * carta del cliente — es display público. Los pedidos siguen fail-closed
+	 * (404 en OrderServiceImpl.resolveBranchForOrder): esa asimetría es el
+	 * contrato, no una inconsistencia.
+	 */
+	private Branch resolveMenuBranch(Business business, Long requestedBranchId) {
+
+		if (requestedBranchId != null) {
+			Branch requested = branchRepository.findByIdAndBusinessId(requestedBranchId, business.getId())
+					.filter(b -> Boolean.TRUE.equals(b.getActive()))
+					.orElse(null);
+			if (requested != null) {
+				return requested;
+			}
+		}
+
+		return branchRepository.findFirstByBusinessIdAndActiveTrueOrderByIdAsc(business.getId());
 	}
 
 }

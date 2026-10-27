@@ -102,6 +102,19 @@ export interface DateException {
 }
 
 /**
+ * Sucursal activa del selector público (multi-sucursal,
+ * odd/tasks/multi-sucursal.md, S4/T7), tal como viaja en `business.branches`
+ * del payload del menú: sólo id, nombre y dirección — la identidad pública
+ * es el id NUMÉRICO (`?sucursal=<id>`), nunca un slug inventado. La lista
+ * viene ordenada por id y sólo trae activas (el backend la arma así).
+ */
+export interface MenuBranch {
+  id: number;
+  name: string;
+  address?: string | null;
+}
+
+/**
  * Storefront (portada) del local, tal como lo sirve `GET /api/menu/{slug}`
  * dentro de `business`. Todo es opcional: un local sin portada no renderiza
  * nada nuevo en la carta.
@@ -121,6 +134,13 @@ export interface StorefrontBusiness {
   menuFont?: string | null;
   hours?: BusinessHours[] | null;
   dateExceptions?: DateException[] | null;
+  /**
+   * Sucursales activas para el selector público (S4/T7). Presente con más de
+   * un elemento → se muestra el selector; con una o ninguna, la UI queda
+   * exactamente como era (cero regresión). La carta (S2) es compartida:
+   * esta lista NO cambia productos ni precios.
+   */
+  branches?: MenuBranch[] | null;
 }
 
 export interface MenuResponse {

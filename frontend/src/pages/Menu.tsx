@@ -131,6 +131,18 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
   // Portada del local: llega en el payload del menú (`data.business`).
   const [business, setBusiness] = useState<StorefrontBusiness | null>(null);
 
+  // Sucursal elegida en el selector público (multi-sucursal,
+  // odd/tasks/multi-sucursal.md, S4/T7): la identidad viaja como ?sucursal=<id>
+  // en la URL — la misma carta para todas (S2), la elección define adónde va
+  // el pedido. Se lee del query al montar (un link compartido de una sucursal
+  // abre con esa elección) y se reemplaza sin recargar al elegir (mismo
+  // replaceState que el patrón de vista; el slug queda intacto).
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(() => {
+    const raw = new URLSearchParams(window.location.search).get("sucursal");
+    const id = raw === null ? NaN : Number(raw);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  });
+
   // El estado abierto/cerrado del local — el mismo cálculo del badge, ahora
   // también puerta de la confirmación: el backend rechaza el pedido cerrado
   // (400 "El local está cerrado"), así que el cliente no lo envía a un 400
@@ -188,6 +200,19 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
   function dismissToast() {
     window.clearTimeout(toastTimer.current);
     setToast(null);
+  }
+
+  /**
+   * Elección de sucursal (S4/T7): fija el estado y reemplaza el query param
+   * `sucursal` en la URL SIN recargar (history.replaceState, same-document).
+   * El parámetro viaja en el mismo query que `restaurant`/`table`: un link
+   * copiado de la carta de una sucursal reproduce la elección.
+   */
+  function selectBranch(id: number) {
+    setSelectedBranchId(id);
+    const url = new URL(window.location.href);
+    url.searchParams.set("sucursal", String(id));
+    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
   }
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
@@ -601,6 +626,14 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
       payload.tableId = table.id;
     }
 
+    // Multi-sucursal (S4/T7): el pedido va a la sucursal elegida (el DTO de
+    // checkout ya acepta branchId opcional; sin elección el backend usa la
+    // default = primera activa). En modo mesa fija (QR) no viaja: el pedido
+    // se atribuye a la mesa escaneada, no a una elección de pickup.
+    if (!table && selectedBranchId) {
+      payload.branchId = selectedBranchId;
+    }
+
     if (orderType === "DELIVERY") {
       payload.customerAddress = address;
     }
@@ -677,7 +710,13 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
       {/* La portada vive ARRIBA del bloque de menú: al hacer scroll, la
           barra de píldoras (dentro del bloque) queda pegada arriba y la
           portada se va. */}
-      {business && <Storefront business={business} />}
+      {business && (
+        <Storefront
+          business={business}
+          selectedBranchId={selectedBranchId}
+          onSelectBranch={selectBranch}
+        />
+      )}
 
       {loadError ? (
         <div className="menu-load-error glass-panel fade-up" role="alert">

@@ -45,4 +45,16 @@ public class MenuUrlBuilder implements IMenuUrlBuilder {
 		// the order to the scanned table (SALON + tableId).
 		return buildMenuUrl(slug) + "?table=" + tableId;
 	}
+
+	@Override
+	public String buildMenuUrl(String slug, Long branchId) {
+
+		// Same slugless base as the group QR; the branch rides along as the
+		// public ?sucursal=<id> parameter (multi-sucursal, S3/T6): NUMERIC id,
+		// never an invented branch slug. The separator adapts if the base URL
+		// already carries a query (e.g. a table + branch combined URL).
+		String base = buildMenuUrl(slug);
+		String separator = base.contains("?") ? "&" : "?";
+		return base + separator + "sucursal=" + branchId;
+	}
 }

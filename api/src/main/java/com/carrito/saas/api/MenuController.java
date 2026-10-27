@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.carrito.saas.dto.MenuDTO;
@@ -23,16 +24,19 @@ public class MenuController {
 	}
 
 	@GetMapping
-	public MenuDTO getMenu() {
+	public MenuDTO getMenu(@RequestParam(name = "sucursal", required = false) Long sucursal) {
 		// Slugless menu (single-business deployment): the public QR URL no longer
 		// carries ?restaurant=<slug>; the service resolves the deployment's only
 		// business and fails closed when there is not exactly one.
-		return iMenuService.getMenu(null);
+		// ?sucursal= (multi-sucursal, S4/T7): refleja hours/whatsapp de la
+		// sucursal pedida; inválida → fallback silencioso a la default.
+		return iMenuService.getMenu(null, sucursal);
 	}
 
 	@GetMapping("/{slug}")
-	public MenuDTO getMenuBySlug(@PathVariable String slug) {
-		return iMenuService.getMenu(slug);
+	public MenuDTO getMenuBySlug(@PathVariable String slug,
+			@RequestParam(name = "sucursal", required = false) Long sucursal) {
+		return iMenuService.getMenu(slug, sucursal);
 	}
 
 	/**

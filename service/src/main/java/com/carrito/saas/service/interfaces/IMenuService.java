@@ -8,6 +8,14 @@ public interface IMenuService {
 	MenuDTO getMenu(String slug);
 
 	/**
+	 * Menú público con sucursal pedida (multi-sucursal, S4/T7): hours y
+	 * whatsapp reflejan la sucursal {@code branchId} cuando es propia y
+	 * activa; inválida/ajena/inactiva o null → la default (fallback
+	 * silencioso: es display público, los pedidos siguen fail-closed).
+	 */
+	MenuDTO getMenu(String slug, Long branchId);
+
+	/**
 	 * Public identity of one table of the deployment's single business, for
 	 * the anonymous customer menu badge opened from a per-table QR.
 	 *
