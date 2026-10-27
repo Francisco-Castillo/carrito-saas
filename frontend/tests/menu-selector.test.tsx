@@ -5,7 +5,7 @@
  * <p>Reglas bajo prueba:</p>
  * <ul>
  *   <li>Con DOS o más sucursales activas en el payload del menú
- *       (`business.branches`) aparece el selector (nombre + dirección); la
+ *       (`branches`, hermano de `business`) aparece el selector (nombre + dirección); la
  *       elección se refleja en la URL (`?sucursal=<id>`, reemplazando el
  *       query param sin recargar) y el pedido (POST checkout) lleva el
  *       `branchId` de la sucursal elegida.</li>
@@ -45,6 +45,9 @@ const PRODUCT = {
   imageUrl: 'img.jpg',
 }
 
+// Forma REAL del payload (GET /api/menu/{slug}): `branches` viaja en el
+// nivel superior del menú, hermano de `business` — no dentro de `business`.
+// El fixture original la puso adentro y ocultó el desajuste con el backend.
 const menuPayload = (branches?: Array<{ id: number; name: string; address?: string }>) => ({
   business: {
     name: 'Local Selector',
@@ -52,8 +55,8 @@ const menuPayload = (branches?: Array<{ id: number; name: string; address?: stri
     logoUrl: null,
     primaryColor: '#7C3AED',
     hours: ALWAYS_OPEN_HOURS,
-    ...(branches ? { branches } : {}),
   },
+  ...(branches ? { branches } : {}),
   products: [PRODUCT],
   combos: [],
 })

@@ -145,6 +145,12 @@ export interface StorefrontBusiness {
 
 export interface MenuResponse {
   business?: StorefrontBusiness | null;
+  /**
+   * Sucursales activas del negocio (multi-sucursal, S4/T7). Viaja HERMANA de
+   * `business` en el payload del menú público; `Menu.tsx` la fusiona en
+   * `business.branches` — la forma que consume el storefront.
+   */
+  branches?: MenuBranch[] | null;
   products?: Array<Omit<Product, "id" | "categoryId" | "categoryName" | "isCombo"> & {
     id: number | string;
     categoryId?: number | string;

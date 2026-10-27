@@ -313,7 +313,13 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
 
         // La portada viaja en el payload del menú; si el local no tiene datos
         // de storefront, `business` queda null y no se renderiza nada nuevo.
-        setBusiness(data.business ?? null);
+        // Selector de sucursales (multi-sucursal, S4/T7): el API manda
+        // `branches` HERMANO de `business` en el payload del menu, pero el
+        // storefront las lee de `business.branches` — se fusionan aca, en el
+        // unico punto donde el payload se convierte en la vista.
+        setBusiness(
+          data.business ? { ...data.business, branches: data.branches ?? [] } : null,
+        );
 
         // 🔥 SAFE ASSIGN (evita errores)
         const baseProducts: Product[] = (data.products || []).map((p) => ({
