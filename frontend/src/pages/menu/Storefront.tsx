@@ -14,18 +14,13 @@ import type { StorefrontBusiness } from "./types";
  * Todo es opcional: cada elemento desaparece cuando su dato falta, y un local
  * sin portada no renderiza nada (la carta queda exactamente como era).
  *
- * Selector de sucursales (multi-sucursal, odd/tasks/multi-sucursal.md,
- * S4/T7): cuando `business.branches` trae MÁS de una sucursal activa, bajo la
- * tarjeta aparece la fila de botones (nombre + dirección). La identidad
- * pública es el id numérico (`?sucursal=<id>`); la selección y su reflejo en
- * la URL viven en Menu.tsx (mismo dueño del query string que el slug), la
- * portada sólo muestra el estado. Con UNA o ninguna sucursal —o payload viejo
- * sin `branches`— no se renderiza nada: la UI es idéntica a la de hoy. La
- * carta es compartida (S2): la lista no cambia productos ni precios.
- *
- * Los estilos van inline porque este selector no toca Menu.css: el bloque se
- * apoya en las variables del panel de vidrio existente y cualquier ajuste
- * fino queda para un cambio de estilos dedicado.
+ * Multi-sucursal (odd/tasks/multi-sucursal.md, S4/T10): la carta NUNCA muestra
+ * un control de sucursal — el selector vivía acá y salió (corrección de
+ * producto L10). La elección ocurre en la pantalla previa (BranchPicker, T8)
+ * y los datos que muestra esta portada ya vienen scopeados: Menu.tsx pide el
+ * menú con `?sucursal=<id>` (T9), así que las horas, el WhatsApp y el estado
+ * abierto/cerrado son los de la sucursal elegida. La carta es compartida
+ * (S2): nada de lo que se muestra acá bifurca productos ni precios.
  *
  * El badge usa `useOpenStatus`: se recalcula en el próximo borde del horario,
  * con un re-chequeo acotado de respaldo y al volver la pestaña visible. Ya no
@@ -33,14 +28,8 @@ import type { StorefrontBusiness } from "./types";
  */
 export default function Storefront({
   business,
-  selectedBranchId = null,
-  onSelectBranch,
 }: {
   business?: StorefrontBusiness | null;
-  /** Sucursal elegida (id de `business.branches`) o null si no hay elección. */
-  selectedBranchId?: number | null;
-  /** Al elegir: Menu.tsx fija estado y refleja `?sucursal=<id>` en la URL. */
-  onSelectBranch?: (id: number) => void;
 }) {
   const name = business?.name?.trim() || "";
   const bannerUrl = business?.bannerUrl?.trim() || "";
@@ -56,13 +45,6 @@ export default function Storefront({
   // Las excepciones por fecha viajan dentro de `business` (payload del menú):
   // el badge resuelve cada fecha con sus turnos efectivos, no con la plantilla.
   const status = useOpenStatus(business?.hours, business?.dateExceptions);
-
-  // Selector de sucursales (S4/T7): sólo con DOS o más activas. Filtramos ids
-  // ausentes por defensa: un payload malformado no debe romper la portada.
-  const branches = (business?.branches ?? []).filter(
-    (b): b is NonNullable<typeof b> => Boolean(b && typeof b.id === "number" && b.name),
-  );
-  const showBranchSelector = branches.length > 1;
 
   if (!name && !bannerUrl && !logoUrl && !hasContact && !hasHours) {
     return null;
@@ -167,60 +149,6 @@ export default function Storefront({
           </div>
         )}
       </div>
-
-      {showBranchSelector && (
-        <div
-          className="storefront-branches"
-          role="group"
-          aria-label="Elegí una sucursal"
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "0.5rem",
-            margin: "0.75rem auto 0",
-            maxWidth: "56rem",
-            width: "100%",
-            padding: "0 1rem",
-            boxSizing: "border-box",
-          }}
-        >
-          {branches.map((b) => {
-            const selected = b.id === selectedBranchId;
-            const address = b.address?.trim() || "";
-            return (
-              <button
-                key={b.id}
-                type="button"
-                className={`storefront-branch${selected ? " is-selected" : ""}`}
-                aria-pressed={selected}
-                onClick={() => onSelectBranch?.(b.id)}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: "0.15rem",
-                  flex: "1 1 12rem",
-                  padding: "0.65rem 0.9rem",
-                  borderRadius: "0.9rem",
-                  border: selected
-                    ? "1px solid var(--primary-color, #7c3aed)"
-                    : "1px solid rgba(15, 23, 42, 0.15)",
-                  background: selected ? "rgba(124, 58, 237, 0.08)" : "rgba(255, 255, 255, 0.6)",
-                  color: "inherit",
-                  font: "inherit",
-                  textAlign: "left",
-                  cursor: "pointer",
-                }}
-              >
-                <span style={{ fontWeight: 600 }}>{b.name}</span>
-                {address && (
-                  <span style={{ fontSize: "0.8rem", opacity: 0.75 }}>{address}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
     </section>
   );
 }

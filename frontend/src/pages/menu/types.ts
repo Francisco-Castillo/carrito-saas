@@ -102,11 +102,11 @@ export interface DateException {
 }
 
 /**
- * Sucursal activa del selector público (multi-sucursal,
- * odd/tasks/multi-sucursal.md, S4/T7), tal como viaja en `business.branches`
- * del payload del menú: sólo id, nombre y dirección — la identidad pública
- * es el id NUMÉRICO (`?sucursal=<id>`), nunca un slug inventado. La lista
- * viene ordenada por id y sólo trae activas (el backend la arma así).
+ * Sucursal activa del link público (multi-sucursal,
+ * odd/tasks/multi-sucursal.md, S4/T8), tal como viaja en `branches` del
+ * payload del menú: sólo id, nombre y dirección — la identidad pública es el
+ * id NUMÉRICO (`?sucursal=<id>`), nunca un slug inventado. La lista viene
+ * ordenada por id y sólo trae activas (el backend la arma así).
  */
 export interface MenuBranch {
   id: number;
@@ -134,21 +134,16 @@ export interface StorefrontBusiness {
   menuFont?: string | null;
   hours?: BusinessHours[] | null;
   dateExceptions?: DateException[] | null;
-  /**
-   * Sucursales activas para el selector público (S4/T7). Presente con más de
-   * un elemento → se muestra el selector; con una o ninguna, la UI queda
-   * exactamente como era (cero regresión). La carta (S2) es compartida:
-   * esta lista NO cambia productos ni precios.
-   */
-  branches?: MenuBranch[] | null;
 }
 
 export interface MenuResponse {
   business?: StorefrontBusiness | null;
   /**
-   * Sucursales activas del negocio (multi-sucursal, S4/T7). Viaja HERMANA de
-   * `business` en el payload del menú público; `Menu.tsx` la fusiona en
-   * `business.branches` — la forma que consume el storefront.
+   * Sucursales activas del negocio (multi-sucursal, S4/T8). Viaja HERMANA de
+   * `business` en el payload del menú público; `Menu.tsx` la guarda para la
+   * pantalla previa (BranchPicker) — la carta NUNCA muestra un control de
+   * sucursal (T10). La carta (S2) es compartida: esta lista NO cambia
+   * productos ni precios.
    */
   branches?: MenuBranch[] | null;
   products?: Array<Omit<Product, "id" | "categoryId" | "categoryName" | "isCombo"> & {
