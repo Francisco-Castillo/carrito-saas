@@ -161,8 +161,9 @@ export type OrderType = "RETIRO" | "DELIVERY" | "SALON";
 
 /**
  * Identidad pública de una mesa, tal como la sirve
- * `GET /api/menu/table/{id}` (endpoint anónimo minimalista): lo justo para el
- * badge — sin `qrToken`, sin `qrUrl`, sin estado interno.
+ * `GET /api/menu/{slug}/table/{id}` (endpoint anónimo minimalista,
+ * slug-scoped desde la enmienda S4 de odd/tasks/retire-menu-route.md): lo
+ * justo para el badge — sin `qrToken`, sin `qrUrl`, sin estado interno.
  */
 export interface PublicTable {
   id: number;

@@ -110,17 +110,20 @@ function normalizePhone(value: string): string {
 }
 
 export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) {
-  // Slug del local: la resolución de rutas pasa el del path (/{slug},
-  // urls-por-slug.md S3); el query param ?restaurant= queda por
-  // compatibilidad con QRs viejos y el deployment de un solo negocio.
+  // Slug del local: la resolución de rutas SIEMPRE lo pasa como prop
+  // (view === "menu" → resolution.slug de /{slug}; la vista carta sin slug
+  // no existe desde la jubilación de /menu, retire-menu-route.md S6). El
+  // query param ?restaurant= queda por compatibilidad con QRs viejos y el
+  // deployment de un solo negocio.
   const slug = useMemo(
     () => slugProp ?? new URLSearchParams(window.location.search).get("restaurant"),
     [slugProp],
   );
 
   // QR de mesa (feature pedido-qr-mesa): el QR de una mesa abre la carta como
-  // /menu/?table=<id>. Un id inválido o una mesa que no resuelve (404/error)
-  // caen al menú normal — un QR viejo sigue funcionando.
+  // /{slug}?table=<id> (retire-menu-route.md S2/S6). Un id inválido o una
+  // mesa que no resuelve (404/error) caen al menú normal — un QR viejo sigue
+  // funcionando.
   const tableParam = useMemo(() => {
     const raw = new URLSearchParams(window.location.search).get("table");
     const id = raw === null ? NaN : Number(raw);
@@ -235,56 +238,36 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
       setLoadError(null);
       setLoading(true);
 
-      // Datos del local para la portada y el fallback de WhatsApp. Con slug es
-      // el endpoint legacy; sin slug (deployment de un solo negocio) los datos
-      // del local viajan en el payload del menú y no hace falta una segunda
-      // llamada.
-      if (slug) {
-        try {
-          const res = await fetch(`/api/restaurants/slug/${slug}`);
-          if (!res.ok) {
-            throw new Error("Restaurant request failed with HTTP " + res.status);
-          }
-          const data: Restaurant = await res.json();
-          if (cancelled) return;
-          setRestaurant(data);
-
-          if (data.primaryColor) {
-            applyBrandColor(data.primaryColor);
-          }
-          // Fuente de la carta: aplicar SIEMPRE (sin slug limpia la variable
-          // — reemplazo total, como el color).
-          applyMenuFont(data.menuFont);
-        } catch {
-          if (!cancelled) setLoadError(ERROR_RESTAURANT);
-          return;
+      // Datos del local para la portada y el fallback de WhatsApp. Con la
+      // ruta /menu jubilada el slug SIEMPRE está presente (S6): el endpoint
+      // /api/restaurants/slug/{slug} es la única fuente de estos datos.
+      try {
+        const res = await fetch(`/api/restaurants/slug/${slug}`);
+        if (!res.ok) {
+          throw new Error("Restaurant request failed with HTTP " + res.status);
         }
+        const data: Restaurant = await res.json();
+        if (cancelled) return;
+        setRestaurant(data);
+
+        if (data.primaryColor) {
+          applyBrandColor(data.primaryColor);
+        }
+        applyMenuFont(data.menuFont);
+      } catch {
+        if (!cancelled) setLoadError(ERROR_RESTAURANT);
+        return;
       }
 
+      // Menú del local: SIEMPRE slug-scoped (retire-menu-route.md S6) —
+      // el endpoint slugless GET /api/menu fue retirado por el backend (S4).
       try {
-        const res = await fetch(slug ? `/api/menu/${slug}` : "/api/menu");
+        const res = await fetch(`/api/menu/${slug}`);
         if (!res.ok) {
           throw new Error("Menu request failed with HTTP " + res.status);
         }
         const data: MenuResponse = await res.json();
         if (cancelled) return;
-
-        // Sin slug, el negocio del deployment suple al endpoint de restaurante:
-        // nombre, logo, WhatsApp y color de marca llegan en data.business.
-        if (!slug && data.business) {
-          setRestaurant({
-            name: data.business.name,
-            logoUrl: data.business.logoUrl ?? undefined,
-            whatsappNumber: data.business.whatsappNumber ?? undefined,
-            primaryColor: data.business.primaryColor ?? undefined,
-          });
-          if (data.business.primaryColor) {
-            applyBrandColor(data.business.primaryColor);
-          }
-          // Ruta sin slug: la fuente viaja en el payload del menú; aplicar
-          // SIEMPRE (sin slug limpia — reemplazo total, como el color).
-          applyMenuFont(data.business.menuFont);
-        }
 
         // La portada viaja en el payload del menú; si el local no tiene datos
         // de storefront, `business` queda null y no se renderiza nada nuevo.
@@ -310,7 +293,10 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
         // sigue funcionando igual.
         if (tableParam !== null) {
           try {
-            const tableRes = await fetch(`/api/menu/table/${tableParam}`);
+            // Mesa slug-scoped (retire-menu-route.md S4 enmendada/S6):
+            // GET /api/menu/{slug}/table/{id} reemplaza al endpoint
+            // slugless /api/menu/table/{id}.
+            const tableRes = await fetch(`/api/menu/${slug}/table/${tableParam}`);
             if (!tableRes.ok) {
               throw new Error("Table request failed with HTTP " + tableRes.status);
             }
@@ -609,7 +595,9 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
     setSending(true);
 
     try {
-      const response = await fetch(slug ? `/api/orders/menu/${slug}` : "/api/orders/menu", {
+      // Pedidos SIEMPRE slug-scoped (retire-menu-route.md S4/S6): el POST
+      // slugless fue retirado por el backend.
+      const response = await fetch(`/api/orders/menu/${slug}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

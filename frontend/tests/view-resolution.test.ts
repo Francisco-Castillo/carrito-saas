@@ -73,14 +73,14 @@ describe('resolveView: paths limpios viejos = legacy (el guard los redirige)', (
     expect(resolveView(path)).toEqual({ view: view as AppView, slug: null, legacy: true })
   })
 
-  it('/menu/{slug} es legacy: la carta canónica ahora es /{slug}', () => {
+  it('la ruta /menu fue jubilada: ya no resuelve carta (S6 de retire-menu-route)', () => {
     at('/menu/e2e-demo')
-    expect(resolveView('/menu/e2e-demo')).toEqual({ view: 'menu', slug: 'e2e-demo', legacy: true })
+    expect(resolveView('/menu/e2e-demo')).toEqual({ view: 'login', slug: null, legacy: false })
   })
 
-  it('/menu a secas sigue existiendo (shell sin slug, deployment de uno)', () => {
+  it('/menu a secas también cae al fallback (S6/S7: slug reservado, ruta muerta)', () => {
     at('/menu')
-    expect(resolveView('/menu')).toEqual({ view: 'menu', slug: null, legacy: false })
+    expect(resolveView('/menu')).toEqual({ view: 'login', slug: null, legacy: false })
   })
 })
 
