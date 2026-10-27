@@ -1,7 +1,8 @@
 # Multi-sucursal
 
-**Estado:** en curso (fase 1)
+**Estado:** fase 1 cerrada (2026-10-24), fases 2-4 pendientes
 **Rama:** `feat/multi-sucursal`
+**Slice:** `a6de1f3` (707 líneas, una unidad: entidad + CRUD + tests + doc). Las 44 commits que ve el harness contra `origin/main` son historia previa de `develop`; el feature arrancó limpio desde ahí.
 **Origen:** L1 (pedido original del usuario, verbatim).
 
 ## Specs
@@ -23,8 +24,8 @@ Tabla `branches`: la crea Hibernate (`ddl-auto: update`, tabla nueva). Migració
 
 ## Tasks
 
-- **T1** (S1) `repository`: entidad `Branch` + `BranchRepository` + migración de sucursal default por negocio existente. Commit: (pendiente)
-- **T2** (S1) `service`+`api`: DTO, mapper, `IBranchService`/`BranchServiceImpl`, `BranchController` `/api/business/branches` (GET/POST/PUT/DELETE, baja lógica, id ajeno → 404, scoping por tenant del JWT). Commit: (pendiente)
+- **T1** (S1) `repository`: entidad `Branch` + `BranchRepository` + migración de sucursal default por negocio existente. Commit: `a6de1f3`
+- **T2** (S1) `service`+`api`: DTO, mapper, `IBranchService`/`BranchServiceImpl`, `BranchController` `/api/business/branches` (GET/POST/PUT/DELETE, baja lógica, id ajeno → 404, scoping por tenant del JWT). Commit: `a6de1f3` (mismo slice: unidad única, RED observado antes de implementar; suite completa verde)
 - **T3** (S3) fase 2: contexto de sucursal (JWT/panel) + scoping de pedidos y KDS por sucursal. Commit: (pendiente)
 - **T4** (S3) fase 2: horarios por sucursal. Commit: (pendiente)
 - **T5** (S3) fase 3: WhatsApp por sucursal. Commit: (pendiente)
@@ -34,3 +35,4 @@ Tabla `branches`: la crea Hibernate (`ddl-auto: update`, tabla nueva). Migració
 ## Log
 
 - **L1** «podriamos implementar el multi-sucursal de un de un negocio ?» — pedido original. Decisiones del usuario (cuestionario): modelo «No sé, recomiendame» ⇒ Branch (este doc); carta «Compartida»; operación «Básico + WhatsApp/QR»; acceso «Link de grupo con selector». Autorizado arrancar por fase 1.
+- **L2** Fase 1 implementada y verificada (`a6de1f3`): `BranchEndpointTests` 11/11 (RED observado antes), suite completa de los 4 módulos verde. Pendiente de decisión del usuario: arrancar fase 2 (contexto de sucursal en JWT + pedidos/KDS por sucursal).
