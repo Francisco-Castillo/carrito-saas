@@ -151,3 +151,21 @@ bloqueantes (advisory), trabajo aparte:
   tratarse como fallback silencioso para el display público)
 
 Receipt: store_revision sha256:9b4532790ef1151fe38dc9b9b893ed547fce2dd26d2629eb54f1fe51fd004e20.
+
+## Panel de sucursales (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada del slice del panel (lineage review-dffb9a3c0b2a0de7,
+lens reliability, tier medium, 5 archivos/697 líneas). 4 findings NO
+bloqueantes (advisory), trabajo aparte:
+
+- R3-edit-cannot-clear-optional-fields WARNING BranchesSection.tsx:146-158
+  (la edición no puede limpiar dirección/WhatsApp opcionales: el PUT sin
+  campo los conserva según contrato parcial del perfil — en BranchServiceImpl
+  blankToNull sí limpia con "", verificar cuál contrato quedó)
+- R3-no-disable-during-workhere SUGGESTION BranchesSection.tsx:296-305
+  (doble click en «Trabajar acá» dispara dos selects)
+- R3-qr-filename-unsanitized SUGGESTION BranchesSection.tsx:236-238
+  (nombre de archivo QR sin sanitizar)
+- R3-workhere-refresh-error-swallowed SUGGESTION BranchesSection.tsx:228-232
+
+Receipt: store_revision sha256:19ca6dd16fec9334052df55663a30ecf02f508831c5badee6dd510f770126902.
