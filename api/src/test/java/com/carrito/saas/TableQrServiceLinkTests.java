@@ -43,7 +43,9 @@ import com.google.zxing.qrcode.QRCodeReader;
  *
  * <ul>
  * <li>{@code GET /api/tables/{id}/qr} — the printed PNG must encode the PUBLIC
- * menu URL of the deployment ({@code <base>/menu/}, slugless single-business contract),
+ * menu URL of the deployment ({@code <base>/{slug}}, S3 of
+ * odd/tasks/retire-menu-route.md: the slug is encoded in the URL; the legacy
+ * {@code /menu/} slugless contract is retired),
  * never a bare {@code /<qrToken>} path and never an internal backend host.</li>
  * <li>{@code POST /api/tables} — the created {@code TableResponseDTO.qrUrl}
  * must carry that same public URL, because the phone camera is the only client
@@ -127,7 +129,7 @@ class TableQrServiceLinkTests {
 
 		String decoded = decodeQrText(png);
 
-		String expectedUrl = "http://localhost:9090/menu/?table=" + tableId;
+		String expectedUrl = "http://localhost:9090/table-qr-link-business?table=" + tableId;
 
 		assertThat(decoded)
 				.as("the table QR PNG must encode menuUrlBuilder.buildTableMenuUrl(slug, tableId)")
@@ -135,7 +137,7 @@ class TableQrServiceLinkTests {
 
 		assertThat(decoded)
 				.as("the table QR PNG must encode the suite's public menu URL literal for its own table")
-				.isEqualTo("http://localhost:9090/menu/?table=" + tableId);
+				.isEqualTo("http://localhost:9090/table-qr-link-business?table=" + tableId);
 
 		assertThat(decoded)
 				.as("the table QR PNG must carry the table id of the printed table")
@@ -164,7 +166,7 @@ class TableQrServiceLinkTests {
 
 		assertThat(qrUrl)
 				.as("the created table's qrUrl must equal menuUrlBuilder.buildTableMenuUrl(slug, tableId)")
-				.isEqualTo("http://localhost:9090/menu/?table=" + tableId);
+				.isEqualTo("http://localhost:9090/table-qr-link-business?table=" + tableId);
 
 		assertThat(qrUrl)
 				.as("the created table's qrUrl must carry its own table id")

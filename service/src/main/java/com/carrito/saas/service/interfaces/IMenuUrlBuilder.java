@@ -4,9 +4,10 @@ public interface IMenuUrlBuilder {
 
 	/**
 	 * Builds the public menu URL a printed TABLE QR must encode:
-	 * {@code <base>/menu/?table=<id>}.
+	 * {@code <base>/{slug}?table=<id>}.
 	 *
-	 * <p>The id lets the customer menu attribute the order to the scanned
+	 * <p>S3 (odd/tasks/retire-menu-route.md): the business slug is encoded in
+	 * the URL; the id lets the customer menu attribute the order to the scanned
 	 * table (SALON + tableId), which the backend already validates against
 	 * the resolved business.</p>
 	 *
@@ -18,7 +19,7 @@ public interface IMenuUrlBuilder {
 
 	/**
 	 * Builds the public menu URL a printed QR must encode:
-	 * {@code <base>/menu/index.html?restaurant=<slug>}.
+	 * {@code <base>/{slug}}.
 	 *
 	 * @param slug the public slug of the business
 	 * @return the absolute URL of the anonymous menu page

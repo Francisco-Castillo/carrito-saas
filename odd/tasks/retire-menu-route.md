@@ -20,7 +20,7 @@ Consecuencia operativa (fuera de este slice, acción del usuario): reimprimir TO
 | ID | Specs | Ruta | Commit |
 | --- | --- | --- | --- |
 | T1 | — | este doc + mirror Engram + todo | este commit |
-| T2 | S3 | RED-first: MenuUrlBuilderTests, QrPdfTemplateUrlTests, TableQrServiceLinkTests | |
+| T2 | S3 | RED-first: MenuUrlBuilderTests, QrPdfTemplateUrlTests, TableQrServiceLinkTests | 347d5ef |
 | T3 | S4, S5 (security) | RED-first: baja de slugless + SingleBusinessResolver; ajuste de tests slugless | |
 | T4 | S5, S7 (routing) | SpaRoutingConfig, SlugViewController, copy-legacy-entries.mjs; SpaRoutingHttpTests | |
 | T5 | S6, S7 (SPA) | RED-first: view.ts + view-routing.test.ts | |

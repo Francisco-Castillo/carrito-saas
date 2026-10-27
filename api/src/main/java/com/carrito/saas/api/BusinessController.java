@@ -155,7 +155,7 @@ public class BusinessController {
 
 	/**
 	 * PNG QR code that encodes the current owner's public menu URL
-	 * ({@code <base>/menu/index.html?restaurant=<slug>}), ready to print for the
+	 * ({@code <base>/{slug}}), ready to print for the
 	 * pickup/delivery channel.
 	 *
 	 * <p>The business is derived from the authenticated JWT via

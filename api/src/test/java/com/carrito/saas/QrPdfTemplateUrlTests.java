@@ -51,7 +51,8 @@ import com.lowagie.text.pdf.parser.PdfTextExtractor;
 /**
  * The URL every per-table QR PDF template hands to the QR encoder (and, when
  * {@code showUrl=true}, prints as text) must be the configured PUBLIC menu URL
- * {@code <base>/menu/} (slugless: the single business is resolved server-side), never the dead
+ * {@code <base>/{slug}} (S3, odd/tasks/retire-menu-route.md: the slug is encoded
+ * in the URL; the legacy {@code /menu/} slugless contract is retired), never the dead
  * {@code http://localhost:3030/<qrToken>} path.
  *
  * <p>The {@code qr.public-menu-url} override points at a host that appears
@@ -75,10 +76,10 @@ class QrPdfTemplateUrlTests {
 
 	private static final String USERNAME = "qr-pdf-url-owner";
 
-	private static final String EXPECTED_BASE_URL = "https://qr.example.test/menu/";
+	private static final String EXPECTED_MENU_URL = "https://qr.example.test/qr-pdf-url-business";
 
 	private static String expectedTableUrl(long tableId) {
-		return EXPECTED_BASE_URL + "?table=" + tableId;
+		return EXPECTED_MENU_URL + "?table=" + tableId;
 	}
 
 	@Autowired
@@ -142,7 +143,7 @@ class QrPdfTemplateUrlTests {
 						capturedUrl)
 				.isEqualTo(menuUrlBuilder.buildTableMenuUrl(SLUG, 1L));
 		assertThat(capturedUrl)
-				.as("the configured base https://qr.example.test must be used verbatim, carrying the table id (actual: %s)", capturedUrl)
+				.as("the configured base https://qr.example.test must be used verbatim, carrying the slug and the table id (actual: %s)", capturedUrl)
 				.isEqualTo(expectedTableUrl(1L));
 		assertThat(capturedUrl)
 				.as("the dead localhost:3030 host must be gone from the QR content (actual: %s)", capturedUrl)
@@ -167,8 +168,8 @@ class QrPdfTemplateUrlTests {
 				.containsExactly(expectedTableUrl(1L), expectedTableUrl(2L), expectedTableUrl(3L));
 		assertThat(capturedUrls)
 				.as("the configured base https://qr.example.test must be used verbatim (actual: %s)", capturedUrls)
-				.containsOnly(EXPECTED_BASE_URL + "?table=1", EXPECTED_BASE_URL + "?table=2",
-						EXPECTED_BASE_URL + "?table=3");
+				.containsOnly(EXPECTED_MENU_URL + "?table=1", EXPECTED_MENU_URL + "?table=2",
+						EXPECTED_MENU_URL + "?table=3");
 		assertThat(capturedUrls)
 				.as("the dead localhost:3030 host must be gone from the QR content (actual: %s)", capturedUrls)
 				.doesNotContain("localhost:3030");
@@ -187,7 +188,7 @@ class QrPdfTemplateUrlTests {
 						capturedUrl)
 				.isEqualTo(menuUrlBuilder.buildTableMenuUrl(SLUG, 1L));
 		assertThat(capturedUrl)
-				.as("the configured base https://qr.example.test must be used verbatim, carrying the table id (actual: %s)", capturedUrl)
+				.as("the configured base https://qr.example.test must be used verbatim, carrying the slug and the table id (actual: %s)", capturedUrl)
 				.isEqualTo(expectedTableUrl(1L));
 		assertThat(capturedUrl)
 				.as("the dead localhost:3030 host must be gone from the QR content (actual: %s)", capturedUrl)
