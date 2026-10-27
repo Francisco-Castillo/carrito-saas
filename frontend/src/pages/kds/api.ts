@@ -97,6 +97,25 @@ export class RestaurantNotFoundError extends Error {
   }
 }
 
+/**
+ * Señal de sesión muerta (odd/tasks/kds-session-errors.md S2/S3): un 401
+ * (token vencido/inválido) o 403 (rol revocado) en CUALQUIER llamada del
+ * KDS. El guard de sesión corre una sola vez al montar, así que una sesión
+ * que muere en pleno turno sólo se descubre acá. La señal es explícita para
+ * que la página la traduzca en "limpiar sesión y volver al login", en vez
+ * del catch histórico que se tragaba el error y dejaba columnas vacías
+ * ("pantalla muerta").
+ */
+export class UnauthenticatedError extends Error {
+  constructor() {
+    super("Sesión no válida");
+  }
+}
+
+function isSessionRejected(status: number): boolean {
+  return status === 401 || status === 403;
+}
+
 // kds.js:3-9: sin slug el legacy reemplaza el body con
 // "Restaurante no especificado" y corta la ejecución. En el puerto el slug
 // viene de la sesión y se lee SIN efectos secundarios (sin navegación en el
@@ -121,6 +140,9 @@ export async function loadOrders(): Promise<KdsOrder[]> {
     if (response.status === 404) {
       // kds.js:55-57
       throw new RestaurantNotFoundError();
+    }
+    if (isSessionRejected(response.status)) {
+      throw new UnauthenticatedError();
     }
     if (!response.ok) throw new Error("Error cargando pedidos");
 
@@ -154,6 +176,11 @@ export async function advanceOrder(orderId: number, status: string): Promise<boo
       method: "PATCH",
       headers: authHeaders(),
     });
+    if (isSessionRejected(response.status)) {
+      // Sesión muerta en pleno turno: la señal sube sin toast genérico que
+      // la disimule (S3); el caller la traduce en fatal.
+      throw new UnauthenticatedError();
+    }
     if (!response.ok) {
       let message = "No se pudo actualizar el pedido";
       try {
@@ -167,6 +194,7 @@ export async function advanceOrder(orderId: number, status: string): Promise<boo
     }
     return true;
   } catch (e) {
+    if (e instanceof UnauthenticatedError) throw e;
     // kds.js:276
     console.error("Error actualizando estado", e);
     showToast("No se pudo actualizar el pedido", "warning");
@@ -180,8 +208,12 @@ export async function loadCancellationReasons(): Promise<CancellationReason[]> {
     const res = await fetch("/api/cancellation-reasons", {
       headers: authHeaders(),
     });
+    if (isSessionRejected(res.status)) {
+      throw new UnauthenticatedError();
+    }
     return (await res.json()) as CancellationReason[];
   } catch (e) {
+    if (e instanceof UnauthenticatedError) throw e;
     // kds.js:543-544
     console.error("Error cargando motivos", e);
     return [];
@@ -196,7 +228,7 @@ export async function cancelOrder(
   reasonId: number,
   note: string
 ): Promise<void> {
-  await fetch(`/api/orders/${orderId}/cancel`, {
+  const response = await fetch(`/api/orders/${orderId}/cancel`, {
     method: "PATCH",
     headers: {
       ...authHeaders(),
@@ -207,6 +239,9 @@ export async function cancelOrder(
       note: note,
     }),
   });
+  if (isSessionRejected(response.status)) {
+    throw new UnauthenticatedError();
+  }
 }
 
 /**
