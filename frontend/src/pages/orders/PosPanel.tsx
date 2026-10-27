@@ -151,8 +151,11 @@ export default function PosPanel({ onClose, onCreated }: PosPanelProps) {
       if (!group.multiple) {
         return [...current.filter((id) => !group.options.some((o) => o.id === id)), optionId];
       }
-      if (group.maxSelections != null && current.length >= group.maxSelections) {
-        return current;
+      if (group.maxSelections != null) {
+        const inGroup = current.filter((id) => group.options.some((o) => o.id === id)).length;
+        if (inGroup >= group.maxSelections) {
+          return current;
+        }
       }
       return [...current, optionId];
     });
