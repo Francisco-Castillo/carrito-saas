@@ -119,3 +119,20 @@ L4. "hacelos ahora" (2026-10-17): segunda pasada sobre las 14 no-acciones.
       revisor sería adivinar.
     - R3-import-complete de #50: ya resuelto por PR #50 (verificado: nadie
       importa formatARS desde dashboard/format).
+
+## Multi-sucursal (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada del slice fases 1+2 (lineage review-4b1135d9d419534f,
+lens reliability, tier high). Los 5 findings son NO bloqueantes (advisory,
+disposition informational) y no reabren la review — trabajo aparte:
+
+- R3-001 WARNING OrderServiceImpl:370-376 (fallback de sucursal en scoping de pedidos)
+- R3-002 WARNING SecurityService:154-193 (resolución de sucursal activa del JWT)
+- R3-003 SUGGESTION BusinessProfileServiceImpl:810-824
+- R3-004 SUGGESTION docs/migrations/2026-10-28-branch-hours.sql:56-73 (swap de constraints)
+- R3-005 SUGGESTION OrderServiceImpl:617-631 (resolveBranchForOrder)
+
+Sin el texto completo del revisor en mano, la acción honesta es leer el
+detalle del store antes de tocar (patrón ya documentado en L4: adivinar
+ubicaciones sin texto = churn). Referencia del receipt: store_revision
+sha256:400aa80161b1fe68ba3d609db9c2f2b7fa4c79c2a881a76a3c7e2a5147258d6e.
