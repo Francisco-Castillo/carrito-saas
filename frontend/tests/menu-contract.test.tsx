@@ -16,7 +16,7 @@ import { describe, expect, it, vi } from 'vitest'
 import Menu from '../src/pages/Menu'
 
 const SLUG = 'ok-local'
-const RESTAURANT = { name: 'Local OK', whatsappNumber: '' }
+const RESTAURANT = { name: 'Local OK', whatsappNumber: '', primaryColor: '#7C3AED' }
 // Semana siempre abierta: createOrder respeta el horario efectivo del local
 // (negocio sin filas = cerrado), así que el payload mockeado abre 24/7. El
 // último turno cruza la medianoche: cada minuto del día está cubierto.
@@ -90,28 +90,9 @@ function makeFetch(opts: { menuFailure?: 'http-500' | 'bad-json' | 'network' } =
       }
       return okJson({ products: [], combos: [] })
     }
-    if (u === '/api/menu') {
-      // Slugless mode (single-business deployment): failure injection applies too.
-      if (opts.menuFailure === 'network') {
-        throw new TypeError('Failed to fetch')
-      }
-      if (opts.menuFailure === 'bad-json') {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => {
-            throw new SyntaxError("Unexpected token '<' is not valid JSON")
-          },
-        }
-      }
-      if (opts.menuFailure === 'http-500') {
-        return { ok: false, status: 500, json: async () => ({}) }
-      }
-      return okJson(MENU_PAYLOAD)
-    }
-    if (u === '/api/orders/menu') {
-      return okJson({ orderId: 42, status: 'NEW' })
-    }
+    // The slugless endpoints are retired (odd/tasks/retire-menu-route.md S4/S6):
+    // any fetch to them falls through to the "unexpected fetch" throw below,
+    // so a regression fails loudly instead of passing silently.
     if (u.startsWith('/api/orders/menu/')) {
       return okJson({ orderId: 42, status: 'NEW' })
     }
@@ -125,12 +106,17 @@ function setSearch(search: string) {
   window.history.replaceState(null, '', search === '' ? '/' : `/${search}`)
 }
 
-function renderMenu(fetchMock: ReturnType<typeof makeFetch>['fetchMock']) {
+function renderMenu(
+  fetchMock: ReturnType<typeof makeFetch>['fetchMock'],
+  opts: { slug?: string | null } = {}
+) {
   // Menu.tsx calls the global alert for the order confirmation.
   const alertMock = vi.fn()
   vi.stubGlobal('alert', alertMock)
   vi.stubGlobal('fetch', fetchMock)
-  render(<Menu />)
+  // odd/tasks/retire-menu-route.md S6: the route always passes the slug as a
+  // prop; ?restaurant= is only the legacy-QR compatibility path.
+  render(<Menu slug={opts.slug === undefined ? SLUG : opts.slug} />)
   return { alertMock }
 }
 
@@ -150,51 +136,26 @@ function expectNoFetch(calls: FetchCall[], fragment: string) {
 }
 
 describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.mjs)', () => {
-  it('no ?restaurant= (single business): loads /api/menu and the storefront comes from the menu payload', async () => {
+  it('slug route: loads /api/menu/{slug} and the storefront comes from the menu payload', async () => {
+    // odd/tasks/retire-menu-route.md S6: the slugless menu is retired; the
+    // slug always reaches the fetches, never "undefined" or "null" (the old
+    // /menu/null anomaly stays pinned).
     const { calls, fetchMock } = makeFetch()
     setSearch('')
     renderMenu(fetchMock)
 
     await waitFor(() =>
-      expect(calls.some((call) => call.url === '/api/menu')).toBe(true)
+      expect(calls.some((call) => call.url === `/api/menu/${SLUG}`)).toBe(true)
     )
-    // Slugless mode makes exactly ONE fetch: no /api/restaurants/slug/... call,
-    // no slug appended anywhere (never /api/menu/undefined or /api/menu/null).
-    expectNoFetch(calls, '/api/restaurants/')
     expectNoFetch(calls, '/api/menu/undefined')
     expectNoFetch(calls, '/api/menu/null')
     // The happy path must not show the error message.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    // The product from the slugless menu payload renders.
+    // The product from the menu payload renders.
     await screen.findByText('Milanesa')
     // The storefront color from the menu payload themes the page: the CSS
     // variable the stylesheet reads must be set from business.primaryColor.
     expect(document.documentElement.style.getPropertyValue('--primary-color')).toBe('#7C3AED')
-  })
-
-  it('no ?restaurant= (single business): order goes to POST /api/orders/menu with no slug', async () => {
-    const user = userEvent.setup()
-    const { calls, fetchMock } = makeFetch()
-    setSearch('')
-    renderMenu(fetchMock)
-
-    await screen.findByText('Milanesa')
-    // The + opens the detail sheet; the add happens from there.
-    await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
-    await user.click(within(screen.getByRole('dialog', { name: 'Detalles de Milanesa' })).getByRole('button', { name: 'Agregar al pedido' }))
-    await user.click(screen.getByRole('button', { name: 'Ver pedido' }))
-    await user.type(screen.getByPlaceholderText('Nombre y Apellido'), 'Cliente Sin Slug')
-    await user.type(screen.getByPlaceholderText('Celular (ej. 11 5555 1234)'), '11 5555 1234')
-    await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
-
-    await waitFor(() => {
-      const orderCall = calls.find((call) => call.url.startsWith('/api/orders'))
-      expect(orderCall).toBeDefined()
-      // The slugless deployment submits to the slugless endpoint, exactly.
-      expect(orderCall!.url).toBe('/api/orders/menu')
-      expect(orderCall!.method).toBe('POST')
-      expect(JSON.parse(orderCall!.body!).items).toEqual([{ productId: 101, quantity: 1 }])
-    })
   })
 
   it('no ?restaurant= (single business): menu fetch failure still shows a customer-readable message and stops', async () => {
@@ -209,9 +170,10 @@ describe('Menu (public menu contract, ported from api/src/test/js/menu-app.test.
   })
 
   it('restaurant cannot be loaded (404): shows a customer-readable message and stops', async () => {
+    // Legacy-QR compatibility path (?restaurant=): no slug prop, the param rules.
     const { calls, fetchMock } = makeFetch()
     setSearch('?restaurant=ghost')
-    renderMenu(fetchMock)
+    renderMenu(fetchMock, { slug: null })
 
     await expectLoadError()
     expect(calls.some((call) => call.url.includes('/api/restaurants/'))).toBe(true)

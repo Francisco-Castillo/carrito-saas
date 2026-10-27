@@ -8,7 +8,10 @@ export type AppView = "login" | "menu" | "dashboard" | "admin" | "kds" | "orders
  * - Los paths limpios viejos (/admin, /dashboard, ...) resuelven su vista
  *   marcados legacy: el guard los redirige al equivalente con el slug de la
  *   sesión (S4) — los bookmarks no se rompen.
- * - /menu/{slug} también es legacy: la carta canónica ahora es /{slug} (S5).
+ * - La ruta /menu está jubilada (odd/tasks/retire-menu-route.md, S6): la
+ *   única carta pública es /{slug}; /menu y /menu/{slug} caen al fallback.
+ *   "menu" queda reservado para siempre (S7): ningún local puede tener ese
+ *   slug.
  * - /platform y /login no llevan slug (el operador no tiene negocio).
  */
 export interface ViewResolution {
@@ -27,7 +30,6 @@ const LEGACY_ROUTES: Array<[RegExp, AppView]> = [
 
 /** Vistas sin slug que NO cambian: canónicas como están (S5). */
 const NO_SLUG_ROUTES: Array<[RegExp, AppView]> = [
-  [/^\/menu(?:\/index\.html)?\/?$/, "menu"],
   [/^\/platform(?:\/index\.html)?\/?$/, "platform"],
   [/^\/login(?:\/login\.html)?\/?$/, "login"],
 ];
@@ -55,10 +57,6 @@ const RESERVED_SEGMENTS = new Set([
  * URL canónica con slug (S4/S5) antes de pintar.
  */
 export function resolveView(pathname: string): ViewResolution {
-  // /menu/{slug} → legacy: la carta canónica ahora es /{slug} (S5).
-  const menuWithSlug = pathname.match(/^\/menu\/([a-z0-9-]+)\/?$/);
-  if (menuWithSlug) return { view: "menu", slug: menuWithSlug[1], legacy: true };
-
   for (const [pattern, view] of LEGACY_ROUTES) {
     if (pattern.test(pathname)) return { view, slug: null, legacy: true };
   }
@@ -79,9 +77,11 @@ export function resolveView(pathname: string): ViewResolution {
     }
   }
 
-  // Escape hatch dev-only: fuerza una vista en paths no-route.
+  // Escape hatch dev-only: fuerza una vista en paths no-route. La vista
+  // carta NO está: la ruta /menu está jubilada y "menu" es un slug reservado
+  // (retire-menu-route.md, S6/S7) — cae al fallback como cualquier valor
+  // desconocido.
   const forced = new URLSearchParams(window.location.search).get("view");
-  if (forced === "menu") return { view: "menu", slug: null, legacy: false };
   if (forced === "dashboard") return { view: "dashboard", slug: null, legacy: false };
   if (forced === "admin") return { view: "admin", slug: null, legacy: false };
   if (forced === "kds") return { view: "kds", slug: null, legacy: false };
@@ -153,8 +153,9 @@ export function landingForRole(role: string | null, slug: string | null): string
  * de la semántica de navegación de jsdom, y el e2e de Playwright cubre la
  * navegación real en browser.
  *
- * - Carta pública: /{slug} es canónica (S3); /menu/{slug} → /{slug} (S5),
- *   sin importar la sesión — es pública.
+ * - Carta pública: /{slug} es canónica (S3). La ruta /menu está jubilada
+ *   (retire-menu-route.md, S6): view.ts ya no resuelve menú con legacy=true,
+ *   así que la vista carta nunca redirige — es pública.
  * - /platform: sólo el operador (rol ADMIN) se queda; una sesión de negocio
  *   va a su panel con slug; sin sesión → login (la vista se pinta y el
  *   post-login la resuelve).
@@ -174,8 +175,8 @@ export function guardRedirect(
   const platformSession = isPlatformRole && session.slug === null;
 
   if (view === "menu") {
-    // Carta pública: sin sesión no hay nada que gatear (S3).
-    if (legacy && slug) return `/${slug}`;
+    // Carta pública: sin sesión no hay nada que gatear (S3). Sólo se llega
+    // acá vía /{slug} (retire-menu-route.md, S6): no hay rama legacy.
     return null;
   }
 

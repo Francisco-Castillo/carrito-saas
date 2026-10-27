@@ -72,3 +72,7 @@ uploads/
 # Dependencias instaladas fuera de frontend/ (npm install accidental en la raíz)
 node_modules/
 frontend/test-results/
+
+# Estado local de las herramientas de sesión (no es parte del repo)
+.codegraph/
+.pi/

@@ -36,23 +36,25 @@ import com.carrito.saas.repository.jpa.UserRepository;
 import com.carrito.saas.security.JwtUtil;
 
 /**
- * Fail-closed contract of {@code GET /api/menu/table/{id}} beyond the happy
- * path pinned by {@link MenuTableEndpointHttpTests} (independently probed
+ * Fail-closed contract of {@code GET /api/menu/{slug}/table/{id}} beyond the
+ * happy path pinned by {@link MenuTableEndpointHttpTests} (independently probed
  * during the verification of odd/tasks/pedido-qr-mesa.md):
  *
  * <ul>
- * <li>a deployment with ZERO businesses answers 404 — the slugless public
- * surface must never guess;</li>
+ * <li>a slug that resolves to NO business answers 404 — the public surface
+ * must never guess (S4 enmendada de odd/tasks/retire-menu-route.md: the
+ * slug-scoped endpoint keeps the fail-closed 404 the old slugless resolver
+ * produced for zero businesses);</li>
  * <li>the table of a DEACTIVATED business answers 404 — baja lógica (S5 de
  * odd/tasks/plataforma-editar-baja.md): a deactivated local does not exist
- * publicly, the same rule as the slugless menu;</li>
- * <li>the control: one ACTIVE single business still answers 200 with ONLY the
+ * publicly, the same rule as the menu;</li>
+ * <li>the control: one ACTIVE business still answers 200 with ONLY the
  * public identity ({@code id}, {@code tableNumber}, {@code tableName}).</li>
  * </ul>
  *
- * <p>Like {@link MenuTableEndpointHttpTests}, the suite makes the shared dev
- * database's {@code businesses} table deterministic inside its own rolled-back
- * transaction (deletion follows the FK chain, dependents first).</p>
+ * <p>The suite makes the shared dev database's {@code businesses} table
+ * deterministic inside its own rolled-back transaction (deletion follows the
+ * FK chain, dependents first).</p>
  */
 @SpringBootTest
 @Transactional
@@ -119,9 +121,9 @@ class MenuTableEndpointFailClosedHttpTests {
 				.addFilters(springSecurityFilterChain)
 				.build();
 
-		// Same determinism rule as MenuTableEndpointHttpTests: the slugless
-		// surface resolves THE single business, so leftover committed
-		// businesses must go — inside this test's transaction only.
+		// Same determinism rule as MenuTableEndpointHttpTests: leftover
+		// committed businesses must go — inside this test's transaction only —
+		// so the slug under test resolves exactly what the test seeds.
 		orderItemRepository.deleteAll();
 		orderRepository.deleteAll();
 		tableRequestRepository.deleteAll();
@@ -136,10 +138,11 @@ class MenuTableEndpointFailClosedHttpTests {
 	}
 
 	@Test
-	void zeroBusinessesFailsClosedWith404() throws Exception {
+	void anUnknownSlugAnswersNotFound() throws Exception {
 
-		// No business seeded at all: the resolver must refuse to guess.
-		mockMvc.perform(get("/api/menu/table/{id}", 1L))
+		// No business seeded: the slug resolves to nothing. The endpoint must
+		// refuse with NOT_FOUND, never guess.
+		mockMvc.perform(get("/api/menu/{slug}/table/{id}", "no-such-slug", 1L))
 				.andExpect(status().isNotFound());
 	}
 
@@ -149,17 +152,17 @@ class MenuTableEndpointFailClosedHttpTests {
 		Business business = saveBusiness(false);
 		saveTable(business, "Mesa baja", 1);
 
-		mockMvc.perform(get("/api/menu/table/{id}", tableIdOf(business)))
+		mockMvc.perform(get("/api/menu/{slug}/table/{id}", SLUG, tableIdOf(business)))
 				.andExpect(status().isNotFound());
 	}
 
 	@Test
-	void activeSingleBusinessControlStill200Minimal() throws Exception {
+	void activeBusinessControlStill200Minimal() throws Exception {
 
 		Business business = saveBusiness(true);
 		saveTable(business, "Mesa control", 2);
 
-		mockMvc.perform(get("/api/menu/table/{id}", tableIdOf(business)))
+		mockMvc.perform(get("/api/menu/{slug}/table/{id}", SLUG, tableIdOf(business)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.id").value(tableIdOf(business)))
 				.andExpect(jsonPath("$.tableNumber").value(2))

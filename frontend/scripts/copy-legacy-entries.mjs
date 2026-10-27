@@ -3,8 +3,11 @@
  * Post-build step for the Spring Boot static classpath.
  *
  * Vite emits static/index.html; Spring serves the legacy entry paths
- * (menu/index.html, login/login.html, dashboard/index.html, kds/index.html,
- * admin/admin.html) that QR codes and the app's own redirects still use.
+ * (login/login.html, dashboard/index.html, kds/index.html,
+ * admin/admin.html) that bookmarks and the app's own redirects still use.
+ * The carta lives at the root shell: /{slug} forwards to index.html
+ * (odd/tasks/retire-menu-route.md, S2/S5) and the legacy menu/index.html
+ * entry is retired — a stale copy left by an older build is removed below.
  *
  * Because Vite emits absolute asset URLs (base: "/" → /assets/<hash>...),
  * copying index.html into subdirectories resolves the exact same bundle, so a
@@ -15,7 +18,7 @@
  * so without this sweep every rebuild would leave the previous hashes behind
  * forever. Only assets the freshly built shell does not reference are removed.
  */
-import { copyFile, mkdir, readdir, readFile, rm } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rm, rmdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,7 +26,6 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const staticDir = resolve(scriptDir, "..", "..", "api", "src", "main", "resources", "static");
 
 const LEGACY_ENTRIES = [
-  "menu/index.html",
   "login/login.html",
   "dashboard/index.html",
   "kds/index.html",
@@ -31,6 +33,11 @@ const LEGACY_ENTRIES = [
   "pedidos/index.html",
   "platform/index.html",
 ];
+
+/** Retired entry paths (S5 of odd/tasks/retire-menu-route.md): the asset
+ * sweep only covers /assets/, so a menu/index.html copied by an older build
+ * would linger and keep the dead route half-served — remove it explicitly. */
+const RETIRED_ENTRIES = ["menu/index.html"];
 
 const source = join(staticDir, "index.html");
 const shell = await readFile(source, "utf8");
@@ -70,6 +77,17 @@ if (unprefixed < prefixed || unprefixed === 0) {
   );
 }
 console.log(`glass guard ok: ${unprefixed} backdrop-filter sin prefijo, ${prefixed} prefijadas`);
+
+for (const entry of RETIRED_ENTRIES) {
+  const target = join(staticDir, entry);
+  if (await stat(target).catch(() => null)) {
+    await rm(target, { force: true });
+    console.log(`removed retired static/${entry}`);
+  }
+  // Best-effort: drop the (now empty) directory the retired entry lived in,
+  // even if a previous run already removed the file.
+  await rmdir(dirname(target)).catch(() => {});
+}
 
 for (const entry of LEGACY_ENTRIES) {
   const target = join(staticDir, entry);

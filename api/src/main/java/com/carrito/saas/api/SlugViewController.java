@@ -21,9 +21,11 @@ import java.util.Set;
  * seguridad de Spring no soporta lookahead en requestMatchers(String) y este
  * controller, al tener orden 0, PISA los forwards literales de
  * SpaRoutingConfig): el controller los enruta él mismo —
- * - Vistas conocidas (menu/admin/dashboard/kds/pedidos/platform/login) →
+ * - Vistas conocidas (admin/dashboard/kds/pedidos/platform/login) →
  *   forward a su shell, replicando exactamente lo que hacía
  *   SpaRoutingConfig con sus literales.
+ * - Jubilado (menu) → 404 (S5/S7 de odd/tasks/retire-menu-route.md: la ruta
+ *   /menu* murió y el slug queda reservado para siempre).
  * - Infraestructura (api/assets/ws/dev-media/uploads/actuator) → 404, como
  *   hoy (anónimos ya los frena el catch authenticated de SecurityConfig).
  *
@@ -35,15 +37,21 @@ import java.util.Set;
 @Controller
 public class SlugViewController {
 
-	/** Vistas conocidas: segmento → shell que servía SpaRoutingConfig. */
+	/** Vistas conocidas: segmento → shell que servía SpaRoutingConfig.
+	 * "menu" ya no está: su shell deja de copiarse y la ruta está jubilada. */
 	private static final Map<String, String> RESERVED_SHELLS = Map.of(
-			"menu", "/menu/index.html",
 			"admin", "/admin/admin.html",
 			"dashboard", "/dashboard/index.html",
 			"kds", "/kds/index.html",
 			"pedidos", "/pedidos/index.html",
 			"platform", "/platform/index.html",
 			"login", "/login/login.html");
+
+	/** Jubilado (S5/S7 de odd/tasks/retire-menu-route.md): los QRs impresos
+	 * que apuntan a /menu* dejan de resolver y el slug queda reservado para
+	 * siempre — no puede existir un local con slug "menu". Mismo trato que
+	 * infra: 404. */
+	private static final Set<String> RETIRED = Set.of("menu");
 
 	/** Infraestructura: nunca sirve shell — 404 como hoy. */
 	private static final Set<String> INFRA = Set.of(
@@ -62,10 +70,13 @@ public class SlugViewController {
 		if (RESERVED_SHELLS.containsKey(slug)) {
 			return "forward:" + RESERVED_SHELLS.get(slug);
 		}
-		if (INFRA.contains(slug)) {
+		if (INFRA.contains(slug) || RETIRED.contains(slug)) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 		}
-		return "forward:/menu/index.html";
+		// S2 de odd/tasks/retire-menu-route.md: la shell de la carta es la copia
+		// raíz del build — byte-idéntica a la que era menu/index.html, que deja
+		// de copiarse.
+		return "forward:/index.html";
 	}
 
 	@GetMapping({ "/{slug:[a-z0-9-]+}/{panel:admin|dashboard|kds|pedidos}",
@@ -74,7 +85,7 @@ public class SlugViewController {
 		if (RESERVED_SHELLS.containsKey(slug)) {
 			return "forward:" + RESERVED_SHELLS.get(slug);
 		}
-		if (INFRA.contains(slug)) {
+		if (INFRA.contains(slug) || RETIRED.contains(slug)) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 		}
 		// El panel SÍ se valida en el patrón: sólo los 4 paneles reales sirven

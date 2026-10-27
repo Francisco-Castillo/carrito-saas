@@ -54,10 +54,12 @@ describe('served SPA entries reference the current bundle', () => {
 /**
  * Every entry `build:spring` writes, plus the hashed bundle and public assets.
  * `favicon.ico` is deliberately absent: it is checked-in source, not output.
+ * `menu/index.html` is deliberately absent too: the /menu page route is
+ * retired (odd/tasks/retire-menu-route.md, S5/S6) and copy-legacy-entries.mjs
+ * actively REMOVES a stale copy instead of generating it.
  */
 const GENERATED_PATHS = [
   'index.html',
-  'menu/index.html',
   'login/login.html',
   'dashboard/index.html',
   'kds/index.html',

@@ -5,12 +5,13 @@ import {
   loadOrders as apiLoadOrders,
   normalizeKdsOrder,
   RestaurantNotFoundError,
+  UnauthenticatedError,
   type KdsOrder,
 } from "./api";
 import { playNewOrderSound, playReadySound } from "./audio";
 import { showToast } from "./toast";
 
-export type KdsFatalError = "restaurant-not-found";
+export type KdsFatalError = "restaurant-not-found" | "unauthenticated";
 
 /**
  * Puerto del bucle principal del legacy kds/kds.js:
@@ -82,6 +83,13 @@ export function useKdsOrders(
           setFatal("restaurant-not-found");
           return;
         }
+        if (e instanceof UnauthenticatedError) {
+          // Sesión muerta en pleno turno (S4): fatal propio, la página
+          // limpia la sesión y vuelve al login. Nunca datos vacíos en
+          // silencio (odd/tasks/kds-session-errors.md S1).
+          setFatal("unauthenticated");
+          return;
+        }
         // kds.js:76-77: el error de red solo se loguea; la UI conserva datos.
       });
   }, [detectNewOrders]);
@@ -129,6 +137,14 @@ export function useKdsOrders(
           showToast("Pedido listo", "success");
         }
         if (!ok) refresh(); // sin eco garantizado, re-sincroniza con el backend
+      }).catch((e) => {
+        if (e instanceof UnauthenticatedError) {
+          // Sesión muerta al avanzar una card (S4): mismo fatal que la carga.
+          setFatal("unauthenticated");
+          return;
+        }
+        // Otros rechazos ya mostraron su toast dentro de advanceOrder.
+        console.error("Error actualizando estado", e);
       });
     },
     [refresh]
