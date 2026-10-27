@@ -113,6 +113,12 @@ public class SecurityConfig {
 	            // Carta digital pública
 	            .requestMatchers("/api/menu/**").permitAll()
 
+	            // Ruta /menu JUBILADA (odd/tasks/retire-menu-route.md S5): pública
+	            // sólo para que el anónimo reciba el 404 del recurso faltante; un
+	            // 401 sugeriría "logueate y la página vuelve". No hay shell ni
+	            // route: la URL muere.
+	            .requestMatchers("/menu", "/menu/", "/menu/**").permitAll()
+
 	            // Restaurante público (slug lookup del menú público y login;
 	            // el slug es público porque va impreso en el QR)
 	            .requestMatchers("/api/restaurants/slug/**").permitAll()
