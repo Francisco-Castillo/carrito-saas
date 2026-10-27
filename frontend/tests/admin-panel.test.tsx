@@ -124,11 +124,24 @@ describe('Direct access to the public menu (carta)', () => {
     renderAdmin('')
 
     const link = screen.getByRole('link', { name: 'Ver carta' })
-    expect(link).toHaveAttribute('href', '/demo-pizzeria')
+    // The href must derive from the session slug itself (read back from
+    // storage), not from a duplicated literal: if the seed changes the link
+    // must follow the session, never a second copy of the value.
+    expect(link).toHaveAttribute('href', `/${localStorage.getItem('restaurantSlug')}`)
     // The public menu is the customer-facing view: it must not navigate the
     // admin away from the panel in the same tab.
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'))
+  })
+
+  it('renders no carta link when the session has no slug', () => {
+    localStorage.removeItem('restaurantSlug')
+    stubFailingFetch()
+    renderAdmin('')
+
+    // Without a session slug there is no carta to show: the previous fallback
+    // href "/" just landed on the login page in a new tab.
+    expect(screen.queryByRole('link', { name: 'Ver carta' })).not.toBeInTheDocument()
   })
 })
 

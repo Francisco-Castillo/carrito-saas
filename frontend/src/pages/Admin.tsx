@@ -283,16 +283,20 @@ export default function Admin() {
             <span>KDS Cocina</span>
           </a>
           {/* Carta pública (/{slug}): lo que ve el cliente al escanear el QR.
-              Se abre en pestaña nueva para no sacarlo del panel. */}
-          <a
-            href={slug ? `/${slug}` : "/"}
-            className="admin-nav-btn"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <MenuIcon />
-            <span>Ver carta</span>
-          </a>
+              Se abre en pestaña nueva para no sacarlo del panel. Sin slug de
+              sesión no hay carta que mostrar: el enlace no se renderiza (el
+              viejo fallback "/" aterrizaba en el login, sin valor). */}
+          {slug && (
+            <a
+              href={`/${slug}`}
+              className="admin-nav-btn"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <MenuIcon />
+              <span>Ver carta</span>
+            </a>
+          )}
         </nav>
 
         <button type="button" className="admin-logout" onClick={logout}>
