@@ -36,17 +36,17 @@ import com.carrito.saas.repository.jpa.UserRepository;
 import com.carrito.saas.security.JwtUtil;
 
 /**
- * Public contract of {@code GET /api/menu/table/{id}} — the small anonymous
+ * Public contract of {@code GET /api/menu/{slug}/table/{id}} — the small anonymous
  * endpoint the customer menu calls to show a table badge when the scan of a
  * per-table QR opened the page with {@code ?table=<id>}:
  *
  * <ul>
- * <li>a table of the deployment's single business answers 200 with ONLY its
+ * <li>a table of the business addressed by the slug answers 200 with ONLY its
  * public identity ({@code id}, {@code tableNumber}, {@code tableName}) — no
  * {@code qrToken}, no {@code qrUrl}, no internal state;</li>
- * <li>an unknown id answers 404, and so does a deployment with more than one
- * business (the slugless public surface fails closed, same as
- * {@code GET /api/menu});</li>
+ * <li>an unknown id answers 404, and so does a table of ANOTHER business
+ * called with a valid slug — the lookup is scoped to the resolved business
+ * (S4 enmendada de odd/tasks/retire-menu-route.md);</li>
  * <li>the endpoint is anonymous — it lives under {@code /api/menu/**}, which
  * the security config already permits.</li>
  * </ul>
@@ -121,12 +121,11 @@ class MenuTableEndpointHttpTests {
 				.addFilters(springSecurityFilterChain)
 				.build();
 
-		// The slugless public surface resolves THE deployment's single business
-		// and fails closed on more than one. The shared dev database carries
-		// leftover committed businesses from real usage, so the suite makes the
-		// table deterministic inside its own transaction (rolled back at the
-		// end — no committed data is ever touched). Deletion follows the FK
-		// chain, dependents first.
+		// The lookup is scoped by slug, but the shared dev database still
+		// carries leftover committed businesses from real usage: the suite
+		// makes the table deterministic inside its own transaction (rolled
+		// back at the end — no committed data is ever touched). Deletion
+		// follows the FK chain, dependents first.
 		orderItemRepository.deleteAll();
 		orderRepository.deleteAll();
 		tableRequestRepository.deleteAll();
@@ -141,13 +140,13 @@ class MenuTableEndpointHttpTests {
 	}
 
 	@Test
-	void answersThePublicIdentityOfATableOfTheSingleBusinessAnonymously() throws Exception {
+	void answersThePublicIdentityOfATableOfTheBusinessAnonymously() throws Exception {
 
 		BusinessAuthSeed.seedOwner(businessRepository, userRepository, roleRepository,
 				businessUserRepository, jwtUtil, BUSINESS_ID, SLUG, USERNAME);
 		RestaurantTable table = saveTable("Salon principal", 5);
 
-		mockMvc.perform(get("/api/menu/table/{id}", table.getId()))
+		mockMvc.perform(get("/api/menu/{slug}/table/{id}", SLUG, table.getId()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.id").value(table.getId()))
 				.andExpect(jsonPath("$.tableNumber").value(5))
@@ -163,36 +162,40 @@ class MenuTableEndpointHttpTests {
 		BusinessAuthSeed.seedOwner(businessRepository, userRepository, roleRepository,
 				businessUserRepository, jwtUtil, BUSINESS_ID, SLUG, USERNAME);
 
-		mockMvc.perform(get("/api/menu/table/{id}", 999_999_999L))
+		mockMvc.perform(get("/api/menu/{slug}/table/{id}", SLUG, 999_999_999L))
 				.andExpect(status().isNotFound());
 	}
 
 	@Test
-	void aDeploymentWithMoreThanOneBusinessFailsClosed() throws Exception {
+	void aTableOfAnotherBusinessAnswersNotFoundWithAValidSlug() throws Exception {
 
 		BusinessAuthSeed.seedOwner(businessRepository, userRepository, roleRepository,
 				businessUserRepository, jwtUtil, BUSINESS_ID, SLUG, USERNAME);
 		saveTable("Salon principal", 5);
 
-		// A second business breaks the single-business contract of the public
-		// surface: the resolver must fail closed with NOT_FOUND, never guess.
+		// A second business with its own table: calling the endpoint with the
+		// FIRST business's slug and the OTHER business's table id must 404 —
+		// the table lookup is scoped to the business the slug resolves, never
+		// served cross-tenant (S4 enmendada de odd/tasks/retire-menu-route.md).
 		Business second = new Business();
 		second.setId(BUSINESS_ID + 1);
 		second.setName("Otro local");
 		second.setSlug("otro-local-slug");
 		second.setActive(true);
-		businessRepository.saveAndFlush(second);
+		second = businessRepository.saveAndFlush(second);
 
-		mockMvc.perform(get("/api/menu/table/{id}", tableIdOfFirstBusiness()))
+		RestaurantTable foreignTable = new RestaurantTable();
+		foreignTable.setBusiness(second);
+		foreignTable.setTableNumber(9);
+		foreignTable.setTableName("Mesa ajena");
+		foreignTable.setQrToken(UUID.randomUUID().toString());
+		foreignTable.setStatus(TableStatus.AVAILABLE);
+		foreignTable.setCreatedAt(LocalDateTime.now());
+		foreignTable.setUpdatedAt(LocalDateTime.now());
+		foreignTable = tableRepository.saveAndFlush(foreignTable);
+
+		mockMvc.perform(get("/api/menu/{slug}/table/{id}", SLUG, foreignTable.getId()))
 				.andExpect(status().isNotFound());
-	}
-
-	private long tableIdOfFirstBusiness() {
-		return tableRepository.findAll().stream()
-				.filter(t -> BUSINESS_ID.equals(t.getBusiness().getId()))
-				.findFirst()
-				.orElseThrow()
-				.getId();
 	}
 
 	private RestaurantTable saveTable(String tableName, int tableNumber) {

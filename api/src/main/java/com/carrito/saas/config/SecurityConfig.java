@@ -112,8 +112,6 @@ public class SecurityConfig {
 
 	            // Carta digital pública
 	            .requestMatchers("/api/menu/**").permitAll()
-	            .requestMatchers("/menu/**").permitAll()
-	            .requestMatchers("/menu", "/menu/").permitAll()
 
 	            // Restaurante público (slug lookup del menú público y login;
 	            // el slug es público porque va impreso en el QR)
@@ -126,9 +124,10 @@ public class SecurityConfig {
 	            // Websocket
 	            .requestMatchers("/ws/**").permitAll()
 
-	            // Crear pedidos público (con slug por compatibilidad de QR viejos y
-	            // sin slug: deployment de un solo negocio, la carta en /menu limpio)
-	            .requestMatchers(HttpMethod.POST, "/api/orders", "/api/orders/menu", "/api/orders/menu/{slug}").permitAll()
+	            // Crear pedido público: sólo con slug (S4/S5 de
+	            // odd/tasks/retire-menu-route.md — el POST slugless fue retirado
+	            // junto con SingleBusinessResolver).
+	            .requestMatchers(HttpMethod.POST, "/api/orders", "/api/orders/menu/{slug}").permitAll()
 
 	            // Barrera de PRIVILEGIO (no de tenant): POST /api/predictions/run
 	            // dispara el recálculo GLOBAL de predicciones (todos los negocios),

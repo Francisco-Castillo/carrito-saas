@@ -36,22 +36,6 @@ public class OrderController {
 		this.messagingTemplate = messagingTemplate;
 	}
 
-	@PostMapping("/menu")
-	public OrderDTO createOrderWithoutSlug(@RequestBody OrderRequestDTO request) {
-		// Slugless order (single-business deployment): the service resolves the
-		// deployment's only business and fails closed when there is not exactly one.
-		OrderDTO order = orderService.createOrder(null, request);
-
-		messagingTemplate.convertAndSend(
-				"/topic/orders/" + order.getBusinessSlug(),
-				order
-		);
-
-		registry.counter("pedidos.creados").increment();
-
-		return order;
-	}
-
 	@PostMapping("/menu/{slug}")
 	public OrderDTO createOrder(@PathVariable String slug, @RequestBody OrderRequestDTO request) {
 		OrderDTO order = orderService.createOrder(slug, request);

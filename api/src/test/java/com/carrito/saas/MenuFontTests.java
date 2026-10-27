@@ -202,12 +202,8 @@ class MenuFontTests {
 
 		seedFont("playfair-display");
 
-		// Slugless menu (single-business deployment contract).
-		mockMvc.perform(get("/api/menu"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.business.menuFont").value("playfair-display"));
-
-		// Legacy slug menu.
+		// Public menu payload, slug-scoped (S4 de odd/tasks/retire-menu-route.md:
+		// the slugless variant is retired).
 		mockMvc.perform(get("/api/menu/" + SLUG))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.business.menuFont").value("playfair-display"));
