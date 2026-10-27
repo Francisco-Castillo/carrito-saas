@@ -118,6 +118,20 @@ describe('Sidebar brand: business name, not the vendor brand', () => {
   })
 })
 
+describe('Direct access to the public menu (carta)', () => {
+  it('links the sidebar to the public menu of the session slug, in a new tab', () => {
+    stubFailingFetch()
+    renderAdmin('')
+
+    const link = screen.getByRole('link', { name: 'Ver carta' })
+    expect(link).toHaveAttribute('href', '/demo-pizzeria')
+    // The public menu is the customer-facing view: it must not navigate the
+    // admin away from the panel in the same tab.
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'))
+  })
+})
+
 describe('View title: Spanish label instead of the internal key', () => {
   it('shows the Spanish label per view, never the uppercased key', async () => {
     const user = userEvent.setup()

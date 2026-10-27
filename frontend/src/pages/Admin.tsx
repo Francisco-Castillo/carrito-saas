@@ -139,6 +139,17 @@ function KdsIcon() {
   );
 }
 
+/** Enlace a la carta pública (/{slug}): vista del cliente, no del panel. */
+function MenuIcon() {
+  return (
+    <Icon>
+      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+      <path d="M7 2v20" />
+      <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7" />
+    </Icon>
+  );
+}
+
 const VIEW_ICONS: Record<AdminView, React.ReactNode> = {
   dashboard: <DashboardIcon />,
   products: <ProductsIcon />,
@@ -270,6 +281,17 @@ export default function Admin() {
           <a href={slug ? `/${slug}/kds` : "/kds"} className="admin-nav-btn">
             <KdsIcon />
             <span>KDS Cocina</span>
+          </a>
+          {/* Carta pública (/{slug}): lo que ve el cliente al escanear el QR.
+              Se abre en pestaña nueva para no sacarlo del panel. */}
+          <a
+            href={slug ? `/${slug}` : "/"}
+            className="admin-nav-btn"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <MenuIcon />
+            <span>Ver carta</span>
           </a>
         </nav>
 
