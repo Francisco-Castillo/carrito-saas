@@ -28,10 +28,11 @@ import lombok.Setter;
  * NULL — a diferencia de un día de la semana, donde la ausencia de filas ya
  * significa cerrado, acá la ausencia de la fecha significa "día normal", así
  * que el cerrado tiene que estar representado. La única
- * UNIQUE (business_id, date, position) — declarada en la tabla con nombre
- * explícito, misma política que {@link BusinessHours} — garantiza a lo sumo un
- * turno por ordinal dentro de la fecha, y junto con el chequeo de duplicados
- * de {@code BusinessProfileServiceImpl}, a lo sumo una entrada por fecha.</p>
+ * UNIQUE (business_id, branch_id, date, position) — declarada en la tabla con
+ * nombre explícito, misma política que {@link BusinessHours} — garantiza a lo
+ * sumo un turno por ordinal dentro de la fecha de una sucursal, y junto con
+ * el chequeo de duplicados de {@code BusinessProfileServiceImpl}, a lo sumo
+ * una entrada por fecha.</p>
  *
  * <p>Un turno cuyo {@code closesAt} es anterior a su {@code opensAt} cruza la
  * medianoche (una noche especial 19:00 → 00:30 se guarda tal cual); la
@@ -42,8 +43,8 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "business_date_exception",
-        uniqueConstraints = @UniqueConstraint(name = "uq_business_date_exception_business_date_position",
-                columnNames = {"business_id", "date", "position"}))
+        uniqueConstraints = @UniqueConstraint(name = "uq_business_date_exception_business_branch_date_position",
+                columnNames = {"business_id", "branch_id", "date", "position"}))
 public class BusinessDateException {
 
     @Id
@@ -53,6 +54,17 @@ public class BusinessDateException {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "business_id")
     private Business business;
+
+    /**
+     * Sucursal dueña de la excepción (multi-sucursal,
+     * odd/tasks/multi-sucursal.md, S3/T4). NULL = fila legacy a nivel negocio:
+     * la heredan las sucursales que no definieron las suyas. La columna queda
+     * nullable a propósito (docs/migrations/2026-10-28-branch-hours.sql),
+     * mismas razones que en {@link BusinessHours}.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_id")
+    private Branch branch;
 
     /** Fecha del calendario (una sola vez por negocio). */
     @Column(name = "date", nullable = false)

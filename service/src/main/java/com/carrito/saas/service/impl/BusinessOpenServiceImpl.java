@@ -36,6 +36,14 @@ import com.carrito.saas.service.interfaces.IBusinessOpenService;
  *
  * <p>El instante entra por parámetro: el caller aporta su reloj (server-local,
  * la convención "today" del código) y los tests fijan el tiempo.</p>
+ *
+ * <p>Multi-sucursal (odd/tasks/multi-sucursal.md, S3/T4): la evaluación es por
+ * sucursal. Con {@code branchId} las queries traen los turnos/excepciones de
+ * ESA sucursal más los legacy a nivel negocio (branch NULL, heredados por las
+ * sucursales que no definieron los suyos — incluida la excepción exacta de la
+ * fecha, que sigue ganando al template). Con {@code branchId} NULL (negocio
+ * sin sucursales) es la vista a nivel negocio entera, compatibilidad con el
+ * comportamiento previo.</p>
  */
 @Service
 public class BusinessOpenServiceImpl implements IBusinessOpenService {
@@ -50,15 +58,15 @@ public class BusinessOpenServiceImpl implements IBusinessOpenService {
 	}
 
 	@Override
-	public boolean isOpen(Long businessId, LocalDateTime now) {
+	public boolean isOpen(Long businessId, Long branchId, LocalDateTime now) {
 		int minuteOfDay = now.getHour() * 60 + now.getMinute();
 		LocalDate today = now.toLocalDate();
 		LocalDate yesterday = today.minusDays(1);
 
 		List<BusinessHours> weekly = businessHoursRepository
-				.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(businessId);
+				.findByBusinessIdAndOptionalBranch(businessId, branchId);
 		List<BusinessDateException> exceptions = businessDateExceptionRepository
-				.findByBusiness_IdOrderByDateAscPositionAsc(businessId);
+				.findByBusinessIdAndOptionalBranch(businessId, branchId);
 
 		if (covers(effectiveShifts(weekly, exceptions, today), minuteOfDay, false)) {
 			return true;

@@ -22,6 +22,7 @@ import com.carrito.saas.dto.ProductDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
+import com.carrito.saas.repository.entity.Branch;
 import com.carrito.saas.repository.entity.BusinessDateException;
 import com.carrito.saas.repository.entity.BusinessHours;
 import com.carrito.saas.repository.entity.Category;
@@ -30,6 +31,7 @@ import com.carrito.saas.repository.entity.Product;
 import com.carrito.saas.repository.entity.RestaurantTable;
 import com.carrito.saas.repository.jpa.BusinessDateExceptionRepository;
 import com.carrito.saas.repository.jpa.BusinessHoursRepository;
+import com.carrito.saas.repository.jpa.BranchRepository;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.CategoryRepository;
 import com.carrito.saas.repository.jpa.ComboRepository;
@@ -45,6 +47,7 @@ import com.carrito.saas.service.mapper.interfaces.IProductMapper;
 public class MenuServiceImpl implements IMenuService {
 
 	private final BusinessRepository businessRepository;
+	private final BranchRepository branchRepository;
 	private final BusinessHoursRepository businessHoursRepository;
 	private final BusinessDateExceptionRepository businessDateExceptionRepository;
 	private final CategoryRepository categoryRepository;
@@ -59,12 +62,14 @@ public class MenuServiceImpl implements IMenuService {
 
 	private final TableRepository tableRepository;
 
-	public MenuServiceImpl(BusinessRepository businessRepository, BusinessHoursRepository businessHoursRepository,
+	public MenuServiceImpl(BusinessRepository businessRepository, BranchRepository branchRepository,
+			BusinessHoursRepository businessHoursRepository,
 			BusinessDateExceptionRepository businessDateExceptionRepository, CategoryRepository categoryRepository,
 			ProductRepository productRepository, ComboRepository comboRepository, IBusinessMapper iBusinessMapper,
 			ICategoryMapper iCategoryMapper, IProductMapper iProductMapper, IComboMapper iComboMapper,
 			SingleBusinessResolver singleBusinessResolver, TableRepository tableRepository) {
 		this.businessRepository = businessRepository;
+		this.branchRepository = branchRepository;
 		this.businessHoursRepository = businessHoursRepository;
 		this.businessDateExceptionRepository = businessDateExceptionRepository;
 		this.categoryRepository = categoryRepository;
@@ -143,14 +148,20 @@ public class MenuServiceImpl implements IMenuService {
 		// respuesta lleva siempre los siete días (1..7) con su lista de
 		// turnos — vacía cuando el día está cerrado—, así la carta no tiene
 		// que inferir "el día que falta es un día cerrado".
+		// Multi-sucursal (odd/tasks/multi-sucursal.md, S3/T4): la carta
+		// pública sirve las horas de la sucursal default del negocio (la
+		// primera activa por id); negocio sin sucursales → vista legacy a
+		// nivel negocio. La selección explícita de sucursal es T7.
+		Branch defaultBranch = branchRepository.findFirstByBusinessIdAndActiveTrueOrderByIdAsc(business.getId());
+		Long menuBranchId = defaultBranch == null ? null : defaultBranch.getId();
 		menu.getBusiness().setHours(toSevenDayDTOs(businessHoursRepository
-				.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(business.getId())));
+				.findByBusinessIdAndOptionalBranch(business.getId(), menuBranchId)));
 
 		// Las fechas especiales viajan en el mismo payload del negocio, ordenadas
 		// por fecha, con la lista de turnos vacía en las cerradas — así la carta
 		// resuelve el 25/12 con la misma forma que un día de la semana.
 		menu.getBusiness().setDateExceptions(toDateExceptionDTOs(businessDateExceptionRepository
-				.findByBusiness_IdOrderByDateAscPositionAsc(business.getId())));
+				.findByBusinessIdAndOptionalBranch(business.getId(), menuBranchId)));
 
 		List<CategoryDTO> categoryDTOs = categories.stream().map(iCategoryMapper::toDTO).collect(Collectors.toList());
 

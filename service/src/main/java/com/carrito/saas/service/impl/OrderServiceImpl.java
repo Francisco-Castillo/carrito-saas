@@ -150,10 +150,13 @@ public class OrderServiceImpl implements IOrderService {
 		Branch branch = resolveBranchForOrder(business, request.getBranchId());
 
 		// Local cerrado: el pedido público no entra fuera del horario efectivo
-		// del negocio — mismas reglas que el badge de la portada (turnos
+		// de SU sucursal (multi-sucursal, S3/T4: la sucursal del pedido, no el
+		// negocio entero) — mismas reglas que el badge de la portada (turnos
 		// ordenados, cruce de medianoche, excepciones por fecha). Una unidad
-		// propia: el badge es decoración, esta es la regla real.
-		if (!businessOpenService.isOpen(business.getId(), LocalDateTime.now(clock))) {
+		// propia: el badge es decoración, esta es la regla real. Negocio sin
+		// sucursales (branch null): vista a nivel negocio, compatibilidad.
+		if (!businessOpenService.isOpen(business.getId(), branch == null ? null : branch.getId(),
+				LocalDateTime.now(clock))) {
 			throw new BusinessException("El local está cerrado", ErrorType.VALIDATION);
 		}
 
