@@ -15,13 +15,14 @@ Cierre del pendiente registrado de `odd/tasks/kds-access.md`: "kds.js no maneja 
 
 | ID | Specs | Ruta | Commit |
 | --- | --- | --- | --- |
-| T1 | S2, S3, S6 | inline (RED-first: frontend/tests/kds-session-errors.test.ts) | ver commit |
-| T2 | S4, S6 | inline (RED-first: frontend/tests/kds-session-fatal.test.tsx) | |
-| T3 | S5 | inline (RED-first: frontend/tests/kds-session-redirect.test.tsx) | |
-| T4 | S6 | regresión frontend completa + cierre | |
+| T1 | S2, S3, S6 | inline (RED-first: frontend/tests/kds-session-errors.test.ts) | a429d97 |
+| T2 | S4, S6 | inline (RED-first: frontend/tests/kds-session-fatal.test.tsx) | a9b0666 |
+| T3 | S5 | inline (RED-first: frontend/tests/kds-session-redirect.test.tsx) | f46a6f6 |
+| T4 | S6 | regresión frontend completa + cierre | este commit |
 
 ## Log
 
 - L1 (usuario): "que quedo pendiente ?" — relevamiento; el KDS quedó entre los pendientes registrados.
 - L2 (usuario): "y puedo por ejemplo delegarte a ti el milti-tenant y a otra sesion lo del kds ?" + "si" — delegación original a otra sesión; worktree multi-tenant: `/home/rodrigo/work/carrito-saas-mt` (feature `cancel-order-contract`, cerrado).
 - L3 (usuario): "al final no abri otra sesion solo eres tu" — el eje KDS vuelve a esta sesión. Elección del usuario: "Arranco por kds.js 401/403". Worktree propio: `/home/rodrigo/work/carrito-saas-kds`, rama `fix/kds-error-handling` (base `origin/develop` 5b5231c).
+- L4 (resultado): 3 commits (T1 a429d97, T2 a9b0666, T3 f46a6f6). RED observado en los tres: T1 5/6 fallando antes del arreglo (y los `catch` propios de `advanceOrder`/`loadCancellationReasons` tuvieron que re-lanzar la señal nueva); T2 3 fallos + la unhandled rejection del `.then` sin catch; T3 el logout no se disparaba. Verificación final: suite frontend 499/499, `tsc --noEmit` limpio. Los 2 fallos de `build-artifacts.test.ts` en la primera corrida completa eran ambientales (worktree sin bundle: CI usa `build:spring`, que copia las entradas legacy — `npm run build` a secas no alcanza).
