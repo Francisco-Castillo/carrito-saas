@@ -412,4 +412,18 @@ class BranchHoursHttpTests {
 				.andExpect(jsonPath("$.message").value("Seleccioná una sucursal para continuar"));
 	}
 
+	@Test
+	void getPerfilSinClaimConVariasSucursalesCaeALaDefaultSin400() throws Exception {
+		// FIX panel roto (S3/T4): la ESCRITURA exige selección (test de arriba),
+		// pero la LECTURA del perfil no puede dejar a un dueño con varias
+		// sucursales y token sin claim sin panel — cae a la default (primera
+		// activa: Casa central, sin horas propias → vista a nivel negocio
+		// heredada) y responde 200 con el perfil completo.
+		mockMvc.perform(get("/api/business/profile")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerA.bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").exists())
+				.andExpect(jsonPath("$.hours").exists());
+	}
+
 }

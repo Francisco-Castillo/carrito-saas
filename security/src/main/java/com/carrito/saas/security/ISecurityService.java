@@ -14,4 +14,13 @@ public interface ISecurityService {
 	 */
 	Long getCurrentBranchId();
 
+	/**
+	 * Igual que {@link #getCurrentBranchId()} pero lectura-segura: con varias
+	 * activas y sin selección devuelve la DEFAULT (primera activa) en vez del
+	 * 400. Para lecturas del panel (perfil): un dueño con varias sucursales y
+	 * token sin claim no puede quedarse sin panel; las escrituras siguen
+	 * exigendo selección explícita vía getCurrentBranchId.
+	 */
+	Long getCurrentBranchIdOrDefault();
+
 }

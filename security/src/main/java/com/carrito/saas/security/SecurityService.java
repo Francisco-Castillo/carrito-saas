@@ -154,31 +154,12 @@ public class SecurityService implements ISecurityService {
 	@Override
 	public Long getCurrentBranchId() {
 
-		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-		String token = (String) auth.getCredentials();
-
-		// 1. El claim manda: un token emitido por select/{id} ya fija la
-		// sucursal y no se re-resuelve (el dueño puede cambiar de sucursal
-		// aunque el negocio siga teniendo varias).
-		Long branchId = jwtUtil.extractBranchId(token);
-		if (branchId != null) {
-			return branchId;
+		Long claimed = claimedBranchId();
+		if (claimed != null) {
+			return claimed;
 		}
 
-		Long businessId = jwtUtil.extractBusinessId(token);
-		if (businessId == null) {
-			// Operador de plataforma: no opera sucursales de ningún negocio.
-			throw new BusinessException("El operador de plataforma no tiene sucursales", ErrorType.FORBIDDEN);
-		}
-
-		// 2. Fallback para tokens sin claim (login viejo, sesión ya abierta):
-		// una sola sucursal activa se resuelve sola; ninguna → null (vista a
-		// nivel negocio, compatibilidad pre-multi-sucursal); varias → 400
-		// pidiendo selección explícita, NUNCA una vista mezclada de dos
-		// sucursales (mismo criterio que el login orgánico: cero → resolver,
-		// varias → pedir el dato).
-		List<Branch> activas = branchRepository.findByBusinessIdAndActiveTrueOrderByIdAsc(businessId);
+		List<Branch> activas = activeBranchesFromToken();
 
 		if (activas.size() == 1) {
 			return activas.get(0).getId();
@@ -189,6 +170,54 @@ public class SecurityService implements ISecurityService {
 		}
 
 		throw new BusinessException("Seleccioná una sucursal para continuar", ErrorType.VALIDATION);
+	}
+
+	@Override
+	public Long getCurrentBranchIdOrDefault() {
+
+		Long claimed = claimedBranchId();
+		if (claimed != null) {
+			return claimed;
+		}
+
+		List<Branch> activas = activeBranchesFromToken();
+
+		if (activas.isEmpty()) {
+			return null;
+		}
+
+		// Una sola o varias: la primera activa es la default (misma que usa el
+		// menú público). Con varias y sin selección, la lectura cae a la default
+		// — el dueño ve el perfil de "Casa central", no un panel roto.
+		return activas.get(0).getId();
+	}
+
+	/**
+	 * El claim manda si viaja: un token emitido por select/{id} ya fija la
+	 * sucursal y no se re-resuelve (comportamiento previo intacto).
+	 */
+	private Long claimedBranchId() {
+
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+		return jwtUtil.extractBranchId((String) auth.getCredentials());
+	}
+
+	/**
+	 * Fallback para tokens sin claim (login viejo, sesión ya abierta): las
+	 * sucursales activas del negocio del JWT; token de plataforma (sin
+	 * businessId) → 403.
+	 */
+	private List<Branch> activeBranchesFromToken() {
+
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+		Long businessId = jwtUtil.extractBusinessId((String) auth.getCredentials());
+		if (businessId == null) {
+			throw new BusinessException("El operador de plataforma no tiene sucursales", ErrorType.FORBIDDEN);
+		}
+
+		return branchRepository.findByBusinessIdAndActiveTrueOrderByIdAsc(businessId);
 	}
 
 }

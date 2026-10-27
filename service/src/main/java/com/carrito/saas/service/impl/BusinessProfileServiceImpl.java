@@ -220,9 +220,12 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		// Horas y fechas especiales scopeadas a la sucursal activa del JWT
 		// (multi-sucursal, S3/T4): con sucursal seleccionada, la vista de esa
 		// sucursal; negocio sin sucursales, la vista a nivel negocio
-		// (getCurrentBranchId devuelve null, compatibilidad). Varias sin
-		// seleccionar: getCurrentBranchId resuelve 400.
-		Long branchId = securityService.getCurrentBranchId();
+		// (compatibilidad). Varias sin seleccionar: la LECTURA cae a la default
+		// (getCurrentBranchIdOrDefault, fix panel roto — un dueño con varias
+		// sucursales y token sin claim no puede quedarse sin panel); la
+		// ESCRITURA sigue exigiendo selección explícita (updateProfile usa
+		// getCurrentBranchId, que resuelve el 400).
+		Long branchId = securityService.getCurrentBranchIdOrDefault();
 		BusinessProfileDTO dto = new BusinessProfileDTO();
 		dto.setName(business.getName());
 		dto.setPhone(business.getPhone());

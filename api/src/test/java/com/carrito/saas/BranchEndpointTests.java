@@ -252,8 +252,9 @@ class BranchEndpointTests {
 				.andExpect(jsonPath("$.length()").value(1))
 				.andExpect(jsonPath("$[0].active").value(false));
 
-		// Sin borrado físico.
-		assertThat(branchRepository.count()).isEqualTo(1);
+		// Sin borrado físico: la fila sigue en SU negocio (count global no:
+		// la DB de dev tiene sucursales reales de otros negocios).
+		assertThat(branchRepository.countByBusinessId(BUSINESS_A_ID)).isEqualTo(1);
 	}
 
 	@Test

@@ -46,6 +46,11 @@ final class SingleBusinessTestIsolation {
 				"delete from restaurant_table where business_id <> %d",
 				"delete from business_date_exception where business_id <> %d",
 				"delete from business_hours where business_id <> %d",
+			// Multi-sucursal: branches dependen del negocio — y desde T4 son
+			// REFERENCIADAS por business_hours/date_exception (branch_id) y por
+			// orders.branch_id, así que van DESPUÉS de esas tablas en el orden
+			// FK-safe (los pedidos de estos negocios ya fueron borrados arriba).
+			"delete from branches where business_id <> %d",
 				"delete from business_settings where business_id <> %d",
 				"delete from business_users where business_id <> %d",
 		};
