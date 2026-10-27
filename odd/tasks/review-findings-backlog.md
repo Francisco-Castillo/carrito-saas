@@ -136,3 +136,18 @@ Sin el texto completo del revisor en mano, la acción honesta es leer el
 detalle del store antes de tocar (patrón ya documentado en L4: adivinar
 ubicaciones sin texto = churn). Referencia del receipt: store_revision
 sha256:400aa80161b1fe68ba3d609db9c2f2b7fa4c79c2a881a76a3c7e2a5147258d6e.
+
+## Multi-sucursal T5-T7 (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada del slice final (lineage review-d144cef26ffd2d35,
+lens reliability, tier medium, 21 archivos/1379 líneas). 2 findings NO
+bloqueantes (advisory), trabajo aparte:
+
+- R3-selector-no-menu-refetch WARNING frontend/src/pages/Menu.tsx:205-216
+  (el selector no re-fetch del menú al cambiar de sucursal: horas/whatsapp
+  del payload quedan de la sucursal cargada al montar)
+- R3-sucursal-nonnumeric-400 WARNING api/src/main/java/com/carrito/saas/api/
+  MenuController.java:27-28 (?sucursal= no numérico → 400 de Spring; podría
+  tratarse como fallback silencioso para el display público)
+
+Receipt: store_revision sha256:9b4532790ef1151fe38dc9b9b893ed547fce2dd26d2629eb54f1fe51fd004e20.
