@@ -187,6 +187,45 @@ describe('POS option selection step', () => {
     ).toHaveLength(0)
   })
 
+  it('maxSelections caps only its own group, not the global selection', async () => {
+    const fetchMock = stubPosFetch({
+      optionGroups: [
+        {
+          name: 'Tamaño',
+          required: true,
+          multiple: false,
+          options: [{ id: 1, name: 'Grande', priceDelta: 0 }],
+        },
+        {
+          name: 'Salsas',
+          required: false,
+          multiple: true,
+          maxSelections: 1,
+          options: [
+            { id: 2, name: 'Ketchup', priceDelta: 0 },
+            { id: 3, name: 'Mayonesa', priceDelta: 0 },
+          ],
+        },
+      ],
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+
+    render(<Orders />)
+    await user.click(await screen.findByRole('button', { name: '+ Nuevo pedido' }))
+    await user.click(await screen.findByRole('button', { name: /Hamburguesa/ }))
+
+    await screen.findByText('Tamaño')
+    await user.click(screen.getByRole('radio', { name: /Grande/ }))
+    // Regression (R3-maxsel-crossgroup): the single-choice pick must not
+    // consume the salsa group's maxSelections budget.
+    await user.click(screen.getByRole('checkbox', { name: /Ketchup/ }))
+    expect(screen.getByRole('checkbox', { name: /Ketchup/ })).toBeChecked()
+    // The cap still holds within its own group: Mayonesa is refused.
+    await user.click(screen.getByRole('checkbox', { name: /Mayonesa/ }))
+    expect(screen.getByRole('checkbox', { name: /Mayonesa/ })).not.toBeChecked()
+  })
+
   it('a product without optionGroups keeps the one-tap add (no selection step)', async () => {
     const fetchMock = stubPosFetch()
     vi.stubGlobal('fetch', fetchMock)
