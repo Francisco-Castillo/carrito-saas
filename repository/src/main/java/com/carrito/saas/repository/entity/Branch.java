@@ -37,7 +37,8 @@ import lombok.Setter;
 @Entity
 @Table(name = "branches",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uq_branches_business_name", columnNames = {"business_id", "name"})})
+                @UniqueConstraint(name = "uq_branches_business_name", columnNames = {"business_id", "name"}),
+                @UniqueConstraint(name = "uq_branches_phone", columnNames = "phone")})
 public class Branch {
 
     @Id
@@ -57,6 +58,25 @@ public class Branch {
 
     /** Dirección de la sucursal para el selector público (S4); opcional. */
     private String address;
+
+    /**
+     * WhatsApp propio de la sucursal (multi-sucursal,
+     * odd/tasks/multi-sucursal.md, S3/T5), opcional (NULL = sin número
+     * propio). Mismo formato canónico que {@link Business#phone}: dígitos
+     * E.164 sin el '+' (p.ej. {@code 5491122334455}); la validación de forma
+     * vive en el servicio ({@code BranchServiceImpl}, espejo de la de
+     * {@code BusinessProfileServiceImpl#validatePhone}).
+     *
+     * <p>El número identifica un LUGAR, así que la unicidad es GLOBAL (no por
+     * negocio): dos sucursales —propias o ajenas— no pueden compartir el
+     * número que usa el cliente para escribirse por WhatsApp. Como en
+     * {@link Business}, el UNIQUE se declara en la tabla con nombre explícito
+     * ({@code uq_branches_phone}, referenciable desde la migración
+     * {@code docs/migrations/2026-10-29-branch-phone.sql}); Postgres trata los
+     * NULLs como distintos entre sí, así que varias sucursales sin número
+     * propio conviven y caen al número del negocio.</p>
+     */
+    private String phone;
 
     /**
      * Baja lógica (misma política que {@link Business#active}: reversible,

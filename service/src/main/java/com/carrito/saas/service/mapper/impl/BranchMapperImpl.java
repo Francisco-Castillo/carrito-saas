@@ -19,6 +19,7 @@ public class BranchMapperImpl implements IBranchMapper {
 		dto.setId(entity.getId());
 		dto.setName(entity.getName());
 		dto.setAddress(entity.getAddress());
+		dto.setPhone(entity.getPhone());
 		dto.setActive(entity.getActive());
 		dto.setBusinessId(entity.getBusiness() == null ? null : entity.getBusiness().getId());
 

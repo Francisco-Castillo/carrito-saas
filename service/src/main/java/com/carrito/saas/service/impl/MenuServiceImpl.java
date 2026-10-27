@@ -154,6 +154,15 @@ public class MenuServiceImpl implements IMenuService {
 		// nivel negocio. La selección explícita de sucursal es T7.
 		Branch defaultBranch = branchRepository.findFirstByBusinessIdAndActiveTrueOrderByIdAsc(business.getId());
 		Long menuBranchId = defaultBranch == null ? null : defaultBranch.getId();
+
+		// WhatsApp por sucursal (multi-sucursal, odd/tasks/multi-sucursal.md,
+		// S3/T5): el wa.me de la carta usa el número de la sucursal default si
+		// tiene uno propio; si no, el del negocio (fallback legacy, el que el
+		// mapper ya trajo). Negocio sin sucursales → exactamente el número del
+		// negocio, comportamiento anterior intacto.
+		if (defaultBranch != null && defaultBranch.getPhone() != null) {
+			menu.getBusiness().setWhatsappNumber(defaultBranch.getPhone());
+		}
 		menu.getBusiness().setHours(toSevenDayDTOs(businessHoursRepository
 				.findByBusinessIdAndOptionalBranch(business.getId(), menuBranchId)));
 

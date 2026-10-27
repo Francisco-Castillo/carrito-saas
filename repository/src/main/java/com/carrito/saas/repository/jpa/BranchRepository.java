@@ -27,6 +27,18 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
     /** Igual que arriba, excluyendo la propia fila (edición). */
     boolean existsByBusinessIdAndNameIgnoreCaseAndIdNot(Long businessId, String name, Long id);
 
+    /**
+     * El número de WhatsApp identifica un lugar: unicidad GLOBAL (multi-
+     * sucursal, S3/T5), no por negocio — el guard del servicio + el constraint
+     * {@code uq_branches_phone} son defensa en profundidad. Postgres trata
+     * los NULLs como distintos, así que sólo se pregunta por valores
+     * presentes.
+     */
+    boolean existsByPhone(String phone);
+
+    /** Igual que arriba, excluyendo la propia fila (edición: mantener el propio número es legítimo). */
+    boolean existsByPhoneAndIdNot(String phone, Long id);
+
     long countByBusinessId(Long businessId);
 
     /** Sucursales activas del negocio, ordenadas por alta (fallback y default del checkout). */
