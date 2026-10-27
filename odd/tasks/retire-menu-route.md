@@ -25,7 +25,7 @@ Consecuencia operativa (fuera de este slice, acción del usuario): reimprimir TO
 | T4 | S5, S7 (routing) | worker + ajustes inline: SpaRoutingConfig, SlugViewController (RETIRED), SecurityConfig (404 no 401), copy-legacy-entries.mjs, SpaRoutingHttpTests, QrPropertiesBindingTests | cc71663 |
 | T5 | S6, S7 (SPA) | worker: view.ts + view-routing.test.ts + view-resolution/view-guards | 741bae8 |
 | T6 | S6 | worker: Menu.tsx, menu/types.ts (orders/api.ts no necesitó cambios) + menu-contract, menu-table-qr | 741bae8 |
-| T7 | S8 | regresión completa backend+frontend, cierre | |
+| T7 | S8 | regresión completa backend+frontend, cierre | este commit |
 
 ## Log
 
@@ -34,3 +34,4 @@ Consecuencia operativa (fuera de este slice, acción del usuario): reimprimir TO
 - L3 (asistente): tres opciones (solo contexto / migrar generación / jubilación completa). Consecuencia declarada de la 3: rompe QRs ya impresos.
 - L4 (usuario): "3" — jubilación completa, con reimpresión de QRs como acción del usuario post-deploy.
 - L5 (coordinación): el worker de T3 halló que la premisa "SingleBusinessResolver queda sin usos" era falsa — getPublicTable (GET /api/menu/table/{id}, mantenido por S4) lo usa. Decisión: opción B, endpoint slug-scoped GET /api/menu/{slug}/table/{id}; descartada A (debilita el aislamiento: 200 con identidad de mesa ajena en deployments multi-negocio) y C (conservar el resolver contradice la jubilación). S4 enmendada arriba; T6 actualiza el fetch del SPA; la reimpresión de QRs de mesa ya estaba en el plan.
+- L6 (resultado): verificación final — backend 494/0/0 (BUILD SUCCESS, incluye las 3 suites de QR/routing reescritas y las 2 de tabla slug-scoped), frontend 501/501 (view-routing 31, menu-contract 7, menu-table-qr 11 reescritos al contrato slug-scoped), tsc limpio. Tests borrados: PublicMenuSluglessHttpTests, PublicMenuSluglessOrderWsTests (solo pineaban la superficie jubilada). La regeneración del bundle con build:spring ya no produce static/menu/. ACCIÓN DEL USUARIO post-deploy: reimprimir TODOS los QRs (local y mesas) — los que apuntan a /menu/... dan 404/401.
