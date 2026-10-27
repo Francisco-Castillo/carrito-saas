@@ -74,6 +74,16 @@ export default function Kds() {
     sessionUsable && Boolean(slug)
   );
 
+  // Sesión muerta en pleno turno (odd/tasks/kds-session-errors.md S5):
+  // limpiar token+slug y volver al login. La navegación vive acá, a nivel
+  // página — nunca en el scope del hook/módulo (incidente histórico de
+  // bucle de redirect).
+  useEffect(() => {
+    if (fatal === "unauthenticated") {
+      logoutKds();
+    }
+  }, [fatal]);
+
   // Modal de cancelación — kds.js:547-578 (showCancelModal guarda el orderId).
   const [cancelOrderId, setCancelOrderId] = useState<number | null>(null);
 
