@@ -177,3 +177,11 @@ lens reliability, tier high — hot path de seguridad). 2 findings NO
 bloqueantes (advisory): R3-default-read-no-branch-echo y
 R3-fallback-platform-token-403-read (SecurityService:186-206).
 Receipt: store_revision sha256:914071a7a7e49c8abfa210a33941830bae0dd4774dd4002410052bac7be636cf.
+
+## Rediseño elección pública (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada del rediseño T8-T10 (lineage
+review-615f60d08cbf07e9, lens reliability, tier medium, 7 archivos/742
+líneas). 2 findings NO bloqueantes (advisory, SUGGESTION):
+R3-001 Menu.tsx:737-742 y R3-002 Menu.tsx:340-348.
+Receipt: store_revision sha256:343b2828ee0e4268d078035dd3edede51329b9b92ce0510ab7c17b414c1785c9.
