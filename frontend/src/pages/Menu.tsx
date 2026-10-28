@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatARS } from "../format";
 import "./Menu.css";
-import BranchPicker from "./menu/BranchPicker";
 import CartPanel from "./menu/CartPanel";
 import { applyBrandColor } from "./menu/brandColor";
 import { applyMenuFont } from "../menuFonts";
@@ -15,7 +14,6 @@ import type {
   Cart,
   CategoryGroup,
   Combo,
-  MenuBranch,
   MenuResponse,
   OrderType,
   PaymentMethod,
@@ -136,25 +134,6 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
   // Portada del local: llega en el payload del menú (`data.business`).
   const [business, setBusiness] = useState<StorefrontBusiness | null>(null);
 
-  // Sucursal elegida (multi-sucursal, odd/tasks/multi-sucursal.md, S4/T9):
-  // la identidad viaja como ?sucursal=<id> en la URL — la misma carta para
-  // todas (S2), los datos del menú (horas, WhatsApp, estado) son los de ESA
-  // sucursal. Se lee del query al montar (un QR por sucursal o un link
-  // compartido abren con la elección hecha) y la pantalla previa la fija al
-  // elegir (mismo replaceState que el patrón de vista; el slug queda intacto).
-  // NO es un control dentro de la carta (T10): la carta nunca muestra un
-  // selector — la elección ocurre en la pantalla previa (BranchPicker).
-  const [branchId, setBranchId] = useState<number | null>(() => {
-    const raw = new URLSearchParams(window.location.search).get("sucursal");
-    const id = raw === null ? NaN : Number(raw);
-    return Number.isInteger(id) && id > 0 ? id : null;
-  });
-
-  // Sucursales activas del negocio (payload del menú, `branches` hermano de
-  // `business`): alimenta la pantalla previa (S4/T8). Con menos de dos no se
-  // muestra nada especial.
-  const [branches, setBranches] = useState<MenuBranch[]>([]);
-
   // El estado abierto/cerrado del local — el mismo cálculo del badge, ahora
   // también puerta de la confirmación: el backend rechaza el pedido cerrado
   // (400 "El local está cerrado"), así que el cliente no lo envía a un 400
@@ -214,21 +193,6 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
     setToast(null);
   }
 
-  /**
-   * Elección de sucursal (S4/T8): fija el estado y reemplaza el query param
-   * `sucursal` en la URL SIN recargar (history.replaceState, same-document).
-   * Sólo lo llama la pantalla previa (BranchPicker); al cambiar el estado, el
-   * efecto de carga vuelve a pedir el menú con la sucursal (T9) — nunca se
-   * reusa el payload de la default. El parámetro viaja en el mismo query que
-   * `restaurant`/`table`: un link copiado reproduce la elección.
-   */
-  function chooseBranch(id: number) {
-    setBranchId(id);
-    const url = new URL(window.location.href);
-    url.searchParams.set("sucursal", String(id));
-    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
-  }
-
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   // Modal abierto (detalle de producto o pedido): el fondo no scrollea y la
@@ -271,7 +235,6 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
       setProducts([]);
       setRestaurant(null);
       setBusiness(null);
-      setBranches([]);
       setLoadError(null);
       setLoading(true);
 
@@ -299,14 +262,7 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
       // Menú del local: SIEMPRE slug-scoped (retire-menu-route.md S6) —
       // el endpoint slugless GET /api/menu fue retirado por el backend (S4).
       try {
-        // Multi-sucursal (S4/T9): si la URL trae ?sucursal=<id> (o se acaba de
-        // elegir en la pantalla previa), el menú se pide DE ESA sucursal — sus
-        // horas, su WhatsApp y su estado abierto/cerrado. Sin sucursal, el
-        // contrato de hoy intacto. Slug SIEMPRE presente (S6): no hay camino
-        // slugless.
-        const menuUrl =
-          `/api/menu/${slug}` + (branchId ? `?sucursal=${branchId}` : "");
-        const res = await fetch(menuUrl);
+        const res = await fetch(`/api/menu/${slug}`);
         if (!res.ok) {
           throw new Error("Menu request failed with HTTP " + res.status);
         }
@@ -316,20 +272,6 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
         // La portada viaja en el payload del menú; si el local no tiene datos
         // de storefront, `business` queda null y no se renderiza nada nuevo.
         setBusiness(data.business ?? null);
-        // Sucursales activas para la pantalla previa (S4/T8): viajan HERMANAS
-        // de `business` en el payload; la carta (S2) es compartida, esta lista
-        // no cambia productos ni precios.
-        setBranches(data.branches ?? []);
-
-        // Multi-sucursal (S4/T9): el WhatsApp del fallback del pedido (wa.me)
-        // es el de la sucursal del payload — el endpoint de restaurante viaja
-        // a nivel negocio/default y no distingue sucursal.
-        if (slug && data.business?.whatsappNumber) {
-          const branchWhatsapp = data.business.whatsappNumber;
-          setRestaurant((prev) =>
-            prev ? { ...prev, whatsappNumber: branchWhatsapp } : prev,
-          );
-        }
 
         // 🔥 SAFE ASSIGN (evita errores)
         const baseProducts: Product[] = (data.products || []).map((p) => ({
@@ -379,10 +321,7 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
     return () => {
       cancelled = true;
     };
-    // La carga depende de la sucursal (S4/T9): elegir en la pantalla previa
-    // cambia `branchId` y re-pide el menú YA scopeado — no se reusa el payload
-    // de la default.
-  }, [slug, tableParam, branchId]);
+  }, [slug, tableParam]);
 
   // Scroll-spy: la píldora activa sigue la sección visible. En entornos sin
   // IntersectionObserver (jsdom, navegadores viejos) simplemente no se activa.
@@ -648,14 +587,6 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
       payload.tableId = table.id;
     }
 
-    // Multi-sucursal (S4/T9): el pedido va a la sucursal de la URL (el DTO de
-    // checkout ya acepta branchId opcional; sin elección el backend usa la
-    // default = primera activa). En modo mesa fija (QR) no viaja: el pedido
-    // se atribuye a la mesa escaneada, no a una elección de pickup.
-    if (!table && branchId) {
-      payload.branchId = branchId;
-    }
-
     if (orderType === "DELIVERY") {
       payload.customerAddress = address;
     }
@@ -722,15 +653,6 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
   );
   const totalUnits = Object.values(cart).reduce((sum, item) => sum + item.qty, 0);
 
-  // Pantalla previa de elección (S4/T8): con DOS o más sucursales activas y
-  // la URL SIN ?sucursal= se muestra BranchPicker en lugar de la carta. Con
-  // ?sucursal= (QR por sucursal o elección hecha) directo a la carta; con una
-  // o ninguna sucursal, comportamiento de hoy intacto. En modo mesa fija
-  // (QR de mesa) tampoco hay pantalla: el pedido se atribuye a la mesa
-  // escaneada, no a una elección de pickup.
-  const needsBranchPicker =
-    !loading && branchId === null && !tableParam && branches.length >= 2;
-
   return (
     <div className="menu-screen" data-cart-visible={cartVisible || undefined}>
       <div className="aurora" aria-hidden="true">
@@ -743,21 +665,7 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
       {/* La portada vive ARRIBA del bloque de menú: al hacer scroll, la
           barra de píldoras (dentro del bloque) queda pegada arriba y la
           portada se va. */}
-      {/* Pantalla previa de elección (S4/T8): reemplaza a la carta completa
-          mientras no haya sucursal elegida — la carta no se ve. */}
-      {needsBranchPicker ? (
-        <BranchPicker
-          businessName={business?.name}
-          branches={branches}
-          onSelect={chooseBranch}
-        />
-      ) : (
-        <>
-          {/* La portada vive ARRIBA del bloque de menú: al hacer scroll, la
-              barra de píldoras (dentro del bloque) queda pegada arriba y la
-              portada se va. La carta nunca muestra un control de sucursal
-              (T10): el storefront ya no recibe selección alguna. */}
-          {business && <Storefront business={business} />}
+      {business && <Storefront business={business} />}
 
       {loadError ? (
         <div className="menu-load-error glass-panel fade-up" role="alert">
@@ -933,8 +841,6 @@ export default function Menu({ slug: slugProp }: { slug?: string | null } = {}) 
               </aside>
             </Sheet>
           )}
-        </>
-      )}
         </>
       )}
 

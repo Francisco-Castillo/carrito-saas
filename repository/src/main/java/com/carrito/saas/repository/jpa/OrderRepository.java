@@ -33,23 +33,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	List<Order> findActiveOrders(Long businessId);
 
 	/**
-	 * KDS scopeado por sucursal (multi-sucursal, T3). branchId null = sin
-	 * filtro de sucursal (negocio sin sucursales: vista a nivel negocio,
-	 * compatibilidad pre-feature); con branchId, sólo los de esa sucursal —
-	 * la frontera de tenant sigue siendo businessId, nunca el branch solo.
-	 */
-	@Query("""
-			SELECT DISTINCT o
-			FROM Order o
-			LEFT JOIN FETCH o.items
-			WHERE o.business.id = :businessId
-			AND (:branchId IS NULL OR o.branch.id = :branchId)
-			AND o.status NOT IN ('DELIVERED','CANCELLED','PENDING_PAYMENT')
-			ORDER BY o.createdAt ASC
-			""")
-	List<Order> findActiveOrdersByBranch(Long businessId, Long branchId);
-
-	/**
 	 * Pedidos del negocio en una ventana de un día, TODOS los estados
 	 * (incluidos DELIVERED y CANCELLED, que findActiveOrders excluye):
 	 * es la fuente de la vista de gestión del mostrador.
@@ -70,21 +53,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 			ORDER BY o.createdAt ASC
 			""")
 	List<Order> findOrdersByDay(Long businessId, LocalDateTime start, LocalDateTime end);
-
-	/** Igual que {@link #findOrdersByDay}, scopeado por sucursal (null = todas). */
-	@Query("""
-			SELECT DISTINCT o
-			FROM Order o
-			LEFT JOIN FETCH o.items
-			LEFT JOIN FETCH o.restaurantTable
-			LEFT JOIN FETCH o.cancellationReason
-			WHERE o.business.id = :businessId
-			AND (:branchId IS NULL OR o.branch.id = :branchId)
-			AND o.createdAt >= :start
-			AND o.createdAt < :end
-			ORDER BY o.createdAt ASC
-			""")
-	List<Order> findOrdersByBranchAndDay(Long businessId, Long branchId, LocalDateTime start, LocalDateTime end);
 
 	/**
 	 * Contar pedidos de hoy

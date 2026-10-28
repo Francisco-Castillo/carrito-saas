@@ -33,7 +33,6 @@ import com.carrito.saas.dto.BusinessProfileDTO;
 import com.carrito.saas.dto.BusinessShiftDTO;
 import com.carrito.saas.dto.DateExceptionDTO;
 import com.carrito.saas.repository.entity.Business;
-import com.carrito.saas.repository.entity.Branch;
 import com.carrito.saas.repository.entity.BusinessDateException;
 import com.carrito.saas.repository.entity.BusinessHours;
 import com.carrito.saas.repository.jpa.BusinessDateExceptionRepository;
@@ -960,15 +959,9 @@ class BusinessProfileAndStorefrontTests {
 	/**
 	 * Data-layer capability behind the multi-shift change: a weekday can hold
 	 * several shifts ordered by {@code position}. The repository returns them
-	 * in (dayOfWeek, position) order, and a duplicate (business_id,
-	 * day_of_week, position) is rejected in BOTH scopes: legacy rows
-	 * (branch_id NULL) by the functional index
-	 * {@code uq_business_hours_business_day_position_effective} — Postgres
-	 * treats two NULLs as distinct, so the 4-column constraint alone cannot
-	 * see them (fix CI run 40619938257, odd/tasks/multi-sucursal.md) — and
-	 * branch-attributed rows by
-	 * {@code uq_business_hours_business_branch_day_position} and the same
-		 * functional index.
+	 * in (dayOfWeek, position) order, and a duplicate
+	 * (business_id, day_of_week, position) is rejected by
+	 * {@code uq_business_hours_business_day_position}.
 	 */
 	@Test
 	void repositoryStoresTwoShiftsPerDayOrderedByPositionAndRejectsDuplicates() {
@@ -1010,51 +1003,7 @@ class BusinessProfileAndStorefrontTests {
 		duplicate.setClosesAt(LocalTime.parse("18:00:00"));
 
 		assertThatThrownBy(() -> businessHoursRepository.saveAndFlush(duplicate))
-				.as("(business_id, day_of_week, position) es único también con branch_id NULL: "
-						+ "el índice funcional uq_business_hours_business_day_position_effective lo rechaza")
-				.isInstanceOf(DataIntegrityViolationException.class);
-
-	}
-
-	/**
-	 * PRESERVE del ámbito con sucursal (multi-sucursal, S3/T4): la única de 4
-	 * columnas (uq_business_hours_business_branch_day_position) sigue
-	 * rechazando dos turnos de la MISMA sucursal con el mismo día y posición,
-	 * aunque otro turno legacy comparta día y posición (los ámbitos son
-	 * independientes). Test aparte del legacy: una violación de constraint
-	 * aborta la transacción de PostgreSQL y no se puede continuar en la misma.
-	 */
-	@Test
-	void repositoryRejectsDuplicateShiftForSameBranch() {
-
-		Business a = businessA();
-
-		Branch branch = new Branch();
-		branch.setBusiness(a);
-		branch.setName("Centro");
-		branch.setActive(true);
-		entityManager.persist(branch);
-		entityManager.flush();
-
-		BusinessHours branchShift = new BusinessHours();
-		branchShift.setBusiness(a);
-		branchShift.setBranch(branch);
-		branchShift.setDayOfWeek(5);
-		branchShift.setPosition(0);
-		branchShift.setOpensAt(LocalTime.parse("11:00:00"));
-		branchShift.setClosesAt(LocalTime.parse("15:00:00"));
-		businessHoursRepository.saveAndFlush(branchShift);
-
-		BusinessHours branchDuplicate = new BusinessHours();
-		branchDuplicate.setBusiness(a);
-		branchDuplicate.setBranch(branch);
-		branchDuplicate.setDayOfWeek(5);
-		branchDuplicate.setPosition(0);
-		branchDuplicate.setOpensAt(LocalTime.parse("16:00:00"));
-		branchDuplicate.setClosesAt(LocalTime.parse("18:00:00"));
-
-		assertThatThrownBy(() -> businessHoursRepository.saveAndFlush(branchDuplicate))
-				.as("(business_id, branch_id, day_of_week, position) es único")
+				.as("(business_id, day_of_week, position) es único")
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 

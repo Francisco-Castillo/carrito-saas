@@ -8,11 +8,10 @@ import ProductsTable from "./admin/ProductsTable";
 import CategoriesTable from "./admin/CategoriesTable";
 import CombosTable from "./admin/CombosTable";
 import LocalSection from "./admin/LocalSection";
-import BranchesSection from "./admin/BranchesSection";
 import CreateCategoryModal from "./admin/CreateCategoryModal";
 import ToastHost from "./admin/ToastHost";
 
-type AdminView = "dashboard" | "products" | "categories" | "combos" | "local" | "branches";
+type AdminView = "dashboard" | "products" | "categories" | "combos" | "local";
 
 /**
  * Label en español por vista: el título del panel nunca muestra la clave
@@ -25,10 +24,9 @@ const VIEW_LABELS: Record<AdminView, string> = {
   categories: "Categorías",
   combos: "Combos",
   local: "Local",
-  branches: "Sucursales",
 };
 
-const NAV_ITEMS: AdminView[] = ["dashboard", "products", "categories", "combos", "local", "branches"];
+const NAV_ITEMS: AdminView[] = ["dashboard", "products", "categories", "combos", "local"];
 
 /**
  * Marca de respaldo: si el perfil del negocio no se puede cargar, el sidebar
@@ -108,19 +106,6 @@ function LocalIcon() {
   );
 }
 
-/** Icono del nav para la vista Sucursales: edificio con tres torres. */
-function BranchesIcon() {
-  return (
-    <Icon>
-      <path d="M4.5 10 5.6 4.5h12.8L19.5 10" />
-      <path d="M7 10v9a1 1 0 0 1-1 1H3.5" />
-      <path d="M7 10v9a1 1 0 0 0 1 1h4.5" />
-      <path d="M17.5 10v9a1 1 0 0 0 1 1H21" />
-      <path d="M9.5 19.5v-4h5v4" />
-    </Icon>
-  );
-}
-
 function LogoutIcon() {
   return (
     <Icon>
@@ -171,7 +156,6 @@ const VIEW_ICONS: Record<AdminView, React.ReactNode> = {
   categories: <CategoriesIcon />,
   combos: <CombosIcon />,
   local: <LocalIcon />,
-  branches: <BranchesIcon />,
 };
 
 /**
@@ -345,7 +329,6 @@ export default function Admin() {
           )}
           {view === "combos" && <CombosTable />}
           {view === "local" && <LocalSection />}
-          {view === "branches" && <BranchesSection />}
         </section>
       </div>
 

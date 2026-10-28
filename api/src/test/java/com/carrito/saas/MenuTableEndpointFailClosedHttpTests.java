@@ -22,7 +22,6 @@ import com.carrito.saas.repository.entity.RestaurantTable;
 import com.carrito.saas.repository.enums.TableStatus;
 import com.carrito.saas.repository.jpa.BusinessDateExceptionRepository;
 import com.carrito.saas.repository.jpa.BusinessHoursRepository;
-import com.carrito.saas.repository.jpa.BranchRepository;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.BusinessUserRepository;
 import com.carrito.saas.repository.jpa.CategoryRepository;
@@ -70,9 +69,6 @@ class MenuTableEndpointFailClosedHttpTests {
 
 	@Autowired
 	private FilterChainProxy springSecurityFilterChain;
-
-	@Autowired
-	private BranchRepository branchRepository;
 
 	@Autowired
 	private BusinessRepository businessRepository;
@@ -138,9 +134,6 @@ class MenuTableEndpointFailClosedHttpTests {
 		businessHoursRepository.deleteAll();
 		businessDateExceptionRepository.deleteAll();
 		tableRepository.deleteAll();
-		// Multi-sucursal: las branches son dependientes del negocio (y los
-		// pedidos ya fueron borrados, así que fk_orders_branch no molesta).
-		branchRepository.deleteAll();
 		businessRepository.deleteAll();
 	}
 

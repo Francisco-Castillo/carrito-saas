@@ -9,7 +9,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.carrito.saas.tenant.BranchContext;
 import com.carrito.saas.tenant.TenantContext;
 
 import jakarta.servlet.FilterChain;
@@ -82,16 +81,6 @@ public class JwtFilter extends OncePerRequestFilter {
 					if (businessId != null) {
 						// CONTEXTO MULTI-TENANT (solo tokens de negocio)
 						TenantContext.set(businessId);
-
-						// CONTEXTO DE SUCURSAL (multi-sucursal, T3): el claim
-						// branchId fija la sucursal activa del panel. Null en
-						// tokens viejos: la resolución con fallback (una sola
-						// activa, o 400 pidiendo selección) la hace
-						// SecurityService.getCurrentBranchId(), no el filtro.
-						Long branchId = jwtUtil.extractBranchId(token);
-						if (branchId != null) {
-							BranchContext.set(branchId);
-						}
 					}
 
 					// LOGS (MDC)
@@ -118,7 +107,6 @@ public class JwtFilter extends OncePerRequestFilter {
 	    } finally {
 	        //  LIMPIEZA (CRÍTICO)
 	        TenantContext.clear();
-	        BranchContext.clear();
 	        MDC.clear();
 	    }
 	}
