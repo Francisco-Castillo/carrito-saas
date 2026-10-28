@@ -14,6 +14,14 @@ import type { StorefrontBusiness } from "./types";
  * Todo es opcional: cada elemento desaparece cuando su dato falta, y un local
  * sin portada no renderiza nada (la carta queda exactamente como era).
  *
+ * Multi-sucursal (odd/tasks/multi-sucursal.md, S4/T10): la carta NUNCA muestra
+ * un control de sucursal — el selector vivía acá y salió (corrección de
+ * producto L10). La elección ocurre en la pantalla previa (BranchPicker, T8)
+ * y los datos que muestra esta portada ya vienen scopeados: Menu.tsx pide el
+ * menú con `?sucursal=<id>` (T9), así que las horas, el WhatsApp y el estado
+ * abierto/cerrado son los de la sucursal elegida. La carta es compartida
+ * (S2): nada de lo que se muestra acá bifurca productos ni precios.
+ *
  * El badge usa `useOpenStatus`: se recalcula en el próximo borde del horario,
  * con un re-chequeo acotado de respaldo y al volver la pestaña visible. Ya no
  * se congela en el render inicial (antes era un useMemo sobre `business`).

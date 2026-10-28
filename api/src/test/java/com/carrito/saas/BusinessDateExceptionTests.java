@@ -1,6 +1,7 @@
 package com.carrito.saas;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.web.FilterChainProxy;
@@ -978,6 +980,45 @@ class BusinessDateExceptionTests {
 				.findByBusiness_IdOrderByDateAscPositionAsc(BUSINESS_B_ID);
 		assertThat(foreignRows).as("el PUT del vecino no debe tocar las fechas ajenas").hasSize(1);
 		assertThat(foreignRows.get(0).getDate()).isEqualTo(LocalDate.of(2026, 12, 25));
+	}
+
+	// ------------------------------------------------------------------
+	// Capa de datos: el invariante de unicidad también con branch_id NULL
+	// ------------------------------------------------------------------
+
+	/**
+	 * Capa de datos del invariante (fix CI run 40619938257,
+	 * odd/tasks/multi-sucursal.md): Postgres trata dos NULL como distintos,
+	 * así que la única de 4 columnas (business_id, branch_id, date, position)
+	 * no ve dos filas legacy (branch_id NULL) de la misma fecha y posición.
+	 * El índice único funcional uq_business_date_exception_business_date_position_effective
+	 * las rechaza — en una base nueva, con SÓLO el esquema que genera
+	 * Hibernate.
+	 */
+	@Test
+	void repositoryRejectsDuplicateLegacyDatePosition() {
+
+		Business a = businessA();
+
+		BusinessDateException first = new BusinessDateException();
+		first.setBusiness(a);
+		first.setDate(LocalDate.of(2026, 12, 25));
+		first.setPosition(0);
+		first.setOpensAt(LocalTime.parse("11:00:00"));
+		first.setClosesAt(LocalTime.parse("15:00:00"));
+		businessDateExceptionRepository.saveAndFlush(first);
+
+		BusinessDateException duplicate = new BusinessDateException();
+		duplicate.setBusiness(a);
+		duplicate.setDate(LocalDate.of(2026, 12, 25));
+		duplicate.setPosition(0);
+		duplicate.setOpensAt(LocalTime.parse("16:00:00"));
+		duplicate.setClosesAt(LocalTime.parse("18:00:00"));
+
+		assertThatThrownBy(() -> businessDateExceptionRepository.saveAndFlush(duplicate))
+				.as("(business_id, date, position) es único también con branch_id NULL: "
+						+ "el índice funcional uq_business_date_exception_business_date_position_effective lo rechaza")
+				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 }

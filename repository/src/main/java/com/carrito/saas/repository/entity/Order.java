@@ -45,6 +45,18 @@ public class Order implements Serializable {
 	@ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "business_id", nullable = false)
 	private Business business;
+
+	/**
+	 * Sucursal del pedido (multi-sucursal, T3). Nullable en la columna a
+	 * propósito: los pedidos previos a la feature nacen NULL y la migración
+	 * los re-parenta a la sucursal default de su negocio; el servicio SIEMPRE
+	 * setea la sucursal en pedidos nuevos (request.branchId validado, o la
+	 * primera activa). El scoping del panel es businessId + branchId, así que
+	 * un claim de sucursal ajena no cruza la frontera de tenant.
+	 */
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "branch_id")
+	private Branch branch;
 	
 	@ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "table_id")

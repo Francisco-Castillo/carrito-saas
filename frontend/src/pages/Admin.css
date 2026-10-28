@@ -1178,7 +1178,19 @@
 .admin-qr-actions {
   display: flex;
   gap: var(--space-2);
-  flex-wrap: wrap;
+  /* Multi-sucursal: una sucursal activa tiene cinco acciones (Trabajar acá,
+     QR, Editar, Desactivar) — envolverlas partía el grupo en dos líneas
+     dentro de la fila. Se mantiene una sola línea y la fila gana su ancho. */
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .admin-qr-actions {
+    /* En pantallas angostas sí conviene envolver antes que desbordar. */
+    flex-wrap: wrap;
+    white-space: normal;
+  }
 }
 
 .admin-qr-remove {
@@ -1600,4 +1612,13 @@
 
 .pm-section .admin-product-options--header {
   margin-bottom: var(--space-1);
+}
+
+/* Nombre de sucursal + badge «Actual» (multi-sucursal, S3): el badge va
+   separado del nombre, alineado en la misma línea, sin quedar pegado. */
+.admin-branch-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }

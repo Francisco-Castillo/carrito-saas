@@ -21,6 +21,7 @@ import com.carrito.saas.dto.SelectedOptionDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
+import com.carrito.saas.repository.entity.Branch;
 import com.carrito.saas.repository.entity.CancellationReason;
 import com.carrito.saas.repository.entity.Combo;
 import com.carrito.saas.repository.entity.ComboProduct;
@@ -34,6 +35,7 @@ import com.carrito.saas.repository.enums.OrderStatus;
 import com.carrito.saas.repository.enums.PaymentMethod;
 import com.carrito.saas.repository.enums.OrderType;
 import com.carrito.saas.repository.jpa.BusinessRepository;
+import com.carrito.saas.repository.jpa.BranchRepository;
 import com.carrito.saas.repository.jpa.CancellationReasonRepository;
 import com.carrito.saas.repository.jpa.ComboRepository;
 import com.carrito.saas.repository.jpa.OrderRepository;
@@ -63,13 +65,14 @@ public class OrderServiceImpl implements IOrderService {
 	private final TableRepository tableRepository;
 	private final IBusinessOpenService businessOpenService;
 	private final Clock clock;
+	private final BranchRepository branchRepository;
 
 	public OrderServiceImpl(OrderRepository orderRepository, BusinessRepository businessRepository,
 			ProductRepository productRepository, ComboRepository comboRepository,
 			CancellationReasonRepository cancellationReasonRepository, IOrderKitchenMapper iOrderKitchenMapper,
 			IOrderManagementMapper iOrderManagementMapper, IOrderMapper iOrderMapper, SecurityService securityService,
 			TableRepository tableRepository,
-			IBusinessOpenService businessOpenService, Clock clock) {
+			IBusinessOpenService businessOpenService, Clock clock, BranchRepository branchRepository) {
 		this.orderRepository = orderRepository;
 		this.businessRepository = businessRepository;
 		this.productRepository = productRepository;
@@ -82,6 +85,7 @@ public class OrderServiceImpl implements IOrderService {
 		this.tableRepository = tableRepository;
 		this.businessOpenService = businessOpenService;
 		this.clock = clock;
+		this.branchRepository = branchRepository;
 	}
 
 	@Override
@@ -135,11 +139,20 @@ public class OrderServiceImpl implements IOrderService {
 			throw new BusinessException("No se encontró restaurante", ErrorType.NOT_FOUND);
 		}
 
+		// Sucursal del pedido (multi-sucursal, T3): la del request si viaja
+		// (ajena o inactiva → 404 SIN crear nada), si no la primera activa
+		// (sucursal default). Un negocio sin sucursales (pre-migración) crea
+		// el pedido sin sucursal: la vista a nivel negocio lo muestra igual.
+		Branch branch = resolveBranchForOrder(business, request.getBranchId());
+
 		// Local cerrado: el pedido público no entra fuera del horario efectivo
-		// del negocio — mismas reglas que el badge de la portada (turnos
+		// de SU sucursal (multi-sucursal, S3/T4: la sucursal del pedido, no el
+		// negocio entero) — mismas reglas que el badge de la portada (turnos
 		// ordenados, cruce de medianoche, excepciones por fecha). Una unidad
-		// propia: el badge es decoración, esta es la regla real.
-		if (!businessOpenService.isOpen(business.getId(), LocalDateTime.now(clock))) {
+		// propia: el badge es decoración, esta es la regla real. Negocio sin
+		// sucursales (branch null): vista a nivel negocio, compatibilidad.
+		if (!businessOpenService.isOpen(business.getId(), branch == null ? null : branch.getId(),
+				LocalDateTime.now(clock))) {
 			throw new BusinessException("El local está cerrado", ErrorType.VALIDATION);
 		}
 
@@ -151,6 +164,7 @@ public class OrderServiceImpl implements IOrderService {
 				? OrderStatus.PENDING_PAYMENT
 				: OrderStatus.NEW);
 		order.setBusiness(business);
+		order.setBranch(branch);
 		// En salón un nombre/phone en blanco se guarda como null (anónimo), no
 		// como cadena vacía.
 		String customerName = request.getCustomerName();
@@ -349,6 +363,16 @@ public class OrderServiceImpl implements IOrderService {
 		Order order = orderRepository.findByIdAndBusinessId(orderId, businessId)
 				.orElseThrow(() -> new BusinessException("Pedido no encontrado o no autorizado", ErrorType.NOT_FOUND));
 
+		// Multi-sucursal (T3): con sucursal activa, un pedido de OTRA sucursal
+		// del mismo negocio no existe para este usuario (404, igual que un id
+		// ajeno). Pedidos sin sucursal (pre-migración) sólo se tocan sin
+		// selección (business-level).
+		Long branchId = securityService.getCurrentBranchId();
+		if (branchId != null
+				&& (order.getBranch() == null || !branchId.equals(order.getBranch().getId()))) {
+			throw new BusinessException("Pedido no encontrado o no autorizado", ErrorType.NOT_FOUND);
+		}
+
 		OrderStatus currentStatus = order.getStatus();
 
 		// Validar transición: un salto de estado inválido (board desactualizado,
@@ -396,7 +420,11 @@ public class OrderServiceImpl implements IOrderService {
 	public List<OrderKitchenDTO> getActiveOrders() {
 		Long businessId = securityService.getCurrentBusinessId();
 
-		List<Order> orders = orderRepository.findActiveOrders(businessId);
+		// Multi-sucursal (T3): scope por la sucursal activa del JWT (claim o
+		// fallback); null = negocio sin sucursales → vista a nivel negocio.
+		Long branchId = securityService.getCurrentBranchId();
+
+		List<Order> orders = orderRepository.findActiveOrdersByBranch(businessId, branchId);
 
 		return iOrderKitchenMapper.toListDTO(orders);
 	}
@@ -414,7 +442,8 @@ public class OrderServiceImpl implements IOrderService {
 		LocalDateTime start = day.atStartOfDay();
 		LocalDateTime end = day.plusDays(1).atStartOfDay();
 
-		List<Order> orders = orderRepository.findOrdersByDay(businessId, start, end);
+		List<Order> orders = orderRepository.findOrdersByBranchAndDay(businessId,
+				securityService.getCurrentBranchId(), start, end);
 
 		return iOrderManagementMapper.toListDTO(orders);
 	}
@@ -427,6 +456,14 @@ public class OrderServiceImpl implements IOrderService {
 
 		Order order = orderRepository.findByIdAndBusinessId(orderId, businessId)
 				.orElseThrow(() -> new BusinessException("Pedido no encontrado", ErrorType.NOT_FOUND));
+
+		// Mismo guard de sucursal que updateStatus (T3): otra sucursal del
+		// mismo negocio no puede cancelar pedidos que no le corresponden.
+		Long branchId = securityService.getCurrentBranchId();
+		if (branchId != null
+				&& (order.getBranch() == null || !branchId.equals(order.getBranch().getId()))) {
+			throw new BusinessException("Pedido no encontrado", ErrorType.NOT_FOUND);
+		}
 
 		if (!order.getStatus().canTransitionTo(OrderStatus.CANCELLED)) {
 			throw new BusinessException(
@@ -572,6 +609,26 @@ public class OrderServiceImpl implements IOrderService {
 	 * no tira abajo el pedido: lista vacía y log (el pedido existe, mostrar
 	 * el resto es más importante que la selección).
 	 */
+	// ------------------------------------------------------------------
+	// Sucursal del pedido (multi-sucursal, T3)
+	// ------------------------------------------------------------------
+
+	/**
+	 * Resuelve la sucursal de un pedido público: la del request si viaja
+	 * (validada propia y activa, 404 si no), si no la primera activa del
+	 * negocio (default). Negocio sin sucursales (pre-migración) → null.
+	 */
+	private Branch resolveBranchForOrder(Business business, Long branchId) {
+
+		if (branchId != null) {
+			return branchRepository.findByIdAndBusinessId(branchId, business.getId())
+					.filter(b -> Boolean.TRUE.equals(b.getActive()))
+					.orElseThrow(() -> new BusinessException("Sucursal no encontrada", ErrorType.NOT_FOUND));
+		}
+
+		return branchRepository.findFirstByBusinessIdAndActiveTrueOrderByIdAsc(business.getId());
+	}
+
 	public static List<SelectedOptionDTO> leerOpcionesJson(String json) {
 		if (json == null || json.isBlank())
 			return Collections.emptyList();

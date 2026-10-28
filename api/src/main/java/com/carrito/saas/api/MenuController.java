@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.carrito.saas.dto.MenuDTO;
@@ -23,8 +24,9 @@ public class MenuController {
 	}
 
 	@GetMapping("/{slug}")
-	public MenuDTO getMenuBySlug(@PathVariable String slug) {
-		return iMenuService.getMenu(slug);
+	public MenuDTO getMenuBySlug(@PathVariable String slug,
+			@RequestParam(name = "sucursal", required = false) Long sucursal) {
+		return iMenuService.getMenu(slug, sucursal);
 	}
 
 	/**

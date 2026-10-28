@@ -23,8 +23,10 @@ import com.carrito.saas.dto.DateExceptionDTO;
 import com.carrito.saas.exception.BusinessException;
 import com.carrito.saas.exception.ErrorType;
 import com.carrito.saas.repository.entity.Business;
+import com.carrito.saas.repository.entity.Branch;
 import com.carrito.saas.repository.entity.BusinessDateException;
 import com.carrito.saas.repository.entity.BusinessHours;
+import com.carrito.saas.repository.jpa.BranchRepository;
 import com.carrito.saas.repository.jpa.BusinessDateExceptionRepository;
 import com.carrito.saas.repository.jpa.BusinessHoursRepository;
 import com.carrito.saas.repository.jpa.BusinessRepository;
@@ -85,6 +87,13 @@ import com.carrito.saas.service.interfaces.IBusinessProfileService;
  * base); presente se valida como siempre. {@code name} es la excepción por
  * derecha: vacío se rechaza con 400 (un negocio necesita nombre) y ausente
  * conserva el guardado.</p>
+ *
+ * <p>Multi-sucursal (odd/tasks/multi-sucursal.md, S3/T4): las horas y las
+ * fechas especiales se leen/escriben scopeadas a la sucursal activa del JWT
+ * ({@code getCurrentBranchId}: claim, fallback a la única activa, null si el
+ * negocio no tiene y 400 si hay varias sin elegir). El reemplazo en bloque
+ * borra SÓLO las filas de esa sucursal; con sucursal null (negocio sin
+ * sucursales) el comportamiento es el legacy a nivel negocio.</p>
  */
 @Service
 public class BusinessProfileServiceImpl implements IBusinessProfileService {
@@ -111,16 +120,18 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 	private static final int MINUTES_PER_DAY = 24 * 60;
 
 	private final BusinessRepository businessRepository;
+	private final BranchRepository branchRepository;
 	private final BusinessHoursRepository businessHoursRepository;
 	private final BusinessDateExceptionRepository businessDateExceptionRepository;
 	private final ISecurityService securityService;
 	private final ImageStorageService imageStorageService;
 
-	public BusinessProfileServiceImpl(BusinessRepository businessRepository,
+	public BusinessProfileServiceImpl(BusinessRepository businessRepository, BranchRepository branchRepository,
 			BusinessHoursRepository businessHoursRepository,
 			BusinessDateExceptionRepository businessDateExceptionRepository, ISecurityService securityService,
 			ImageStorageService imageStorageService) {
 		this.businessRepository = businessRepository;
+		this.branchRepository = branchRepository;
 		this.businessHoursRepository = businessHoursRepository;
 		this.businessDateExceptionRepository = businessDateExceptionRepository;
 		this.securityService = securityService;
@@ -206,6 +217,15 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 
 	/** Mapeo entidad → DTO del perfil: el único lugar que conoce los campos del storefront. */
 	private BusinessProfileDTO toProfileDTO(Business business) {
+		// Horas y fechas especiales scopeadas a la sucursal activa del JWT
+		// (multi-sucursal, S3/T4): con sucursal seleccionada, la vista de esa
+		// sucursal; negocio sin sucursales, la vista a nivel negocio
+		// (compatibilidad). Varias sin seleccionar: la LECTURA cae a la default
+		// (getCurrentBranchIdOrDefault, fix panel roto — un dueño con varias
+		// sucursales y token sin claim no puede quedarse sin panel); la
+		// ESCRITURA sigue exigiendo selección explícita (updateProfile usa
+		// getCurrentBranchId, que resuelve el 400).
+		Long branchId = securityService.getCurrentBranchIdOrDefault();
 		BusinessProfileDTO dto = new BusinessProfileDTO();
 		dto.setName(business.getName());
 		dto.setPhone(business.getPhone());
@@ -218,8 +238,8 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		dto.setMenuFont(business.getMenuFont());
 		dto.setComandaPrintingEnabled(Boolean.TRUE.equals(business.getComandaPrintingEnabled()));
 		dto.setComandaAutoPrint(Boolean.TRUE.equals(business.getComandaAutoPrint()));
-		dto.setHours(toHoursDTOs(business.getId()));
-		dto.setDateExceptions(toDateExceptionDTOs(business.getId()));
+		dto.setHours(toHoursDTOs(business.getId(), branchId));
+		dto.setDateExceptions(toDateExceptionDTOs(business.getId(), branchId));
 
 		return dto;
 	}
@@ -233,6 +253,12 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		}
 
 		Business business = currentBusiness();
+
+		// Horas/fechas por sucursal (multi-sucursal, S3/T4): la escritura va
+		// scopeada a la sucursal activa del JWT — claim, fallback a la única
+		// activa, null si no hay sucursales y 400 si hay varias sin elegir.
+		Long branchId = securityService.getCurrentBranchId();
+		Branch branch = resolveProfileBranch(business, branchId);
 
 		validateName(dto.getName());
 		validatePhone(dto.getPhone());
@@ -255,7 +281,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 			hoursToStore = validateHours(dto.getHours());
 			effectiveHours = hoursToStore;
 		} else {
-			effectiveHours = toHoursDTOs(business.getId());
+			effectiveHours = toHoursDTOs(business.getId(), branchId);
 		}
 
 		// null significa "no tocar": la lista vacía sigue siendo el "ninguna"
@@ -316,11 +342,14 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		businessRepository.save(business);
 
 		if (hoursToStore != null) {
-			// Reemplazo en bloque: se borran los turnos actuales y se insertan
-			// los del payload (la lista vacía cierra todos los días). Un día
-			// ausente — o presente sin turnos— queda cerrado; position es el
-			// índice dentro del día ya ordenado.
-			businessHoursRepository.deleteByBusiness_Id(business.getId());
+			// Reemplazo en bloque scopeado a la sucursal (multi-sucursal, S3/T4):
+			// se borran SÓLO los turnos de esa sucursal — los legacy a nivel
+			// negocio quedan, los conservan las demás sucursales — y se insertan
+			// los del payload con la Branch seteada (branchId null = negocio sin
+			// sucursales: se borra/inserta a nivel negocio, comportamiento
+			// legacy). Un día ausente — o presente sin turnos— queda cerrado;
+			// position es el índice dentro del día ya ordenado.
+			businessHoursRepository.deleteByBusinessIdAndOptionalBranch(business.getId(), branchId);
 			businessHoursRepository.flush();
 
 		for (BusinessHoursDTO hoursDTO : hoursToStore) {
@@ -328,6 +357,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 			for (int position = 0; position < shifts.size(); position++) {
 				BusinessHours entity = new BusinessHours();
 				entity.setBusiness(business);
+				entity.setBranch(branch);
 				entity.setDayOfWeek(hoursDTO.getDayOfWeek());
 				entity.setPosition(position);
 				entity.setOpensAt(shifts.get(position).getOpensAt());
@@ -338,18 +368,20 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		}
 
 		if (exceptionsToStore != null) {
-			// Reemplazo en bloque de las fechas especiales, igual que las horas:
-			// la lista vacía explícita vuelve a "sin fechas". Una fecha con la
-			// lista de turnos vacía (feriado cerrado) se guarda como UNA fila
-			// marcadora sin horarios: acá la ausencia de la fecha significa "día
-			// normal", así que el cerrado tiene que estar representado.
-			businessDateExceptionRepository.deleteByBusiness_Id(business.getId());
+			// Reemplazo en bloque de las fechas especiales, igual que las horas
+			// (scopeado a la sucursal del JWT, multi-sucursal S3/T4): la lista
+			// vacía explícita vuelve a "sin fechas". Una fecha con la lista de
+			// turnos vacía (feriado cerrado) se guarda como UNA fila marcadora
+			// sin horarios: acá la ausencia de la fecha significa "día normal",
+			// así que el cerrado tiene que estar representado.
+			businessDateExceptionRepository.deleteByBusinessIdAndOptionalBranch(business.getId(), branchId);
 			businessDateExceptionRepository.flush();
 
 			for (DateExceptionDTO exceptionDTO : exceptionsToStore) {
 			if (exceptionDTO.getShifts().isEmpty()) {
 				BusinessDateException marker = new BusinessDateException();
 				marker.setBusiness(business);
+				marker.setBranch(branch);
 				marker.setDate(exceptionDTO.getDate());
 				marker.setYearly(exceptionDTO.isYearly());
 				marker.setPosition(0);
@@ -359,6 +391,7 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 			for (int position = 0; position < exceptionDTO.getShifts().size(); position++) {
 				BusinessDateException entity = new BusinessDateException();
 				entity.setBusiness(business);
+				entity.setBranch(branch);
 				entity.setDate(exceptionDTO.getDate());
 				entity.setYearly(exceptionDTO.isYearly());
 				entity.setPosition(position);
@@ -383,8 +416,8 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		// flags ya guardados (el test del contrato los lee acá).
 		result.setComandaPrintingEnabled(Boolean.TRUE.equals(business.getComandaPrintingEnabled()));
 		result.setComandaAutoPrint(Boolean.TRUE.equals(business.getComandaAutoPrint()));
-		result.setHours(toHoursDTOs(business.getId()));
-		result.setDateExceptions(toDateExceptionDTOs(business.getId()));
+		result.setHours(toHoursDTOs(business.getId(), branchId));
+		result.setDateExceptions(toDateExceptionDTOs(business.getId(), branchId));
 
 		return result;
 	}
@@ -777,6 +810,24 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 	}
 
 	/**
+	 * Resuelve la Branch de la escritura del perfil (multi-sucursal, S3/T4):
+	 * branchId null (negocio sin sucursales) → null, filas legacy a nivel
+	 * negocio; con branchId la sucursal tiene que existir Y ser del negocio
+	 * del JWT (el claim viene firmado, pero el id resuelto por fallback
+	 * puede quedar obsoleto si la sucursal se dio de baja entre emisión y
+	 * llamada — 404, mismo mensaje que el resto de la superficie de
+	 * sucursales).
+	 */
+	private Branch resolveProfileBranch(Business business, Long branchId) {
+
+		if (branchId == null) {
+			return null;
+		}
+		return branchRepository.findByIdAndBusinessId(branchId, business.getId())
+				.orElseThrow(() -> new BusinessException("Sucursal no encontrada", ErrorType.NOT_FOUND));
+	}
+
+	/**
 	 * Los siete días (1..7, lunes→domingo), cada uno con su lista de turnos —
 	 * vacía cuando el día está cerrado. Así ningún cliente tiene que inferir
 	 * "el día que falta es un día cerrado" y una vuelta de lo que el cliente
@@ -794,17 +845,17 @@ public class BusinessProfileServiceImpl implements IBusinessProfileService {
 		return openDays;
 	}
 
-	private List<BusinessHoursDTO> toHoursDTOs(Long businessId) {
+	private List<BusinessHoursDTO> toHoursDTOs(Long businessId, Long branchId) {
 
 		return toSevenDayDTOs(businessHoursRepository
-				.findByBusiness_IdOrderByDayOfWeekAscPositionAsc(businessId));
+				.findByBusinessIdAndOptionalBranch(businessId, branchId));
 	}
 
 	/** Las fechas especiales con al menos una fila, ordenadas por fecha, con la lista vacía en las cerradas. */
-	private List<DateExceptionDTO> toDateExceptionDTOs(Long businessId) {
+	private List<DateExceptionDTO> toDateExceptionDTOs(Long businessId, Long branchId) {
 
 		return toDateExceptionDTOList(businessDateExceptionRepository
-				.findByBusiness_IdOrderByDateAscPositionAsc(businessId));
+				.findByBusinessIdAndOptionalBranch(businessId, branchId));
 	}
 
 	private static List<DateExceptionDTO> toDateExceptionDTOList(List<BusinessDateException> rows) {

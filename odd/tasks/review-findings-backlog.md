@@ -119,3 +119,115 @@ L4. "hacelos ahora" (2026-10-17): segunda pasada sobre las 14 no-acciones.
       revisor sería adivinar.
     - R3-import-complete de #50: ya resuelto por PR #50 (verificado: nadie
       importa formatARS desde dashboard/format).
+
+## Multi-sucursal (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada del slice fases 1+2 (lineage review-4b1135d9d419534f,
+lens reliability, tier high). Los 5 findings son NO bloqueantes (advisory,
+disposition informational) y no reabren la review — trabajo aparte:
+
+- R3-001 WARNING OrderServiceImpl:370-376 (fallback de sucursal en scoping de pedidos)
+- R3-002 WARNING SecurityService:154-193 (resolución de sucursal activa del JWT)
+- R3-003 SUGGESTION BusinessProfileServiceImpl:810-824
+- R3-004 SUGGESTION docs/migrations/2026-10-28-branch-hours.sql:56-73 (swap de constraints)
+- R3-005 SUGGESTION OrderServiceImpl:617-631 (resolveBranchForOrder)
+
+Sin el texto completo del revisor en mano, la acción honesta es leer el
+detalle del store antes de tocar (patrón ya documentado en L4: adivinar
+ubicaciones sin texto = churn). Referencia del receipt: store_revision
+sha256:400aa80161b1fe68ba3d609db9c2f2b7fa4c79c2a881a76a3c7e2a5147258d6e.
+
+## Multi-sucursal T5-T7 (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada del slice final (lineage review-d144cef26ffd2d35,
+lens reliability, tier medium, 21 archivos/1379 líneas). 2 findings NO
+bloqueantes (advisory), trabajo aparte:
+
+- R3-selector-no-menu-refetch WARNING frontend/src/pages/Menu.tsx:205-216
+  (el selector no re-fetch del menú al cambiar de sucursal: horas/whatsapp
+  del payload quedan de la sucursal cargada al montar)
+- R3-sucursal-nonnumeric-400 WARNING api/src/main/java/com/carrito/saas/api/
+  MenuController.java:27-28 (?sucursal= no numérico → 400 de Spring; podría
+  tratarse como fallback silencioso para el display público)
+
+Receipt: store_revision sha256:9b4532790ef1151fe38dc9b9b893ed547fce2dd26d2629eb54f1fe51fd004e20.
+
+## Panel de sucursales (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada del slice del panel (lineage review-dffb9a3c0b2a0de7,
+lens reliability, tier medium, 5 archivos/697 líneas). 4 findings NO
+bloqueantes (advisory), trabajo aparte:
+
+- R3-edit-cannot-clear-optional-fields WARNING BranchesSection.tsx:146-158
+  (la edición no puede limpiar dirección/WhatsApp opcionales: el PUT sin
+  campo los conserva según contrato parcial del perfil — en BranchServiceImpl
+  blankToNull sí limpia con "", verificar cuál contrato quedó)
+- R3-no-disable-during-workhere SUGGESTION BranchesSection.tsx:296-305
+  (doble click en «Trabajar acá» dispara dos selects)
+- R3-qr-filename-unsanitized SUGGESTION BranchesSection.tsx:236-238
+  (nombre de archivo QR sin sanitizar)
+- R3-workhere-refresh-error-swallowed SUGGESTION BranchesSection.tsx:228-232
+
+Receipt: store_revision sha256:19ca6dd16fec9334052df55663a30ecf02f508831c5badee6dd510f770126902.
+
+## Fix lectura de perfil (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada del slice fix (lineage review-b12851c7bbe0716a,
+lens reliability, tier high — hot path de seguridad). 2 findings NO
+bloqueantes (advisory): R3-default-read-no-branch-echo y
+R3-fallback-platform-token-403-read (SecurityService:186-206).
+Receipt: store_revision sha256:914071a7a7e49c8abfa210a33941830bae0dd4774dd4002410052bac7be636cf.
+
+## Rediseño elección pública (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada del rediseño T8-T10 (lineage
+review-615f60d08cbf07e9, lens reliability, tier medium, 7 archivos/742
+líneas). 2 findings NO bloqueantes (advisory, SUGGESTION):
+R3-001 Menu.tsx:737-742 y R3-002 Menu.tsx:340-348.
+Receipt: store_revision sha256:343b2828ee0e4268d078035dd3edede51329b9b92ce0510ab7c17b414c1785c9.
+
+## Flake detectado: decodificación de QR (2026-10-27)
+
+`BranchMenuAndQrHttpTests.qrDeSucursalPropiaEsUnPngQueCodificaLaUrlConSucursal`
+falla de forma intermitente (2 de 3 corridas de la suite completa; pasa
+aislado y pasa en la base sin cambios): el helper `decodeQrText` usa zxing sin
+`TRY_HARDER`, y el decoder ocasionalmente no encuentra el QR del PNG generado.
+No es regresión de la feature, pero ensucia la señal de la suite.
+
+Acción propuesta (unidad aparte): hints de decodificación (`TRY_HARDER`) o
+reintento con reescalado en el helper de test. Nunca en código de producción.
+
+## Reactivación de sucursales (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada (lineage review-9cb519513085406f, lens
+reliability, tier medium). 2 advisories NO bloqueantes (SUGGESTION):
+- R3-guard-race BranchServiceImpl.java:139-143 (el guard de última activa
+  cuenta y luego escribe: dos DELETE concurrentes podrían pasar el chequeo)
+- R3-reactivar-no-limit BranchServiceImpl.java:152-164 (reactivar no tiene
+  tope de sucursales activas por negocio)
+Receipt: store_revision sha256:4340f7416681d342061aea5a5f0bab554483324537750fcb2916484ce3639eb4.
+
+## Copy y badge del panel (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada (lineage review-5ffa391c3ff1af34, lens readability,
+tier medium). 1 advisory NO bloqueante: R2-001 BranchesSection.tsx:376.
+Receipt: store_revision sha256:872cdc4d586544ccb6b3c2a9b5540f4bad6907add995bcc853a64acc9d4f1691.
+
+## Edge de producto detectado en el panel (2026-10-27)
+
+Se puede DESACTIVAR la sucursal con la que se está trabajando (el claim
+branchId del JWT sigue apuntando a ella): el panel queda operando una
+sucursal inactiva (sin QR, sin pedidos nuevos, y `?sucursal=` inactivo cae a
+la default en la carta). El guard actual sólo impide dejar el negocio sin
+NINGUNA activa. Decisión pendiente del dueño del producto: bloquear la baja de
+la sucursal actual con 409 pidiendo cambiar de sucursal primero, o auto-cambiar
+el contexto a la default.
+
+## Diálogo y acciones del panel (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada tras un rechazo del relay (payload del revisor
+truncado; el proveedor no consumió el slot y el reintento con STATUS fresco
+pasó). 1 advisory NO bloqueante: R2-function-name-vs-action-terminology
+BranchesSection.tsx:177 (el identificador interno sigue hablando de «remove»
+mientras la UI y el contrato dicen «desactivar»).
+Receipt: store_revision sha256:7dcfa2b3afaaf1bc638f294ec4459ff291b23df980bbc7dca20d3bbefa306445.
