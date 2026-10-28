@@ -196,3 +196,13 @@ No es regresión de la feature, pero ensucia la señal de la suite.
 
 Acción propuesta (unidad aparte): hints de decodificación (`TRY_HARDER`) o
 reintento con reescalado en el helper de test. Nunca en código de producción.
+
+## Reactivación de sucursales (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada (lineage review-9cb519513085406f, lens
+reliability, tier medium). 2 advisories NO bloqueantes (SUGGESTION):
+- R3-guard-race BranchServiceImpl.java:139-143 (el guard de última activa
+  cuenta y luego escribe: dos DELETE concurrentes podrían pasar el chequeo)
+- R3-reactivar-no-limit BranchServiceImpl.java:152-164 (reactivar no tiene
+  tope de sucursales activas por negocio)
+Receipt: store_revision sha256:4340f7416681d342061aea5a5f0bab554483324537750fcb2916484ce3639eb4.
