@@ -18,8 +18,15 @@
  *      muestra esa fila y nada raro.
  *   h) "Trabajar acá" con 404 (sucursal recién dada de baja): muestra el
  *      error y refresca la lista.
+ *   i) Fila inactiva: SIN «Eliminar" (ya está dada de baja) y CON
+ *      «Reactivar" (POST .../{id}/reactivar); el error del API viaja con su
+ *      mensaje exacto.
+ *   j) Tras un alta exitosa el formulario queda VACÍO (nombre, dirección y
+ *      WhatsApp).
+ *   k) La fila actual se marca con el badge «Actual» y el nombre va limpio
+ *      (sin el sufijo "· actual").
  */
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Admin from '../src/pages/Admin'
@@ -53,6 +60,7 @@ interface StubOptions {
   list?: unknown[]
   postBranch?: { status: number; message?: string }
   select?: { status: number; message?: string }
+  reactivar?: { status: number; message?: string }
   qrOk?: boolean
 }
 
@@ -87,6 +95,12 @@ function stubFetch(options: StubOptions = {}) {
         status: 200,
         json: async () => ({ token: TOKEN_B, branchId: 2, branchName: 'Sucursal Norte', expiresAt: '2031-01-01T00:00:00Z' }),
       } as Response
+    }
+    if (/\/api\/business\/branches\/\d+\/reactivar$/.test(url) && method === 'POST') {
+      if (options.reactivar) {
+        return { ok: false, status: options.reactivar.status, json: async () => ({ message: options.reactivar.message }) } as Response
+      }
+      return { ok: true, status: 200, json: async () => ({ ...BRANCHES[2], active: true }) } as Response
     }
     if (/\/api\/business\/branches\/\d+\/qr$/.test(url)) {
       if (options.qrOk === false) {
@@ -205,8 +219,8 @@ describe('"Trabajar acá": reemplazo del token de sesión', () => {
     // La expiración nueva viaja en la respuesta: se actualiza con el token.
     expect(localStorage.getItem('expiresAt')).toBe('2031-01-01T00:00:00Z')
 
-    // La sucursal elegida queda marcada visualmente.
-    expect(await screen.findByText(/actual/)).toBeInTheDocument()
+    // La sucursal elegida queda marcada visualmente con el badge «Actual».
+    expect(await screen.findByText('Actual')).toBeInTheDocument()
   })
 
   it('(h) select 404 (sucursal recién dada de baja): muestra el error y refresca la lista', async () => {
@@ -259,6 +273,62 @@ describe('Baja de sucursal', () => {
     // Tras el refresco, la fila muestra el badge inactiva (dos ahora).
     const badges = await screen.findAllByText('Inactiva')
     expect(badges.length).toBe(2)
+  })
+})
+
+describe('Reactivación y estado del panel', () => {
+  it('(i) fila inactiva: sin «Eliminar», con «Reactivar» que llama POST .../reactivar', async () => {
+    stubFetch()
+    await openBranchesView()
+    await screen.findByText('Sucursal Vieja')
+
+    // La inactiva ya ESTÁ dada de baja: no repite «Eliminar».
+    expect(screen.queryByRole('button', { name: 'Eliminar Sucursal Vieja' })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reactivar Sucursal Vieja' }))
+
+    const call = calls.find((c) => c.method === 'POST' && c.url === '/api/business/branches/3/reactivar')
+    expect(call).toBeDefined()
+    expect(call?.headers['authorization']).toBe(`Bearer ${TOKEN_A}`)
+  })
+
+  it('(i-bis) el error del API de reactivar viaja con su mensaje exacto', async () => {
+    stubFetch({ reactivar: { status: 409, message: 'Ya existe una sucursal con ese número de WhatsApp' } })
+    await openBranchesView()
+    await screen.findByText('Sucursal Vieja')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reactivar Sucursal Vieja' }))
+
+    expect(await screen.findByText('Ya existe una sucursal con ese número de WhatsApp')).toBeInTheDocument()
+  })
+
+  it('(j) tras un alta exitosa el formulario queda vacío (nombre, dirección y WhatsApp)', async () => {
+    stubFetch()
+    await openBranchesView()
+    await screen.findByText('Sucursal Centro')
+
+    await userEvent.type(screen.getByLabelText('Nombre de la sucursal'), 'Sucursal Nueva')
+    await userEvent.type(screen.getByLabelText('Dirección'), 'Calle Falsa 123')
+    await userEvent.type(screen.getByLabelText('WhatsApp de la sucursal'), '5493333333333')
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar sucursal' }))
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Nombre de la sucursal')).toHaveValue('')
+      expect(screen.getByLabelText('Dirección')).toHaveValue('')
+      expect(screen.getByLabelText('WhatsApp de la sucursal')).toHaveValue('')
+    })
+  })
+
+  it('(k) la fila actual muestra el badge «Actual» y el nombre va sin sufijo', async () => {
+    stubFetch()
+    await openBranchesView()
+    await screen.findByText('Sucursal Centro')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Trabajar acá Sucursal Norte' }))
+
+    // Badge propio (no texto pegado al nombre).
+    expect(await screen.findByText('Actual')).toBeInTheDocument()
+    expect(screen.queryByText(/· actual/)).not.toBeInTheDocument()
   })
 })
 

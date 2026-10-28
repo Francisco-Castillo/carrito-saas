@@ -83,6 +83,18 @@ public class BranchController {
 	}
 
 	/**
+	 * Reactiva una sucursal dada de baja (multi-sucursal,
+	 * odd/tasks/multi-sucursal.md, S3): la baja es lógica y reversible, así
+	 * que el dueño puede volver a activarla desde el panel. Negocio del JWT;
+	 * un id ajeno resuelve 404. Reactivar una ya activa es idempotente (200
+	 * con el DTO, no un error).
+	 */
+	@PostMapping("/{id}/reactivar")
+	public BranchDTO reactivar(@PathVariable Long id) {
+		return branchService.reactivar(id);
+	}
+
+	/**
 	 * Selecciona la sucursal activa del usuario (T3): devuelve un token nuevo
 	 * con el claim {@code branchId}. El negocio sale del JWT; un id ajeno o
 	 * inactivo resuelve 404.

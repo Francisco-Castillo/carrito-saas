@@ -238,6 +238,9 @@ class BranchEndpointTests {
 	@Test
 	void bajaEsLogicaYReversibleLaFilaSigueExisteConActiveFalse() throws Exception {
 		Long id = crearSucursal(ownerA.bearerToken(), "Sucursal a cerrar");
+		// Compañera activa: el guard de última activa (S3) no corresponde en
+		// este test, que fija la baja lógica en sí.
+		crearSucursal(ownerA.bearerToken(), "Compañera activa");
 
 		mockMvc.perform(delete("/api/business/branches/" + id)
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerA.bearerToken()))
@@ -249,12 +252,13 @@ class BranchEndpointTests {
 		mockMvc.perform(get("/api/business/branches")
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerA.bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1))
-				.andExpect(jsonPath("$[0].active").value(false));
+				.andExpect(jsonPath("$.length()").value(2))
+				.andExpect(jsonPath("$[0].active").value(false))
+				.andExpect(jsonPath("$[1].active").value(true));
 
 		// Sin borrado físico: la fila sigue en SU negocio (count global no:
 		// la DB de dev tiene sucursales reales de otros negocios).
-		assertThat(branchRepository.countByBusinessId(BUSINESS_A_ID)).isEqualTo(1);
+		assertThat(branchRepository.countByBusinessId(BUSINESS_A_ID)).isEqualTo(2);
 	}
 
 	@Test
@@ -272,6 +276,108 @@ class BranchEndpointTests {
 	void endpointsSinTokenSeRechazanCon401() throws Exception {
 		mockMvc.perform(get("/api/business/branches"))
 				.andExpect(status().isUnauthorized());
+	}
+
+	// ------------------------------------------------------------------
+	// Reactivación (S3/L9: la baja es lógica y reversible)
+	// ------------------------------------------------------------------
+
+	@Test
+	void reactivarUnaSucursalPropiaInactivaLaDejaActiva() throws Exception {
+		Long id = crearSucursal(ownerA.bearerToken(), "Sucursal reabierta");
+		// Compañera activa: la baja de prueba no choca con el guard de última
+		// activa (S3).
+		crearSucursal(ownerA.bearerToken(), "Compañera activa");
+
+		mockMvc.perform(delete("/api/business/branches/" + id)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerA.bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.active").value(false));
+
+		mockMvc.perform(post("/api/business/branches/" + id + "/reactivar")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerA.bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(id))
+				.andExpect(jsonPath("$.active").value(true));
+
+		// La fila queda activa (baja reversible, nunca borrado físico).
+		assertThat(branchRepository.findById(id).orElseThrow().getActive()).isTrue();
+	}
+
+	@Test
+	void reactivarUnaYaActivaEsIdempotente() throws Exception {
+		Long id = crearSucursal(ownerA.bearerToken(), "Casa central");
+
+		mockMvc.perform(post("/api/business/branches/" + id + "/reactivar")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerA.bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(id))
+				.andExpect(jsonPath("$.active").value(true));
+
+		assertThat(branchRepository.findById(id).orElseThrow().getActive()).isTrue();
+	}
+
+	@Test
+	void reactivarDeIdAjenoResuelve404YNoTocaLaFila() throws Exception {
+		Long idAjeno = crearSucursal(ownerB.bearerToken(), "Sucursal del vecino");
+
+		mockMvc.perform(post("/api/business/branches/" + idAjeno + "/reactivar")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerA.bearerToken()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.message").value("Sucursal no encontrada"));
+
+		assertThat(branchRepository.findById(idAjeno).orElseThrow().getActive()).isTrue();
+	}
+
+	// ------------------------------------------------------------------
+	// Guard de última activa (S3: sin activas no hay destino de pedidos)
+	// ------------------------------------------------------------------
+
+	@Test
+	void bajaDeLaUltimaActivaSeRechazaCon409YLaFilaSigueActiva() throws Exception {
+		Long id = crearSucursal(ownerA.bearerToken(), "Única activa");
+
+		mockMvc.perform(delete("/api/business/branches/" + id)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerA.bearerToken()))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value("No podés dar de baja la última sucursal activa"));
+
+		// La baja fue rechazada: la fila SIGUE activa.
+		assertThat(branchRepository.findById(id).orElseThrow().getActive()).isTrue();
+	}
+
+	@Test
+	void bajaDeUnaActivaEntreVariasSigueFuncionando() throws Exception {
+		crearSucursal(ownerA.bearerToken(), "Casa central");
+		Long id = crearSucursal(ownerA.bearerToken(), "Sucursal Norte");
+
+		mockMvc.perform(delete("/api/business/branches/" + id)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerA.bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.active").value(false));
+
+		// La otra activa queda en pie: el negocio nunca queda sin destino.
+		assertThat(branchRepository.findByBusinessIdAndActiveTrueOrderByIdAsc(BUSINESS_A_ID)).hasSize(1);
+	}
+
+	@Test
+	void bajaDeUnaSucursalYaInactivaSigueFuncionando() throws Exception {
+		Long id = crearSucursal(ownerA.bearerToken(), "Casa central");
+		Long otra = crearSucursal(ownerA.bearerToken(), "Sucursal Norte");
+
+		// Primero se da de baja la "otra": quedan dos activas, la baja es legal.
+		mockMvc.perform(delete("/api/business/branches/" + otra)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerA.bearerToken()))
+				.andExpect(status().isOk());
+
+		// Dar de baja de nuevo una inactiva sigue siendo 200 (no hay guard: la
+		// activa en pie es la otra).
+		mockMvc.perform(delete("/api/business/branches/" + otra)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerA.bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.active").value(false));
+
+		assertThat(branchRepository.findById(id).orElseThrow().getActive()).isTrue();
 	}
 
 }

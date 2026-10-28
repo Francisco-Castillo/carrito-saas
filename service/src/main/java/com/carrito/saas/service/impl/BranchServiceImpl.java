@@ -133,8 +133,31 @@ public class BranchServiceImpl implements IBranchService {
 		Branch branch = branchRepository.findByIdAndBusinessId(id, currentBusinessId())
 				.orElseThrow(() -> new BusinessException("Sucursal no encontrada", ErrorType.NOT_FOUND));
 
+		// Guard de última activa (S3): sin sucursales activas el panel y la
+		// carta caen a la vista a nivel negocio y los pedidos nuevos no tienen
+		// destino. Dar de baja una inactiva (idempotente) o una entre varias
+		// activas sigue funcionando igual.
+		if (Boolean.TRUE.equals(branch.getActive()) && branchRepository
+				.findByBusinessIdAndActiveTrueOrderByIdAsc(currentBusinessId()).size() <= 1)
+			throw new BusinessException("No podés dar de baja la última sucursal activa", ErrorType.CONFLICT);
+
 		// Baja lógica: reversible, el historial (pedidos, ventas) no se toca.
 		branch.setActive(Boolean.FALSE);
+
+		return branchMapper.toDTO(branchRepository.save(branch));
+	}
+
+	@Override
+	@Transactional
+	public BranchDTO reactivar(Long id) {
+
+		// Sucursal propia: un id ajeno resuelve como no encontrado (la fila
+		// ajena queda exactamente igual, verificarlo es parte del contrato).
+		Branch branch = branchRepository.findByIdAndBusinessId(id, currentBusinessId())
+				.orElseThrow(() -> new BusinessException("Sucursal no encontrada", ErrorType.NOT_FOUND));
+
+		// Reactivar una ya activa es idempotente: 200 con el DTO, no un error.
+		branch.setActive(Boolean.TRUE);
 
 		return branchMapper.toDTO(branchRepository.save(branch));
 	}

@@ -18,8 +18,11 @@ import ConfirmModal from "./ConfirmModal";
  *     mensaje que devuelve el API, y los errores del backend se muestran con
  *     el mensaje exacto que viaja.
  *   - BAJA: DELETE .../{id} es baja lógica (active=false) SIEMPRE detrás del
- *     ConfirmModal común del panel. NO hay reactivación en el API: no se
- *     inventa UI que el backend no sostiene.
+ *     ConfirmModal común del panel, y el API rechaza con 409 la baja de la
+ *     ÚLTIMA activa del negocio (el mensaje exacto viaja a la fila de error).
+ *   - REACTIVAR: POST .../{id}/reactivar vuelve a activar una sucursal dada
+ *     de baja (la baja es reversible). Sólo las filas inactivas lo muestran;
+ *     una activa no muestra «Eliminar" duplicado ni «Reactivar".
  *   - "TRABAJAR ACÁ": POST .../select/{id} (sólo sucursales propias y
  *     activas) devuelve {token, branchId, branchName, expiresAt}: el token
  *     de la sesión se REEMPLAZA (localStorage "token", leído en caliente por
@@ -172,7 +175,7 @@ export default function BranchesSection() {
 
   async function removeBranch(branch: Branch) {
     const ok = await confirmAsync(
-      `¿Seguro que deseas eliminar ${branch.name}? La sucursal quedará inactiva y no se puede reactivar.`,
+      `¿Seguro que deseas eliminar ${branch.name}? La sucursal quedará inactiva (podés reactivarla después).`,
     );
     if (!ok) return;
     setError(null);
@@ -184,6 +187,24 @@ export default function BranchesSection() {
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { message?: string } | null;
         throw new Error(data?.message || `No se pudo eliminar ${branch.name}`);
+      }
+      await refreshBranches();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  /** Reactiva una sucursal dada de baja (la baja es reversible). */
+  async function reactivateBranch(branch: Branch) {
+    setError(null);
+    try {
+      const res = await fetch(`${API}/business/branches/${branch.id}/reactivar`, {
+        method: "POST",
+        headers: authHeader(),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(data?.message || "No se pudo reactivar la sucursal");
       }
       await refreshBranches();
     } catch (e) {
@@ -294,7 +315,7 @@ export default function BranchesSection() {
           Todavía no hay sucursales: cargá la primera con el formulario de arriba.
         </p>
       ) : (
-        <div className="table-scroll">
+        <div className="table-scroll" style={{ marginTop: "var(--space-6)" }}>
           <table className="table">
             <thead>
               <tr>
@@ -310,9 +331,7 @@ export default function BranchesSection() {
                 <tr key={branch.id}>
                   <td>
                     {branch.name}
-                    {branch.id === currentBranchId && (
-                      <span className="admin-branch-current"> · actual</span>
-                    )}
+                    {branch.id === currentBranchId && <span className="badge active">Actual</span>}
                   </td>
                   <td>{branch.address || "—"}</td>
                   <td>{branch.phone || "—"}</td>
@@ -346,14 +365,25 @@ export default function BranchesSection() {
                     >
                       Editar
                     </button>
-                    <button
-                      type="button"
-                      className="btn-ghost admin-qr-remove"
-                      aria-label={`Eliminar ${branch.name}`}
-                      onClick={() => void removeBranch(branch)}
-                    >
-                      Eliminar
-                    </button>
+                    {branch.active ? (
+                      <button
+                        type="button"
+                        className="btn-ghost admin-qr-remove"
+                        aria-label={`Eliminar ${branch.name}`}
+                        onClick={() => void removeBranch(branch)}
+                      >
+                        Eliminar
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        aria-label={`Reactivar ${branch.name}`}
+                        onClick={() => void reactivateBranch(branch)}
+                      >
+                        Reactivar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

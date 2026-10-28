@@ -23,6 +23,13 @@ public interface IBranchService {
 	BranchDTO eliminar(Long id);
 
 	/**
+	 * Reactiva una sucursal dada de baja (S3): la baja es lógica y
+	 * reversible, así que el dueño puede volver a activarla. Reactivar una
+	 * ya activa es idempotente (200 con el DTO, no un error).
+	 */
+	BranchDTO reactivar(Long id);
+
+	/**
 	 * Selecciona la sucursal activa del usuario (T3): valida propia y activa,
 	 * emite token nuevo con el claim branchId.
 	 */
