@@ -206,3 +206,19 @@ reliability, tier medium). 2 advisories NO bloqueantes (SUGGESTION):
 - R3-reactivar-no-limit BranchServiceImpl.java:152-164 (reactivar no tiene
   tope de sucursales activas por negocio)
 Receipt: store_revision sha256:4340f7416681d342061aea5a5f0bab554483324537750fcb2916484ce3639eb4.
+
+## Copy y badge del panel (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada (lineage review-5ffa391c3ff1af34, lens readability,
+tier medium). 1 advisory NO bloqueante: R2-001 BranchesSection.tsx:376.
+Receipt: store_revision sha256:872cdc4d586544ccb6b3c2a9b5540f4bad6907add995bcc853a64acc9d4f1691.
+
+## Edge de producto detectado en el panel (2026-10-27)
+
+Se puede DESACTIVAR la sucursal con la que se está trabajando (el claim
+branchId del JWT sigue apuntando a ella): el panel queda operando una
+sucursal inactiva (sin QR, sin pedidos nuevos, y `?sucursal=` inactivo cae a
+la default en la carta). El guard actual sólo impide dejar el negocio sin
+NINGUNA activa. Decisión pendiente del dueño del producto: bloquear la baja de
+la sucursal actual con 409 pidiendo cambiar de sucursal primero, o auto-cambiar
+el contexto a la default.
