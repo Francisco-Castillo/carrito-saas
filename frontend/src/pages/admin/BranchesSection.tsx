@@ -22,7 +22,7 @@ import ConfirmModal from "./ConfirmModal";
  *     ÚLTIMA activa del negocio (el mensaje exacto viaja a la fila de error).
  *   - REACTIVAR: POST .../{id}/reactivar vuelve a activar una sucursal dada
  *     de baja (la baja es reversible). Sólo las filas inactivas lo muestran;
- *     una activa no muestra «Eliminar" duplicado ni «Reactivar".
+ *     una activa no muestra «Desactivar» duplicado ni «Reactivar».
  *   - "TRABAJAR ACÁ": POST .../select/{id} (sólo sucursales propias y
  *     activas) devuelve {token, branchId, branchName, expiresAt}: el token
  *     de la sesión se REEMPLAZA (localStorage "token", leído en caliente por
@@ -175,7 +175,7 @@ export default function BranchesSection() {
 
   async function removeBranch(branch: Branch) {
     const ok = await confirmAsync(
-      `¿Seguro que deseas eliminar ${branch.name}? La sucursal quedará inactiva (podés reactivarla después).`,
+      `¿Seguro que querés desactivar ${branch.name}? La sucursal quedará inactiva y podés reactivarla cuando quieras.`,
     );
     if (!ok) return;
     setError(null);
@@ -186,7 +186,7 @@ export default function BranchesSection() {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { message?: string } | null;
-        throw new Error(data?.message || `No se pudo eliminar ${branch.name}`);
+        throw new Error(data?.message || `No se pudo desactivar ${branch.name}`);
       }
       await refreshBranches();
     } catch (e) {
@@ -397,7 +397,12 @@ export default function BranchesSection() {
       )}
 
       {confirmState && (
-        <ConfirmModal message={confirmState.message} onConfirm={() => settleConfirm(true)} onCancel={() => settleConfirm(false)} />
+        <ConfirmModal
+          message={confirmState.message}
+          confirmLabel="Desactivar"
+          onConfirm={() => settleConfirm(true)}
+          onCancel={() => settleConfirm(false)}
+        />
       )}
     </div>
   );

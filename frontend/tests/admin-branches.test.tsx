@@ -267,7 +267,7 @@ describe('Baja de sucursal', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Desactivar Sucursal Norte' }))
     await screen.findByRole('alertdialog')
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Desactivar' }))
 
     expect(deleted).toBe(true)
     // Tras el refresco, la fila muestra el badge inactiva (dos ahora).

@@ -4,14 +4,19 @@ interface ConfirmModalProps {
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Texto del botón de acción; por defecto «Confirmar» (resto del panel). */
+  confirmLabel?: string;
 }
 
 /**
  * Puerto del showToastModal del legacy admin/admin.js: modal de confirmación
  * con botón "Confirmar", cierre con clic fuera y Escape (ambos resuelven
  * false, como el legacy).
+ *
+ * `confirmLabel` permite nombrar la acción (p. ej. «Desactivar»): un botón que
+ * dice «Confirmar» obliga a releer el mensaje para saber qué se confirma.
  */
-export default function ConfirmModal({ message, onConfirm, onCancel }: ConfirmModalProps) {
+export default function ConfirmModal({ message, onConfirm, onCancel, confirmLabel }: ConfirmModalProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -38,7 +43,7 @@ export default function ConfirmModal({ message, onConfirm, onCancel }: ConfirmMo
             Cancelar
           </button>
           <button ref={confirmRef} type="button" className="btn-primary" onClick={onConfirm}>
-            Confirmar
+            {confirmLabel ?? "Confirmar"}
           </button>
         </div>
       </div>
