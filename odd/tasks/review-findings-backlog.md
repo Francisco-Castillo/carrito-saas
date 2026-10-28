@@ -185,3 +185,14 @@ review-615f60d08cbf07e9, lens reliability, tier medium, 7 archivos/742
 líneas). 2 findings NO bloqueantes (advisory, SUGGESTION):
 R3-001 Menu.tsx:737-742 y R3-002 Menu.tsx:340-348.
 Receipt: store_revision sha256:343b2828ee0e4268d078035dd3edede51329b9b92ce0510ab7c17b414c1785c9.
+
+## Flake detectado: decodificación de QR (2026-10-27)
+
+`BranchMenuAndQrHttpTests.qrDeSucursalPropiaEsUnPngQueCodificaLaUrlConSucursal`
+falla de forma intermitente (2 de 3 corridas de la suite completa; pasa
+aislado y pasa en la base sin cambios): el helper `decodeQrText` usa zxing sin
+`TRY_HARDER`, y el decoder ocasionalmente no encuentra el QR del PNG generado.
+No es regresión de la feature, pero ensucia la señal de la suite.
+
+Acción propuesta (unidad aparte): hints de decodificación (`TRY_HARDER`) o
+reintento con reescalado en el helper de test. Nunca en código de producción.
