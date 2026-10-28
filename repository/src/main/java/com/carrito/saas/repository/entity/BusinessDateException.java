@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -34,6 +35,15 @@ import lombok.Setter;
  * el chequeo de duplicados de {@code BusinessProfileServiceImpl}, a lo sumo
  * una entrada por fecha.</p>
  *
+ * <p>Ámbito NULL (odd/tasks/multi-sucursal.md, fix CI run 40619938257): en
+ * Postgres dos NULL son distintos entre sí, así que la única de 4 columnas
+ * sola NO rechaza dos filas legacy (branch_id NULL) de la misma fecha y
+ * posición — en dev lo escondía la vieja única de 3 columnas y en CI entraban
+ * libres. Mismo cierre que {@link BusinessHours}: un índice único FUNCIONAL
+ * con el ámbito coalesceado a centinela (COALESCE(branch_id, -1)), declarado
+ * vía JPA {@code @Index} con el token entre paréntesis para que ddl-auto lo
+ * emita también en bases nuevas.</p>
+ *
  * <p>Un turno cuyo {@code closesAt} es anterior a su {@code opensAt} cruza la
  * medianoche (una noche especial 19:00 → 00:30 se guarda tal cual); la
  * igualdad y el resto de las reglas se rechazan en
@@ -44,7 +54,15 @@ import lombok.Setter;
 @Entity
 @Table(name = "business_date_exception",
         uniqueConstraints = @UniqueConstraint(name = "uq_business_date_exception_business_branch_date_position",
-                columnNames = {"business_id", "branch_id", "date", "position"}))
+                columnNames = {"business_id", "branch_id", "date", "position"}),
+        // Legacy scope (branch_id NULL): mismas razones que en BusinessHours
+        // — la única de 4 columnas no ve duplicados entre NULLs y este índice
+        // único funcional con centinela los rechaza en ambos ámbitos (ddl-auto
+        // lo emite también en bases nuevas; odd/tasks/multi-sucursal.md).
+        indexes = @Index(name = "uq_business_date_exception_business_date_position_effective",
+                columnList = "business_id, date, position, "
+                        + "(CASE WHEN branch_id IS NULL THEN -1 ELSE branch_id END)",
+                unique = true))
 public class BusinessDateException {
 
     @Id
