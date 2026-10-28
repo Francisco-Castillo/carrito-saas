@@ -59,8 +59,6 @@ public class MenuServiceImpl implements IMenuService {
 	private final IProductMapper iProductMapper;
 	private final IComboMapper iComboMapper;
 
-	private final SingleBusinessResolver singleBusinessResolver;
-
 	private final TableRepository tableRepository;
 
 	public MenuServiceImpl(BusinessRepository businessRepository, BranchRepository branchRepository,
@@ -68,7 +66,7 @@ public class MenuServiceImpl implements IMenuService {
 			BusinessDateExceptionRepository businessDateExceptionRepository, CategoryRepository categoryRepository,
 			ProductRepository productRepository, ComboRepository comboRepository, IBusinessMapper iBusinessMapper,
 			ICategoryMapper iCategoryMapper, IProductMapper iProductMapper, IComboMapper iComboMapper,
-			SingleBusinessResolver singleBusinessResolver, TableRepository tableRepository) {
+			TableRepository tableRepository) {
 		this.businessRepository = businessRepository;
 		this.branchRepository = branchRepository;
 		this.businessHoursRepository = businessHoursRepository;
@@ -80,17 +78,17 @@ public class MenuServiceImpl implements IMenuService {
 		this.iCategoryMapper = iCategoryMapper;
 		this.iProductMapper = iProductMapper;
 		this.iComboMapper = iComboMapper;
-		this.singleBusinessResolver = singleBusinessResolver;
 		this.tableRepository = tableRepository;
 	}
 
 	@Override
-	public MenuTableDTO getPublicTable(Long tableId) {
+	public MenuTableDTO getPublicTable(String slug, Long tableId) {
 
-		// Same slugless contract as getMenu: the public surface resolves the
-		// deployment's single business and fails closed when the deployment
-		// cannot be determined (zero or multiple businesses).
-		Business business = singleBusinessResolver.requireSingle();
+		// Slug-scoped (S4 enmendada de odd/tasks/retire-menu-route.md): el
+		// negocio se resuelve del slug; un slug desconocido cae en el mismo
+		// 404 "Local no encontrado" que la carta.
+		Business business = businessRepository.findBySlug(slug)
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 		// Baja lógica (S5 de odd/tasks/plataforma-editar-baja.md): la mesa de
 		// un local dado de baja no existe públicamente — 404, igual que la
@@ -101,6 +99,8 @@ public class MenuServiceImpl implements IMenuService {
 
 		// An unknown id OR a table of another business: same 404, without
 		// filtering existence (same rule OrderServiceImpl applies for SALON).
+		// El scoping por negocio es lo que preserva el aislamiento entre
+		// locales que el resolver slugless daba fail-closed.
 		RestaurantTable table = tableRepository
 				.findByIdAndBusinessId(tableId, business.getId())
 				.orElseThrow(() -> new BusinessException("Mesa no encontrada", ErrorType.NOT_FOUND));
@@ -119,17 +119,19 @@ public class MenuServiceImpl implements IMenuService {
 
 	@Override
 	public MenuDTO getMenu(String slug, Long requestedBranchId) {
-		// Slugless mode (single-business deployment): the public QR URL no longer
-		// carries ?restaurant=<slug>, so a null/blank slug resolves the deployment's
-		// only business. A present slug keeps the legacy path untouched.
-		Business business = (slug == null || slug.isBlank())
-				? singleBusinessResolver.requireSingle()
-				: businessRepository.findBySlug(slug)
-						.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
+		// Siempre por slug (S4 de odd/tasks/retire-menu-route.md): la única
+		// superficie pública de la carta es /{slug}; el modo slugless de un
+		// solo negocio fue retirado junto con SingleBusinessResolver. Un slug
+		// null/blank cae en el mismo 404 de "Local no encontrado" por
+		// Optional vacío.
+		// Multi-sucursal (S4 de odd/tasks/multi-sucursal.md): requestedBranchId
+		// (opcional) scopea horas/WhatsApp/estado a esa sucursal con fallback
+		// silencioso (resolveMenuBranch); el slug sigue obligatorio.
+		Business business = businessRepository.findBySlug(slug)
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 		// Baja lógica (S5 de odd/tasks/plataforma-editar-baja.md): la carta
-		// de un local dado de baja no existe — 404, tanto por slug como en el
-		// modo slugless de un solo negocio. Es la superficie pública.
+		// de un local dado de baja no existe — 404. Es la superficie pública.
 		if (!Boolean.TRUE.equals(business.getActive())) {
 			throw new BusinessException("Local no encontrado", ErrorType.NOT_FOUND);
 		}
@@ -182,11 +184,13 @@ public class MenuServiceImpl implements IMenuService {
 
 		menu.setCategories(categoryDTOs);
 
-		// Selector público de sucursales (multi-sucursal,
-		// odd/tasks/multi-sucursal.md, S4/T7): el payload del menú lleva la
+		// Payload de sucursales activas (multi-sucursal,
+		// odd/tasks/multi-sucursal.md, S4/T8-T10): el payload del menú lleva la
 		// lista de sucursales ACTIVAS (id/name/address, ordenadas por id) para
-		// que el storefront ofrezca la elección — el parámetro ?sucursal= y el
-		// branchId del checkout (S4) apuntan a estos ids. La carta es compartida
+		// que la pantalla previa (BranchPicker) ofrezca la elección — el
+		// parámetro ?sucursal= y el branchId del checkout (S4) apuntan a estos
+		// ids. La carta NUNCA muestra un control de sucursal y la carta es
+		// compartida
 		// (S2): la lista identifica lugares, NO bifurca productos ni precios.
 		// Negocio sin sucursales → lista vacía, UI idéntica a la de hoy. Sólo
 		// viajan los tres campos públicos del selector: el resto del BranchDTO

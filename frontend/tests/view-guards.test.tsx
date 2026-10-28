@@ -50,11 +50,9 @@ describe('guardRedirect: carta pública', () => {
     expect(guardRedirect({ view: 'menu', slug: 'e2e-demo', legacy: false }, { role: 'OWNER', slug: 'demo-e2e', hasSession: true })).toBeNull()
   })
 
-  it('/menu/{slug} (legacy) → /{slug}: la carta canónica nueva (S5)', () => {
-    expect(guardRedirect({ view: 'menu', slug: 'e2e-demo', legacy: true }, { role: null, slug: null, hasSession: false })).toBe('/e2e-demo')
-  })
-
-  it('/menu a secas (deployment de uno) no redirige', () => {
+  it('la vista carta sin slug no existe: nada que redirigir (S6 de retire-menu-route)', () => {
+    // La resolución ya no produce {view: menu, slug: null} (la ruta /menu fue
+    // jubilada); el guard no tiene una rama para ella y devuelve null.
     expect(guardRedirect({ view: 'menu', slug: null, legacy: false }, { role: null, slug: null, hasSession: false })).toBeNull()
   })
 })

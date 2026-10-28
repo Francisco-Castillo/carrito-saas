@@ -44,22 +44,19 @@ import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.qrcode.QRCodeReader;
 
 /**
- * Menú público con selector de sucursales + QR por sucursal
- * (multi-sucursal, odd/tasks/multi-sucursal.md, S3/T6 y S4/T7).
+ * Menú público con pantalla previa de sucursales + QR por sucursal
+ * (multi-sucursal, odd/tasks/multi-sucursal.md, S3/T6 y S4/T8-T9).
  *
  * <p>Reglas bajo prueba:</p>
  * <ul>
  *   <li>El payload del menú público trae {@code branches}: sólo las
  *       sucursales ACTIVAS, con id/name/address, ordenadas por id — es la
- *       lista que alimenta el selector del storefront (S4). Sin sucursales,
+ *       lista que alimenta la pantalla previa (BranchPicker, S4: el selector
+ *       NUNCA vive dentro de la carta). Sin sucursales,
  *       la lista viaja vacía (nunca ausente).</li>
  *   <li>Un parámetro {@code ?sucursal=} desconocido/ajeno/inactivo NO rompe
  *       la carta: es superficie pública de display, cae silenciosamente a la
- *       default (asimetría con los pedidos, que son fail-closed 404).
- *       NOTA T7: la parte que REFLEJA hours/whatsapp de la sucursal pedida
- *       queda pendiente de aprobar la superficie {@code IMenuService}
- *       (sobrecarga {@code getMenu(slug, branchId)}); este test fija la
- *       mitad no rompible del contrato, que ya rige.</li>
+ *       default (asimetría con los pedidos, que son fail-closed 404).</li>
  *   <li>QR por sucursal ({@code GET /api/business/branches/{id}/qr}): el
  *       negocio sale del JWT; sucursal propia y activa → PNG real que
  *       codifica la URL del menú CON {@code ?sucursal=<id>}; ajena,
@@ -274,7 +271,7 @@ class BranchMenuAndQrHttpTests {
 
 		assertThat(decodeQrText(body))
 				.as("el QR de la sucursal debe codificar la URL del menú con ?sucursal=<id>")
-				.isEqualTo("http://localhost:9090/menu/?sucursal=" + casaCentralId);
+				.isEqualTo("http://localhost:9090/" + SLUG_A + "?sucursal=" + casaCentralId);
 	}
 
 	// ------------------------------------------------------------------
@@ -321,8 +318,8 @@ class BranchMenuAndQrHttpTests {
 				.getContentAsByteArray();
 
 		assertThat(decodeQrText(body))
-				.as("el QR del grupo NO cambia: sigue apuntando al menú sin sucursal")
-				.isEqualTo("http://localhost:9090/menu/");
+				.as("el QR del grupo NO cambia: apunta a la carta /{slug} sin sucursal")
+				.isEqualTo("http://localhost:9090/" + SLUG_A);
 	}
 
 	// ------------------------------------------------------------------

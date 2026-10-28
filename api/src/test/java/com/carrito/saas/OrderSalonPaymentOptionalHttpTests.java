@@ -51,6 +51,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * it as null. Every other order type keeps the legacy requirement — 400
  * "Debe indicar método de pago" — and a SALON order that DOES carry a payment
  * method (staff POS flow) keeps accepting it unchanged.
+ *
+ * <p>Every call uses the slug-scoped public endpoint
+ * {@code POST /api/orders/menu/{slug}} (S4 de odd/tasks/retire-menu-route.md:
+ * the slugless variant is retired; the endpoint is only the vehicle here).</p>
  */
 @SpringBootTest
 @Transactional
@@ -132,9 +136,9 @@ class OrderSalonPaymentOptionalHttpTests {
 				.addFilters(springSecurityFilterChain)
 				.build();
 
-		// The slugless public surface resolves THE single business and fails
-		// closed on more than one: make the shared dev database deterministic
-		// inside this test's transaction (FK chain, dependents first).
+		// Slug-scoped public endpoint: make the shared dev database
+		// deterministic inside this test's transaction (FK chain,
+		// dependents first).
 		orderItemRepository.deleteAll();
 		orderRepository.deleteAll();
 		tableRequestRepository.deleteAll();
@@ -192,7 +196,7 @@ class OrderSalonPaymentOptionalHttpTests {
 	@Test
 	void salonOrderWithoutPaymentMethodIsAcceptedAndPersistsNull() throws Exception {
 
-		String body = mockMvc.perform(post("/api/orders/menu")
+		String body = mockMvc.perform(post("/api/orders/menu/{slug}", SLUG)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"customerName\":\"Cliente Mesa\",\"customerPhone\":\"1155551234\","
 								+ "\"orderType\":\"SALON\",\"items\":[{\"productId\":" + productId + ",\"quantity\":1}],"
@@ -213,7 +217,7 @@ class OrderSalonPaymentOptionalHttpTests {
 	@Test
 	void retiroOrderStillRequiresPaymentMethod() throws Exception {
 
-		mockMvc.perform(post("/api/orders/menu")
+		mockMvc.perform(post("/api/orders/menu/{slug}", SLUG)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"customerName\":\"Cliente Retiro\",\"customerPhone\":\"1155551234\","
 								+ "\"orderType\":\"RETIRO\",\"items\":[{\"productId\":" + productId + ",\"quantity\":1}]}"))
@@ -225,7 +229,7 @@ class OrderSalonPaymentOptionalHttpTests {
 	void deliveryOrderStillRequiresPaymentMethod() throws Exception {
 
 		// DELIVERY boundary (verifier probe 1): same legacy rule as RETIRO.
-		mockMvc.perform(post("/api/orders/menu")
+		mockMvc.perform(post("/api/orders/menu/{slug}", SLUG)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"customerName\":\"Cliente Delivery\",\"customerPhone\":\"1155551234\","
 								+ "\"orderType\":\"DELIVERY\",\"customerAddress\":\"Calle Falsa 123\","
@@ -239,7 +243,7 @@ class OrderSalonPaymentOptionalHttpTests {
 
 		// Verifier probe 2: the management listing (OrderManagementMapperImpl)
 		// must not break on a null paymentMethod either.
-		String body = mockMvc.perform(post("/api/orders/menu")
+		String body = mockMvc.perform(post("/api/orders/menu/{slug}", SLUG)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"customerName\":\"Cliente Mesa Lista\",\"customerPhone\":\"1155551234\","
 								+ "\"orderType\":\"SALON\",\"items\":[{\"productId\":" + productId + ",\"quantity\":1}],"
@@ -279,7 +283,7 @@ class OrderSalonPaymentOptionalHttpTests {
 
 		// Staff POS flow: a SALON order created at the console carries a
 		// payment method and must keep working unchanged.
-		mockMvc.perform(post("/api/orders/menu")
+		mockMvc.perform(post("/api/orders/menu/{slug}", SLUG)
 						.header(HttpHeaders.AUTHORIZATION, owner.bearerToken())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"customerName\":\"Cliente POS\",\"customerPhone\":\"1155551234\","

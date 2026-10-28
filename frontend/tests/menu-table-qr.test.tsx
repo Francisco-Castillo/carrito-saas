@@ -1,11 +1,11 @@
 /**
  * Per-table QR attribution (feature pedido-qr-mesa, closes the gap left open
  * by odd/tasks/table-qr-links.md): a table QR opens the menu as
- * /menu/?table=<id>, the page must fetch that table's public identity
- * (GET /api/menu/table/{id}), FIX the order type to SALON (the type selector
+ * /{slug}?table=<id> (odd/tasks/retire-menu-route.md S2), the page must fetch that table's public identity
+ * (GET /api/menu/{slug}/table/{id}), FIX the order type to SALON (the type selector
  * disappears; the user chose "Fijar Salón"), show a badge naming the table
  * (the user chose "Badge con mesa"), and submit the order to
- * POST /api/orders/menu with orderType "SALON" and the table's id — the
+ * POST /api/orders/menu/{slug} with orderType "SALON" and the table's id — the
  * attribution the kitchen and the POS already understand.
  *
  * Honest fallback: when ?table= is absent, invalid, or the table endpoint
@@ -44,6 +44,8 @@ const MENU_PAYLOAD = {
   combos: [],
 }
 
+const SLUG = 'qr-mesa-local'
+
 const TABLE_PAYLOAD = { id: 5, tableNumber: 5, tableName: 'Salón principal' }
 
 const okJson = (data: unknown) => ({ ok: true, status: 200, json: async () => data })
@@ -61,13 +63,16 @@ function makeFetch(opts: { tableFailure?: 'http-404' | 'network' } = {}) {
     const call: FetchCall = { url: u, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : undefined }
     calls.push(call)
 
-    if (u === '/api/menu') return okJson(MENU_PAYLOAD)
-    if (u === '/api/menu/table/5') {
+    // Con la ruta /menu jubilada (S6) los datos del local vienen SIEMPRE de
+    // /api/restaurants/slug/{slug}, antes del menú.
+    if (u === `/api/restaurants/slug/${SLUG}`) return okJson({ name: 'Local QR Mesa', whatsappNumber: '541155500011', primaryColor: '#7C3AED' })
+    if (u === `/api/menu/${SLUG}`) return okJson(MENU_PAYLOAD)
+    if (u === `/api/menu/${SLUG}/table/5`) {
       if (opts.tableFailure === 'http-404') return { ok: false, status: 404, json: async () => ({}) }
       if (opts.tableFailure === 'network') throw new TypeError('Failed to fetch')
       return okJson(TABLE_PAYLOAD)
     }
-    if (u === '/api/orders/menu') return okJson({ id: 1 })
+    if (u === `/api/orders/menu/${SLUG}`) return okJson({ id: 1 })
     throw new Error('unexpected fetch: ' + u)
   })
   return { calls, fetchMock }
@@ -80,7 +85,7 @@ function setSearch(search: string) {
 function renderMenu(fetchMock: ReturnType<typeof makeFetch>['fetchMock']) {
   vi.stubGlobal('alert', vi.fn())
   vi.stubGlobal('fetch', fetchMock)
-  render(<Menu />)
+  render(<Menu slug={SLUG} />)
 }
 
 describe('Menu × QR de mesa (?table=<id>)', () => {
@@ -97,7 +102,7 @@ describe('Menu × QR de mesa (?table=<id>)', () => {
     renderMenu(fetchMock)
 
     // The page fetches the table's public identity from the new endpoint.
-    await waitFor(() => expect(calls.some((call) => call.url === '/api/menu/table/5')).toBe(true))
+    await waitFor(() => expect(calls.some((call) => call.url === `/api/menu/${SLUG}/table/5`)).toBe(true))
 
     await screen.findByText('Milanesa')
     await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
@@ -121,7 +126,7 @@ describe('Menu × QR de mesa (?table=<id>)', () => {
     await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
 
     await waitFor(() => {
-      const orderCall = calls.find((call) => call.url === '/api/orders/menu')
+      const orderCall = calls.find((call) => call.url === `/api/orders/menu/${SLUG}`)
       expect(orderCall).toBeDefined()
       const payload = JSON.parse(orderCall!.body!)
       expect(payload.orderType).toBe('SALON')
@@ -141,7 +146,7 @@ describe('Menu × QR de mesa (?table=<id>)', () => {
     setSearch('?table=5')
     renderMenu(fetchMock)
 
-    await waitFor(() => expect(calls.some((call) => call.url === '/api/menu/table/5')).toBe(true))
+    await waitFor(() => expect(calls.some((call) => call.url === `/api/menu/${SLUG}/table/5`)).toBe(true))
 
     await screen.findByText('Milanesa')
     await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
@@ -157,7 +162,7 @@ describe('Menu × QR de mesa (?table=<id>)', () => {
     await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
 
     await waitFor(() => {
-      const orderCall = calls.find((call) => call.url === '/api/orders/menu')
+      const orderCall = calls.find((call) => call.url === `/api/orders/menu/${SLUG}`)
       expect(orderCall).toBeDefined()
       const payload = JSON.parse(orderCall!.body!)
       // Legacy behaviour, byte for byte: RETIRO, no table field at all.
@@ -186,11 +191,11 @@ describe('fallback: parámetro ?table= inválido o ausente', () => {
       // stub BEFORE render: the load effect fetches immediately.
       vi.stubGlobal('alert', vi.fn())
       vi.stubGlobal('fetch', fetchMock)
-      render(<Menu />)
+      render(<Menu slug={SLUG} />)
 
       await screen.findByText('Milanesa')
       // No table fetch may ever happen for an invalid/missing param.
-      expect(calls.some((call) => call.url.startsWith('/api/menu/table/'))).toBe(false)
+      expect(calls.some((call) => call.url.includes('/table/'))).toBe(false)
 
       await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
       await user.click(within(screen.getByRole('dialog', { name: 'Detalles de Milanesa' })).getByRole('button', { name: 'Agregar al pedido' }))
@@ -208,7 +213,7 @@ describe('fallback: parámetro ?table= inválido o ausente', () => {
       await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
 
       await waitFor(() => {
-        const orderCall = calls.find((call) => call.url === '/api/orders/menu')
+        const orderCall = calls.find((call) => call.url === `/api/orders/menu/${SLUG}`)
         expect(orderCall).toBeDefined()
         const payload = JSON.parse(orderCall!.body!)
         expect(payload.orderType).toBe('RETIRO')
@@ -222,16 +227,16 @@ describe('fallback: parámetro ?table= inválido o ausente', () => {
     })
   }
 
-  it('fallo de red en el fetch de la mesa: intenta /api/menu/table/5 y cae al pedido legacy', async () => {
+  it('fallo de red en el fetch de la mesa: intenta /api/menu/{slug}/table/5 y cae al pedido legacy', async () => {
     const user = userEvent.setup()
     const { calls, fetchMock } = makeFetch({ tableFailure: 'network' })
     setSearch('?table=5')
     vi.stubGlobal('alert', vi.fn())
     vi.stubGlobal('fetch', fetchMock)
-    render(<Menu />)
+    render(<Menu slug={SLUG} />)
 
     // The table fetch WAS attempted...
-    await waitFor(() => expect(calls.some((call) => call.url === '/api/menu/table/5')).toBe(true))
+    await waitFor(() => expect(calls.some((call) => call.url === `/api/menu/${SLUG}/table/5`)).toBe(true))
 
     await screen.findByText('Milanesa')
     await user.click(screen.getByRole('button', { name: 'Agregar Milanesa' }))
@@ -247,7 +252,7 @@ describe('fallback: parámetro ?table= inválido o ausente', () => {
     await user.click(screen.getByRole('button', { name: 'Hacer el pedido' }))
 
     await waitFor(() => {
-      const orderCall = calls.find((call) => call.url === '/api/orders/menu')
+      const orderCall = calls.find((call) => call.url === `/api/orders/menu/${SLUG}`)
       expect(orderCall).toBeDefined()
       const payload = JSON.parse(orderCall!.body!)
       expect(payload.orderType).toBe('RETIRO')

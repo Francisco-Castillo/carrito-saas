@@ -23,16 +23,6 @@ public class MenuController {
 		this.iMenuService = iMenuService;
 	}
 
-	@GetMapping
-	public MenuDTO getMenu(@RequestParam(name = "sucursal", required = false) Long sucursal) {
-		// Slugless menu (single-business deployment): the public QR URL no longer
-		// carries ?restaurant=<slug>; the service resolves the deployment's only
-		// business and fails closed when there is not exactly one.
-		// ?sucursal= (multi-sucursal, S4/T7): refleja hours/whatsapp de la
-		// sucursal pedida; inválida → fallback silencioso a la default.
-		return iMenuService.getMenu(null, sucursal);
-	}
-
 	@GetMapping("/{slug}")
 	public MenuDTO getMenuBySlug(@PathVariable String slug,
 			@RequestParam(name = "sucursal", required = false) Long sucursal) {
@@ -43,10 +33,15 @@ public class MenuController {
 	 * Public identity of one table (anonymous, under the already-public
 	 * {@code /api/menu/**} surface): the customer menu calls it to show the
 	 * table badge when a per-table QR opened the page with {@code ?table=<id>}.
+	 *
+	 * <p>Slug-scoped (S4 enmendada de odd/tasks/retire-menu-route.md): the
+	 * table lookup resolves the business from the slug first — a table of
+	 * another business, an unknown slug or a deactivated local all answer
+	 * 404, never a cross-tenant identity.</p>
 	 */
-	@GetMapping("/table/{id}")
-	public MenuTableDTO getTable(@PathVariable Long id) {
-		return iMenuService.getPublicTable(id);
+	@GetMapping("/{slug}/table/{id}")
+	public MenuTableDTO getTable(@PathVariable String slug, @PathVariable Long id) {
+		return iMenuService.getPublicTable(slug, id);
 	}
 
 }

@@ -62,7 +62,6 @@ public class OrderServiceImpl implements IOrderService {
 	private final IOrderManagementMapper iOrderManagementMapper;
 	private final IOrderMapper iOrderMapper;
 	private final SecurityService securityService;
-	private final SingleBusinessResolver singleBusinessResolver;
 	private final TableRepository tableRepository;
 	private final IBusinessOpenService businessOpenService;
 	private final Clock clock;
@@ -72,7 +71,7 @@ public class OrderServiceImpl implements IOrderService {
 			ProductRepository productRepository, ComboRepository comboRepository,
 			CancellationReasonRepository cancellationReasonRepository, IOrderKitchenMapper iOrderKitchenMapper,
 			IOrderManagementMapper iOrderManagementMapper, IOrderMapper iOrderMapper, SecurityService securityService,
-			SingleBusinessResolver singleBusinessResolver, TableRepository tableRepository,
+			TableRepository tableRepository,
 			IBusinessOpenService businessOpenService, Clock clock, BranchRepository branchRepository) {
 		this.orderRepository = orderRepository;
 		this.businessRepository = businessRepository;
@@ -83,7 +82,6 @@ public class OrderServiceImpl implements IOrderService {
 		this.iOrderManagementMapper = iOrderManagementMapper;
 		this.iOrderMapper = iOrderMapper;
 		this.securityService = securityService;
-		this.singleBusinessResolver = singleBusinessResolver;
 		this.tableRepository = tableRepository;
 		this.businessOpenService = businessOpenService;
 		this.clock = clock;
@@ -98,10 +96,10 @@ public class OrderServiceImpl implements IOrderService {
 			throw new BusinessException("Pedido inválido", ErrorType.VALIDATION);
 		}
 
-		// Slugless mode (single-business deployment): the public QR URL no longer
-		// carries ?restaurant=<slug>, so a null/blank slug resolves the deployment's
-		// only business (fail-closed when there is not exactly one). A present slug
-		// keeps the legacy path untouched.
+		// Siempre por slug (S4 de odd/tasks/retire-menu-route.md): el modo
+		// slugless de un solo negocio fue retirado junto con
+		// SingleBusinessResolver. Un slug null/blank cae en el mismo 404 de
+		// "No se encontró restaurante" por Optional vacío.
 		// SALON no exige datos del cliente: la mesa identifica al comensal (el
 		// KDS y la consola muestran el nombre de la mesa). RETIRO/DELIVERY siguen
 		// necesitando el nombre para llamar/entregar.
@@ -130,10 +128,8 @@ public class OrderServiceImpl implements IOrderService {
 			throw new BusinessException("El pedido debe contener al menos un producto", ErrorType.VALIDATION);
 		}
 
-		Business business = (slug == null || slug.isBlank())
-				? singleBusinessResolver.requireSingle()
-				: businessRepository.findBySlug(slug)
-						.orElseThrow(() -> new BusinessException("No se encontró restaurante", ErrorType.NOT_FOUND));
+		Business business = businessRepository.findBySlug(slug)
+				.orElseThrow(() -> new BusinessException("No se encontró restaurante", ErrorType.NOT_FOUND));
 
 		// Baja lógica (S5 de odd/tasks/plataforma-editar-baja.md): un local
 		// dado de baja NO existe públicamente — 404, ANTES del check de

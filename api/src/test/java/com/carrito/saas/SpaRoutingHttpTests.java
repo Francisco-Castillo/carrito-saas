@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -20,10 +21,16 @@ import org.springframework.web.context.WebApplicationContext;
 
 /**
  * Clean-URL contract of the SPA entry paths: the app itself redirects to
- * /admin, /dashboard, /kds, /login and /menu, so those bare paths (with and
+ * /admin, /dashboard, /kds and /login, so those bare paths (with and
  * without the trailing slash, which Spring MVC no longer matches implicitly)
  * must serve the same shell the legacy static files serve. They are public
  * pages: an anonymous request must render them, not 401.
+ *
+ * <p>/menu is RETIRED (S5/S7 of odd/tasks/retire-menu-route.md): no clean
+ * /menu path serves a shell and the printed-QR path /menu/index.html is no
+ * longer public — SecurityConfig stopped permitting it in T3, so an
+ * anonymous request gets the chain's 401. The only public address of the
+ * carta is now /{slug}.</p>
  *
  * <p>MockMvc assembles the real security {@link FilterChainProxy} (same
  * pattern as {@code PanelErrorStatusHttpTests}). MockMvc does not execute
@@ -61,7 +68,7 @@ class SpaRoutingHttpTests {
 
 	@ParameterizedTest
 	@ValueSource(strings = { "/admin", "/admin/", "/dashboard", "/dashboard/", "/kds", "/kds/", "/login", "/login/",
-			"/menu", "/menu/", "/pedidos", "/pedidos/", "/platform", "/platform/" })
+			"/pedidos", "/pedidos/", "/platform", "/platform/" })
 	void cleanPathsForwardToTheLegacyShell(String path) throws Exception {
 		mockMvc.perform(get(path))
 				.andExpect(status().isOk())
@@ -69,12 +76,36 @@ class SpaRoutingHttpTests {
 	}
 
 	@ParameterizedTest
+	@ValueSource(strings = { "/menu", "/menu/" })
+	void retiredMenuCleanPathsAnswerNotFound(String path) throws Exception {
+		// S5/S7 (odd/tasks/retire-menu-route.md): the /menu route dies and the
+		// slug stays reserved forever. /menu still matches the public
+		// /{slug:[a-z0-9-]+} permitAll, so the request reaches
+		// SlugViewController, which answers 404 for the retired segment.
+		mockMvc.perform(get(path))
+				.andExpect(status().isNotFound());
+	}
+
+	@ParameterizedTest
 	@ValueSource(strings = { "/admin/admin.html", "/dashboard/index.html", "/kds/index.html", "/login/login.html",
-			"/menu/index.html", "/pedidos/index.html", "/platform/index.html" })
+			"/pedidos/index.html", "/platform/index.html" })
 	void legacyPathsServeTheSpaShellAnonymously(String path) throws Exception {
 		mockMvc.perform(get(path))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("<div id=\"root\">")));
+	}
+
+	@Test
+	void retiredMenuShellPathAnswersNotFound() throws Exception {
+		// S5 (odd/tasks/retire-menu-route.md): the printed-QR path
+		// /menu/index.html is dead. The retired matcher stays permitAll on
+		// purpose: an anonymous caller must get the resource handler's 404
+		// (the build no longer copies the legacy shell), never a 401 that
+		// suggests logging in would bring the page back. Holds whether or not
+		// the stale generated file is still on disk: the build sweeps it and
+		// a present file would mean a stale build, not a live route.
+		mockMvc.perform(get("/menu/index.html"))
+				.andExpect(status().isNotFound());
 	}
 
 	private static String legacyShellFor(String cleanPath) {
@@ -84,7 +115,6 @@ class SpaRoutingHttpTests {
 			case "/dashboard" -> "/dashboard/index.html";
 			case "/kds" -> "/kds/index.html";
 			case "/login" -> "/login/login.html";
-			case "/menu" -> "/menu/index.html";
 			case "/pedidos" -> "/pedidos/index.html";
 			case "/platform" -> "/platform/index.html";
 			default -> throw new IllegalArgumentException("unexpected path: " + cleanPath);

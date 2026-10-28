@@ -7,14 +7,12 @@ import com.carrito.saas.service.interfaces.IMenuUrlBuilder;
 
 /**
  * The SINGLE place in the codebase that builds a customer menu URL:
- * {@code <base>/menu/}.
+ * {@code <base>/{slug}}.
  *
- * <p>The project no longer carries the business slug in the customer URL: the
- * deployment hosts exactly one business, so the menu resolves it server-side
- * ({@code GET /api/menu}, {@code POST /api/orders/menu}) and the anonymous
- * security rules permit {@code /menu/**}. The {@code slug} argument is kept
- * for signature compatibility with the QR/table templates but is no longer
- * encoded into the URL.</p>
+ * <p>S3 (odd/tasks/retire-menu-route.md): the public menu is served only at
+ * the business's own {@code /{slug}} (and {@code /{slug}?table=<id>} for a
+ * table); the legacy slugless {@code /menu/} contract is retired, and the
+ * {@code slug} argument IS encoded into the URL.</p>
  */
 @Service
 public class MenuUrlBuilder implements IMenuUrlBuilder {
@@ -33,15 +31,15 @@ public class MenuUrlBuilder implements IMenuUrlBuilder {
 		// A trailing slash on the configured origin would produce a double one.
 		String normalizedBase = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
 
-		// Slugless contract: the printed QR points at a plain /menu/ and the
-		// single business is resolved by the backend, never by the URL.
-		return normalizedBase + "/menu/";
+		// S3: the business slug is the public menu address; the legacy /menu/
+		// route is retired.
+		return normalizedBase + "/" + slug;
 	}
 
 	@Override
 	public String buildTableMenuUrl(String slug, Long tableId) {
 
-		// Same slugless base; the table id lets the customer menu attribute
+		// Same {slug} base; the table id lets the customer menu attribute
 		// the order to the scanned table (SALON + tableId).
 		return buildMenuUrl(slug) + "?table=" + tableId;
 	}
@@ -49,10 +47,10 @@ public class MenuUrlBuilder implements IMenuUrlBuilder {
 	@Override
 	public String buildMenuUrl(String slug, Long branchId) {
 
-		// Same slugless base as the group QR; the branch rides along as the
-		// public ?sucursal=<id> parameter (multi-sucursal, S3/T6): NUMERIC id,
-		// never an invented branch slug. The separator adapts if the base URL
-		// already carries a query (e.g. a table + branch combined URL).
+		// Misma base {slug} que el QR del grupo; la sucursal viaja como el
+		// parámetro público ?sucursal=<id> (multi-sucursal, S3/T6): id NUMÉRICO,
+		// nunca un slug de sucursal inventado. El separador se adapta si la URL
+		// ya lleva query (p. ej. una URL combinada ?table= + ?sucursal=).
 		String base = buildMenuUrl(slug);
 		String separator = base.contains("?") ? "&" : "?";
 		return base + separator + "sucursal=" + branchId;

@@ -83,9 +83,9 @@ function makeFetch(payload: ReturnType<typeof menuPayload>) {
     }
     calls.push(call)
     if (u === `/api/restaurants/slug/${SLUG}`) return okJson({ name: 'Local Picker' })
-    // El endpoint del menú con o sin ?sucursal= (el backend acepta ambos).
+    // El endpoint del menú con o sin ?sucursal= (el backend acepta ambos;
+    // la ruta slugless GET /api/menu fue retirada — nunca se la llama).
     if (u === `/api/menu/${SLUG}` || u.startsWith(`/api/menu/${SLUG}?`)) return okJson(payload)
-    if (u === '/api/menu' || u.startsWith('/api/menu?')) return okJson(payload)
     if (u.startsWith('/api/orders')) return okJson({ orderId: 42, status: 'NEW' })
     throw new Error('unexpected fetch: ' + u)
   })
