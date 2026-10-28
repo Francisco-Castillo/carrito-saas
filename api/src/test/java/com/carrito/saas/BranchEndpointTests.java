@@ -347,6 +347,40 @@ class BranchEndpointTests {
 	}
 
 	@Test
+	void bajaDeLaSucursalActualSeRechazaCon409YLaFilaSigueActiva() throws Exception {
+		// La sucursal con la que se está trabajando (claim branchId del JWT)
+		// no se puede desactivar: el panel quedaría operando una sucursal
+		// inactiva (sin QR ni pedidos nuevos) sin que el dueño lo advierta.
+		crearSucursal(ownerA.bearerToken(), "Otra activa");
+		Long actual = crearSucursal(ownerA.bearerToken(), "La que estoy usando");
+
+		String tokenConClaim = jwtUtil.generateToken(OWNER_USERNAME, BUSINESS_A_ID, actual);
+
+		mockMvc.perform(delete("/api/business/branches/" + actual)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenConClaim))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value(
+						"No podés desactivar la sucursal con la que estás trabajando. Cambiá de sucursal primero."));
+
+		assertThat(branchRepository.findById(actual).orElseThrow().getActive()).isTrue();
+	}
+
+	@Test
+	void bajaDeOtraSucursalConClaimSigueFuncionando() throws Exception {
+		// El guard es sólo para la actual: otra sucursal activa se da de baja
+		// aunque el token tenga claim.
+		Long actual = crearSucursal(ownerA.bearerToken(), "La que estoy usando");
+		Long otra = crearSucursal(ownerA.bearerToken(), "Otra activa");
+
+		String tokenConClaim = jwtUtil.generateToken(OWNER_USERNAME, BUSINESS_A_ID, actual);
+
+		mockMvc.perform(delete("/api/business/branches/" + otra)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenConClaim))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.active").value(false));
+	}
+
+	@Test
 	void bajaDeUnaActivaEntreVariasSigueFuncionando() throws Exception {
 		crearSucursal(ownerA.bearerToken(), "Casa central");
 		Long id = crearSucursal(ownerA.bearerToken(), "Sucursal Norte");

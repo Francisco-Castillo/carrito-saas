@@ -23,4 +23,11 @@ public interface ISecurityService {
 	 */
 	Long getCurrentBranchIdOrDefault();
 
+	/**
+	 * Sucursal reclamada por el TOKEN (claim branchId), o null si el token no
+	 * la trae. Sin fallback a propósito: es la sucursal con la que la sesión
+	 * está trabajando, la misma que el panel marca como «Actual».
+	 */
+	Long getClaimedBranchId();
+
 }

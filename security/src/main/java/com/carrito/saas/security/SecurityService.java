@@ -192,6 +192,11 @@ public class SecurityService implements ISecurityService {
 		return activas.get(0).getId();
 	}
 
+	@Override
+	public Long getClaimedBranchId() {
+		return claimedBranchId();
+	}
+
 	/**
 	 * El claim manda si viaja: un token emitido por select/{id} ya fija la
 	 * sucursal y no se re-resuelve (comportamiento previo intacto).

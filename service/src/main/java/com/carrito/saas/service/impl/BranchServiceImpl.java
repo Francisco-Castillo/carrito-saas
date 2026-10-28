@@ -141,6 +141,19 @@ public class BranchServiceImpl implements IBranchService {
 				.findByBusinessIdAndActiveTrueOrderByIdAsc(currentBusinessId()).size() <= 1)
 			throw new BusinessException("No podés dar de baja la última sucursal activa", ErrorType.CONFLICT);
 
+		// Guard de sucursal ACTUAL (S3, decisión del usuario): desactivar la
+		// sucursal con la que la sesión está trabajando deja el panel operando
+		// una sucursal inactiva (sin QR ni pedidos nuevos) sin advertirlo. Se
+		// compara contra el claim del token — la misma que el panel marca
+		// «Actual»; cambiar de sucursal primero es el flujo explícito. Va
+		// DESPUÉS del guard de última activa: si es la única, «cambiá de
+		// sucursal» sería un consejo imposible.
+		Long actual = securityService.getClaimedBranchId();
+		if (Boolean.TRUE.equals(branch.getActive()) && actual != null && actual.equals(branch.getId()))
+			throw new BusinessException(
+					"No podés desactivar la sucursal con la que estás trabajando. Cambiá de sucursal primero.",
+					ErrorType.CONFLICT);
+
 		// Baja lógica: reversible, el historial (pedidos, ventas) no se toca.
 		branch.setActive(Boolean.FALSE);
 
