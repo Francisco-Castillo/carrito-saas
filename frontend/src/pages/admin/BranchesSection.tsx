@@ -330,8 +330,12 @@ export default function BranchesSection() {
               {branches.map((branch) => (
                 <tr key={branch.id}>
                   <td>
-                    {branch.name}
-                    {branch.id === currentBranchId && <span className="badge active">Actual</span>}
+                    <span className="admin-branch-name">
+                      {branch.name}
+                      {branch.id === currentBranchId && (
+                        <span className="badge active">Actual</span>
+                      )}
+                    </span>
                   </td>
                   <td>{branch.address || "—"}</td>
                   <td>{branch.phone || "—"}</td>
@@ -369,10 +373,10 @@ export default function BranchesSection() {
                       <button
                         type="button"
                         className="btn-ghost admin-qr-remove"
-                        aria-label={`Eliminar ${branch.name}`}
+                        aria-label={`Desactivar ${branch.name}`}
                         onClick={() => void removeBranch(branch)}
                       >
-                        Eliminar
+                        Desactivar
                       </button>
                     ) : (
                       <button

@@ -18,7 +18,7 @@
  *      muestra esa fila y nada raro.
  *   h) "Trabajar acá" con 404 (sucursal recién dada de baja): muestra el
  *      error y refresca la lista.
- *   i) Fila inactiva: SIN «Eliminar" (ya está dada de baja) y CON
+ *   i) Fila inactiva: SIN «Desactivar» (ya está dada de baja) y CON
  *      «Reactivar" (POST .../{id}/reactivar); el error del API viaja con su
  *      mensaje exacto.
  *   j) Tras un alta exitosa el formulario queda VACÍO (nombre, dirección y
@@ -258,14 +258,14 @@ describe('Baja de sucursal', () => {
     await openBranchesView()
     await screen.findByText('Sucursal Centro')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Eliminar Sucursal Norte' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Desactivar Sucursal Norte' }))
 
     // Confirmación del panel: Cancelar NO borra.
     await screen.findByRole('alertdialog')
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect(deleted).toBe(false)
 
-    await userEvent.click(screen.getByRole('button', { name: 'Eliminar Sucursal Norte' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Desactivar Sucursal Norte' }))
     await screen.findByRole('alertdialog')
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
 
@@ -277,13 +277,13 @@ describe('Baja de sucursal', () => {
 })
 
 describe('Reactivación y estado del panel', () => {
-  it('(i) fila inactiva: sin «Eliminar», con «Reactivar» que llama POST .../reactivar', async () => {
+  it('(i) fila inactiva: sin «Desactivar», con «Reactivar» que llama POST .../reactivar', async () => {
     stubFetch()
     await openBranchesView()
     await screen.findByText('Sucursal Vieja')
 
     // La inactiva ya ESTÁ dada de baja: no repite «Eliminar».
-    expect(screen.queryByRole('button', { name: 'Eliminar Sucursal Vieja' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Desactivar Sucursal Vieja' })).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Reactivar Sucursal Vieja' }))
 
