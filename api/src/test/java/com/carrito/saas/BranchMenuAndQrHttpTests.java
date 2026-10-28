@@ -9,7 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.util.Map;
 import java.io.ByteArrayInputStream;
 
 import javax.imageio.ImageIO;
@@ -35,6 +37,8 @@ import com.carrito.saas.repository.jpa.RoleRepository;
 import com.carrito.saas.repository.jpa.UserRepository;
 import com.carrito.saas.security.JwtUtil;
 import com.google.zxing.BinaryBitmap;
+import com.google.zxing.DecodeHintType;
+import com.google.zxing.NotFoundException;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.qrcode.QRCodeReader;
@@ -325,17 +329,49 @@ class BranchMenuAndQrHttpTests {
 	// Helpers
 	// ------------------------------------------------------------------
 
-	/** Igual que {@code BusinessQrEndpointTests}: el PNG se decodifica de vuelta. */
+	/**
+	 * Igual que {@code BusinessQrEndpointTests}: el PNG se decodifica de vuelta.
+	 *
+	 * <p>Con {@code TRY_HARDER} y un reintento sobre la imagen ampliada: el
+	 * decodificador sin pistas fallaba de forma intermitente con el QR del
+	 * tamaño que genera el servicio (zxing {@code NotFoundException}), lo que
+	 * ensuciaba la suite completa con un fallo que no era del código bajo
+	 * prueba. El dato esperado no cambia — el QR sigue decodificando a la URL
+	 * exacta —, sólo se le da al decodificador una segunda oportunidad.</p>
+	 */
 	private String decodeQrText(byte[] png) {
 		try {
 			BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));
-			return new QRCodeReader()
-					.decode(new BinaryBitmap(new HybridBinarizer(new BufferedImageLuminanceSource(image))))
-					.getText();
+
+			var hints = Map.of(DecodeHintType.TRY_HARDER, Boolean.TRUE);
+
+			try {
+				return decode(image, hints);
+			}
+			catch (NotFoundException firstTry) {
+				// Reintento con la imagen al doble: mismo QR, más píxeles.
+				return decode(scaleUp(image, 2), hints);
+			}
 		}
 		catch (Exception ex) {
 			throw new AssertionError("el PNG devuelto no decodifica como QR", ex);
 		}
+	}
+
+	private String decode(BufferedImage image, Map<DecodeHintType, ?> hints) throws Exception {
+		return new QRCodeReader()
+				.decode(new BinaryBitmap(new HybridBinarizer(new BufferedImageLuminanceSource(image))), hints)
+				.getText();
+	}
+
+	private BufferedImage scaleUp(BufferedImage image, int factor) {
+		int width = image.getWidth() * factor;
+		int height = image.getHeight() * factor;
+		BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+		Graphics2D g = scaled.createGraphics();
+		g.drawImage(image, 0, 0, width, height, null);
+		g.dispose();
+		return scaled;
 	}
 
 }
