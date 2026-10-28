@@ -92,14 +92,14 @@ BEGIN
     ) THEN
         CREATE UNIQUE INDEX uq_business_hours_business_day_position_effective
             ON business_hours (business_id, day_of_week, position,
-                CASE WHEN branch_id IS NULL THEN -1 ELSE branch_id END);
+                (CASE WHEN branch_id IS NULL THEN -1 ELSE branch_id END));
     END IF;
     IF NOT EXISTS (
         SELECT 1 FROM pg_indexes WHERE indexname = 'uq_business_date_exception_business_date_position_effective'
     ) THEN
         CREATE UNIQUE INDEX uq_business_date_exception_business_date_position_effective
             ON business_date_exception (business_id, date, position,
-                CASE WHEN branch_id IS NULL THEN -1 ELSE branch_id END);
+                (CASE WHEN branch_id IS NULL THEN -1 ELSE branch_id END));
     END IF;
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'fk_business_hours_branch'
