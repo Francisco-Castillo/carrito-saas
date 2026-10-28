@@ -222,3 +222,12 @@ la default en la carta). El guard actual sólo impide dejar el negocio sin
 NINGUNA activa. Decisión pendiente del dueño del producto: bloquear la baja de
 la sucursal actual con 409 pidiendo cambiar de sucursal primero, o auto-cambiar
 el contexto a la default.
+
+## Diálogo y acciones del panel (review nativa, 2026-10-27)
+
+Review ORDINARY aprobada tras un rechazo del relay (payload del revisor
+truncado; el proveedor no consumió el slot y el reintento con STATUS fresco
+pasó). 1 advisory NO bloqueante: R2-function-name-vs-action-terminology
+BranchesSection.tsx:177 (el identificador interno sigue hablando de «remove»
+mientras la UI y el contrato dicen «desactivar»).
+Receipt: store_revision sha256:7dcfa2b3afaaf1bc638f294ec4459ff291b23df980bbc7dca20d3bbefa306445.
