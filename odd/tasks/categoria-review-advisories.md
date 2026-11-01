@@ -47,6 +47,15 @@ S5. Las tres escrituras que deciden el orden quedan serializadas por negocio, no
     (el `order` nuevo en la edición, el orden nuevo en el reordenamiento). Las
     dos escrituras nuevas se observaron en RED antes del fix.
 
+S6. La serialización se prueba también en su **posición**, no sólo en su
+    presencia: `CategoryLockPositionTests` registra con un `StatementInspector`
+    de Hibernate las sentencias del alta y exige que el lock de la fila del
+    negocio aparezca **antes** de la lectura de `max(orden)` — tomado después,
+    deja la carrera abierta aunque el lock exista. Discrimina en los dos
+    sentidos: falla por presencia contra el código previo al lock (worktree en
+    `a2e6980`) y falla por posición con una mutación que lee el máximo antes de
+    lockear.
+
 ## Tasks
 
 - **T1** (S1) docs: javadoc de `CategoryDTO.order`. Commit: `ccfe56c`.
@@ -56,6 +65,8 @@ S5. Las tres escrituras que deciden el orden quedan serializadas por negocio, no
 - **T3** (S3) test: pin cross-tenant de `/todas` en
   `AdminCategoryListHttpTests`. Commit: `7d24d50`.
 - **T4** (S4) docs: esta no-acción. Este documento — commit `bbefc5b`.
+- **T6** (S6) test: `CategoryLockPositionTests` (posición del lock del alta,
+  vía `StatementInspector`) + este registro. Commit: (ver Log L7).
 - **T5** (S5) fix+test: lock compartido en las tres escrituras de orden
   (`lockCurrentBusiness`) + `CategoryWriteSerializationTests` renombrado y
   extendido. Commit: (ver Log L6). **Riesgo: item 4 (concurrencia)** — commit
@@ -122,4 +133,18 @@ S5. Las tres escrituras que deciden el orden quedan serializadas por negocio, no
   racing the order — Expecting value to be false but was true». Backend
   `mvn -B --no-transfer-progress verify` → **515/515**, BUILD SUCCESS (513
   previos + los dos casos nuevos).
+
+- **L7** (cierre del hueco que dejó la verificación, S6): el verificador
+  independiente marcó en L5 que el test de serialización pincha la *presencia*
+  del lock, no su *posición*; el dueño pidió cerrarlo («si hacelo»).
+  `CategoryLockPositionTests` usa
+  `spring.jpa.properties.hibernate.session_factory.statement_inspector` con un
+  `RecordingInspector` anidado que guarda cada sentencia en orden, y exige
+  `lock < max(orden)`. Evidencia de que discrimina: (a) contra el worktree en
+  `a2e6980` (antes del lock) falla con «the alta must take the business row for
+  update»; (b) con una mutación que lee `nextOrden` antes de `lockCurrentBusiness`
+  falla con «the row lock must precede the read of the maximum: taken afterwards
+  it leaves the race open». Ambas corridas observadas y la mutación revertida.
+  Sin hilos ni segunda conexión: la aserción es sobre la secuencia, así que es
+  determinista.
 
