@@ -2,6 +2,7 @@ package com.carrito.saas;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -220,6 +221,43 @@ class Grid4TemplateTests {
 		assertThat(capturedUrls)
 				.as("the dead localhost:3030 host must be gone (actual: %s)", capturedUrls)
 				.doesNotContain("localhost:3030");
+	}
+
+	@Test
+	void honoursTheRequestedQrSizeAndTheOptionalUrlText() throws Exception {
+
+		QrPdfRequestDTO config = config();
+		config.setQrSize(80);
+		config.setShowUrl(true);
+
+		byte[] pdf = pdfTemplateFactory.get(QrTemplate.GRID_4X4)
+				.generate(tables(1), config);
+
+		// El tamaño pedido llega al encoder (80pt impresos x 4 de render).
+		verify(qrCodeService).generateQr(anyString(), eq(320));
+
+		String text = extractPdfText(pdf);
+
+		assertThat(text)
+				.as("showUrl=true must print the destination under the QR (actual: %s)", text)
+				.contains("table=1");
+		assertThat(text)
+				.as("the name is still printed by default (actual: %s)", text)
+				.contains("Mesa1");
+	}
+
+	@Test
+	void omitsTheTableNameWhenTheCallerTurnsItOff() throws Exception {
+
+		QrPdfRequestDTO config = config();
+		config.setShowTableName(false);
+
+		byte[] pdf = pdfTemplateFactory.get(QrTemplate.GRID_4X4)
+				.generate(tables(1), config);
+
+		assertThat(extractPdfText(pdf))
+				.as("showTableName=false must not print the table name")
+				.doesNotContain("Mesa1");
 	}
 
 	@Test

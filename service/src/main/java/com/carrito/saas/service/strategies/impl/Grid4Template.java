@@ -67,6 +67,15 @@ public class Grid4Template implements PdfTemplateStrategy {
 	/** Aire alrededor de cada celda, en puntos. */
 	private static final float CELL_PADDING = 6f;
 
+	/** Debajo de esto el QR impreso no se escanea de forma confiable. */
+	private static final int MIN_QR_PRINT_SIZE = 40;
+
+	/** Cuerpo de la URL impresa cuando el caller pide showUrl. */
+	private static final int URL_FONT_SIZE = 6;
+
+	/** Una URL no tiene espacios: se corta a mano para que no se salga de la celda. */
+	private static final int URL_LINE_LENGTH = 34;
+
 	private final IQrCodeService qrCodeService;
 	private final IMenuUrlBuilder menuUrlBuilder;
 
@@ -81,6 +90,14 @@ public class Grid4Template implements PdfTemplateStrategy {
 		if (tables == null || tables.isEmpty()) {
 			throw new IllegalArgumentException("No tables found.");
 		}
+
+		// El DTO es contrato, no adorno: quien pide otro tamaño o el texto de la
+		// URL tiene que verlo en el PDF. El tamaño se acota a lo que entra en la
+		// celda de una grilla 4x4, que es lo único que garantiza 16 códigos
+		// legibles por hoja.
+		int printSize = resolvePrintSize(config);
+		boolean showTableName = !Boolean.FALSE.equals(config.getShowTableName());
+		boolean showUrl = Boolean.TRUE.equals(config.getShowUrl());
 
 		try {
 
@@ -102,7 +119,7 @@ public class Grid4Template implements PdfTemplateStrategy {
 
 				String menuUrl = menuUrlBuilder.buildTableMenuUrl(table.getBusiness().getSlug(), table.getId());
 
-				byte[] qr = qrCodeService.generateQr(menuUrl, QR_PRINT_SIZE * QR_RENDER_FACTOR);
+				byte[] qr = qrCodeService.generateQr(menuUrl, printSize * QR_RENDER_FACTOR);
 
 				if (qr == null || qr.length == 0) {
 					throw new IllegalStateException("QR generation failed.");
@@ -114,17 +131,24 @@ public class Grid4Template implements PdfTemplateStrategy {
 
 				cell.setHorizontalAlignment(Element.ALIGN_CENTER);
 
-				Paragraph name = new Paragraph(table.getTableName(), nameFont);
+				if (showTableName) {
 
-				name.setAlignment(Element.ALIGN_CENTER);
+					Paragraph name = new Paragraph(table.getTableName(), nameFont);
 
-				cell.addElement(name);
+					name.setAlignment(Element.ALIGN_CENTER);
+
+					cell.addElement(name);
+				}
 
 				Image image = Image.getInstance(qr);
 
-				image.scaleToFit(QR_PRINT_SIZE, QR_PRINT_SIZE);
+				image.scaleToFit(printSize, printSize);
 
 				cell.addElement(image);
+
+				if (showUrl) {
+					cell.addElement(urlParagraph(menuUrl));
+				}
 
 				grid.addCell(cell);
 			}
@@ -143,5 +167,43 @@ public class Grid4Template implements PdfTemplateStrategy {
 
 			throw new RuntimeException("Error generating GRID_4X4 PDF", ex);
 		}
+	}
+
+	/** Tamaño impreso pedido por el caller, acotado a lo que entra en la celda. */
+	private static int resolvePrintSize(QrPdfRequestDTO config) {
+
+		Integer requested = config == null ? null : config.getQrSize();
+
+		if (requested == null || requested < MIN_QR_PRINT_SIZE || requested > QR_PRINT_SIZE) {
+			return QR_PRINT_SIZE;
+		}
+
+		return requested;
+	}
+
+	/**
+	 * URL del QR como texto, cortada cada {@value #URL_LINE_LENGTH} caracteres:
+	 * OpenPDF no parte una URL sin espacios, así que sin los cortes el texto se
+	 * sale de la celda.
+	 */
+	private static Paragraph urlParagraph(String url) {
+
+		StringBuilder wrapped = new StringBuilder();
+
+		for (int index = 0; index < url.length(); index++) {
+
+			if (index > 0 && index % URL_LINE_LENGTH == 0) {
+				wrapped.append('\n');
+			}
+
+			wrapped.append(url.charAt(index));
+		}
+
+		Paragraph paragraph = new Paragraph(wrapped.toString(),
+				FontFactory.getFont(FontFactory.HELVETICA, URL_FONT_SIZE));
+
+		paragraph.setAlignment(Element.ALIGN_CENTER);
+
+		return paragraph;
 	}
 }
