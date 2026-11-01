@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { API, authHeader, type AdminCategory } from "./api";
 import LoadingPanel from "./LoadingPanel";
 import { showSuccessToast } from "./toast";
@@ -8,8 +8,6 @@ import { useConfirmDialog } from "./useConfirmDialog";
 interface CategoriesTableProps {
   /** Bump para recargar categorías (tras crear una, como el loadCategories() del legacy). */
   refreshKey: number;
-  /** Cantidad de filas cargadas (el legacy la leía del tbody al crear una categoría). */
-  onRowCountChange?: (count: number | null) => void;
 }
 
 /**
@@ -27,7 +25,9 @@ function normalize(text: string): string {
 
 /**
  * Listado de categorías del panel admin contra los endpoints owner:
- * GET /api/categorias (scoped por el negocio del JWT), PUT /api/categorias/{id}
+ * GET /api/categorias/todas (scoped por el negocio del JWT, activas E
+ * inactivas: es la única tabla donde vive el switch, sin la fila apagada no
+ * habría forma de volver a prenderla), PUT /api/categorias/{id}
  * para renombrar y cambiar estado, DELETE /api/categorias/{id} para eliminar
  * (409 si todavía tiene productos: el mensaje del backend se muestra en el
  * toast) y PUT /api/categorias/orden para reordenar.
@@ -54,7 +54,7 @@ function normalize(text: string): string {
  * activaba su botón enfocado. Y el vacío ya no va a window.alert: el error
  * queda inline como los demás.
  */
-export default function CategoriesTable({ refreshKey, onRowCountChange }: CategoriesTableProps) {
+export default function CategoriesTable({ refreshKey }: CategoriesTableProps) {
   const [categories, setCategories] = useState<AdminCategory[] | null>(null);
   // Primera carga en curso: skeleton del dashboard mientras la API responde.
   const [loading, setLoading] = useState(true);
@@ -74,7 +74,7 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
   async function loadCategories() {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`${API}/categorias`, {
+      const response = await fetch(`${API}/categorias/todas`, {
         headers: { Authorization: "Bearer " + token },
       });
 
@@ -123,15 +123,6 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
     }
   }
 
-  const reportCount = useCallback(
-    (count: number | null) => onRowCountChange?.(count),
-    [onRowCountChange],
-  );
-
-  useEffect(() => {
-    reportCount(notFound ? null : (categories?.length ?? null));
-  }, [notFound, categories, reportCount]);
-
   async function persistOrder(ids: number[]) {
     try {
       const res = await fetch(`${API}/categorias/orden`, {
@@ -153,9 +144,12 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
   async function handleToggle(c: AdminCategory) {
     const activar = !c.active;
 
-    // El backend actualiza sólo los campos no-null: se mandan nombre y orden
-    // actuales + el estado DESTINO (igual que el switch de productos).
-    const payload = { name: c.name.trim(), order: (categories?.findIndex((x) => x.id === c.id) ?? -1) + 1, active: activar };
+    // El backend actualiza sólo los campos no-null: se mandan el nombre
+    // actual y el estado DESTINO (igual que el switch de productos). Sin
+    // `order`: el switch no reordena nada y el orden lo administra el drag &
+    // drop (PUT /api/categorias/orden); mandarlo lo normalizaba a la posición
+    // de la fila y con órdenes con huecos repetía un número existente.
+    const payload = { name: c.name.trim(), active: activar };
 
     try {
       const res = await fetch(`${API}/categorias/${c.id}`, {

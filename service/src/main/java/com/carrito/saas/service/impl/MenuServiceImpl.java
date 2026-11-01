@@ -123,7 +123,11 @@ public class MenuServiceImpl implements IMenuService {
 			throw new BusinessException("Local no encontrado", ErrorType.NOT_FOUND);
 		}
 
-		List<Category> categories = categoryRepository.findByBusinessId(business.getId());
+		// El orden es parte del contrato con la carta (ver el ORDER BY del
+		// finder): el panel arrastra las categorías y la carta las presenta en
+		// ese mismo orden, con el id como desempate. Sólo activas: apagar una
+		// categoría la saca de la carta, igual que sus productos.
+		List<Category> categories = categoryRepository.findActiveByBusinessIdOrdered(business.getId());
 
 		// Buscamos los productos del negocio que esten activos y ofrecibles:
 		// stock null (infinito) o stock > 0; stock 0 no se ofrece.

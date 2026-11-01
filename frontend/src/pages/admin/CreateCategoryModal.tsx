@@ -3,8 +3,6 @@ import { API, authHeader } from "./api";
 import { showSuccessToast } from "./toast";
 
 interface CreateCategoryModalProps {
-  /** Orden del legacy: última fila de la tabla + 1 (o 1 si no hay tabla). */
-  lastOrder: number;
   onClose: () => void;
   onCreated: () => void;
 }
@@ -12,10 +10,12 @@ interface CreateCategoryModalProps {
 /**
  * Puerto del openCreateCategoryModal del legacy admin/admin.js: validación
  * (nombre obligatorio con borde rojo + mensaje), POST /api/categorias con
- * {name, order, active: true}, toast de éxito/error y cierre con Escape o
- * clic fuera. El modal queda abierto si la creación falla, como el legacy.
+ * {name, active: true} — el orden ya no lo manda el cliente: el servidor
+ * asigna max(orden) + 1 para que la categoría nazca última —, toast de
+ * éxito/error y cierre con Escape o clic fuera. El modal queda abierto si la
+ * creación falla, como el legacy.
  */
-export default function CreateCategoryModal({ lastOrder, onClose, onCreated }: CreateCategoryModalProps) {
+export default function CreateCategoryModal({ onClose, onCreated }: CreateCategoryModalProps) {
   const [name, setName] = useState("");
   const [error, setError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +47,7 @@ export default function CreateCategoryModal({ lastOrder, onClose, onCreated }: C
           "Content-Type": "application/json",
           ...authHeader(),
         },
-        body: JSON.stringify({ name: trimmed, order: lastOrder, active: true }),
+        body: JSON.stringify({ name: trimmed, active: true }),
       });
 
       const data = await res.json();

@@ -133,13 +133,30 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 	 * {@code 0} is no stock and must stay filtered out, {@code > 0} is
 	 * limited stock. In SQL {@code NULL > 0} is not true, so the null case
 	 * has to be spelled out explicitly.
+	 *
+	 * <p>El {@code ORDER BY} es parte del contrato con la carta: el frontend
+	 * agrupa los productos <em>en el orden en que llegan</em>
+	 * ({@code groupByCategory} de {@code Menu.tsx}), así que este orden ES el
+	 * orden de las categorías en la carta. Primero el orden del dueño, después
+	 * el id de la categoría como desempate y por último el id del producto
+	 * (el orden de carga dentro de la categoría). Sin esto la carta heredaba
+	 * el orden del heap y cualquier edición de un producto movía su categoría
+	 * (ver {@code PublicMenuCategoryOrderTests}).</p>
+	 *
+	 * <p>{@code p.category.active = true} es la otra mitad de la visibilidad:
+	 * apagar una categoría en el panel tiene que sacarla de la carta, y sus
+	 * productos con ella. Sin este predicado el switch no cambiaba nada de lo
+	 * que ve el cliente.
+	 * (ver {@code InactiveCategoryNotOfferedTests}).</p>
 	 */
 	@Query("""
 			SELECT p
 			FROM Product p
 			WHERE p.category.business.id = :businessId
 			AND p.active = true
+			AND p.category.active = true
 			AND (p.stock IS NULL OR p.stock > 0)
+			ORDER BY p.category.orden ASC NULLS LAST, p.category.id ASC, p.id ASC
 			""")
     List<Product> findPublicMenuProducts(@Param("businessId") Long businessId);
 }

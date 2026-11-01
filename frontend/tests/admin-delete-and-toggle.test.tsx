@@ -75,7 +75,7 @@ function stubFetch(handlers: StubHandlers = {}) {
         Object.entries((init?.headers ?? {}) as Record<string, string>).map(([k, v]) => [k.toLowerCase(), v]),
       ),
     })
-    if (url === '/api/categorias' && method === 'GET') return okJson(CATEGORIES)
+    if (method === 'GET' && (url === '/api/categorias' || url === '/api/categorias/todas')) return okJson(CATEGORIES)
     if (url === '/api/combos' && method === 'GET') return okJson(COMBOS)
     if (url === '/api/products' && method === 'GET') return okJson([])
     if (method === 'PUT' && /\/api\/combos\/\d+\/activar/.test(url)) {
@@ -147,7 +147,14 @@ describe('Admin category delete', () => {
     const del = calls.find((c) => c.method === 'DELETE')
     expect(del?.url).toBe('/api/categorias/11')
     expect(del?.headers['authorization']).toBe(`Bearer ${TOKEN}`)
-    expect(listRequests('/api/categorias').length).toBeGreaterThanOrEqual(2)
+
+    // El reload lo dispara el handler async después del DELETE: se espera el
+    // segundo GET con deadline en vez de asertarlo de inmediato.
+    const deadline = Date.now() + 2000
+    while (Date.now() < deadline && listRequests('/api/categorias/todas').length < 2) {
+      await new Promise((r) => setTimeout(r, 25))
+    }
+    expect(listRequests('/api/categorias/todas').length).toBeGreaterThanOrEqual(2)
   })
 
   it('surfaces the backend 409 message (category still has products) through the toast and keeps the view alive', async () => {

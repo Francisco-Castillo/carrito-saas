@@ -186,7 +186,6 @@ export default function Admin() {
 
   const [view, setView] = useState<AdminView>("dashboard");
   const [createOpen, setCreateOpen] = useState(false);
-  const [categoryRowCount, setCategoryRowCount] = useState<number | null>(null);
   const [categoriesRefreshKey, setCategoriesRefreshKey] = useState(0);
 
   // Nombre del negocio para el brand block del sidebar: mismo endpoint owner
@@ -213,10 +212,6 @@ export default function Admin() {
 
   function goTo(next: AdminView) {
     setView(next);
-    // El legacy leía el tbody al momento de crear; si no hay tabla, order = 1.
-    if (next !== "categories") {
-      setCategoryRowCount(null);
-    }
   }
 
   // Logout del legacy admin.js, adaptado: borra SOLO las claves de sesión que
@@ -230,10 +225,6 @@ export default function Admin() {
 
     window.location.href = "/login";
   }
-
-  // El legacy determinaba el orden al final leyendo el tbody: filas + 1
-  // (o 1 si no hay tabla). admin.js:517-519.
-  const lastOrder = categoryRowCount === null ? 1 : categoryRowCount + 1;
 
   if (!sessionUsable) {
     // Redirect en curso: no renderizamos la página sin sesión.
@@ -322,10 +313,7 @@ export default function Admin() {
           {view === "dashboard" && <DashboardSection />}
           {view === "products" && <ProductsTable />}
           {view === "categories" && (
-            <CategoriesTable
-              refreshKey={categoriesRefreshKey}
-              onRowCountChange={setCategoryRowCount}
-            />
+            <CategoriesTable refreshKey={categoriesRefreshKey} />
           )}
           {view === "combos" && <CombosTable />}
           {view === "local" && <LocalSection />}
@@ -334,7 +322,6 @@ export default function Admin() {
 
       {createOpen && (
         <CreateCategoryModal
-          lastOrder={lastOrder}
           onClose={() => setCreateOpen(false)}
           onCreated={() => {
             setCreateOpen(false);

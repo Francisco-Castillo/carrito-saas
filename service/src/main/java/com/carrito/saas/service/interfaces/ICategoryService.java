@@ -23,12 +23,15 @@ public interface ICategoryService {
 	/**
 	 * Método encargado de retornar listado de categorias ordenadas con estado
 	 * activo o inactivo de un determinado restaurante.
-	 * 
-	 * Usado por admin.
-	 * 
-	 * @return listado de categorias.
+	 *
+	 * <p>Es la lectura de la tabla del panel
+	 * ({@code GET /api/categorias/todas}): sin las inactivas, apagar una
+	 * categoría la sacaba de la única lista del panel y no había forma de
+	 * volver a prenderla.</p>
+	 *
+	 * @return listado de categorias, activas e inactivas, en el orden del dueño.
 	 */
-	List<CategoryDTO> findAllByBusinessIdAndActiveTrueOrFalse();
+	List<CategoryDTO> findAllIncludingInactive();
 	
 	CategoryDTO findById(Long id);
 

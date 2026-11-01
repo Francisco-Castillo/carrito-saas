@@ -59,7 +59,12 @@ public class CategoryServiceImpl implements ICategoryService {
 
 		Category c = new Category();
 		c.setName(normalizedName);
-		c.setOrden(dto.getOrder());
+		// El servidor es dueño del lugar de la categoría en la lista: el alta
+		// nace al final (max(orden) + 1) y el order que manda el cliente se
+		// ignora — aceptarlo producía empates (el panel calculaba filas + 1, que
+		// repite un número si se borró una categoría intermedia) y la nueva
+		// quedaba en el medio en vez de última (ver CategoryCreateOrderHttpTests).
+		c.setOrden(categoryRepository.nextOrden(business.getId()) + 1);
 		c.setBusiness(business);
 		c.setActive(true);
 
@@ -125,13 +130,13 @@ public class CategoryServiceImpl implements ICategoryService {
 	@Override
 	public List<CategoryDTO> findAllByBusinessId() {
 		Long businessId = securityService.getCurrentBusinessId();
-		return iCategoryMapper.toListDTO(categoryRepository.findByBusiness_IdAndActiveTrueOrderByOrdenAsc(businessId));
+		return iCategoryMapper.toListDTO(categoryRepository.findActiveByBusinessIdOrdered(businessId));
 	}
 
 	@Override
-	public List<CategoryDTO> findAllByBusinessIdAndActiveTrueOrFalse() {
+	public List<CategoryDTO> findAllIncludingInactive() {
 		Long businessId = securityService.getCurrentBusinessId();
-		return iCategoryMapper.toListDTO(categoryRepository.findByBusiness_IdOrderByOrdenAsc(businessId));
+		return iCategoryMapper.toListDTO(categoryRepository.findByBusinessIdOrdered(businessId));
 	}
 
 	@Override

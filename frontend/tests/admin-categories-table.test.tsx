@@ -7,8 +7,9 @@
  *      explicit empty state when nothing matches. Same toolbar skin as the
  *      products table (products-toolbar classes in pages/Admin.css).
  *   2. Create still works: "+ Nuevo" opens CreateCategoryModal and POSTs
- *      /api/categorias with {name, order, active: true} where order is
- *      table rows + 1 (the legacy read the tbody), then refreshes the list.
+ *      /api/categorias with {name, active: true} — the order is not sent by
+ *      the client anymore: the server assigns max(orden) + 1 so the new
+ *      category lands at the end of the list — then refreshes the list.
  *   3. Edit is the inline rename that already existed, now DISCOVERABLE:
  *      a pencil row action (aria-label "Editar {name}") opens the same
  *      prefilled inline input, and saving sends PUT /api/categorias/{id}
@@ -89,7 +90,7 @@ function stubFetch(handlers: StubHandlers = {}) {
         Object.entries((init?.headers ?? {}) as Record<string, string>).map(([k, v]) => [k.toLowerCase(), v]),
       ),
     })
-    if (url === '/api/categorias' && method === 'GET') return okJson(CATEGORIES)
+    if (method === 'GET' && (url === '/api/categorias' || url === '/api/categorias/todas')) return okJson(CATEGORIES)
     if (url === '/api/categorias' && method === 'POST') {
       return handlers.postCategory ? handlers.postCategory(parseBody(init)) : okJson({})
     }
@@ -119,7 +120,9 @@ async function openCategoriesView() {
 }
 
 function categoryListRequests(): RecordedCall[] {
-  return calls.filter((c) => c.method === 'GET' && c.url === '/api/categorias')
+  return calls.filter(
+    (c) => c.method === 'GET' && (c.url === '/api/categorias' || c.url === '/api/categorias/todas'),
+  )
 }
 
 beforeEach(() => {
@@ -158,7 +161,7 @@ describe('Admin categories search', () => {
 })
 
 describe('Admin categories create', () => {
-  it('still works: the modal POSTs {name, order, active: true} with order = rows + 1 and refreshes the list', async () => {
+  it('still works: the modal POSTs {name, active: true} and refreshes the list', async () => {
     const postCategory = vi.fn(() => okJson({ id: 14, name: 'Empanadas', order: 4, active: true }))
     stubFetch({ postCategory })
     const user = userEvent.setup()
@@ -173,13 +176,20 @@ describe('Admin categories create', () => {
     await user.type(within(dialog).getByLabelText('Nombre de la categoría'), 'Empanadas')
     await user.click(within(dialog).getByRole('button', { name: 'Crear' }))
 
-    // The exact payload the legacy sent (admin.js:517-519 read the tbody): rows + 1.
+    // El cliente ya no decide el orden: manda nombre y estado, y el servidor
+    // asigna max(orden) + 1 para que la categoría nazca última.
     expect(postCategory).toHaveBeenCalledTimes(1)
-    expect(postCategory.mock.calls[0][0]).toEqual({ name: 'Empanadas', order: 4, active: true })
+    expect(postCategory.mock.calls[0][0]).toEqual({ name: 'Empanadas', active: true })
 
-    // Success closes the modal and refreshes the list.
+    // Success closes the modal and refreshes the list. El reload lo dispara un
+    // effect después de que el modal se desmonta, así que esperar sólo a que
+    // el diálogo desaparezca corre una carrera con el fetch: se esperan las
+    // dos cosas con el mismo deadline.
     const deadline = Date.now() + 2000
-    while (Date.now() < deadline && document.querySelector('[role="dialog"]')) {
+    while (
+      Date.now() < deadline &&
+      (document.querySelector('[role="dialog"]') !== null || categoryListRequests().length < 2)
+    ) {
       await new Promise((r) => setTimeout(r, 25))
     }
     expect(document.querySelector('[role="dialog"]')).toBeNull()
@@ -235,7 +245,8 @@ describe('Admin categories edit (inline rename, now discoverable)', () => {
 
 describe('Admin categories toggle (switch)', () => {
   it('renders each row toggle as a switch with aria-checked and a meaningful accessible name, and sends the target state without confirmation', async () => {
-    stubFetch()
+    const putCategory = vi.fn(() => okJson({ id: 12, name: 'Bebidas Frías', order: 2, active: true }))
+    stubFetch({ putCategory })
     const user = userEvent.setup()
     await openCategoriesView()
 
@@ -253,6 +264,12 @@ describe('Admin categories toggle (switch)', () => {
     const put = calls.find((c) => c.method === 'PUT' && /^\/api\/categorias\/\d+$/.test(c.url))
     expect(put?.url).toBe('/api/categorias/12')
     expect(put?.headers['authorization']).toBe(`Bearer ${TOKEN}`)
+
+    // El switch sólo cambia el estado. El orden lo administra el drag & drop
+    // (PUT /api/categorias/orden); mandarlo acá lo normalizaba a la posición
+    // de la fila, lo que con órdenes con huecos repite un número existente.
+    expect(putCategory.mock.calls[0][1]).toEqual({ name: 'Bebidas Frías', active: true })
+
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 })
