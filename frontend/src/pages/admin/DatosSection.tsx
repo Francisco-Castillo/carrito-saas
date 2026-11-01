@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { API, authHeader } from "./api";
 import type { BusinessProfileHook } from "./useBusinessProfile";
@@ -37,10 +37,9 @@ function UrlPreview({ url, alt }: { url: string; alt: string }) {
   const [failed, setFailed] = useState(false);
   const trimmed = url.trim();
 
-  useEffect(() => {
-    setFailed(false);
-  }, [trimmed]);
-
+  // El fallo de carga se olvida por URL: en vez de resetear el estado con un
+  // efecto, el llamador remonta la miniatura con key={url} (ver el uso), que es
+  // el reset que React soporta sin cascada de renders.
   if (!trimmed || failed) {
     return (
       <span className="admin-profile-preview admin-profile-preview--empty" aria-label={alt}>
@@ -139,7 +138,7 @@ function ImageUploadField({
   return (
     <div className="admin-profile-field">
       <span className="admin-profile-image-label">{label}</span>
-      <UrlPreview url={url} alt={`Vista previa del ${endpoint}`} />
+      <UrlPreview key={url.trim()} url={url} alt={`Vista previa del ${endpoint}`} />
       <div className="admin-profile-image-actions">
         <input
           ref={inputRef}

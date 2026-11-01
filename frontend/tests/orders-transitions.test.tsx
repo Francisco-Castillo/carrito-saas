@@ -23,7 +23,7 @@ vi.mock('@stomp/stompjs', () => ({
 }))
 
 function stubOrdersFetch(orders: unknown[]) {
-  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  return vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = String(input)
     if (url.startsWith('/api/business/orders')) {
       return { ok: true, status: 200, json: async () => orders }

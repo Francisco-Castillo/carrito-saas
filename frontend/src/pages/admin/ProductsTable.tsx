@@ -65,9 +65,12 @@ export default function ProductsTable() {
     }
   }
 
+  /* oxlint-disable react/set-state-in-effect -- el setState ocurre después del
+     `await` de la carga: la regla no analiza el límite async y marca la llamada
+     como si fuera síncrona. */
   useEffect(() => {
     void loadProducts();
-  }, []);
+  }, []);  /* oxlint-enable react/set-state-in-effect */
 
   async function toggleProduct(p: AdminProduct) {
     const activo = !p.active;

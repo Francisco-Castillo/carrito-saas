@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import Login from "./pages/Login";
 import Menu from "./pages/Menu";
 import Dashboard from "./pages/Dashboard";
@@ -14,7 +14,11 @@ import {
 } from "./pages/dashboard/auth";
 
 export default function App() {
-  const resolution: ViewResolution = resolveView(window.location.pathname);
+  // La resolución se calcula una vez por montaje: `resolveView` es pura y el
+  // path sólo cambia con una navegación (que recarga la página), así que
+  // memoizarla permite declararla como dependencia real del guard sin que el
+  // efecto se re-dispare en cada render.
+  const resolution: ViewResolution = useMemo(() => resolveView(window.location.pathname), []);
   const view = resolution.view;
 
   useEffect(() => {
@@ -32,7 +36,7 @@ export default function App() {
       hasSession: hasUsableSession(),
     });
     if (target) window.location.href = target;
-  }, [view, resolution.legacy, resolution.slug]);
+  }, [resolution]);
 
   if (view === "menu") return <Menu slug={resolution.slug} />;
   if (view === "dashboard") return <Dashboard />;

@@ -10,7 +10,7 @@
  * El desbloqueo de audio sigue (kds/audio.ts); el fullscreen automático no
  * vuelve: si la cocina lo quiere, será un control explícito.
  */
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Kds from "../src/pages/Kds";

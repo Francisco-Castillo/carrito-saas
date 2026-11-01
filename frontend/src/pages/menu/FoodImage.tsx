@@ -23,7 +23,7 @@ const GLYPH_RULES: Array<[RegExp, string]> = [
 ];
 
 /** Food glyph for the placeholder, matched from product/category wording. */
-export function glyphFor(name: string, category: string): string {
+function glyphFor(name: string, category: string): string {
   const text = `${name} ${category}`;
   for (const [pattern, glyph] of GLYPH_RULES) {
     if (pattern.test(text)) return glyph;
@@ -37,7 +37,7 @@ const TINTS = ["indigo", "violet", "fuchsia", "cyan"] as const;
  * Deterministic tint per category (stable hash of the normalized name) so the
  * placeholder panel is "category-tinted" without needing per-category config.
  */
-export function tintFor(category: string): string {
+function tintFor(category: string): string {
   const norm = category
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { KdsOrder } from "./api";
 
 /** kds.js:11 — MAX_TIME = 900 (15 min para la barra de progreso). */
@@ -67,7 +67,8 @@ export default function OrderCard({
   // fade-in únicamente a tarjetas nuevas del WS). Si no, al terminar el
   // stagger del primer paint la prop cambiaría y re-animaría todas las
   // tarjetas ya montadas.
-  const animateAtMount = useRef(animate).current;
+  // Captura del valor de la prop al montar, sin leer una ref durante el render.
+  const [animateAtMount] = useState(() => animate);
 
   /* TIEMPO TRANSCURRIDO — kds.js:141-155 */
   const created = new Date(order.createdAt);

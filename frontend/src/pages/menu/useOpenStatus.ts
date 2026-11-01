@@ -76,5 +76,7 @@ export function useOpenStatus(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hoursKey]);
 
-  return useMemo(() => getOpenStatus(hours, now, dateExceptions), [hoursKey, now]);
+  // El memo declara los datos que lee, no la clave serializada: si `hours` o
+  // `dateExceptions` cambian de identidad, el estado abierto/cerrado se recalcula.
+  return useMemo(() => getOpenStatus(hours, now, dateExceptions), [hours, now, dateExceptions]);
 }

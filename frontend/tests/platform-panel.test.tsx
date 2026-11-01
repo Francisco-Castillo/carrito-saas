@@ -195,7 +195,7 @@ describe('platform operator view', () => {
     // The row action asks for confirmation before the DELETE — the baja is
     // consequential (S3), the click-through does not happen silently.
     await user.click(within(rowOf('Local Uno')).getByRole('button', { name: /dar de baja/i }))
-    expect(fetchMock.mock.calls.some(([u, init]) => init?.method === 'DELETE')).toBe(false)
+    expect(fetchMock.mock.calls.some(([_u, init]) => init?.method === 'DELETE')).toBe(false)
 
     await user.click(screen.getByRole('button', { name: /confirmar/i }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
@@ -238,7 +238,7 @@ describe('platform operator view', () => {
     ))
 
     const putCall = fetchMock.mock.calls.find(
-      ([u, init]) => (init as RequestInit).method === 'PUT',
+      ([_u, init]) => (init as RequestInit).method === 'PUT',
     )
     expect(JSON.parse(String((putCall![1] as RequestInit).body))).toEqual({ active: true })
   })
@@ -323,7 +323,7 @@ describe('platform operator view', () => {
     ))
 
     const postCall = fetchMock.mock.calls.find(
-      ([u, init]) => String(u) === '/api/platform/clients/1000000001/password',
+      ([u, _init]) => String(u) === '/api/platform/clients/1000000001/password',
     )
     expect(JSON.parse(String((postCall![1] as RequestInit).body))).toEqual({ password: 'nueva-clave-789' })
   })
@@ -365,7 +365,7 @@ describe('platform operator view', () => {
       { username: 'owner-uno', email: 'owner-uno@test.dev', role: 'OWNER', active: true },
       { username: 'kitchen-uno', email: 'kitchen-uno@test.dev', role: 'KITCHEN', active: false },
     ]
-    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
       const u = String(url instanceof Request ? url.url : url)
       if (u === '/api/platform/clients/1000000001/users') {
         return okJson(USERS)
@@ -457,7 +457,7 @@ describe('platform operator view', () => {
     ))
 
     const postCall = fetchMock.mock.calls.find(
-      ([u, init]) => (init as RequestInit).method === 'POST',
+      ([_u, init]) => (init as RequestInit).method === 'POST',
     )
     expect(JSON.parse(String((postCall![1] as RequestInit).body))).toEqual({
       username: 'cajero-uno',
@@ -510,7 +510,7 @@ describe('platform operator view', () => {
 
     // The baja of a user is consequential: it asks for confirmation before
     // the DELETE — the click-through does not happen silently.
-    expect(fetchMock.mock.calls.some(([u, init]) => init?.method === 'DELETE')).toBe(false)
+    expect(fetchMock.mock.calls.some(([_u, init]) => init?.method === 'DELETE')).toBe(false)
 
     await user.click(within(kitchenRow).getByRole('button', { name: /confirmar/i }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
@@ -659,7 +659,7 @@ describe('platform operator view', () => {
       expect.objectContaining({ method: 'POST' }),
     ))
     const postCall = fetchMock.mock.calls.find(
-      ([u, init]) => String(u) === '/api/platform/clients/1000000001/users/kitchen-uno/password',
+      ([u, _init]) => String(u) === '/api/platform/clients/1000000001/users/kitchen-uno/password',
     )
     expect(JSON.parse(String((postCall![1] as RequestInit).body))).toEqual({ password: 'nueva-clave-789' })
   })

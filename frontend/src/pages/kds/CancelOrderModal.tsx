@@ -28,7 +28,9 @@ export default function CancelOrderModal({
   onClose,
   onCancelled,
 }: CancelOrderModalProps) {
-  const [reasons, setReasons] = useState<CancellationReason[]>([]);
+  // La cache de motivos se lee al inicializar el estado: si ya está, el
+  // primer render tiene la lista y el efecto no necesita setear nada.
+  const [reasons, setReasons] = useState<CancellationReason[]>(() => cachedReasons ?? []);
   const [reasonId, setReasonId] = useState("");
   const [note, setNote] = useState("");
   const [reasonError, setReasonError] = useState(false);
@@ -36,10 +38,7 @@ export default function CancelOrderModal({
 
   // kds.js:549-560 — showCancelModal carga los motivos una sola vez (cache).
   useEffect(() => {
-    if (cachedReasons) {
-      setReasons(cachedReasons);
-      return;
-    }
+    if (cachedReasons) return;
     loadCancellationReasons().then((loaded) => {
       cachedReasons = loaded;
       setReasons(loaded);

@@ -8,7 +8,11 @@ import { useEffect, useRef } from "react";
 export function useModalSheet<E extends HTMLElement>(onClose: () => void) {
   const ref = useRef<E | null>(null);
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  // La ref sigue al callback en un efecto: escribirla durante el render es lo
+  // que la regla de refs marca (el render no debe tener efectos).
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;

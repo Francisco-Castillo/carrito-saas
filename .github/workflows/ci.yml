@@ -77,3 +77,10 @@ jobs:
         # and the rule that no shipped client hardcodes the application origin.
         working-directory: frontend
         run: npm test
+
+      - name: Frontend lint
+        # Gate: `oxlint --deny-warnings` sale con código distinto de 0 ante
+        # cualquier advertencia, así que la deuda no puede volver a acumularse
+        # en silencio (antes `npm run lint` salía 0 con 36 advertencias).
+        working-directory: frontend
+        run: npm run lint

@@ -64,13 +64,15 @@ export function useLiveOrders(
     }, REFETCH_DEBOUNCE_MS);
   }, [loadSummary, onOrdersChanged]);
 
+  /* oxlint-disable react/set-state-in-effect -- el setState ocurre después del
+     `await` de la carga: la regla no analiza el límite async y marca la llamada
+     como si fuera síncrona. */
   useEffect(() => {
     if (!enabled) return;
 
     // El navegador bloquea autoplay antes de un gesto del usuario: mismo
     // desbloqueo que el KDS, contra el mismo <audio id="newOrderSound">.
     attachAudioUnlockListeners();
-
     void loadSummary();
 
     const slug = getSessionRestaurantSlug();
@@ -105,6 +107,7 @@ export function useLiveOrders(
       setLive(false);
     };
   }, [enabled, loadSummary, scheduleRefresh]);
+  /* oxlint-enable react/set-state-in-effect */
 
   return { activeCount, live };
 }
