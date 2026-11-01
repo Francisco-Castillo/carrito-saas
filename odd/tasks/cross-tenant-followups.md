@@ -155,10 +155,24 @@ L6: **Corrección de la evidencia de conteo (2026-11-01, post-PR).** L5 registra
     Causa: la clase está anotada `@EnabledIf("spaEntryPresent")`, que chequea
     `static/admin/admin.html`. Ese bundle **no se commitea** (`git ls-tree
     b3fbf20 -- api/src/main/resources/static` sólo trae `favicon.ico`) pero el CI
-    lo construye con el perfil `frontend` de `api/pom.xml`. En un worktree nuevo
-    el bundle no existe, la clase queda deshabilitada, surefire registra los **4
-    métodos** como skipped y **no expande los 17 casos `@ParameterizedTest`**.
-    De ahí 516 − 499 = 17.
+    lo construye con `-Pfrontend` (`ci.yml:66`; el `exec-maven-plugin` de
+    `api/pom.xml` corre `npm ci` + `npm run build:spring` en
+    `generate-resources`).
+
+    El reparto exacto, que importa porque el reporte de skips **subestima** la
+    pérdida:
+
+    - **Habilitada** (bundle presente): 1 `@Test` + **20 casos** de los 3
+      `@ParameterizedTest` (`@ValueSource` de 12 + 2 + 6 paths) = **21
+      ejecuciones**.
+    - **Deshabilitada** (sin bundle): surefire anota **4 placeholders** — uno por
+      método — y no expande ningún caso parameterized.
+
+    Delta = 21 − 4 = **17** = `516 − 499`. Se pierden **21 ejecuciones** y el
+    reporte muestra **4**, así que la falta de cobertura se ve cuatro veces más
+    chica de lo que es. Decir "no expande los 17 casos" sería impreciso: los
+    casos perdidos son 20 y 17 es la diferencia de totales. (Corrección de
+    redacción aportada por la sesión par, que midió lo mismo de su lado.)
 
     **Regla para adelante:** un conteo de tests en este repo es una medición de
     entorno, no de código. Sin el bundle del frontend, `mvn verify` da 499 y no
