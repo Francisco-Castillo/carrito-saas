@@ -118,7 +118,9 @@ export default function SalesByDayChart({ data, prevData, loading = false, error
       chartRef.current?.destroy();
       chartRef.current = null;
     };
-  }, [data]);
+    // `prevData` se usa para la serie comparativa: si cambia, el gráfico hay que
+    // reconstruirlo igual que con `data`.
+  }, [data, prevData]);
 
   const variation = data && prevData ? weekVariation(data, prevData) : null;
 

@@ -117,11 +117,13 @@ export function useOrdersFeed(
     }, 250);
   }, [refresh]);
 
+  /* oxlint-disable react/set-state-in-effect -- el setState ocurre después del
+     `await` de la carga: la regla no analiza el límite async y marca la llamada
+     como si fuera síncrona. */
   useEffect(() => {
     if (!enabled || !slug) return;
 
     void refresh(); // carga inicial, equivalente al loadOrders() del KDS
-
     const client = new Client({
       webSocketFactory: () => {
         const proto = window.location.protocol === "https:" ? "wss" : "ws";
@@ -153,6 +155,7 @@ export function useOrdersFeed(
       setLive(false);
     };
   }, [enabled, slug, refresh, scheduleRefresh]);
+  /* oxlint-enable react/set-state-in-effect */
 
   // Más nuevos primero: la consola revisa el día completo, no una cola de
   // cocina — el pedido recién entrado es el que hay que atender primero.

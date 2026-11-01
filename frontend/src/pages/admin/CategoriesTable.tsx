@@ -93,9 +93,13 @@ export default function CategoriesTable({ refreshKey }: CategoriesTableProps) {
     }
   }
 
+  /* oxlint-disable react/set-state-in-effect -- el primer setState ocurre después
+     del `await fetch` dentro de loadCategories: la regla no analiza el límite async
+     y marca la llamada como si fuera síncrona. */
   useEffect(() => {
     void loadCategories();
   }, [refreshKey]);
+  /* oxlint-enable react/set-state-in-effect */
 
   async function deleteCategory(c: AdminCategory) {
     const ok = await confirmAsync(`¿Seguro que deseas eliminar la categoría "${c.name}"?`);

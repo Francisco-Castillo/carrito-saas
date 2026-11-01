@@ -177,24 +177,24 @@ export default function ComboModal({ combo, onClose, onSaved }: ComboModalProps)
     };
   }, []);
 
-  useEffect(() => {
-    // Prefill de items UNA vez que la lista de productos está disponible:
+  // Prefill de items UNA vez que la lista de productos está disponible:
     // el cruce es EXCLUSIVAMENTE por productId, que el backend manda siempre
     // (ComboItemDTO desde admin-combo-item-product-id). Un item sin id no se
     // adivina por nombre: con nombres repetidos el pick silencioso puede
     // caer en el producto equivocado y el operador no se enteraría. La fila
     // nace vacía y el operador elige.
-    if (prefilled || products.length === 0 || !combo?.items?.length) return;
-    const seeded: PickerRow[] = [];
-    for (const item of combo.items) {
-      seeded.push({
+  //
+  // Ajuste durante el render (patrón documentado de React para esto) con el
+  // guard `prefilled`: se siembra una sola vez, cuando el catálogo llegó.
+  if (!prefilled && products.length > 0 && combo?.items?.length) {
+    setPrefilled(true);
+    setRows(
+      combo.items.map((item) => ({
         productId: item.productId != null ? String(item.productId) : "",
         quantity: String(item.quantity ?? 1),
-      });
-    }
-    setRows(seeded);
-    setPrefilled(true);
-  }, [products, combo, prefilled]);
+      })),
+    );
+  }
 
   function hasError(value: string): boolean {
     return missingFields && value.trim() === "";

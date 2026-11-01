@@ -46,7 +46,10 @@ export function useDashboardData(enabled: boolean) {
   const [salesPrevWeek, setSalesPrevWeek] = useState<SalesByDay[] | null>(null);
   const [trendsUp, setTrendsUp] = useState<ProductTrend[]>([]);
   const [trendsDown, setTrendsDown] = useState<ProductTrend[]>([]);
-  const [date, setDate] = useState("");
+  // La fecha es "hoy" en formato local: se calcula una vez por montaje en el
+  // inicializador perezoso, sin efecto y sin recalcularla en cada render
+  // (`new Date()` no es puro, así que no va en un useMemo).
+  const [date] = useState(() => new Date().toLocaleDateString("es-ES"));
 
   // Primera carga: los skeletons están arriba hasta que la tanda inicial
   // termina (bien o mal). Los refetch del auto-refresh NO muestran skeletons:
@@ -65,8 +68,6 @@ export function useDashboardData(enabled: boolean) {
     if (!enabled) return;
 
     checkAuth();
-
-    setDate(new Date().toLocaleDateString("es-ES"));
   }, [enabled]);
 
   const loadAll = useCallback(() => {
@@ -101,8 +102,6 @@ export function useDashboardData(enabled: boolean) {
     if (!enabled) return;
 
     checkAuth();
-
-    setDate(new Date().toLocaleDateString("es-ES"));
 
     loadAll();
 

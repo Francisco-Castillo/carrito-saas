@@ -19,7 +19,7 @@
  *   - El campo de hex sólo emite onChange con un valor #RRGGBB completo y
  *     válido; mientras se tipea, el estado del perfil no se toca.
  */
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { ChangeEvent, PointerEvent as ReactPointerEvent } from "react";
 import { hexToHsv, hsvToHex } from "./colorPicker";
 
@@ -41,21 +41,25 @@ export default function ColorPicker({
 }) {
   const [hsv, setHsv] = useState<HsvState>(() => hexToHsv(value) ?? { h: 0, s: 1, v: 1 });
   const [text, setText] = useState(value);
+  const [syncedValue, setSyncedValue] = useState(value);
   const areaRef = useRef<HTMLDivElement>(null);
 
   // Resincronización externa: si la prop trae un hex que NO es el que estamos
   // mostrando (carga del perfil, swatch elegido, "Quitar color"), el HSV
   // interno y el texto siguen al valor. Durante un drag propio el hex emitido
-  // coincide con el representado y este guard no hace nada.
-  useEffect(() => {
+  // coincide con el representado y este guard no hace nada. Se ajusta DURANTE
+  // el render (patrón que React documenta para estado derivado de props) en vez
+  // de en un efecto: sin cascada y sin un paint con el valor viejo.
+  if (value !== syncedValue) {
+    setSyncedValue(value);
     setText(value);
     const parsed = hexToHsv(value);
-    setHsv((prev) =>
-      parsed && hsvToHex(prev.h, prev.s, prev.v).toUpperCase() !== value.toUpperCase()
-        ? parsed
-        : prev,
-    );
-  }, [value]);
+    if (parsed) {
+      setHsv((prev) =>
+        hsvToHex(prev.h, prev.s, prev.v).toUpperCase() !== value.toUpperCase() ? parsed : prev,
+      );
+    }
+  }
 
   /** Traduce un punto de la región SV a s/v (con clamp) y emite el hex. */
   function applyPointer(clientX: number, clientY: number) {
