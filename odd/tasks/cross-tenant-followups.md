@@ -259,3 +259,11 @@ L8: **Refinamiento post-merge del guard** (`docs/spa-bundle-setup`), a partir de
     agujero (nada obliga a la próxima clase a usarlo), es abstracción para un
     solo llamador, y el día que exista la segunda clase la extracción es
     mecánica con dos llamadores reales en vez de uno hipotético.
+
+    **Límite de la guarda, que no hay que confundir.** El artefacto que la guarda
+    verifica vive en `api/src/main/resources/static/admin/admin.html`, que está
+    **gitignoreado**: sólo `favicon.ico` está trackeado bajo `static/`. Por eso la
+    guarda depende de estado local que ningún commit garantiza. Es una **falla
+    ruidosa**, no una prueba de que el entorno sea reproducible: sirve para no
+    perder 21 ejecuciones sin enterarse, **no** para certificar cobertura. El único
+    entorno autoritativo sigue siendo CI.
