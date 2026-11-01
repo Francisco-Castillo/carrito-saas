@@ -44,7 +44,11 @@ public class CategoryServiceImpl implements ICategoryService {
 		if (dto.getName() == null || dto.getName().isBlank())
 			throw new BusinessException("El nombre de la categoría es obligatorio", ErrorType.VALIDATION);
 
-		Business business = businessRepository.findById(businessId)
+		// El negocio se toma para escritura: el lugar de la categoría sale de
+		// max(orden) + 1 y ese cálculo tiene que estar serializado por negocio,
+		// o dos altas concurrentes empatan (ver findByIdForUpdate y
+		// CategoryCreateSerializationTests).
+		Business business = businessRepository.findByIdForUpdate(businessId)
 				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 		String normalizedName = dto.getName().trim();
