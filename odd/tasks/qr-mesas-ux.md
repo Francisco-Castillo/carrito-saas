@@ -114,6 +114,31 @@ Se reescribió la pestaña para que el dueño entienda sin leer código ni proba
   el bloque de impresión se oculta si no hay mesas vivas. Specs S7/S8 (RED
   2 fallas → GREEN 21/21 en la pestaña). ✅
 
+## Deuda de la revisión (cerrada)
+
+Los hallazgos informativos de los slices 2 y 3, resueltos después con tests:
+
+| Hallazgo | Severidad | Resolución |
+| --- | --- | --- |
+| `R3-config-ignored` (Grid4 ignoraba el DTO) | CRITICAL | corregido en `376bd75` |
+| `R3-bulk-semantics-change` | WARNING | esperado: es el cambio pedido, documentado con sus tests |
+| `R3-bulk-unvalidated-quantity` | SUGGESTION | guard en `generateBulk` (null o `< 1` → VALIDATION); la capa HTTP ya validaba 1..300 |
+| `R3-concurrent-bulk` | WARNING | `businessRepository.findByIdForUpdate` serializa la asignación + `TableBulkSerializationTests` (sostiene la fila del negocio desde otra conexión; RED volviendo a `findById`) |
+| `R2-describe-created-magic-six` | SUGGESTION | constante `MAX_RANGE_LISTED` |
+| `R2-planned-numbers-implicit-contract`, `R3-plan-contract` | WARNING x2 | helper `nextTableNumbers()` con el contrato del backend escrito en el doc comment |
+| `R2-preview-urls-no-revoke`, `R3-blob-leak` | WARNING x2 | registro de object URLs: revoke en unmount y al reemplazar una vista previa |
+| `R3-stale-preview` | WARNING | token por pedido: una respuesta tardía se descarta antes de crear el object URL |
+| `R3-page-cap` | WARNING | `fetchAllTables()` pagina hasta `totalPages` (tope defensivo de 100 páginas) |
+| `R3-disabled-order-branch-only` | SUGGESTION | por diseño: RETIRO/DELIVERY ignoran `tableId`, ya documentado en el código |
+
+Queda sin test dedicado un solo caso: el revoke de la vista previa al
+reemplazarse es inalcanzable desde la interfaz (la caché por mesa evita el
+reemplazo); el revoke de unmount sí está cubierto.
+
+Nota de los tests del frontend: `vi.stubGlobal('URL.createObjectURL', …)` no
+reemplaza la propiedad anidada — el stub previo era inerte y los tests pasaban
+por el camino real de Node. Ahora usan `vi.spyOn` con `vi.restoreAllMocks()`.
+
 ## Commits
 
 | Slice | Commit | Contenido |
@@ -123,6 +148,9 @@ Se reescribió la pestaña para que el dueño entienda sin leer código ni proba
 | 3 | `25cf740` | `feat(frontend)`: pestaña QR y mesas — componente, estilos y specs (T1, T2, T3, T6, T8, T12) |
 | 4 | `f354b37` | `docs(odd)`: esta ficha |
 | 5 | `376bd75` | `fix(service)`: corrección del hallazgo R3 (el template 4×4 honra el DTO) |
+| 6 | `46e67e3` | `docs(odd)`: el hallazgo y su corrección |
+| 7 | `9bfe696` | `docs(odd)`: resultado de la revisión por slice |
+| 8 | (deudas) | `fix(service)`: serialización del alta + `fix(frontend)`: robustez de la pestaña + `docs(odd)`: esta tabla |
 
 Frontera de slices: la rama `worktree/quiet-field-ddd5` acumula 113 commits
 previos ajenos a esta feature (`origin/main..HEAD`); lo de acá son los cuatro de
