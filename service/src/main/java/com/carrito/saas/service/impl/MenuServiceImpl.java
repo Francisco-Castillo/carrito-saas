@@ -28,6 +28,7 @@ import com.carrito.saas.repository.entity.Category;
 import com.carrito.saas.repository.entity.Combo;
 import com.carrito.saas.repository.entity.Product;
 import com.carrito.saas.repository.entity.RestaurantTable;
+import com.carrito.saas.repository.enums.TableStatus;
 import com.carrito.saas.repository.jpa.BusinessDateExceptionRepository;
 import com.carrito.saas.repository.jpa.BusinessHoursRepository;
 import com.carrito.saas.repository.jpa.BusinessRepository;
@@ -98,6 +99,13 @@ public class MenuServiceImpl implements IMenuService {
 		RestaurantTable table = tableRepository
 				.findByIdAndBusinessId(tableId, business.getId())
 				.orElseThrow(() -> new BusinessException("Mesa no encontrada", ErrorType.NOT_FOUND));
+
+		// Baja lógica de la mesa: el panel promete "Su QR dejará de
+		// funcionar" al eliminarla. Mismo 404 y mismo mensaje que un id
+		// desconocido, para no filtrar si la mesa existió.
+		if (table.getStatus() == TableStatus.DISABLED) {
+			throw new BusinessException("Mesa no encontrada", ErrorType.NOT_FOUND);
+		}
 
 		return MenuTableDTO.builder()
 				.id(table.getId())

@@ -3,7 +3,9 @@ package com.carrito.saas.service.impl;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -81,11 +83,15 @@ public class TableServiceImpl implements ITableService {
 	public byte[] generatePdfAll(QrPdfRequestDTO config) {
 		Long businessId = securityService.getCurrentBusinessId();
 
-		List<RestaurantTable> tables = tableRepository.findByBusinessId(businessId);
+		// Una mesa dada de baja ya no existe públicamente (su QR responde 404),
+		// así que tampoco entra en el PDF: imprimir su código sería entregarle
+		// al dueño un QR muerto sin aviso.
+		List<RestaurantTable> tables = tableRepository.findByBusinessId(businessId).stream()
+				.filter(table -> table.getStatus() != TableStatus.DISABLED)
+				.toList();
 
 		if (tables.isEmpty()) {
-
-			// throw new BusinessException("No tables configured");
+			throw new BusinessException("No hay mesas activas para generar el PDF", ErrorType.NOT_FOUND);
 		}
 
 		return qrPdfService.generateTablesPdf(tables,config);
@@ -154,26 +160,43 @@ public class TableServiceImpl implements ITableService {
 		Business business = businessRepository.findById(businessId)
 				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
+		// quantity son mesas NUEVAS y toman los números LIBRES más bajos: los
+		// que dejó una mesa dada de baja (la baja es soft delete, la fila sigue
+		// existiendo para el historial) o cualquier hueco de numeración. Si no
+		// hay huecos, la numeración sigue después de la más alta. Antes se
+		// completaba 1..N salteando las existentes, así que con Mesa 1..12 pedir
+		// 3 no creaba nada; y numerar siempre después de la última dejaba al
+		// dueño con Mesa 1, 3, 4 sin forma de recuperar la 2.
+		List<RestaurantTable> existingTables = tableRepository.findByBusinessId(businessId);
+
+		Set<Integer> numbersInUse = existingTables.stream()
+				.filter(table -> table.getStatus() != TableStatus.DISABLED)
+				.map(RestaurantTable::getTableNumber)
+				.filter(number -> number != null)
+				.collect(Collectors.toSet());
+
+		List<Integer> newNumbers = new ArrayList<>();
+
+		for (int candidate = 1; newNumbers.size() < request.getQuantity(); candidate++) {
+			if (!numbersInUse.contains(candidate)) {
+				newNumbers.add(candidate);
+			}
+		}
+
 		List<RestaurantTable> tables = new ArrayList<>();
 
-		for (int i = 1; i <= request.getQuantity(); i++) {
-
-			if (tableRepository.existsByBusinessIdAndTableNumber(businessId, i)) {
-
-				continue;
-			}
+		for (int tableNumber : newNumbers) {
 
 			RestaurantTable table = new RestaurantTable();
 
 			table.setBusiness(business);
-			table.setTableNumber(i);
-			table.setTableName("Mesa " + i);
+			table.setTableNumber(tableNumber);
+			table.setTableName("Mesa " + tableNumber);
 			table.setQrToken(UUID.randomUUID().toString());
 
 			table.setStatus(TableStatus.AVAILABLE);
 
 			table.setCreatedAt(LocalDateTime.now());
-
 			table.setUpdatedAt(LocalDateTime.now());
 
 			tables.add(table);
@@ -183,7 +206,6 @@ public class TableServiceImpl implements ITableService {
 
 		return tables.stream().map(this::buildResponse).toList();
 	}
-
 	@Override
 	public Page<TableResponseDTO> findAll(Pageable pageable) {
 		Long businessId = securityService.getCurrentBusinessId();
@@ -207,9 +229,15 @@ public class TableServiceImpl implements ITableService {
 				.orElseThrow(() -> new BusinessException("Mesa no encontrada", ErrorType.NOT_FOUND));
 	}
 
+	/**
+	 * Un número está tomado sólo si lo usa una mesa VIVA: la baja es soft
+	 * delete, así que una mesa dada de baja conserva su fila (historial y QR
+	 * viejo) pero libera su número, igual que en el alta por lote.
+	 */
 	private void validateTableNumber(Long businessId, Integer tableNumber) {
 
-		if (tableRepository.existsByBusinessIdAndTableNumber(businessId, tableNumber)) {
+		if (tableRepository.existsByBusinessIdAndTableNumberAndStatusNot(
+				businessId, tableNumber, TableStatus.DISABLED)) {
 
 			throw new BusinessException("Ya existe una mesa con ese número", ErrorType.CONFLICT);
 		}
@@ -217,7 +245,8 @@ public class TableServiceImpl implements ITableService {
 
 	private void validateUpdateTableNumber(Long businessId, Integer tableNumber, Long tableId) {
 
-		if (tableRepository.existsByBusinessIdAndTableNumberAndIdNot(businessId, tableNumber, tableId)) {
+		if (tableRepository.existsByBusinessIdAndTableNumberAndIdNotAndStatusNot(
+				businessId, tableNumber, tableId, TableStatus.DISABLED)) {
 
 			throw new BusinessException("Ya existe una mesa con ese número", ErrorType.CONFLICT);
 		}

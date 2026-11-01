@@ -33,6 +33,7 @@ import com.carrito.saas.repository.entity.RestaurantTable;
 import com.carrito.saas.repository.enums.OrderStatus;
 import com.carrito.saas.repository.enums.PaymentMethod;
 import com.carrito.saas.repository.enums.OrderType;
+import com.carrito.saas.repository.enums.TableStatus;
 import com.carrito.saas.repository.jpa.BusinessRepository;
 import com.carrito.saas.repository.jpa.CancellationReasonRepository;
 import com.carrito.saas.repository.jpa.ComboRepository;
@@ -173,6 +174,13 @@ public class OrderServiceImpl implements IOrderService {
 			RestaurantTable table = tableRepository
 					.findByIdAndBusinessId(request.getTableId(), business.getId())
 					.orElseThrow(() -> new BusinessException("Mesa no encontrada", ErrorType.NOT_FOUND));
+
+			// Baja lógica de la mesa: el mismo 404 que un id desconocido, así
+			// el QR de una mesa eliminada deja de tomar pedidos sin filtrar
+			// que existió.
+			if (table.getStatus() == TableStatus.DISABLED) {
+				throw new BusinessException("Mesa no encontrada", ErrorType.NOT_FOUND);
+			}
 
 			order.setRestaurantTable(table);
 		}

@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.carrito.saas.repository.entity.RestaurantTable;
+import com.carrito.saas.repository.enums.TableStatus;
 
 @Repository
 public interface TableRepository extends JpaRepository<RestaurantTable, Long> {
@@ -21,14 +22,17 @@ public interface TableRepository extends JpaRepository<RestaurantTable, Long> {
             Long id,
             Long businessId);
 
-    boolean existsByBusinessIdAndTableNumber(
-            Long businessId,
-            Integer tableNumber);
-
-    boolean existsByBusinessIdAndTableNumberAndIdNot(
+    /** Número ocupado por una mesa VIVA (una dada de baja libera su número). */
+    boolean existsByBusinessIdAndTableNumberAndStatusNot(
             Long businessId,
             Integer tableNumber,
-            Long id);
+            TableStatus status);
+
+    boolean existsByBusinessIdAndTableNumberAndIdNotAndStatusNot(
+            Long businessId,
+            Integer tableNumber,
+            Long id,
+            TableStatus status);
 
     Page<RestaurantTable> findByBusinessId(
             Long businessId,
