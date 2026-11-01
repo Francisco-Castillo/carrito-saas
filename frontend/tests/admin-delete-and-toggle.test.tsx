@@ -147,6 +147,13 @@ describe('Admin category delete', () => {
     const del = calls.find((c) => c.method === 'DELETE')
     expect(del?.url).toBe('/api/categorias/11')
     expect(del?.headers['authorization']).toBe(`Bearer ${TOKEN}`)
+
+    // El reload lo dispara el handler async después del DELETE: se espera el
+    // segundo GET con deadline en vez de asertarlo de inmediato.
+    const deadline = Date.now() + 2000
+    while (Date.now() < deadline && listRequests('/api/categorias/todas').length < 2) {
+      await new Promise((r) => setTimeout(r, 25))
+    }
     expect(listRequests('/api/categorias/todas').length).toBeGreaterThanOrEqual(2)
   })
 

@@ -181,9 +181,15 @@ describe('Admin categories create', () => {
     expect(postCategory).toHaveBeenCalledTimes(1)
     expect(postCategory.mock.calls[0][0]).toEqual({ name: 'Empanadas', active: true })
 
-    // Success closes the modal and refreshes the list.
+    // Success closes the modal and refreshes the list. El reload lo dispara un
+    // effect después de que el modal se desmonta, así que esperar sólo a que
+    // el diálogo desaparezca corre una carrera con el fetch: se esperan las
+    // dos cosas con el mismo deadline.
     const deadline = Date.now() + 2000
-    while (Date.now() < deadline && document.querySelector('[role="dialog"]')) {
+    while (
+      Date.now() < deadline &&
+      (document.querySelector('[role="dialog"]') !== null || categoryListRequests().length < 2)
+    ) {
       await new Promise((r) => setTimeout(r, 25))
     }
     expect(document.querySelector('[role="dialog"]')).toBeNull()
