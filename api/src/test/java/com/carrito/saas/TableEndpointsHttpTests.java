@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -22,6 +23,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.io.IOException;
+import java.util.List;
+
 import jakarta.persistence.EntityManager;
 
 import com.carrito.saas.repository.entity.RestaurantTable;
@@ -37,6 +41,8 @@ import com.carrito.saas.repository.entity.Role;
 import com.carrito.saas.repository.entity.User;
 import com.carrito.saas.security.JwtUtil;
 import com.jayway.jsonpath.JsonPath;
+import com.lowagie.text.pdf.PdfReader;
+import com.lowagie.text.pdf.parser.PdfTextExtractor;
 
 /**
  * Wiring contract of the table endpoints the class javadoc declares
@@ -207,13 +213,14 @@ class TableEndpointsHttpTests {
 	}
 
 	// ==================================================================
-	// POST /api/tables/bulk: creates N, rerun fills the gaps only
+	// POST /api/tables/bulk: agrega N mesas NUEVAS, numeradas a
+	// continuación de la más alta que ya tiene el local
 	// ==================================================================
 
 	@Test
-	void bulkCreatesRequestedTablesAndRerunDoesNotDuplicate() throws Exception {
+	void bulkAddsRequestedNewTablesContinuingTheNumbering() throws Exception {
 
-		String first = mockMvc.perform(post("/api/tables/bulk")
+		mockMvc.perform(post("/api/tables/bulk")
 						.header(HttpHeaders.AUTHORIZATION, ownerToken())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -222,36 +229,220 @@ class TableEndpointsHttpTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(3))
 				.andExpect(jsonPath("$[0].tableNumber").value(1))
-				.andExpect(jsonPath("$[2].tableNumber").value(3))
-				.andReturn()
-				.getResponse()
-				.getContentAsString();
+				.andExpect(jsonPath("$[2].tableNumber").value(3));
 
 		assertEquals(3, tableRepository.findByBusinessId(BUSINESS_ID).size(),
-				"bulk with quantity 3 must persist 3 tables");
+				"the first bulk must persist exactly the 3 requested tables");
 
-		String second = mockMvc.perform(post("/api/tables/bulk")
+		// quantity es cuántas se AGREGAN, no el total que debería existir:
+		// con Mesa 1..3 ocupadas, pedir 2 crea Mesa 4 y Mesa 5 (antes pedir
+		// "2" no creaba nada, y pedir "5" creaba 2, que es lo que confundía
+		// al dueño en la UI).
+		mockMvc.perform(post("/api/tables/bulk")
+						.header(HttpHeaders.AUTHORIZATION, ownerToken())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{ "quantity": 2 }
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(2))
+				.andExpect(jsonPath("$[0].tableNumber").value(4))
+				.andExpect(jsonPath("$[1].tableNumber").value(5));
+
+		var numbers = tableRepository.findByBusinessId(BUSINESS_ID).stream()
+				.map(RestaurantTable::getTableNumber)
+				.sorted()
+				.toList();
+
+		assertEquals(5, numbers.size(), "3 + 2 new tables must persist 5 tables, got " + numbers);
+		assertEquals(List.of(1, 2, 3, 4, 5), numbers,
+				"every bulk must number its new tables after the highest existing one, got " + numbers);
+	}
+
+	@Test
+	void bulkReusesTheNumberFreedByADeletedTable() throws Exception {
+
+		mockMvc.perform(post("/api/tables/bulk")
+						.header(HttpHeaders.AUTHORIZATION, ownerToken())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{ "quantity": 3 }
+								"""))
+				.andExpect(status().isOk());
+
+		// Baja de la mesa del medio: es soft delete (status DISABLED), la fila
+		// sobrevive para el historial de pedidos y para no romper el QR ya
+		// impreso, pero su NÚMERO vuelve a estar libre.
+		long deletedId = tableRepository.findByBusinessId(BUSINESS_ID).stream()
+				.filter(table -> table.getTableNumber() == 2)
+				.findFirst()
+				.orElseThrow()
+				.getId();
+
+		mockMvc.perform(delete("/api/tables/" + deletedId)
+						.header(HttpHeaders.AUTHORIZATION, ownerToken()))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(post("/api/tables/bulk")
+						.header(HttpHeaders.AUTHORIZATION, ownerToken())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{ "quantity": 1 }
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].tableNumber").value(2));
+
+		var liveTables = tableRepository.findByBusinessId(BUSINESS_ID).stream()
+				.filter(table -> table.getStatus() != TableStatus.DISABLED)
+				.toList();
+
+		assertEquals(3, liveTables.size(), "the local must keep 3 usable tables");
+
+		var newNumberTwo = liveTables.stream()
+				.filter(table -> table.getTableNumber() == 2)
+				.findFirst()
+				.orElseThrow();
+
+		assertTrue(!newNumberTwo.getId().equals(deletedId),
+				"the reused number must belong to the NEW row, not to the deleted one");
+	}
+
+	@Test
+	void bulkFillsGapsBeforeExtendingTheNumbering() throws Exception {
+
+		mockMvc.perform(post("/api/tables/bulk")
 						.header(HttpHeaders.AUTHORIZATION, ownerToken())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{ "quantity": 5 }
 								"""))
+				.andExpect(status().isOk());
+
+		// Se dan de baja la 2 y la 4: quedan vivas 1, 3 y 5.
+		for (int number : new int[] { 2, 4 }) {
+
+			long id = tableRepository.findByBusinessId(BUSINESS_ID).stream()
+					.filter(table -> table.getTableNumber() == number)
+					.findFirst()
+					.orElseThrow()
+					.getId();
+
+			mockMvc.perform(delete("/api/tables/" + id)
+							.header(HttpHeaders.AUTHORIZATION, ownerToken()))
+					.andExpect(status().isOk());
+		}
+
+		// Dos nuevas: toman los huecos 2 y 4, no 6 y 7. La numeración del local
+		// vuelve a ser contigua 1..5 sin que el dueño tenga que renombrar nada.
+		mockMvc.perform(post("/api/tables/bulk")
+						.header(HttpHeaders.AUTHORIZATION, ownerToken())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{ "quantity": 2 }
+								"""))
 				.andExpect(status().isOk())
-				// 1..3 already exist: only 4 and 5 are new.
 				.andExpect(jsonPath("$.length()").value(2))
-				.andExpect(jsonPath("$[0].tableNumber").value(4))
-				.andExpect(jsonPath("$[1].tableNumber").value(5))
+				.andExpect(jsonPath("$[0].tableNumber").value(2))
+				.andExpect(jsonPath("$[1].tableNumber").value(4));
+	}
+	// ==================================================================
+	// GET /api/tables/qr/pdf: el PDF no imprime QRs de mesas dadas de baja
+	// ==================================================================
+
+	@Test
+	void allTablesPdfSkipsDeletedTables() throws Exception {
+
+		createTable(1, "Mesa 1");
+		long deletedId = createTable(2, "Mesa 2");
+		createTable(3, "Mesa 3");
+
+		mockMvc.perform(delete("/api/tables/" + deletedId)
+						.header(HttpHeaders.AUTHORIZATION, ownerToken()))
+				.andExpect(status().isOk());
+
+		byte[] pdf = mockMvc.perform(get("/api/tables/qr/pdf")
+						.header(HttpHeaders.AUTHORIZATION, ownerToken())
+						.param("template", "SINGLE"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.APPLICATION_PDF))
 				.andReturn()
 				.getResponse()
-				.getContentAsString();
+				.getContentAsByteArray();
 
-		var numbers = tableRepository.findByBusinessId(BUSINESS_ID).stream()
-				.map(RestaurantTable::getTableNumber)
-				.toList();
+		String text = extractPdfText(pdf);
 
-		assertEquals(5, numbers.size(), "rerunning bulk must not duplicate existing numbers");
-		assertTrue(numbers.stream().distinct().count() == numbers.size(),
-				"table numbers must be unique within the business, got " + numbers);
+		assertTrue(text.contains("Mesa1") && text.contains("Mesa3"),
+				"the live tables must be printed, got " + text);
+		assertTrue(!text.contains("Mesa2"),
+				"a deleted table's QR must not be printed: its QR no longer works, got " + text);
+	}
+
+	@Test
+	void allTablesPdfWithoutLiveTablesAnswers404() throws Exception {
+
+		long onlyTableId = createTable(1, "Mesa 1");
+
+		mockMvc.perform(delete("/api/tables/" + onlyTableId)
+						.header(HttpHeaders.AUTHORIZATION, ownerToken()))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(get("/api/tables/qr/pdf")
+						.header(HttpHeaders.AUTHORIZATION, ownerToken())
+						.param("template", "SINGLE"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.message").value("No hay mesas activas para generar el PDF"));
+	}
+
+	/** Texto del PDF con TODO el espaciado quitado: "Mesa 1" queda "Mesa1". */
+	private String extractPdfText(byte[] pdf) throws IOException {
+
+		StringBuilder text = new StringBuilder();
+
+		try (PdfReader reader = new PdfReader(pdf)) {
+			PdfTextExtractor extractor = new PdfTextExtractor(reader);
+			for (int page = 1; page <= reader.getNumberOfPages(); page++) {
+				text.append(extractor.getTextFromPage(page));
+			}
+		}
+
+		return text.toString().replaceAll("\\s+", "");
+	}
+
+	// ==================================================================
+	// Número liberado por una baja: sirve para crear y para renombrar
+	// ==================================================================
+
+	@Test
+	void deletedTableNumberIsFreeForCreateAndUpdate() throws Exception {
+
+		long deletedId = createTable(1, "Mesa 1");
+		long otherId = createTable(3, "Mesa 3");
+
+		mockMvc.perform(delete("/api/tables/" + deletedId)
+						.header(HttpHeaders.AUTHORIZATION, ownerToken()))
+				.andExpect(status().isOk());
+
+		// Crear con el número que liberó la baja: antes era 409 porque la fila
+		// dada de baja seguía "ocupando" el 1.
+		mockMvc.perform(post("/api/tables")
+						.header(HttpHeaders.AUTHORIZATION, ownerToken())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{ "tableNumber": 1, "tableName": "Mesa 1" }
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.tableNumber").value(1));
+
+		// Y renombrar a un hueco libre: la Mesa 3 pasa a ser la Mesa 2.
+		mockMvc.perform(put("/api/tables/" + otherId)
+						.header(HttpHeaders.AUTHORIZATION, ownerToken())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{ "tableNumber": 2, "tableName": "Mesa 2", "status": "AVAILABLE" }
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.tableNumber").value(2));
 	}
 
 	// ==================================================================

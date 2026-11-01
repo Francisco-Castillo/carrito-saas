@@ -47,6 +47,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * a mesa).</li>
  * <li>SALON with a table of ANOTHER business must not resolve: 404, without
  * leaking that the table exists elsewhere.</li>
+ * <li>SALON with a DISABLED (soft-deleted) table of the owning business must
+ * not resolve either: the same 404 "Mesa no encontrada", and no order is
+ * persisted — the deleted table's QR must stop taking orders.</li>
  * <li>RETIRO (and DELIVERY) ignore any tableId: no table is ever set on the
  * order.</li>
  * <li>SALON with the business's own table sets it, and the created-order
@@ -154,6 +157,18 @@ class SalonOrderTableTests {
 		return tableRepository.saveAndFlush(table).getId();
 	}
 
+	/**
+	 * Mesa con baja lógica (soft delete del panel): su QR impreso debe dejar
+	 * de funcionar, igual que una mesa que no existe.
+	 */
+	private long seedDisabledTable(String slug, int number) {
+		long id = seedTable(slug, number);
+		RestaurantTable table = tableRepository.findById(id).orElseThrow();
+		table.setStatus(TableStatus.DISABLED);
+		tableRepository.saveAndFlush(table);
+		return id;
+	}
+
 	private ResultActions createOrder(String slug, String orderType, Long tableId) throws Exception {
 		return createOrderRaw(slug, orderType, tableId,
 				"\"customerName\": \"Cliente Salón\",\n\t\t\t  ");
@@ -201,6 +216,25 @@ class SalonOrderTableTests {
 		createOrder(SLUG_A, "SALON", foreignTableId)
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.message").value("Mesa no encontrada"));
+	}
+
+	// ------------------------------------------------------------------
+	// SALON rejects a DISABLED (soft-deleted) table: 404, nothing persisted
+	// ------------------------------------------------------------------
+
+	@Test
+	void salonOrderWithDisabledTableIsRejectedWithoutPersisting() throws Exception {
+
+		long disabledTableId = seedDisabledTable(SLUG_A, 4);
+
+		long ordersBefore = orderRepository.count();
+
+		createOrder(SLUG_A, "SALON", disabledTableId)
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.message").value("Mesa no encontrada"));
+
+		// Nada persistido: la mesa eliminada no puede seguir tomando pedidos.
+		assertThat(orderRepository.count()).as("ninguna orden nueva").isEqualTo(ordersBefore);
 	}
 
 	// ------------------------------------------------------------------

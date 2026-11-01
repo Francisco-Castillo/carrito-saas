@@ -48,6 +48,10 @@ import com.carrito.saas.security.JwtUtil;
  * <li>the table of a DEACTIVATED business answers 404 — baja lógica (S5 de
  * odd/tasks/plataforma-editar-baja.md): a deactivated local does not exist
  * publicly, the same rule as the menu;</li>
+ * <li>a DISABLED (soft-deleted) table of an ACTIVE business answers 404 with
+ * the SAME error payload as an unknown id — the delete confirmation promises
+ * "Su QR dejará de funcionar", so the printed QR of a deleted table must be
+ * indistinguishable from a table that does not exist (no existence leak);</li>
  * <li>the control: one ACTIVE business still answers 200 with ONLY the
  * public identity ({@code id}, {@code tableNumber}, {@code tableName}).</li>
  * </ul>
@@ -172,6 +176,23 @@ class MenuTableEndpointFailClosedHttpTests {
 				.andExpect(jsonPath("$.status").doesNotExist());
 	}
 
+	@Test
+	void disabledTableAnswersSame404AsUnknownId() throws Exception {
+
+		Business business = saveBusiness(true);
+		saveDisabledTable(business, "Mesa eliminada", 3);
+
+		// La mesa con baja lógica NO existe públicamente: mismo 404 y mismo
+		// payload que un id desconocido, para no filtrar si el id existió.
+		mockMvc.perform(get("/api/menu/{slug}/table/{id}", SLUG, tableIdOf(business)))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.message").value("Mesa no encontrada"));
+
+		mockMvc.perform(get("/api/menu/{slug}/table/{id}", SLUG, 999_999L))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.message").value("Mesa no encontrada"));
+	}
+
 	private Business saveBusiness(boolean active) {
 
 		Business business = new Business();
@@ -192,6 +213,17 @@ class MenuTableEndpointFailClosedHttpTests {
 		table.setStatus(TableStatus.AVAILABLE);
 		table.setCreatedAt(LocalDateTime.now());
 		table.setUpdatedAt(LocalDateTime.now());
+		return tableRepository.saveAndFlush(table);
+	}
+
+	/**
+	 * Variante con baja lógica: la mesa eliminada del panel (soft delete) —
+	 * su QR impreso debe dejar de funcionar igual que un id desconocido.
+	 */
+	private RestaurantTable saveDisabledTable(Business business, String tableName, int tableNumber) {
+
+		RestaurantTable table = saveTable(business, tableName, tableNumber);
+		table.setStatus(TableStatus.DISABLED);
 		return tableRepository.saveAndFlush(table);
 	}
 
