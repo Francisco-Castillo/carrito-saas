@@ -157,7 +157,22 @@ public class TableServiceImpl implements ITableService {
 	public List<TableResponseDTO> generateBulk(GenerateTablesRequestDTO request) {
 		Long businessId = securityService.getCurrentBusinessId();
 
-		Business business = businessRepository.findById(businessId)
+		// La capa HTTP ya valida 1..300 vía GenerateTablesRequestDTO + @Valid;
+		// este guard existe para que una futura llamada interna no pueda
+		// reservar cero mesas en silencio.
+		if (request.getQuantity() == null || request.getQuantity() < 1) {
+			throw new BusinessException("La cantidad de mesas debe ser mayor a cero", ErrorType.VALIDATION);
+		}
+
+		// El alta por lote es un read-then-write: lee las mesas vivas y asigna
+		// los números libres más bajos, así que dos lotes concurrentes del
+		// mismo local leerían los mismos huecos y crearían números duplicados.
+		// Se serializa tomando la fila del negocio, el mismo lock que ya usa la
+		// escritura de categorías (CategoryServiceImpl,
+		// CategoryWriteSerializationTests). Un unique constraint en
+		// (business_id, table_number) no es opción: una mesa dada de baja
+		// conserva su número mientras una nueva lo reutiliza.
+		Business business = businessRepository.findByIdForUpdate(businessId)
 				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 
 		// quantity son mesas NUEVAS y toman los números LIBRES más bajos: los
