@@ -81,3 +81,26 @@ S4. El CI corre lint **como gate**: `npm run lint` pasa a ejecutar `oxlint
   que funcionan sería peor. Las 14 advertencias reales se resolvieron en el
   diseño.
 
+- **L6** (revisión nativa del arco): `assess` marcó **`reviewDue: true` con
+  `nativeRisk: high`** porque el cambio toca `.github/workflows/ci.yml`
+  (riesgo de delivery/CI), así que se abrió transacción
+  `review-19640f8589d73d81` con las **cuatro lentes** (risk, resilience,
+  readability, reliability) sobre 28 archivos / 295 líneas. La corrida grupal
+  admitió tres lentes y **rechazó `reliability` en admisión** («reviewer finding
+  location is outside the frozen candidate»): el slot no se consumió, se
+  consultó STATUS y se corrió sólo el slot reofrecido, que sí fue admitido.
+  Resultado final: **aprobada**, autoridad quemada, con seis hallazgos
+  informativos (dos WARNING: `R2-001` sobre el ref de `useModalSheet` y
+  `R3-date-init-when-disabled` sobre la fecha calculada aunque el hook esté
+  deshabilitado; cuatro sugerencias, entre ellas la fragilidad del regex del
+  test del gate y lo amplio de los bloques de supresión).
+- **L7** (verificación independiente previa, `gentle-ai-verify`): sin
+  bloqueantes. Reprodujo la línea base (36 warnings, salida 0), confirmó el flag
+  en la versión fijada por el lockfile (`oxlint 1.88.0`, extraída del caché) y
+  que sale 1 ante una advertencia, validó el YAML y el orden de pasos del
+  workflow, y auditó las siete correcciones de comportamiento una por una con su
+  cobertura de test. Advertencias que dejó: el rebuild de `SalesByDayChart` con
+  `prevData` es un cambio real (arregla una serie comparativa vieja, sin test);
+  `CancelOrderModal`, `DatosSection` y la fecha del dashboard no tienen test que
+  cubra el cambio; y el lint corre después de `mvn verify` (feedback tardío).
+
