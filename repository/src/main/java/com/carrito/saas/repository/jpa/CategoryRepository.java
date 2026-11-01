@@ -13,7 +13,45 @@ import com.carrito.saas.repository.entity.Category;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
-    List<Category> findByBusinessId(Long businessId);
+    /**
+     * Todas las categorías del negocio en el orden del dueño.
+     *
+     * <p>El {@code ORDER BY} explícito es parte del contrato, no un detalle:
+     * sin él PostgreSQL devuelve las filas en el orden del heap, que es el
+     * orden de inserción hasta que alguien edita una fila — un UPDATE la
+     * reescribe al final de la tabla. Eso es exactamente lo que hacía que la
+     * carta pública mostrara las categorías en un orden distinto cada vez
+     * (ver {@code PublicMenuCategoryOrderTests}).</p>
+     *
+     * <p>El desempate por id cubre los empates de {@code orden}: éstos existen
+     * en la práctica porque el panel calcula el próximo valor como
+     * {@code cantidad de filas + 1}, así que borrar una categoría intermedia
+     * alcanza para repetir un número. Con el desempate, dos categorías
+     * empatadas salen siempre en el mismo orden (la más vieja primero) y el
+     * panel y la carta coinciden.</p>
+     */
+    @Query("""
+            SELECT c
+            FROM Category c
+            WHERE c.business.id = :businessId
+            ORDER BY c.orden ASC NULLS LAST, c.id ASC
+            """)
+    List<Category> findByBusinessIdOrdered(@Param("businessId") Long businessId);
+
+    /**
+     * Igual que {@link #findByBusinessIdOrdered} pero sólo las activas: es el
+     * listado que sirve {@code GET /api/categorias} al panel, así que la tabla
+     * de categorías y el selector del alta de productos y combos ven el mismo
+     * orden que la carta.
+     */
+    @Query("""
+            SELECT c
+            FROM Category c
+            WHERE c.business.id = :businessId
+            AND c.active = true
+            ORDER BY c.orden ASC NULLS LAST, c.id ASC
+            """)
+    List<Category> findActiveByBusinessIdOrdered(@Param("businessId") Long businessId);
 
     /**
      * Una sola categoría propia: los canales de escritura anclan el tenant
@@ -60,11 +98,5 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
             WHERE p.category.id = :categoryId
             """)
     boolean hasProducts(@Param("categoryId") Long categoryId);
-
-		// Para frontend (clientes)
-		List<Category> findByBusiness_IdAndActiveTrueOrderByOrdenAsc(Long businessId);
-
-		// Para admin
-		List<Category> findByBusiness_IdOrderByOrdenAsc(Long businessId);
 
 }

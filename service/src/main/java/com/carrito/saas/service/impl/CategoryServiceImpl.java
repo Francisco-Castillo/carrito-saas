@@ -125,13 +125,13 @@ public class CategoryServiceImpl implements ICategoryService {
 	@Override
 	public List<CategoryDTO> findAllByBusinessId() {
 		Long businessId = securityService.getCurrentBusinessId();
-		return iCategoryMapper.toListDTO(categoryRepository.findByBusiness_IdAndActiveTrueOrderByOrdenAsc(businessId));
+		return iCategoryMapper.toListDTO(categoryRepository.findActiveByBusinessIdOrdered(businessId));
 	}
 
 	@Override
 	public List<CategoryDTO> findAllByBusinessIdAndActiveTrueOrFalse() {
 		Long businessId = securityService.getCurrentBusinessId();
-		return iCategoryMapper.toListDTO(categoryRepository.findByBusiness_IdOrderByOrdenAsc(businessId));
+		return iCategoryMapper.toListDTO(categoryRepository.findByBusinessIdOrdered(businessId));
 	}
 
 	@Override
