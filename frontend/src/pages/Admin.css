@@ -1115,12 +1115,18 @@
   display: flex;
   gap: var(--space-2);
   margin-bottom: var(--space-4);
+  /* En mobile las cuatro pestañas no entran: la tira scrollea sola en vez de
+     recortar la primera pestaña, que quedaba inalcanzable. */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
 }
 
 .admin-local-tab {
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-4);
+  flex-shrink: 0;
 }
 
 .admin-local-tab--active {
@@ -1129,7 +1135,10 @@
   font-weight: var(--font-weight-semibold);
 }
 
-/* Sección QR y mesas */
+/* Sección QR y mesas
+   La pestaña se explica sola (odd/tasks/qr-mesas-ux.md): un bloque de
+   introducción que separa QR público de QR de mesa, y tarjetas con el
+   estado de las mesas, el alta y la impresión, en ese orden de trabajo. */
 
 .admin-qr-panel {
   display: flex;
@@ -1137,11 +1146,76 @@
   gap: var(--space-5);
 }
 
+.admin-qr-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--glass-border-subtle);
+  border-left: 3px solid var(--accent-violet);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-subtle);
+}
+
+.admin-qr-intro p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.admin-qr-intro strong {
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.admin-qr-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-subtle);
+}
+
+.admin-qr-card h3 {
+  margin: 0;
+}
+
+.admin-qr-subtitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Texto de ayuda: una sola tipografía chica y apagada para todo lo que
+   explica (formatos, plantillas, numeración). */
+.admin-qr-hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.admin-qr-link {
+  font-size: var(--font-size-sm);
+  color: var(--accent-cyan);
+}
+
 .admin-qr-public-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-4);
   flex-wrap: wrap;
+}
+
+.admin-qr-public-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .admin-qr-image {
@@ -1150,29 +1224,106 @@
   border-radius: var(--radius-md);
   background: #fff;
   padding: var(--space-2);
+  flex-shrink: 0;
+}
+
+.admin-qr-image--preview {
+  width: 120px;
+  height: 120px;
 }
 
 .admin-qr-tables {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
-.admin-qr-tables-toolbar {
+.admin-qr-table-name {
+  font-weight: var(--font-weight-medium);
+}
+
+/* Lista de mesas: filas de tarjeta, no tabla. Cada fila lleva nombre,
+   estado, la URL a la que apunta su QR y las acciones; en mobile las
+   acciones bajan a su propia línea sin scrollear de costado. */
+.admin-qr-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-qr-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(2, 6, 23, 0.28);
+}
+
+.admin-qr-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.admin-qr-row-head {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
   flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
-.admin-qr-tables-toolbar label {
-  font-size: var(--font-size-sm);
+.admin-qr-row-preview {
+  flex: 1 1 100%;
+}
+
+/* Destino real del QR: es la prueba de que la mesa va identificada. */
+.admin-qr-dest {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+  overflow-wrap: anywhere;
+}
+
+.admin-qr-status {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.admin-qr-status--busy {
+  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+}
+
+.admin-qr-status--free {
   color: var(--color-text-muted);
 }
 
-.admin-qr-tables-toolbar .admin-input {
-  width: auto;
-  min-width: 140px;
+/* Mesa eliminada (baja lógica): la fila sigue en la lista pero apagada, y su
+   badge avisa en rojo que el QR ya no funciona. No tiene acciones. */
+.admin-qr-row--deleted {
+  opacity: 0.55;
+}
+
+.admin-qr-status--deleted {
+  border-color: rgba(229, 72, 77, 0.4);
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--color-danger, #e5484d);
 }
 
 .admin-qr-actions {
@@ -1183,6 +1334,68 @@
 
 .admin-qr-remove {
   color: var(--color-danger, #e5484d);
+}
+
+/* Alta de mesas: el campo es el TOTAL y la frase de abajo muestra, antes de
+   apretar, qué números va a crear el backend. */
+.admin-qr-bulk,
+.admin-qr-print {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--glass-border-subtle);
+}
+
+.admin-qr-bulk-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.admin-qr-bulk-row label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.admin-qr-bulk-row .admin-input {
+  width: auto;
+  min-width: 120px;
+}
+
+.admin-qr-plan {
+  color: var(--color-text);
+}
+
+.admin-qr-print-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+.admin-qr-print-control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.admin-qr-print-control label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.admin-qr-print-control .admin-input {
+  width: 100%;
+  max-width: 320px;
+}
+
+@media (min-width: 720px) {
+  .admin-qr-print-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
 }
 
 /* Vista Local — subida de imágenes (logo/banner): preview + botones, el

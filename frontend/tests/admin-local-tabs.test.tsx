@@ -12,10 +12,15 @@
  *          todas; alta por lote con POST /api/tables/bulk y baja con
  *          DELETE /api/tables/{id} pasando por el diálogo de confirmación.
  *
+ * La pestaña tiene que EXPLICARSE (specs S1-S5 de
+ * odd/tasks/qr-mesas-ux.md): diferencia entre el QR público y el de cada
+ * mesa, qué imprime cada plantilla, a qué URL apunta cada QR y qué mesas
+ * va a crear el alta por lote antes de crearlas.
+ *
  * Los endpoints de QR responden binario (image/png / application/pdf): el
  * stub de fetch entrega blobs y se stubbea URL.createObjectURL.
  */
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Admin from '../src/pages/Admin'
@@ -44,8 +49,8 @@ const PROFILE = {
 
 const TABLES_PAGE = {
   content: [
-    { id: 11, tableNumber: 1, tableName: 'Mesa 1', qrToken: 'tok-1', qrUrl: 'https://x/menu/', hasActiveOrder: false, activeOrderId: null },
-    { id: 12, tableNumber: 2, tableName: 'Mesa 2', qrToken: 'tok-2', qrUrl: 'https://x/menu/', hasActiveOrder: true, activeOrderId: 77 },
+    { id: 11, tableNumber: 1, tableName: 'Mesa 1', qrToken: 'tok-1', qrUrl: 'https://x/menu/foodtruck-demo?table=11', hasActiveOrder: false, activeOrderId: null },
+    { id: 12, tableNumber: 2, tableName: 'Mesa 2', qrToken: 'tok-2', qrUrl: 'https://x/menu/foodtruck-demo?table=12', hasActiveOrder: true, activeOrderId: 77 },
   ],
   totalElements: 2,
   totalPages: 1,
@@ -60,7 +65,7 @@ interface RecordedCall {
 
 let calls: RecordedCall[] = []
 
-function stubFetch(options?: { bulkTables?: unknown[]; deleteOk?: boolean }) {
+function stubFetch(options?: { bulkTables?: unknown[]; deleteOk?: boolean; tablesPage?: unknown }) {
   return vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     const method = init?.method ?? 'GET'
@@ -98,7 +103,7 @@ function stubFetch(options?: { bulkTables?: unknown[]; deleteOk?: boolean }) {
       return { ok, status: ok ? 200 : 409 } as Response
     }
     if (url.includes('/api/tables')) {
-      return { ok: true, status: 200, json: async () => TABLES_PAGE } as Response
+      return { ok: true, status: 200, json: async () => options?.tablesPage ?? TABLES_PAGE } as Response
     }
     return { ok: false, status: 404, json: async () => ({ message: 'unexpected' }) } as Response
   }))
@@ -267,13 +272,13 @@ describe('vista Local: pestañas', () => {
     expect(pdfCalls[1].url).toContain('template=')
   })
 
-  it('alta por lote: POST /api/tables/bulk con la cantidad pedida y refresca la lista', async () => {
+  it('alta por lote: POST /api/tables/bulk con cuántas mesas NUEVAS se agregan y refresca la lista', async () => {
     stubFetch({ bulkTables: [{ id: 13, tableNumber: 3, tableName: 'Mesa 3' }] })
     await openLocalView()
     await userEvent.click(screen.getByRole('tab', { name: 'QR y mesas' }))
     await screen.findByText('Mesa 1')
 
-    const input = screen.getByLabelText('Cantidad de mesas a generar')
+    const input = screen.getByLabelText('Cantidad de mesas nuevas')
     await userEvent.clear(input)
     await userEvent.type(input, '5')
     await userEvent.click(screen.getByRole('button', { name: 'Generar mesas' }))
@@ -328,5 +333,187 @@ describe('vista Local: estado de carga', () => {
     act(() => resolveProfile({ ok: true, status: 200, json: async () => PROFILE } as Response))
     expect(await screen.findByLabelText('Nombre del local')).toHaveValue('Foodtruck Demo')
     expect(screen.queryByRole('status', { name: /cargando el perfil/i })).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * Claridad de la pestaña "QR y mesas" (odd/tasks/qr-mesas-ux.md).
+ *
+ * Cada test fija UNA regla de comprensión: la diferencia entre el QR público
+ * y el de mesa, qué imprime cada plantilla, qué mesas crea el alta por lote,
+ * a dónde apunta el QR de cada mesa y cómo se ve sin descargarlo.
+ */
+describe('pestaña "QR y mesas": la configuración se explica sola', () => {
+  async function openQrTab() {
+    await openLocalView()
+    await userEvent.click(screen.getByRole('tab', { name: 'QR y mesas' }))
+  }
+
+  it('S1: explica la diferencia entre el QR de cada mesa y el del menú público', async () => {
+    stubFetch()
+    await openQrTab()
+
+    // Escanear el QR de una mesa abre la carta CON esa mesa identificada.
+    expect(await screen.findByText(/carta se abre con esa mesa/i)).toBeTruthy()
+    // El QR público, en cambio, no identifica mesa.
+    expect(screen.getByText(/no identifica mesa/i)).toBeTruthy()
+  })
+
+  it('S2: cada plantilla de PDF dice cuántos QRs imprime por hoja', async () => {
+    stubFetch()
+    await openQrTab()
+
+    const select = await screen.findByLabelText('Plantilla de PDF')
+    const options = within(select).getAllByRole('option').map((o) => o.textContent ?? '')
+
+    // Cada plantilla se explica sola: cuántos QRs salen por hoja.
+    expect(options.some((t) => /1 por hoja/i.test(t))).toBe(true)
+    expect(options.some((t) => /9 por hoja/i.test(t))).toBe(true)
+    expect(options.some((t) => /16 por hoja/i.test(t))).toBe(true)
+    // La grilla 4x4 ya tiene estrategia en el backend, así que sí se ofrece.
+    expect(options.some((t) => /4\s*[x×]\s*4/i.test(t))).toBe(true)
+
+    // La ayuda cuenta qué sale impreso con la plantilla elegida.
+    await userEvent.selectOptions(select, 'ACRYLIC')
+    expect(screen.getByText(/pie de acrílico o portarretrato/i)).toBeTruthy()
+
+    // La 4x4 está cableada de verdad: la ayuda aparece y el PDF general
+    // pide la plantilla elegida al backend.
+    await userEvent.selectOptions(select, 'GRID_4X4')
+    expect(screen.getByText(/Dieciséis QRs|dieciséis QRs/i)).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Descargar QR de todas las mesas' }))
+    const pdfCall = calls.find((c) => c.url.includes('/api/tables/qr/pdf'))
+    expect(pdfCall).toBeTruthy()
+    expect(pdfCall!.url).toContain('template=GRID_4X4')
+  })
+
+  it('S3: el alta de mesas dice cuántas mesas NUEVAS crea y con qué números', async () => {
+    stubFetch()
+    await openQrTab()
+    await screen.findByText('Mesa 1')
+
+    const input = screen.getByLabelText('Cantidad de mesas nuevas')
+    await userEvent.clear(input)
+    await userEvent.type(input, '5')
+
+    // BACKEND: POST /api/tables/bulk recibe cuántas mesas AGREGAR y las numera
+    // a continuación de la más alta — con Mesa 1 y Mesa 2, "5" crea 3, 4, 5,
+    // 6 y 7 (antes "5" creaba solo 3, 4 y 5, y era imposible de anticipar).
+    expect(await screen.findByText(/Mesa 3 a Mesa 7/)).toBeTruthy()
+    expect(screen.getByText(/Vas a quedar con 7 mesas/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Generar mesas' })).toBeEnabled()
+
+    // Una sola mesa nueva también se anticipa sin ambigüedad.
+    await userEvent.clear(input)
+    await userEvent.type(input, '1')
+    expect(await screen.findByText(/Se va a crear: Mesa 3\./)).toBeTruthy()
+  })
+
+  it('S3b: crear mesas confirma cuántas se crearon', async () => {
+    stubFetch({
+      bulkTables: [
+        { id: 13, tableNumber: 3, tableName: 'Mesa 3' },
+        { id: 14, tableNumber: 4, tableName: 'Mesa 4' },
+        { id: 15, tableNumber: 5, tableName: 'Mesa 5' },
+        { id: 16, tableNumber: 6, tableName: 'Mesa 6' },
+      ],
+    })
+    await openQrTab()
+    await screen.findByText('Mesa 1')
+
+    const input = screen.getByLabelText('Cantidad de mesas nuevas')
+    await userEvent.clear(input)
+    await userEvent.type(input, '4')
+    await userEvent.click(screen.getByRole('button', { name: 'Generar mesas' }))
+
+    expect(await screen.findByText('Se crearon 4 mesas: Mesa 3, Mesa 4, Mesa 5 y Mesa 6')).toBeTruthy()
+  })
+
+  it('S4: cada mesa muestra la URL a la que apunta su QR', async () => {
+    stubFetch()
+    await openQrTab()
+
+    expect(await screen.findByText('https://x/menu/foodtruck-demo?table=11')).toBeTruthy()
+    expect(screen.getByText('https://x/menu/foodtruck-demo?table=12')).toBeTruthy()
+  })
+
+  it('S5: el QR público muestra el acceso a la carta del local', async () => {
+    stubFetch()
+    await openQrTab()
+
+    const link = await screen.findByRole('link', { name: /ver la carta/i })
+    expect(link).toHaveAttribute('href', '/foodtruck-demo')
+  })
+
+  it('S6: "Ver QR" muestra la vista previa de esa mesa sin descargar el archivo', async () => {
+    stubFetch()
+    await openQrTab()
+    await screen.findByText('Mesa 1')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ver QR de Mesa 1' }))
+
+    await waitFor(() => {
+      expect(calls.some((c) => c.url.includes('/api/tables/11/qr'))).toBe(true)
+    })
+    expect(await screen.findByAltText('Vista previa del QR de Mesa 1')).toBeTruthy()
+  })
+
+  it('S7: una mesa eliminada se muestra como Eliminada y sin acciones', async () => {
+    // BACKEND: la baja es LÓGICA — la fila sobrevive con status "DISABLED" y
+    // GET /api/tables la sigue devolviendo, pero su QR público ya no funciona.
+    stubFetch({
+      tablesPage: {
+        content: [
+          { id: 11, tableNumber: 1, tableName: 'Mesa 1', qrToken: 'tok-1', qrUrl: 'https://x/menu/foodtruck-demo?table=11', hasActiveOrder: false, activeOrderId: null },
+          { id: 99, tableNumber: 2, tableName: 'Mesa 2', qrToken: 'tok-2', qrUrl: 'https://x/menu/foodtruck-demo?table=99', hasActiveOrder: false, activeOrderId: null, status: 'DISABLED' },
+        ],
+        totalElements: 2,
+        totalPages: 1,
+        number: 0,
+      },
+    })
+    await openQrTab()
+
+    // Se muestra como Eliminada, no como Libre, con el aviso de que su QR murió.
+    expect(await screen.findByText('Mesa 2')).toBeTruthy()
+    expect(screen.getByText('Eliminada')).toBeTruthy()
+    expect(screen.getByText(/Su QR ya no funciona\./)).toBeTruthy()
+    // La eliminada no ofrece NADA para cliquear: ni ver, ni descargar, ni borrar.
+    expect(screen.queryByRole('button', { name: /Ver QR de Mesa 2|Descargar QR PNG Mesa 2|Eliminar Mesa 2/ })).toBeNull()
+    // La mesa viva conserva todas sus acciones.
+    expect(screen.getByRole('button', { name: 'Ver QR de Mesa 1' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Eliminar Mesa 1' })).toBeTruthy()
+    // El destino del QR de la eliminada no se muestra: ese QR ya no lleva a nada.
+    expect(screen.queryByText('https://x/menu/foodtruck-demo?table=99')).toBeNull()
+  })
+
+  it('S8: el alta reutiliza el número libre que dejó una mesa eliminada', async () => {
+    // BACKEND: el bulk numera con el NÚMERO LIBRE más bajO — libre = no usado
+    // por una mesa viva; una eliminada libera el suyo. Con vivas {1, 3} y 3
+    // nuevas, crea la 2, la 4 y la 5 (no 4, 5 y 6).
+    stubFetch({
+      tablesPage: {
+        content: [
+          { id: 11, tableNumber: 1, tableName: 'Mesa 1', qrToken: 'tok-1', qrUrl: 'https://x/menu/foodtruck-demo?table=11', hasActiveOrder: false, activeOrderId: null },
+          { id: 12, tableNumber: 3, tableName: 'Mesa 3', qrToken: 'tok-3', qrUrl: 'https://x/menu/foodtruck-demo?table=12', hasActiveOrder: false, activeOrderId: null },
+          { id: 99, tableNumber: 2, tableName: 'Mesa 2', qrToken: 'tok-2', qrUrl: 'https://x/menu/foodtruck-demo?table=99', hasActiveOrder: false, activeOrderId: null, status: 'DISABLED' },
+        ],
+        totalElements: 3,
+        totalPages: 1,
+        number: 0,
+      },
+    })
+    await openQrTab()
+    await screen.findByText('Mesa 1')
+
+    const input = screen.getByLabelText('Cantidad de mesas nuevas')
+    await userEvent.clear(input)
+    await userEvent.type(input, '3')
+
+    // La preview promete exactamente los números que va a crear el backend:
+    // el 2 liberado por la eliminada, después la 4 y la 5.
+    expect(await screen.findByText(/Mesa 2.*Mesa 4.*Mesa 5/)).toBeTruthy()
+    // 2 vivas + 3 nuevas = 5 en total (la eliminada no cuenta).
+    expect(screen.getByText(/Vas a quedar con 5 mesas/)).toBeTruthy()
   })
 })
