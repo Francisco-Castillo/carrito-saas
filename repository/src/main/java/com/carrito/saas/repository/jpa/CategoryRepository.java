@@ -54,6 +54,15 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     List<Category> findActiveByBusinessIdOrdered(@Param("businessId") Long businessId);
 
     /**
+     * Próximo lugar libre al final de la lista del negocio: el alta lo usa para
+     * que una categoría nueva nazca última, sin depender de lo que pregunte el
+     * panel. {@code MAX} ignora los nulos (una categoría creada sin orden no
+     * participa del cálculo) y {@code COALESCE} cubre el negocio sin filas.
+     */
+    @Query("SELECT COALESCE(MAX(c.orden), 0) FROM Category c WHERE c.business.id = :businessId")
+    Integer nextOrden(@Param("businessId") Long businessId);
+
+    /**
      * Una sola categoría propia: los canales de escritura anclan el tenant
      * en el JWT, así que un id ajeno al negocio debe resolver como no
      * encontrado y jamás como un éxito silencioso.

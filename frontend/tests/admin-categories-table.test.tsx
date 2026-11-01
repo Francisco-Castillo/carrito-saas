@@ -7,8 +7,9 @@
  *      explicit empty state when nothing matches. Same toolbar skin as the
  *      products table (products-toolbar classes in pages/Admin.css).
  *   2. Create still works: "+ Nuevo" opens CreateCategoryModal and POSTs
- *      /api/categorias with {name, order, active: true} where order is
- *      table rows + 1 (the legacy read the tbody), then refreshes the list.
+ *      /api/categorias with {name, active: true} — the order is not sent by
+ *      the client anymore: the server assigns max(orden) + 1 so the new
+ *      category lands at the end of the list — then refreshes the list.
  *   3. Edit is the inline rename that already existed, now DISCOVERABLE:
  *      a pencil row action (aria-label "Editar {name}") opens the same
  *      prefilled inline input, and saving sends PUT /api/categorias/{id}
@@ -160,7 +161,7 @@ describe('Admin categories search', () => {
 })
 
 describe('Admin categories create', () => {
-  it('still works: the modal POSTs {name, order, active: true} with order = rows + 1 and refreshes the list', async () => {
+  it('still works: the modal POSTs {name, active: true} and refreshes the list', async () => {
     const postCategory = vi.fn(() => okJson({ id: 14, name: 'Empanadas', order: 4, active: true }))
     stubFetch({ postCategory })
     const user = userEvent.setup()
@@ -175,9 +176,10 @@ describe('Admin categories create', () => {
     await user.type(within(dialog).getByLabelText('Nombre de la categoría'), 'Empanadas')
     await user.click(within(dialog).getByRole('button', { name: 'Crear' }))
 
-    // The exact payload the legacy sent (admin.js:517-519 read the tbody): rows + 1.
+    // El cliente ya no decide el orden: manda nombre y estado, y el servidor
+    // asigna max(orden) + 1 para que la categoría nazca última.
     expect(postCategory).toHaveBeenCalledTimes(1)
-    expect(postCategory.mock.calls[0][0]).toEqual({ name: 'Empanadas', order: 4, active: true })
+    expect(postCategory.mock.calls[0][0]).toEqual({ name: 'Empanadas', active: true })
 
     // Success closes the modal and refreshes the list.
     const deadline = Date.now() + 2000

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { API, authHeader, type AdminCategory } from "./api";
 import LoadingPanel from "./LoadingPanel";
 import { showSuccessToast } from "./toast";
@@ -8,8 +8,6 @@ import { useConfirmDialog } from "./useConfirmDialog";
 interface CategoriesTableProps {
   /** Bump para recargar categorías (tras crear una, como el loadCategories() del legacy). */
   refreshKey: number;
-  /** Cantidad de filas cargadas (el legacy la leía del tbody al crear una categoría). */
-  onRowCountChange?: (count: number | null) => void;
 }
 
 /**
@@ -56,7 +54,7 @@ function normalize(text: string): string {
  * activaba su botón enfocado. Y el vacío ya no va a window.alert: el error
  * queda inline como los demás.
  */
-export default function CategoriesTable({ refreshKey, onRowCountChange }: CategoriesTableProps) {
+export default function CategoriesTable({ refreshKey }: CategoriesTableProps) {
   const [categories, setCategories] = useState<AdminCategory[] | null>(null);
   // Primera carga en curso: skeleton del dashboard mientras la API responde.
   const [loading, setLoading] = useState(true);
@@ -124,15 +122,6 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
       showSuccessToast(`Error: ${(e as Error).message}`);
     }
   }
-
-  const reportCount = useCallback(
-    (count: number | null) => onRowCountChange?.(count),
-    [onRowCountChange],
-  );
-
-  useEffect(() => {
-    reportCount(notFound ? null : (categories?.length ?? null));
-  }, [notFound, categories, reportCount]);
 
   async function persistOrder(ids: number[]) {
     try {
