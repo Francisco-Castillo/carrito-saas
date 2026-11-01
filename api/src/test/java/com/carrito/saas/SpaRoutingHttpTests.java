@@ -6,9 +6,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,12 +40,36 @@ import org.springframework.web.context.WebApplicationContext;
  *
  * <p>The shell is the generated frontend bundle: it only exists after the
  * {@code -Pfrontend} build (CI and the package build always run it). On a
- * fresh checkout without that build there is no SPA to serve, so the tests
- * skip instead of failing.</p>
+ * fresh checkout without that build there is no SPA to serve.</p>
+ *
+ * <p><strong>A missing bundle fails this class instead of skipping it.</strong>
+ * Skipping was the previous behavior and it lied: JUnit counts a disabled
+ * container as one placeholder per <em>method</em>, so the class reported "4
+ * skipped" while losing 21 executions — the 20 {@code @ParameterizedTest}
+ * cases were never expanded and nobody noticed. A worktree without the bundle
+ * is an environment problem, and it has to be visible as one.</p>
  */
 @SpringBootTest
-@EnabledIf("spaEntryPresent")
 class SpaRoutingHttpTests {
+
+	private static final String BUNDLE_MISSING = """
+			SpaRoutingHttpTests needs the served SPA bundle (static/admin/admin.html), which is not \
+			committed. Build it first: `npm run build:spring` inside frontend/, or run \
+			`mvn -B --no-transfer-progress -Pfrontend verify`, which is what CI does. Without it this \
+			class would silently lose 21 executions (1 @Test + 20 @ParameterizedTest cases) and report \
+			4 skips instead of them.""";
+
+	/**
+	 * Fails loudly when the bundle is absent: a silent skip here costs 21
+	 * executions and reports it as 4, which is how a green run ends up covering
+	 * less than it claims.
+	 */
+	@BeforeAll
+	static void requireSpaBundle() {
+		if (!spaEntryPresent()) {
+			throw new IllegalStateException(BUNDLE_MISSING);
+		}
+	}
 
 	@Autowired
 	private WebApplicationContext context;
