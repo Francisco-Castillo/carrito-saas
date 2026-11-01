@@ -89,7 +89,16 @@ Sin push ni PR: son decisiones del usuario.
 
 Actualización: el usuario autorizó la entrega → **PR #98**
 (`https://github.com/Francisco-Castillo/carrito-saas/pull/98`) contra `develop`,
-label `type:chore`. Sin merge: sigue siendo decisión del usuario.
+label `type:chore`.
+
+**Mergeado**: `6fedb18` (`Merge pull request #98`), después del verde de CI
+(api 516 / service 6) y de la reproducción local con `-Pfrontend`. Método: merge
+commit, la convención del repo (#94, #95 y #96 también lo son). Sin squash: los
+work units quedan visibles en la historia de `develop`.
+
+El follow-up que salió de L6 se entrega aparte, en
+`test/spa-bundle-fails-loud` (ver L7), porque cambia el comportamiento de la
+suite entera y no de este slice.
 
 ## Log
 
@@ -192,3 +201,40 @@ L6: **Corrección de la evidencia de conteo (2026-11-01, post-PR).** L5 registra
     es una regresión: es una clase deshabilitada con su expansión perdida. El
     número canónico es el del CI, o un `mvn clean verify` sobre un checkout con
     el bundle construido.
+
+L7: **Follow-up entregado: la clase ya no puede saltear en silencio**
+    (`test/spa-bundle-fails-loud`). Lo que L6 dejó como regla operativa acá se
+    convierte en código: `@EnabledIf("spaEntryPresent")` sale de
+    `SpaRoutingHttpTests` y entra un `@BeforeAll` que **falla explícito** si no
+    está `static/admin/admin.html`, con un mensaje que dice qué correr
+    (`npm run build:spring` en `frontend/`, o `mvn -Pfrontend verify`).
+
+    Verificado en los dos lados, con el mismo comando
+    (`-Dtest=SpaRoutingHttpTests`):
+
+    | Escenario | Antes | Ahora |
+    | --- | --- | --- |
+    | Con bundle | `Tests run: 21`, BUILD SUCCESS | `Tests run: 21, Failures: 0, Errors: 0, Skipped: 0`, BUILD SUCCESS |
+    | Sin bundle | `Tests run: 4, Skipped: 4`, **BUILD SUCCESS (exit 0)** | `Tests run: 1, Errors: 1`, **BUILD FAILURE (exit 1)** |
+
+    Mensaje literal del lado que falla:
+
+    ```text
+    java.lang.IllegalStateException: SpaRoutingHttpTests needs the served SPA
+    bundle (static/admin/admin.html), which is not committed. Build it first:
+    `npm run build:spring` inside frontend/, or run `mvn -Pfrontend verify`,
+    which is what CI does. Without it this class would silently lose 21
+    executions (1 @Test + 20 @ParameterizedTest cases) and report 4 skips
+    instead of them.
+      at SpaRoutingHttpTests.requireSpaBundle(SpaRoutingHttpTests.java:70)
+    ```
+
+    **Costo declarado, no oculto**: un `mvn verify` local sin el bundle ahora
+    **falla** en vez de pasar con 4 skips. Es el objetivo —un worktree sin
+    bundle es un problema de entorno y tiene que verse como tal—, pero cambia
+    la ergonomía: quien corra la suite sin `-Pfrontend` va a ver este error. El
+    CI no se ve afectado porque siempre construye el bundle.
+
+    **Estado de `develop` al entregar**: `61f3b69` (merge de #99) sobre
+    `6fedb18` (merge de #98). CI sobre `develop`: `api 516`, `service 6`,
+    `Frontend lint: Found 0 warnings and 0 errors`.
