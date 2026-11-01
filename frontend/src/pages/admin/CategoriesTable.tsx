@@ -144,9 +144,12 @@ export default function CategoriesTable({ refreshKey }: CategoriesTableProps) {
   async function handleToggle(c: AdminCategory) {
     const activar = !c.active;
 
-    // El backend actualiza sólo los campos no-null: se mandan nombre y orden
-    // actuales + el estado DESTINO (igual que el switch de productos).
-    const payload = { name: c.name.trim(), order: (categories?.findIndex((x) => x.id === c.id) ?? -1) + 1, active: activar };
+    // El backend actualiza sólo los campos no-null: se mandan el nombre
+    // actual y el estado DESTINO (igual que el switch de productos). Sin
+    // `order`: el switch no reordena nada y el orden lo administra el drag &
+    // drop (PUT /api/categorias/orden); mandarlo lo normalizaba a la posición
+    // de la fila y con órdenes con huecos repetía un número existente.
+    const payload = { name: c.name.trim(), active: activar };
 
     try {
       const res = await fetch(`${API}/categorias/${c.id}`, {

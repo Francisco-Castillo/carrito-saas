@@ -1,6 +1,7 @@
 package com.carrito.saas;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -119,6 +120,43 @@ class AdminCategoryListHttpTests {
 				.andExpect(jsonPath("$.length()").value(2))
 				.andExpect(jsonPath("$[0].name").value("Bebidas"))
 				.andExpect(jsonPath("$[1].name").value("Postres"));
+	}
+
+	/**
+	 * El switch de la tabla manda sólo {@code {name, active}}: no toca el orden.
+	 * El servicio aplica únicamente los campos no nulos, así que un PUT sin
+	 * {@code order} tiene que dejar la categoría donde estaba. Este pin existe
+	 * porque el panel depende de esa semántica: si el update pasara a ser un
+	 * reemplazo completo, prender o apagar una categoría la reordenaría en
+	 * silencio.
+	 */
+	@Test
+	void aPutWithoutOrderLeavesTheCategoryWhereItWas() throws Exception {
+
+		Long promosId = categoryRepository.findByBusinessIdOrdered(BUSINESS_ID).stream()
+				.filter(c -> "Promos viejas".equals(c.getName()))
+				.findFirst()
+				.orElseThrow()
+				.getId();
+
+		String body = """
+				{
+				  "name": "Promos viejas",
+				  "active": true
+				}
+				""";
+
+		mockMvc.perform(put("/api/categorias/" + promosId)
+						.header("Authorization", owner.authorizationHeader())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(get("/api/categorias/todas").header("Authorization", owner.authorizationHeader()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[1].name").value("Promos viejas"))
+				.andExpect(jsonPath("$[1].active").value(true))
+				.andExpect(jsonPath("$[1].order").value(2));
 	}
 
 	private Category category(Business business, String name, Integer orden, boolean active) {

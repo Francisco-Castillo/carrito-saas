@@ -239,7 +239,8 @@ describe('Admin categories edit (inline rename, now discoverable)', () => {
 
 describe('Admin categories toggle (switch)', () => {
   it('renders each row toggle as a switch with aria-checked and a meaningful accessible name, and sends the target state without confirmation', async () => {
-    stubFetch()
+    const putCategory = vi.fn(() => okJson({ id: 12, name: 'Bebidas Frías', order: 2, active: true }))
+    stubFetch({ putCategory })
     const user = userEvent.setup()
     await openCategoriesView()
 
@@ -257,6 +258,12 @@ describe('Admin categories toggle (switch)', () => {
     const put = calls.find((c) => c.method === 'PUT' && /^\/api\/categorias\/\d+$/.test(c.url))
     expect(put?.url).toBe('/api/categorias/12')
     expect(put?.headers['authorization']).toBe(`Bearer ${TOKEN}`)
+
+    // El switch sólo cambia el estado. El orden lo administra el drag & drop
+    // (PUT /api/categorias/orden); mandarlo acá lo normalizaba a la posición
+    // de la fila, lo que con órdenes con huecos repite un número existente.
+    expect(putCategory.mock.calls[0][1]).toEqual({ name: 'Bebidas Frías', active: true })
+
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 })
