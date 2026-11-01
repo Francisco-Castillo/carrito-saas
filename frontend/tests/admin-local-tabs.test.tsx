@@ -7,7 +7,8 @@
  *   - Pestaña "QR y mesas": apartado separado para
  *       a) el QR del menú público: el PNG vive en GET /api/business/qr,
  *          se pide con el Bearer token y se muestra + se puede descargar;
- *       b) las mesas: GET /api/tables (página única grande) lista cada mesa
+ *       b) las mesas: GET /api/tables paginado (página 0 con size=300 y las
+ *          siguientes hasta totalPages) lista cada mesa
  *          con su QR descargable (PNG y PDF por plantilla) y el PDF de
  *          todas; alta por lote con POST /api/tables/bulk y baja con
  *          DELETE /api/tables/{id} pasando por el diálogo de confirmación.
@@ -65,7 +66,12 @@ interface RecordedCall {
 
 let calls: RecordedCall[] = []
 
-function stubFetch(options?: { bulkTables?: unknown[]; deleteOk?: boolean; tablesPage?: unknown }) {
+function stubFetch(options?: {
+  bulkTables?: unknown[]
+  deleteOk?: boolean
+  tablesPage?: unknown
+  tablesPages?: unknown[]
+}) {
   return vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     const method = init?.method ?? 'GET'
@@ -103,6 +109,21 @@ function stubFetch(options?: { bulkTables?: unknown[]; deleteOk?: boolean; table
       return { ok, status: ok ? 200 : 409 } as Response
     }
     if (url.includes('/api/tables')) {
+      if (options?.tablesPages) {
+        // Respuesta paginada real: cada página pregunta por su `page=`.
+        const page = Number(new URL(url, 'http://localhost').searchParams.get('page') ?? '0')
+        const content = options.tablesPages[page] ?? []
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            content,
+            totalElements: options.tablesPages!.flat().length,
+            totalPages: options.tablesPages!.length,
+            number: page,
+          }),
+        } as Response
+      }
       return { ok: true, status: 200, json: async () => options?.tablesPage ?? TABLES_PAGE } as Response
     }
     return { ok: false, status: 404, json: async () => ({ message: 'unexpected' }) } as Response
@@ -117,18 +138,23 @@ beforeEach(() => {
   localStorage.setItem('expiresAt', '2030-01-01T00:00:00Z')
   localStorage.setItem('restaurantSlug', 'foodtruck-demo')
   calls = []
-  vi.stubGlobal('URL.createObjectURL', vi.fn(() => 'blob:mock'))
+  // OJO: vi.stubGlobal('URL.createObjectURL', …) NO reemplaza una propiedad
+  // anidada (se usaría el createObjectURL real de Node); spyOn sí.
+  vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock')
+  vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
 })
 
 afterEach(() => {
   cleanup()
   localStorage.clear()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 async function openLocalView() {
-  render(<Admin />)
+  const view = render(<Admin />)
   await userEvent.click(await screen.findByRole('button', { name: 'Local' }))
+  return view
 }
 
 describe('pestaña "Datos del local": upload de logo y banner', () => {
@@ -515,5 +541,119 @@ describe('pestaña "QR y mesas": la configuración se explica sola', () => {
     expect(await screen.findByText(/Mesa 2.*Mesa 4.*Mesa 5/)).toBeTruthy()
     // 2 vivas + 3 nuevas = 5 en total (la eliminada no cuenta).
     expect(screen.getByText(/Vas a quedar con 5 mesas/)).toBeTruthy()
+  })
+})
+
+/**
+ * Robustez de la pestaña "QR y mesas" (hallazgos de review):
+ *   - R3-blob-leak: los object URLs se revocan al desmontar.
+ *   - R3-stale-preview: la respuesta tardía de una mesa deseleccionada no pisa
+ *     la preview de la mesa elegida.
+ *   - R3-page-cap: un negocio con más mesas que el tamaño de página ve la
+ *     lista completa, no sólo la primera página.
+ */
+describe('pestaña "QR y mesas": robustez', () => {
+  async function openQrTab() {
+    const view = await openLocalView()
+    await userEvent.click(screen.getByRole('tab', { name: 'QR y mesas' }))
+    return view
+  }
+
+  it('R3-blob-leak: revoca los object URLs (QR público y previews) al desmontar', async () => {
+    // URLs únicos para afirmar que CADA url creado se revoca (con 'blob:mock'
+    // repetido, el registro de URLs los deduplicaría).
+    let n = 0
+    vi.mocked(URL.createObjectURL).mockImplementation(() => `blob:mock-${++n}`)
+    stubFetch()
+    const { unmount } = await openQrTab()
+    await screen.findByText('Mesa 1')
+    await userEvent.click(screen.getByRole('button', { name: 'Ver QR de Mesa 1' }))
+    expect(await screen.findByAltText('Vista previa del QR de Mesa 1')).toBeTruthy()
+
+    const revoke = vi.mocked(URL.revokeObjectURL)
+    // Mientras las imágenes se muestran, no se revoca nada.
+    expect(revoke).not.toHaveBeenCalled()
+
+    unmount()
+
+    // blob:mock-1 = QR del menú público, blob:mock-2 = preview de Mesa 1:
+    // al desmontar, cada uno se revoca.
+    expect(revoke).toHaveBeenCalledWith('blob:mock-1')
+    expect(revoke).toHaveBeenCalledWith('blob:mock-2')
+  })
+
+  it('R3-stale-preview: la respuesta tardía de una mesa deseleccionada no pisa la preview', async () => {
+    let resolveQr1!: (value: Response) => void
+    let resolveQr2!: (value: Response) => void
+    const createObjectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:preview')
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/business/profile')) return { ok: true, status: 200, json: async () => PROFILE } as Response
+      if (url.includes('/api/business/qr')) return { ok: true, status: 200, blob: async () => new Blob(['png'], { type: 'image/png' }) } as unknown as Response
+      // Mesa 1 y Mesa 2 quedan colgadas: el test decide cuándo responden.
+      if (url.includes('/api/tables/11/qr')) return new Promise<Response>((resolve) => { resolveQr1 = resolve })
+      if (url.includes('/api/tables/12/qr')) return new Promise<Response>((resolve) => { resolveQr2 = resolve })
+      if (url.includes('/api/tables')) return { ok: true, status: 200, json: async () => TABLES_PAGE } as Response
+      return { ok: false, status: 404 } as Response
+    }))
+
+    await openQrTab()
+    await screen.findByText('Mesa 1')
+
+    // Click en Mesa 1 e inmediatamente en Mesa 2: la de Mesa 1 sigue pendiente.
+    await userEvent.click(screen.getByRole('button', { name: 'Ver QR de Mesa 1' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Ver QR de Mesa 2' }))
+
+    resolveQr2({ ok: true, status: 200, blob: async () => new Blob(['qr2']) } as unknown as Response)
+    expect(await screen.findByAltText('Vista previa del QR de Mesa 2')).toBeTruthy()
+    const objectUrlsAfterMesa2 = createObjectUrl.mock.calls.length
+
+    // Ahora llega la respuesta tardía de Mesa 1, que ya no está seleccionada.
+    resolveQr1({ ok: true, status: 200, blob: async () => new Blob(['qr1']) } as unknown as Response)
+    await act(async () => {})
+
+    expect(screen.getByAltText('Vista previa del QR de Mesa 2')).toBeTruthy()
+    expect(screen.queryByAltText('Vista previa del QR de Mesa 1')).toBeNull()
+    // El blob de Mesa 1 nunca llega a object URL: la respuesta se descarta.
+    expect(createObjectUrl.mock.calls.length).toBe(objectUrlsAfterMesa2)
+  })
+
+  it('R3-page-cap: pide todas las páginas de /api/tables hasta totalPages', async () => {
+    stubFetch({
+      tablesPages: [
+        [{ id: 11, tableNumber: 1, tableName: 'Mesa 1', qrToken: 'tok-1', qrUrl: 'https://x/menu/foodtruck-demo?table=11', hasActiveOrder: false, activeOrderId: null }],
+        [{ id: 12, tableNumber: 2, tableName: 'Mesa 2', qrToken: 'tok-2', qrUrl: 'https://x/menu/foodtruck-demo?table=12', hasActiveOrder: true, activeOrderId: 77 }],
+      ],
+    })
+    await openQrTab()
+
+    // Las dos páginas se muestran, no sólo la primera.
+    expect(await screen.findByText('Mesa 1')).toBeTruthy()
+    expect(screen.getByText('Mesa 2')).toBeTruthy()
+
+    const listCalls = calls.filter((c) => c.url.includes('/api/tables?'))
+    expect(listCalls.some((c) => c.url.includes('page=0'))).toBe(true)
+    expect(listCalls.some((c) => c.url.includes('page=1'))).toBe(true)
+    // No pide una página de más: totalPages = 2.
+    expect(listCalls.some((c) => c.url.includes('page=2'))).toBe(false)
+  })
+
+  it('R2-plan-contract: el alta numera con los libres más bajos y lista el rango hasta 6, resumido a partir de 7', async () => {
+    // Contrato del backend (TableServiceImpl.generateBulk): los N enteros más
+    // bajos no usados por una mesa viva y, sin huecos, a continuación de la
+    // más alta. El mismo cálculo alimenta la preview: rango contiguo listado
+    // como "Mesa X a Mesa Y" hasta 6 mesas, resumen a partir de 7.
+    stubFetch()
+    await openQrTab()
+    await screen.findByText('Mesa 1')
+
+    const input = screen.getByLabelText('Cantidad de mesas nuevas')
+    await userEvent.clear(input)
+    await userEvent.type(input, '6')
+    expect(await screen.findByText(/Mesa 3 a Mesa 8/)).toBeTruthy()
+
+    await userEvent.clear(input)
+    await userEvent.type(input, '7')
+    expect(await screen.findByText(/Se van a crear 7 mesas: Mesa 3, Mesa 4, Mesa 5… hasta la Mesa 9/)).toBeTruthy()
   })
 })

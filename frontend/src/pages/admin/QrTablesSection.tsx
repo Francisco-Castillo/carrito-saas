@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { API, authHeader } from "./api";
 import LoadingPanel from "./LoadingPanel";
 import { useConfirmDialog } from "./useConfirmDialog";
@@ -18,7 +18,8 @@ import { getSessionRestaurantSlug } from "../dashboard/auth";
  *     que no puede mandar el header. "Descargar QR del menú" vuelve a
  *     pedirlo y lo baja como menu-qr.png. Un 503 del generador de QR se
  *     muestra como error inline.
- *   - MESAS: GET /api/tables en una sola página grande lista cada mesa con
+ *   - MESAS: GET /api/tables paginado (página 0 con size=300 y las páginas
+ *     siguientes hasta totalPages) lista cada mesa con
  *     el destino de su QR ({slug}?table={id}), si tiene pedido activo y sus
  *     descargas: PNG (GET /api/tables/{id}/qr) y PDF con la plantilla
  *     elegida (GET /api/tables/{id}/qr/pdf?template=...). "Descargar QR de
@@ -78,11 +79,34 @@ const TEMPLATES = [
 const MAX_BULK = 300;
 
 /**
- * Tamaño de la página de mesas: el máximo del bulk, para que el total que
- * muestra la pantalla (y la numeración que promete el alta) sea el real y no
- * el de las primeras 100.
+ * Tamaño de la página de mesas: el máximo del bulk. El listado pagina igual
+ * (page=0, size=300, y siguientes hasta totalPages) para que el total que
+ * muestra la pantalla — y la numeración que promete el alta — sea el real.
  */
 const TABLES_PAGE_SIZE = MAX_BULK;
+
+/**
+ * Máximo de mesas de un rango contiguo que la preview del alta lista como
+ * "Mesa X a Mesa Y"; más que eso se resume ("3 mesas: Mesa 3, Mesa 4, Mesa 5…").
+ */
+const MAX_RANGE_LISTED = 6;
+
+/**
+ * Qué mesas va a crear el alta por lote, según el contrato del backend
+ * (TableServiceImpl.generateBulk): las N mesas nuevas ocupan los N enteros
+ * más bajos no usados por una mesa viva y, si no hay huecos, continúan a
+ * continuación de la mesa viva más alta. Única fuente de esa regla en la UI:
+ * la preview la usa para prometer sólo números que el backend va a crear.
+ */
+function nextTableNumbers(liveNumbers: Set<number>, count: number): number[] {
+  const numbers: number[] = [];
+  let candidate = 1;
+  while (numbers.length < count) {
+    if (!liveNumbers.has(candidate)) numbers.push(candidate);
+    candidate += 1;
+  }
+  return numbers;
+}
 
 interface AdminTable {
   id: number;
@@ -127,7 +151,7 @@ function describeCreated(numbers: number[]): string {
 
   if (count === 1) return `Se va a crear: Mesa ${first}.`;
   // Un rango sólo cuando los números son todos consecutivos y cortos.
-  if (last - first + 1 === count && count <= 6) {
+  if (last - first + 1 === count && count <= MAX_RANGE_LISTED) {
     return `Se van a crear: Mesa ${first} a Mesa ${last}.`;
   }
   const head = numbers.slice(0, 3).map((n) => `Mesa ${n}`).join(", ");
@@ -137,6 +161,31 @@ function describeCreated(numbers: number[]): string {
 /** Baja lógica: la mesa sigue llegando en GET /api/tables pero ya no existe. */
 function isDeletedTable(table: AdminTable): boolean {
   return table.status === "DISABLED";
+}
+
+/**
+ * Trae TODAS las páginas de GET /api/tables: página 0 con size=300 y sigue
+ * pidiendo páginas hasta llegar a totalPages. Sin esto, un negocio con más
+ * mesas que el tamaño de página ve una lista truncada, conteos mal y una
+ * numeración del alta equivocada. Defensivo: corta en una página vacía y con
+ * un tope de páginas, para no ciclar nunca.
+ */
+const MAX_TABLES_PAGES = 100;
+
+async function fetchAllTables(errorMessage: string): Promise<AdminTable[]> {
+  const tables: AdminTable[] = [];
+  for (let page = 0; page < MAX_TABLES_PAGES; page += 1) {
+    const res = await fetch(`${API}/tables?page=${page}&size=${TABLES_PAGE_SIZE}`, {
+      headers: authHeader(),
+    });
+    if (!res.ok) throw new Error(errorMessage);
+    const data = (await res.json()) as { content?: AdminTable[]; totalPages?: number };
+    const content = data.content ?? [];
+    tables.push(...content);
+    const totalPages = data.totalPages ?? page + 1;
+    if (content.length === 0 || page + 1 >= totalPages) break;
+  }
+  return tables;
 }
 
 /** Confirmación del alta, con los nombres que devolvió el backend. */
@@ -164,23 +213,44 @@ export default function QrTablesSection() {
   const [previewUrls, setPreviewUrls] = useState<Record<number, string>>({});
   const { confirmState, confirmAsync, settleConfirm } = useConfirmDialog();
 
+  // Registro de todos los object URLs que crea la pestaña (QR público y
+  // previews): se revocan al desmontar para no filtrar blobs. Nunca se revoca
+  // uno que se esté mostrando.
+  const objectUrlsRef = useRef<Set<string>>(new Set());
+  // Token por pedido de preview: si llega tarde la respuesta de una mesa que
+  // ya no está seleccionada, se descarta en vez de pisar la preview actual.
+  const previewRequestRef = useRef(0);
+
+  useEffect(
+    () => () => {
+      for (const url of objectUrlsRef.current) URL.revokeObjectURL(url);
+      objectUrlsRef.current.clear();
+    },
+    [],
+  );
+
+  /** Crea un object URL y lo anota para revocarlo al desmontar. */
+  function trackObjectUrl(blob: Blob): string {
+    const url = URL.createObjectURL(blob);
+    objectUrlsRef.current.add(url);
+    return url;
+  }
+
   const slug = getSessionRestaurantSlug();
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [qrRes, tablesRes] = await Promise.all([
+        const [qrRes, tables] = await Promise.all([
           fetch(`${API}/business/qr`, { headers: authHeader() }),
-          fetch(`${API}/tables?page=0&size=${TABLES_PAGE_SIZE}`, { headers: authHeader() }),
+          fetchAllTables("Error cargando las mesas"),
         ]);
         if (!qrRes.ok) throw new Error("Error cargando el QR del menú público");
-        if (!tablesRes.ok) throw new Error("Error cargando las mesas");
         const qrBlob = await qrRes.blob();
-        const page = (await tablesRes.json()) as { content?: AdminTable[] };
         if (cancelled) return;
-        setPublicQrUrl(URL.createObjectURL(qrBlob));
-        setTables(page.content ?? []);
+        setPublicQrUrl(trackObjectUrl(qrBlob));
+        setTables(tables);
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
       } finally {
@@ -193,10 +263,7 @@ export default function QrTablesSection() {
   }, []);
 
   async function refreshTables() {
-    const res = await fetch(`${API}/tables?page=0&size=${TABLES_PAGE_SIZE}`, { headers: authHeader() });
-    if (!res.ok) throw new Error("Error recargando las mesas");
-    const page = (await res.json()) as { content?: AdminTable[] };
-    setTables(page.content ?? []);
+    setTables(await fetchAllTables("Error recargando las mesas"));
   }
 
   async function downloadPublicQr() {
@@ -225,16 +292,26 @@ export default function QrTablesSection() {
       setPreviewId(null);
       return;
     }
+    const token = ++previewRequestRef.current;
     setPreviewId(table.id);
     if (previewUrls[table.id]) return;
     try {
       const res = await fetch(`${API}/tables/${table.id}/qr`, { headers: authHeader() });
       if (!res.ok) throw new Error(`No se pudo cargar el QR de ${table.tableName}`);
       const blob = await res.blob();
-      setPreviewUrls((prev) => ({ ...prev, [table.id]: URL.createObjectURL(blob) }));
+      // Respuesta tardía de una mesa que ya no está seleccionada: se descarta.
+      if (previewRequestRef.current !== token) return;
+      const url = trackObjectUrl(blob);
+      // Reemplazo defensivo: si hubiera una URL previa de esta mesa, deja de
+      // mostrarse recién ahora, así que recién acá se revoca.
+      const previousUrl = previewUrls[table.id];
+      if (previousUrl) URL.revokeObjectURL(previousUrl);
+      setPreviewUrls((prev) => ({ ...prev, [table.id]: url }));
     } catch (e) {
-      setPreviewId(null);
-      setError((e as Error).message);
+      if (previewRequestRef.current === token) {
+        setPreviewId(null);
+        setError((e as Error).message);
+      }
     }
   }
 
@@ -307,13 +384,7 @@ export default function QrTablesSection() {
    *  no hay huecos, a continuación de la mesa viva más alta. */
   const plannedNumbers = useMemo(() => {
     if (!Number.isInteger(requestedNew) || requestedNew < 1 || requestedNew > MAX_BULK) return [];
-    const numbers: number[] = [];
-    let candidate = 1;
-    while (numbers.length < requestedNew) {
-      if (!liveNumbers.has(candidate)) numbers.push(candidate);
-      candidate += 1;
-    }
-    return numbers;
+    return nextTableNumbers(liveNumbers, requestedNew);
   }, [requestedNew, liveNumbers]);
 
   const canGenerate = plannedNumbers.length > 0 && !saving;
