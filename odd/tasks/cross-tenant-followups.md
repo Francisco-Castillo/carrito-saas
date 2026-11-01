@@ -87,6 +87,10 @@ autoradas, sin necesidad de partirse:
 
 Sin push ni PR: son decisiones del usuario.
 
+Actualización: el usuario autorizó la entrega → **PR #98**
+(`https://github.com/Francisco-Castillo/carrito-saas/pull/98`) contra `develop`,
+label `type:chore`. Sin merge: sigue siendo decisión del usuario.
+
 ## Log
 
 L1: Pedido del usuario (verbatim): "vamos a trabajar en paralelo mientras la
