@@ -121,13 +121,42 @@ Se reescribió la pestaña para que el dueño entienda sin leer código ni proba
 | 1 | `c7a33c6` | `feat(service)`: plantilla `GRID_4X4` + `Grid4TemplateTests` (T4, T5) |
 | 2 | `93e48db` | `fix(service)`: baja de mesa real — numeración libre, fail-closed de carta/pedidos, PDF sin QRs muertos (T7, T9, T10, T11) |
 | 3 | `25cf740` | `feat(frontend)`: pestaña QR y mesas — componente, estilos y specs (T1, T2, T3, T6, T8, T12) |
-| 4 | este commit | `docs(odd)`: esta ficha |
+| 4 | `f354b37` | `docs(odd)`: esta ficha |
+| 5 | `376bd75` | `fix(service)`: corrección del hallazgo R3 (el template 4×4 honra el DTO) |
 
 Frontera de slices: la rama `worktree/quiet-field-ddd5` acumula 113 commits
 previos ajenos a esta feature (`origin/main..HEAD`); lo de acá son los cuatro de
 la tabla. El slice 3 supera la referencia de ~400 líneas porque es la
 reescritura de un solo componente con sus estilos y sus specs: partirla dejaba
 un estado intermedio con la UI prometiendo algo que el backend todavía no hacía.
+
+## Review
+
+Revisión nativa (RDD) del slice 1 (`c7a33c6`, plantilla 4×4), lentes riesgo y
+confiabilidad. Los dos revisores entregaron y el refuter confirmó **un hallazgo
+crítico introducido por mí**:
+
+- **R3-config-ignored** (`Grid4Template.java:90-125`): `generate()` recibía un
+  `QrPdfRequestDTO` y nunca lo leía — `qrSize` y `showUrl` se descartaban y el
+  QR siempre salía a 110pt con el nombre. Corregido en `376bd75`: tamaño pedido
+  honrado y acotado a 40..110pt, `showUrl` imprime la URL debajo (cortada cada
+  34 caracteres porque OpenPDF no parte URLs sin espacios) y
+  `showTableName=false` omite el nombre. Dos tests nuevos
+  (`honoursTheRequestedQrSizeAndTheOptionalUrlText`,
+  `omitsTheTableNameWhenTheCallerTurnsItOff`), `Grid4TemplateTests` 8/8.
+
+La revisión **no cerró**: el validador dirigido que tenía que aprobar la
+corrección fue rechazado por la admisión del transporte dos veces, de forma
+idéntica y en 214 ms ("reviewer payload contains no complete JSON object …
+scan ended at byte 1"), es decir, sin llegar a producir veredicto. El slot no
+se consumió y no hubo mutación de autoridad; por decisión del dueño (L5) la
+revisión queda bloqueada y se sigue con la política normal del repo. Los
+slices 2 y 3 (`93e48db`, `25cf740`+`f354b37`) no llegaron a revisarse: quedan
+como deuda explícita, no como aprobados.
+
+Nota: el candidato global de 1835 líneas tampoco entra en el presupuesto de
+contexto de los lentes (`lens_context_budget_exceeded` al arrancar), así que la
+única forma de revisar esta feature es por slices.
 
 ## Log
 
@@ -144,3 +173,5 @@ un estado intermedio con la UI prometiendo algo que el backend todavía no hací
   borrada. Al mirar (a) apareció el defecto de fondo: una mesa DISABLED seguía
   sirviendo en la carta pública y aceptando pedidos, así que la promesa del
   diálogo de baja ("su QR dejará de funcionar") era falsa.
+- L5 (usuario): "Dejar la revisión bloqueada y seguir" — el defecto de admisión
+  del validador dirigido no se reintenta; la feature sigue con política normal.
