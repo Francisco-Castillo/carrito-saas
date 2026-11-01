@@ -174,6 +174,19 @@ L6: **Corrección de la evidencia de conteo (2026-11-01, post-PR).** L5 registra
     casos perdidos son 20 y 17 es la diferencia de totales. (Corrección de
     redacción aportada por la sesión par, que midió lo mismo de su lado.)
 
+    **Reproducido de punta a punta en este mismo worktree**, con el comando
+    exacto del CI y el bundle ya construido:
+
+    ```text
+    mvn -B --no-transfer-progress -Pfrontend verify
+    [INFO] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0 -- in com.carrito.saas.SpaRoutingHttpTests
+    [INFO] Tests run: 516, Failures: 0, Errors: 0, Skipped: 0
+    [INFO] BUILD SUCCESS
+    ```
+
+    Mismo árbol, misma base, mismo comando: sin bundle 499 (4 skipped), con
+    bundle 516 (0 skipped). La variable era el bundle, no la base ni el runner.
+
     **Regla para adelante:** un conteo de tests en este repo es una medición de
     entorno, no de código. Sin el bundle del frontend, `mvn verify` da 499 y no
     es una regresión: es una clase deshabilitada con su expansión perdida. El
