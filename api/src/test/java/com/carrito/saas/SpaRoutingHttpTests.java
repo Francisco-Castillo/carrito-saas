@@ -54,10 +54,13 @@ class SpaRoutingHttpTests {
 
 	private static final String BUNDLE_MISSING = """
 			SpaRoutingHttpTests needs the served SPA bundle (static/admin/admin.html), which is not \
-			committed. Build it first: `npm run build:spring` inside frontend/, or run \
-			`mvn -B --no-transfer-progress -Pfrontend verify`, which is what CI does. Without it this \
-			class would silently lose 21 executions (1 @Test + 20 @ParameterizedTest cases) and report \
-			4 skips instead of them.""";
+			committed. The one-step fix, exactly what CI runs, is \
+			`mvn -B --no-transfer-progress -Pfrontend verify`: that profile runs `npm ci` and the \
+			bundle build for you. Doing it by hand needs both steps, \
+			`npm ci && npm run build:spring` inside frontend/, because a fresh checkout has no \
+			node_modules and the build fails without them. See frontend/README.md, section \
+			"The SPA bundle the backend tests need". Without the bundle this class would silently \
+			lose 21 executions (1 @Test + 20 @ParameterizedTest cases) and report 4 skips instead.""";
 
 	/**
 	 * Fails loudly when the bundle is absent: a silent skip here costs 21

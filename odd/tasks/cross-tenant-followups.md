@@ -238,3 +238,32 @@ L7: **Follow-up entregado: la clase ya no puede saltear en silencio**
     **Estado de `develop` al entregar**: `61f3b69` (merge de #99) sobre
     `6fedb18` (merge de #98). CI sobre `develop`: `api 516`, `service 6`,
     `Frontend lint: Found 0 warnings and 0 errors`.
+
+L8: **Refinamiento post-merge del guard** (`docs/spa-bundle-setup`), a partir de
+    una crítica de la sesión par que llegó después de mergear #100. Dos de sus
+    tres puntos se aceptaron:
+
+    - **Lugar del documento**: el guard no es de cross-tenant, así que su
+      documentación no vive acá sino en `frontend/README.md`, sección "The SPA
+      bundle the backend tests need" — junto a los comandos de build, que es
+      donde alguien la va a buscar. Se agregó el dato que faltaba: bajo
+      `api/src/main/resources/static/` **sólo `favicon.ico` está trackeado**, así
+      que un clon nuevo tampoco puede correr `mvn verify` hasta construir el
+      bundle.
+    - **El mensaje asumía `node_modules`**: mandaba a `npm run build:spring`, que
+      en un checkout nuevo falla por dependencias. Ahora arranca por lo
+      autosuficiente (`-Pfrontend verify`, que corre `npm ci` y el build) y deja
+      el camino manual como dos pasos explícitos.
+
+    Se **rechazó** extraer un `SpaBundleGuard.require()` compartido: no cierra el
+    agujero (nada obliga a la próxima clase a usarlo), es abstracción para un
+    solo llamador, y el día que exista la segunda clase la extracción es
+    mecánica con dos llamadores reales en vez de uno hipotético.
+
+    **Límite de la guarda, que no hay que confundir.** El artefacto que la guarda
+    verifica vive en `api/src/main/resources/static/admin/admin.html`, que está
+    **gitignoreado**: sólo `favicon.ico` está trackeado bajo `static/`. Por eso la
+    guarda depende de estado local que ningún commit garantiza. Es una **falla
+    ruidosa**, no una prueba de que el entorno sea reproducible: sirve para no
+    perder 21 ejecuciones sin enterarse, **no** para certificar cobertura. El único
+    entorno autoritativo sigue siendo CI.
