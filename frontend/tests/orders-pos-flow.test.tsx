@@ -11,7 +11,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Orders from '../src/pages/Orders'
-import { managementOrder, seedPanelSession } from './helpers/ordersFixtures'
+import { seedPanelSession } from './helpers/ordersFixtures'
 
 vi.mock('@stomp/stompjs', () => ({
   Client: class {
@@ -183,7 +183,7 @@ describe('POS option selection step', () => {
     // step stays open and no POST leaves the panel.
     expect(await screen.findByText('Elegí una opción de "Tipo de pan"')).toBeTruthy()
     expect(
-      fetchMock.mock.calls.filter(([url, init]) => String(url) === '/api/orders/menu/demo-pizzeria')
+      fetchMock.mock.calls.filter(([url, _init]) => String(url) === '/api/orders/menu/demo-pizzeria')
     ).toHaveLength(0)
   })
 

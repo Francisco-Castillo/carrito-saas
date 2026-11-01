@@ -127,7 +127,7 @@ describe('orders feed sounds', () => {
       await result.current.refresh()
     })
 
-    const { ding, ready } = audioPair()
+    const { ding } = audioPair()
     expect(ding.getAttribute('id')).toBe('newOrderSound')
     expect(dingPlay).not.toHaveBeenCalled()
     expect(readyPlay).not.toHaveBeenCalled()

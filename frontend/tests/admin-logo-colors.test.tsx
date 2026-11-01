@@ -14,13 +14,10 @@
  *     sin logo no hay botón; si el análisis falla, error legible y el resto
  *     de la pestaña sigue usable.
  */
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  extractDominantColors,
-  suggestColorsFromImage,
-} from "../src/pages/admin/logoColors";
+import { extractDominantColors } from "../src/pages/admin/logoColors";
 
 // La UI usa suggestColorsFromImage (canvas: jsdom no lo implementa); los
 // tests de UI la mockean. extractDominantColors queda REAL para probar la
@@ -179,7 +176,7 @@ describe("Pestaña Personalización — sugerencias del logo", () => {
   });
 
   it("sin logo no hay botón de sugerencias", async () => {
-    const user = await openPersonalization({ ...PROFILE, logoUrl: "" });
+    await openPersonalization({ ...PROFILE, logoUrl: "" });
     expect(screen.queryByRole("button", { name: "Sugerir desde el logo" })).toBeNull();
   });
 

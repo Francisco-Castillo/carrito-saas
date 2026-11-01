@@ -38,7 +38,7 @@ async function submitLogin(options: {
   search: string
   loginResponse?: Record<string, unknown>
 }) {
-  const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+  const fetchMock = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
     const u = String(url instanceof Request ? url.url : url)
     if (u === '/api/auth/login') {
       return okJson(
