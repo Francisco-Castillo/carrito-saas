@@ -145,14 +145,30 @@ crítico introducido por mí**:
   (`honoursTheRequestedQrSizeAndTheOptionalUrlText`,
   `omitsTheTableNameWhenTheCallerTurnsItOff`), `Grid4TemplateTests` 8/8.
 
-La revisión **no cerró**: el validador dirigido que tenía que aprobar la
-corrección fue rechazado por la admisión del transporte dos veces, de forma
-idéntica y en 214 ms ("reviewer payload contains no complete JSON object …
-scan ended at byte 1"), es decir, sin llegar a producir veredicto. El slot no
-se consumió y no hubo mutación de autoridad; por decisión del dueño (L5) la
-revisión queda bloqueada y se sigue con la política normal del repo. Los
-slices 2 y 3 (`93e48db`, `25cf740`+`f354b37`) no llegaron a revisarse: quedan
-como deuda explícita, no como aprobados.
+La revisión **no cerró para ese slice**: el validador dirigido que tenía que
+aprobar la corrección fue rechazado por la admisión del transporte dos veces,
+de forma idéntica y en 214 ms ("reviewer payload contains no complete JSON
+object … scan ended at byte 1"), sin llegar a producir veredicto. El slot no se
+consumió y no hubo mutación de autoridad; por decisión del dueño (L5) ese slice
+quedó bloqueado.
+
+Los otros dos slices sí cerraron, con autoridad consumida:
+
+- **Slice 2** (`93e48db`, backend de la baja + numeración, 380 líneas, lentes
+  riesgo+confiabilidad): **aprobado**. Hallazgos informativos: la semántica
+  nueva de `bulk` (esperada), `quantity` sin validar en la capa de servicio
+  (la valida el DTO), posible carrera entre dos altas concurrentes que calculen
+  los mismos números libres, y el guard de `DISABLED` presente sólo en la rama
+  SALON (RETIRO/DELIVERY ignoran `tableId`, por diseño).
+- **Slice 3** (`25cf740`+`f354b37`, pestaña + ficha, 996 líneas, lentes
+  legibilidad+confiabilidad): **aprobado**. Hallazgos informativos: URLs blob de
+  la vista previa sin `revokeObjectURL`, vista previa que puede quedar vieja si
+  se cambia de mesa rápido, tope de la página de mesas (`size=300`), contrato
+  implícito entre el preview de numeración y el backend (duplicado en dos
+  lugares) y un `6` mágico en el largo de la lista.
+
+Ese conjunto de hallazgos es trabajo posterior, no bloquea la entrega: ninguno
+abrió corrección ni reabre la revisión (decisión del propio controlador).
 
 Nota: el candidato global de 1835 líneas tampoco entra en el presupuesto de
 contexto de los lentes (`lens_context_budget_exceeded` al arrancar), así que la
