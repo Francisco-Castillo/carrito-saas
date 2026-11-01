@@ -129,7 +129,7 @@ public class CategoryServiceImpl implements ICategoryService {
 	}
 
 	@Override
-	public List<CategoryDTO> findAllByBusinessIdAndActiveTrueOrFalse() {
+	public List<CategoryDTO> findAllIncludingInactive() {
 		Long businessId = securityService.getCurrentBusinessId();
 		return iCategoryMapper.toListDTO(categoryRepository.findByBusinessIdOrdered(businessId));
 	}

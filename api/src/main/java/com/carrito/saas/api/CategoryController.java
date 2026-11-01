@@ -45,6 +45,25 @@ public class CategoryController {
 		return categoryService.findAllByBusinessId();
 	}
 
+	/**
+	 * Panel de administración: todas las categorías del negocio, activas e
+	 * inactivas, en el orden del dueño.
+	 *
+	 * <p>Es la lectura de la tabla de categorías. Sin las inactivas, apagar una
+	 * categoría la sacaba de la única lista que el panel consulta y el switch
+	 * era de ida: no había forma de volver a prenderla.</p>
+	 *
+	 * <p>Se sumó como ruta propia en vez de cambiar {@code GET /api/categorias}:
+	 * ese listado alimenta también los selectores del alta de productos y
+	 * combos, que sólo deben ofrecer categorías activas. La ruta literal gana
+	 * sobre la plantilla {@code /{id}} en el matcher de Spring, así que no
+	 * compite con ella.</p>
+	 */
+	@GetMapping("/todas")
+	public List<CategoryDTO> obtenerTodasLasCategoriasIncluyendoInactivas() {
+		return categoryService.findAllIncludingInactive();
+	}
+
 	@GetMapping("/{id}")
 	public ResponseEntity<CategoryDTO> getById(@PathVariable Long id) {
 

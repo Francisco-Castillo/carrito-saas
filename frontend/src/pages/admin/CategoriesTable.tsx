@@ -27,7 +27,9 @@ function normalize(text: string): string {
 
 /**
  * Listado de categorías del panel admin contra los endpoints owner:
- * GET /api/categorias (scoped por el negocio del JWT), PUT /api/categorias/{id}
+ * GET /api/categorias/todas (scoped por el negocio del JWT, activas E
+ * inactivas: es la única tabla donde vive el switch, sin la fila apagada no
+ * habría forma de volver a prenderla), PUT /api/categorias/{id}
  * para renombrar y cambiar estado, DELETE /api/categorias/{id} para eliminar
  * (409 si todavía tiene productos: el mensaje del backend se muestra en el
  * toast) y PUT /api/categorias/orden para reordenar.
@@ -74,7 +76,7 @@ export default function CategoriesTable({ refreshKey, onRowCountChange }: Catego
   async function loadCategories() {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`${API}/categorias`, {
+      const response = await fetch(`${API}/categorias/todas`, {
         headers: { Authorization: "Bearer " + token },
       });
 

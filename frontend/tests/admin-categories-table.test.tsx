@@ -89,7 +89,7 @@ function stubFetch(handlers: StubHandlers = {}) {
         Object.entries((init?.headers ?? {}) as Record<string, string>).map(([k, v]) => [k.toLowerCase(), v]),
       ),
     })
-    if (url === '/api/categorias' && method === 'GET') return okJson(CATEGORIES)
+    if (method === 'GET' && (url === '/api/categorias' || url === '/api/categorias/todas')) return okJson(CATEGORIES)
     if (url === '/api/categorias' && method === 'POST') {
       return handlers.postCategory ? handlers.postCategory(parseBody(init)) : okJson({})
     }
@@ -119,7 +119,9 @@ async function openCategoriesView() {
 }
 
 function categoryListRequests(): RecordedCall[] {
-  return calls.filter((c) => c.method === 'GET' && c.url === '/api/categorias')
+  return calls.filter(
+    (c) => c.method === 'GET' && (c.url === '/api/categorias' || c.url === '/api/categorias/todas'),
+  )
 }
 
 beforeEach(() => {
