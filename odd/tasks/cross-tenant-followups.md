@@ -136,4 +136,32 @@ L5: Evidencia final.
     Los cuatro mutantes mueren. MA y MB prueban que la sustitución de
     `findByCategoryId` no perdió poder de detección (que era la única duda real
     de S2); MC prueba S4; MD prueba que la suite sigue atrapando el agujero de
-    comportamiento, no sólo la forma de la aserción.
+    comportamiento, no sólo la forma de la aserción. El conteo de tests de este
+    L5 queda corregido en L6.
+
+L6: **Corrección de la evidencia de conteo (2026-11-01, post-PR).** L5 registra
+    `api: 499 tests`. Ese número es real pero **está limitado por el entorno**, y
+    presentarlo sin la salvedad era el mismo defecto que este slice critica en
+    otros documentos.
+
+    El CI de GitHub Actions sobre este HEAD da `api: Tests run: 516, Failures: 0,
+    Errors: 0, Skipped: 0` (y `service: 6`). La diferencia se midió clase por
+    clase contra los reportes surefire locales:
+
+    | Clase | CI | Local |
+    | --- | --- | --- |
+    | `SpaRoutingHttpTests` | 21 tests, 0 skipped | 4 tests, 4 skipped |
+
+    Causa: la clase está anotada `@EnabledIf("spaEntryPresent")`, que chequea
+    `static/admin/admin.html`. Ese bundle **no se commitea** (`git ls-tree
+    b3fbf20 -- api/src/main/resources/static` sólo trae `favicon.ico`) pero el CI
+    lo construye con el perfil `frontend` de `api/pom.xml`. En un worktree nuevo
+    el bundle no existe, la clase queda deshabilitada, surefire registra los **4
+    métodos** como skipped y **no expande los 17 casos `@ParameterizedTest`**.
+    De ahí 516 − 499 = 17.
+
+    **Regla para adelante:** un conteo de tests en este repo es una medición de
+    entorno, no de código. Sin el bundle del frontend, `mvn verify` da 499 y no
+    es una regresión: es una clase deshabilitada con su expansión perdida. El
+    número canónico es el del CI, o un `mvn clean verify` sobre un checkout con
+    el bundle construido.
