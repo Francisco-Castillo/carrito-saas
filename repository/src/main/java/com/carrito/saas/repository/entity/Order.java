@@ -24,6 +24,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -82,6 +83,18 @@ public class Order implements Serializable {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
+    /**
+     * Ítems del pedido, siempre en el orden en que se cargaron (su id).
+     *
+     * <p>Sin {@code @OrderBy} la colección se cargaba en el orden que devolviera
+     * PostgreSQL —el físico del heap—, y cualquier {@code UPDATE} de una fila la
+     * reescribe al final: el mismo pedido podía mostrar sus ítems en otro orden
+     * entre dos lecturas, en la consola y en la comanda. El id ES el orden de
+     * carga, así que ordenar por él no reinterpreta nada.</p>
+     *
+     * <p>Ver {@code OrderItemsOrderingTests}.</p>
+     */
+    @OrderBy("id")
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
     private List<OrderItem> items;
     
