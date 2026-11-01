@@ -19,8 +19,6 @@ import jakarta.persistence.LockModeType;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
-	//List<Product> findByBusinessId(Long businessId);
-
 	// Todos los productos de un negocio
     List<Product> findByCategory_Business_Id(Long businessId);
 
@@ -52,15 +50,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 			WHERE cp.product.id = :productId
 			""")
 	boolean existsInAnyCombo(@Param("productId") Long productId);
-	
-	List<Product> findByCategoryId(Long categoryId);
-
-	//List<Product> findByBusinessIdAndActiveTrueAndStockGreaterThan(Long businessId, Integer stock);
-
-	// Solo activos y con stock > X
-
-	
-	List<Product> findByActiveTrue();
 
 	/**
 	 * mientras una transacción usa esos productos, nadie más puede modificarlos
@@ -113,10 +102,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 	        @Param("businessId") Long businessId
 	);
 
-	List<Product> findByCategoryIdAndActiveTrue(Long categoriaId);
-    
-	//List<Product> findByActiveTrue();
-	
 	@Query("""
 		       SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END
 		       FROM Product p

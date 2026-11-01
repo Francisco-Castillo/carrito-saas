@@ -191,17 +191,19 @@ class TenantScopedQueryContractTests {
 		List<Combo> loaded = comboRepository.findFullMenuCombosByIds(
 				List.of(ownCombo.getId()), BUSINESS_A_ID);
 
+		// Ids only, same rule as the negative case: {@code Combo} and
+		// {@code ComboProduct} carry a bidirectional Lombok {@code @Data}
+		// relation, so rendering either entity on failure would overflow the
+		// stack and hide the diff.
 		assertThat(loaded)
 				.as("positive control: A must resolve its own combo with items")
-				.singleElement()
-				.satisfies(combo -> {
-					assertThat(combo.getId()).isEqualTo(ownCombo.getId());
-					assertThat(combo.getItems())
-							.as("the combo must carry its component product")
-							.singleElement()
-							.satisfies(item -> assertThat(item.getProduct().getId())
-									.isEqualTo(ownProduct.getId()));
-				});
+				.extracting(Combo::getId)
+				.containsExactly(ownCombo.getId());
+
+		assertThat(loaded.get(0).getItems())
+				.as("the combo must carry its component product")
+				.extracting((ComboProduct item) -> item.getProduct().getId())
+				.containsExactly(ownProduct.getId());
 	}
 
 }

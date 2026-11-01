@@ -281,8 +281,9 @@ class CrossTenantProductWriteIsolationTests {
 		entityManager.flush();
 		entityManager.clear();
 
-		assertThat(productRepository.findByCategoryId(categoryB.getId()))
+		assertThat(productRepository.findByCategory_Business_Id(BUSINESS_B_ID))
 				.as("a cross-tenant creation attempt must not create any new row in the foreign category")
+				.filteredOn(p -> p.getCategory().getId().equals(categoryB.getId()))
 				.hasSize(1)
 				.first()
 				.satisfies(p -> assertThat(p.getId()).isEqualTo(foreignProduct.getId()));
@@ -305,8 +306,9 @@ class CrossTenantProductWriteIsolationTests {
 		entityManager.flush();
 		entityManager.clear();
 
-		assertThat(productRepository.findByCategoryId(categoryA.getId()))
+		assertThat(productRepository.findByCategory_Business_Id(BUSINESS_A_ID))
 				.as("the created product must exist inside the caller's own category")
+				.filteredOn(p -> p.getCategory().getId().equals(categoryA.getId()))
 				.anySatisfy(p -> {
 					assertThat(p.getName()).isEqualTo("Producto Atacante");
 					assertThat(p.getCategory().getBusiness().getId()).isEqualTo(BUSINESS_A_ID);
