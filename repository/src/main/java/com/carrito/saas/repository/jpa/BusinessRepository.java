@@ -43,7 +43,7 @@ public interface BusinessRepository extends JpaRepository<Business, Long> {
      * {@code FOR KEY SHARE} que los INSERT de pedidos toman sobre la misma
      * fila.</p>
      *
-     * <p>Ver {@code CategoryCreateSerializationTests}: el test sostiene la fila
+     * <p>Ver {@code CategoryWriteSerializationTests}: el test sostiene la fila
      * desde otra conexión con {@code FOR NO KEY UPDATE} —compatible con el
      * {@code FOR KEY SHARE} que el INSERT del alta ya toma por la FK, para no
      * medir el lock de la FK— y exige que el alta espere.</p>

@@ -45,11 +45,9 @@ public class CategoryServiceImpl implements ICategoryService {
 			throw new BusinessException("El nombre de la categoría es obligatorio", ErrorType.VALIDATION);
 
 		// El negocio se toma para escritura: el lugar de la categoría sale de
-		// max(orden) + 1 y ese cálculo tiene que estar serializado por negocio,
-		// o dos altas concurrentes empatan (ver findByIdForUpdate y
-		// CategoryCreateSerializationTests).
-		Business business = businessRepository.findByIdForUpdate(businessId)
-				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
+		// max(orden) + 1, un read-then-write que tiene que estar serializado por
+		// negocio (ver lockCurrentBusiness).
+		Business business = lockCurrentBusiness();
 
 		String normalizedName = dto.getName().trim();
 
@@ -86,8 +84,9 @@ public class CategoryServiceImpl implements ICategoryService {
 
 		// El tenant ancla en el JWT: un id de categoría ajeno al negocio
 		// resuelve como 404, nunca como un éxito silencioso, y la fila ajena
-		// queda exactamente igual.
-		Long businessId = securityService.getCurrentBusinessId();
+		// queda exactamente igual. El negocio se toma para escritura porque la
+		// edición puede cambiar el lugar de la categoría (ver lockCurrentBusiness).
+		Long businessId = lockCurrentBusiness().getId();
 
 		Category c = categoryRepository.findByIdAndBusinessId(id, businessId)
 				.orElseThrow(() -> new BusinessException("Categoría no encontrada", ErrorType.NOT_FOUND));
@@ -119,8 +118,10 @@ public class CategoryServiceImpl implements ICategoryService {
 	public void ordenarCategorias(List<Long> idsOrdenados) {
 		// El tenant ancla en el JWT: reordenar con un id ajeno al negocio
 		// resuelve como 404 y la transacción completa se descarta, dejando el
-		// orden de todas las filas exactamente como estaba.
-		Long businessId = securityService.getCurrentBusinessId();
+		// orden de todas las filas exactamente como estaba. El negocio se toma
+		// para escritura: el reordenamiento reescribe los lugares que otro
+		// escritura concurrente está leyendo (ver lockCurrentBusiness).
+		Long businessId = lockCurrentBusiness().getId();
 
 		for (int i = 0; i < idsOrdenados.size(); i++) {
 			Category c = categoryRepository.findByIdAndBusinessId(idsOrdenados.get(i), businessId)
@@ -151,6 +152,30 @@ public class CategoryServiceImpl implements ICategoryService {
 				.findByIdAndBusinessId(id, securityService.getCurrentBusinessId())
                 .orElseThrow(() -> new BusinessException("Categoría no encontrada", ErrorType.NOT_FOUND));
 		return iCategoryMapper.toDTO(categoria);
+	}
+
+	/**
+	 * Toma la fila del negocio del JWT para escritura, o falla con el mismo 404
+	 * de siempre si no existe.
+	 *
+	 * <p>Las tres escrituras que deciden el orden de las categorías —alta
+	 * ({@code max(orden) + 1}), edición (el {@code order} del body) y
+	 * reordenamiento ({@code 1..n})— son read-then-write sobre {@code orden}:
+	 * sin serializar, dos escrituras concurrentes leen el mismo estado y
+	 * empatan o duplican un lugar, y la carta resuelve el empate por id en vez
+	 * de por el orden del dueño. El lock vive en la fila del negocio porque el
+	 * negocio existe siempre (una fila conocida) y su alcance es exactamente lo
+	 * que hay que serializar; ver {@code CategoryWriteSerializationTests}.</p>
+	 *
+	 * <p>Hibernate renderiza {@code PESSIMISTIC_WRITE} en PostgreSQL como
+	 * {@code FOR NO KEY UPDATE}, que se bloquea consigo mismo y no bloquea el
+	 * {@code FOR KEY SHARE} que los INSERT de pedidos toman sobre la misma
+	 * fila.</p>
+	 */
+	private Business lockCurrentBusiness() {
+
+		return businessRepository.findByIdForUpdate(securityService.getCurrentBusinessId())
+				.orElseThrow(() -> new BusinessException("Local no encontrado", ErrorType.NOT_FOUND));
 	}
 
 	@Override

@@ -33,34 +33,34 @@ import com.carrito.saas.security.JwtUtil;
 import com.carrito.saas.service.interfaces.ICategoryService;
 
 /**
- * Creating a category appends it at the end, which means tearing the place out
- * of {@code max(orden)} and writing {@code max + 1}: a read-then-write. Two
- * creations that interleave read the same maximum and land on the same
- * {@code orden}, so the second one ties with the first instead of following it
- * (the ordering query then breaks the tie by id, which is deterministic but not
- * the place the owner expected).
+ * Every write that decides the order of the categories is a read-then-write:
+ * the alta computes {@code max(orden) + 1}, and the edit and the reorder write
+ * places they read from the list. Interleaved with another write they collide —
+ * two creations land on the same {@code orden}, a reorder can duplicate a place
+ * an in-flight alta just took — and the ordering query then breaks the tie by
+ * id, which is deterministic but not the place the owner expected.
  *
- * <p>The alta must therefore be serialized per business: it takes the business
- * row for update before computing the place. This test proves the serialization
- * without relying on timing luck — it holds that row from its OWN connection in
- * a mode the alta's foreign key does not already take, starts the creation, and
- * asserts the creation does not complete while the row is taken. It finishes as
- * soon as the lock is released, which also proves the wait ends with a real
- * category and not with a timeout.</p>
+ * <p>All three therefore take the business row for update before touching
+ * {@code orden}, which serializes the category writes of that business. These
+ * tests prove the serialization without relying on timing luck: each one holds
+ * the row from its OWN connection in a mode the writers' foreign keys do not
+ * already take, starts the write, and asserts the write does not complete while
+ * the row is taken. It finishes as soon as the lock is released, which also
+ * proves the wait ends with the real effect applied and not with a timeout.</p>
  *
  * <p>Deliberately NOT {@code @Transactional}: the whole point is two separate
  * transactions, so the fixtures are cleaned up by hand in
  * {@link #cleanUp()}.</p>
  */
 @SpringBootTest
-class CategoryCreateSerializationTests {
+class CategoryWriteSerializationTests {
 
 	/** High fixed id: {@code businesses.id} is manually assigned (no generator). */
 	private static final Long BUSINESS_ID = 987_700_406L;
 
-	private static final String SLUG = "category-create-serialization-test";
+	private static final String SLUG = "category-write-serialization-test";
 
-	private static final String OWNER = "category-create-serialization-owner";
+	private static final String OWNER = "category-write-serialization-owner";
 
 	@Autowired
 	private DataSource dataSource;
@@ -109,64 +109,95 @@ class CategoryCreateSerializationTests {
 	@Test
 	void aCreationWaitsWhileAnotherTransactionHoldsTheBusinessRow() throws Exception {
 
+		CategoryDTO created = writeWaitingForTheBusinessRow(() -> categoryService.crearCategoria(categoryDTO("Empanadas")));
+
+		assertThat(created).isNotNull();
+		assertThat(created.getOrder()).as("it still appends after the last category").isEqualTo(3);
+	}
+
+	@Test
+	void anEditWaitsWhileAnotherTransactionHoldsTheBusinessRow() throws Exception {
+
+		CategoryDTO edited = writeWaitingForTheBusinessRow(
+				() -> categoryService.actualizarCategoria(idOf("Bebidas"), dtoWithOrder("Bebidas", 9)));
+
+		assertThat(edited).isNotNull();
+		assertThat(edited.getOrder()).as("the edit applied its place").isEqualTo(9);
+	}
+
+	@Test
+	void aReorderWaitsWhileAnotherTransactionHoldsTheBusinessRow() throws Exception {
+
+		writeWaitingForTheBusinessRow(() -> {
+			categoryService.ordenarCategorias(List.of(idOf("Postres"), idOf("Bebidas")));
+			return null;
+		});
+
+		assertThat(categoryRepository.findByBusinessIdOrdered(BUSINESS_ID).stream().map(Category::getName).toList())
+				.as("the reorder applied the new order")
+				.containsExactly("Postres", "Bebidas");
+	}
+
+	/**
+	 * Corre {@code write} en otro hilo mientras esta conexión sostiene la fila
+	 * del negocio, y exige que la escritura NO termine mientras la fila está
+	 * tomada: si terminara, habría tocado {@code orden} sin esperar a la otra
+	 * transacción.
+	 *
+	 * <p>{@code FOR NO KEY UPDATE} y no {@code FOR UPDATE} por una razón
+	 * concreta: el INSERT del alta ya toma {@code FOR KEY SHARE} sobre la fila
+	 * del negocio por la FK, así que un {@code FOR UPDATE} del test bloquearía
+	 * el alta incluso sin la serialización y el test no probaría nada.
+	 * {@code FOR NO KEY UPDATE} es compatible con {@code FOR KEY SHARE} (la
+	 * escritura sin serialización pasa derecho) e incompatible consigo mismo,
+	 * que es el modo que toman las tres escrituras.</p>
+	 */
+	private <T> T writeWaitingForTheBusinessRow(java.util.function.Supplier<T> write) throws Exception {
+
 		ExecutorService pool = Executors.newSingleThreadExecutor();
-		AtomicReference<CategoryDTO> created = new AtomicReference<>();
+		AtomicReference<T> result = new AtomicReference<>();
 		AtomicReference<Throwable> failure = new AtomicReference<>();
 		CountDownLatch started = new CountDownLatch(1);
 
 		try (Connection holder = dataSource.getConnection()) {
 			holder.setAutoCommit(false);
 			try (Statement statement = holder.createStatement()) {
-				// OJO con el modo de lock: el INSERT del alta ya toma FOR KEY SHARE
-				// sobre la fila del negocio por la FK, así que un FOR UPDATE acá
-				// bloquearía el alta incluso sin el fix y el test no probaría nada.
-				// FOR NO KEY UPDATE es compatible con FOR KEY SHARE (el alta sin
-				// serialización pasa derecho) e incompatible con el FOR NO KEY
-				// UPDATE que el alta toma para calcular su lugar — Hibernate
-				// renderiza así PESSIMISTIC_WRITE en PostgreSQL, y ese modo se
-				// bloquea consigo mismo.
 				statement.execute("SELECT id FROM businesses WHERE id = " + BUSINESS_ID + " FOR NO KEY UPDATE");
 			}
 
-			Future<?> creation = pool.submit(() -> {
+			Future<?> task = pool.submit(() -> {
 				// El contexto de seguridad es thread-local: el worker necesita el suyo.
 				SecurityContextHolder.getContext().setAuthentication(
 						new UsernamePasswordAuthenticationToken(OWNER, jwtUtil.generateToken(OWNER, BUSINESS_ID)));
 				started.countDown();
 				try {
-					created.set(categoryService.crearCategoria(categoryDTO("Empanadas")));
+					result.set(write.get());
 				} catch (Throwable t) {
 					failure.set(t);
 				}
 			});
 
-			assertThat(started.await(5, TimeUnit.SECONDS)).as("the worker must reach the creation").isTrue();
+			assertThat(started.await(5, TimeUnit.SECONDS)).as("the worker must reach the write").isTrue();
 
-			// Con la fila del negocio tomada, el alta no puede terminar: si
-			// terminara, habría leído el máximo sin esperar a la otra
-			// transacción y podría empatar. La ventana es generosa a propósito
-			// (un alta local tarda milisegundos), así que un verde no depende de
-			// un margen ajustado.
+			// La ventana es generosa a propósito (una escritura local tarda
+			// milisegundos), así que un verde no depende de un margen ajustado.
 			long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(2000);
-			while (!creation.isDone() && System.nanoTime() < deadline) {
+			while (!task.isDone() && System.nanoTime() < deadline) {
 				Thread.sleep(25);
 			}
-			assertThat(creation.isDone())
-					.as("the creation must wait for the business row instead of racing the max")
+			assertThat(task.isDone())
+					.as("the write must wait for the business row instead of racing the order")
 					.isFalse();
 
 			holder.rollback();
 
-			creation.get(10, TimeUnit.SECONDS);
+			task.get(10, TimeUnit.SECONDS);
 		} finally {
 			pool.shutdownNow();
 		}
 
-		assertThat(failure.get()).as("the creation must end without an error once the row is free").isNull();
-
-		CategoryDTO result = created.get();
-		assertThat(result).isNotNull();
-		assertThat(result.getOrder()).as("it still appends after the last category").isEqualTo(3);
+		assertThat(failure.get()).as("the write must end without an error once the row is free").isNull();
+		return result.get();
 	}
 
 	/**
@@ -193,6 +224,20 @@ class CategoryCreateSerializationTests {
 		category.setOrden(orden);
 		category.setActive(true);
 		return category;
+	}
+
+	private Long idOf(String name) {
+		return categoryRepository.findByBusinessIdOrdered(BUSINESS_ID).stream()
+				.filter(c -> name.equals(c.getName()))
+				.findFirst()
+				.orElseThrow()
+				.getId();
+	}
+
+	private CategoryDTO dtoWithOrder(String name, Integer order) {
+		CategoryDTO dto = categoryDTO(name);
+		dto.setOrder(order);
+		return dto;
 	}
 
 	private CategoryDTO categoryDTO(String name) {

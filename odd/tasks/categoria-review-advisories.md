@@ -37,15 +37,29 @@ S4. No-acción registrada: no se endurece el guard de `/todas` más allá de
     que `/api/categorias` (y que el resto de los endpoints autenticados del
     panel); el aislamiento por negocio vive en el JWT y quedó pinneado en S3.
 
+S5. Las tres escrituras que deciden el orden quedan serializadas por negocio, no
+    sólo el alta: `actualizarCategoria` (cuando el body trae `order`) y
+    `ordenarCategorias` (`1..n`) toman el mismo lock mediante un único
+    `lockCurrentBusiness()`, porque las tres son read-then-write sobre `orden`.
+    Cubierto por `CategoryWriteSerializationTests`, que prueba las tres (alta,
+    edición y reordenamiento) con el mismo mecanismo: sostener la fila desde
+    otra conexión y exigir que la escritura espere y después aplique su efecto
+    (el `order` nuevo en la edición, el orden nuevo en el reordenamiento). Las
+    dos escrituras nuevas se observaron en RED antes del fix.
+
 ## Tasks
 
 - **T1** (S1) docs: javadoc de `CategoryDTO.order`. Commit: `ccfe56c`.
 - **T2** (S2) fix+test: lock del negocio en el alta +
-  `CategoryCreateSerializationTests`. Commit: `4cbb550`. **Riesgo: item 4
+  `CategoryWriteSerializationTests`. Commit: `4cbb550`. **Riesgo: item 4
   (concurrencia)** — commit propio, con verificación independiente (L5).
 - **T3** (S3) test: pin cross-tenant de `/todas` en
   `AdminCategoryListHttpTests`. Commit: `7d24d50`.
 - **T4** (S4) docs: esta no-acción. Este documento — commit `bbefc5b`.
+- **T5** (S5) fix+test: lock compartido en las tres escrituras de orden
+  (`lockCurrentBusiness`) + `CategoryWriteSerializationTests` renombrado y
+  extendido. Commit: (ver Log L6). **Riesgo: item 4 (concurrencia)** — commit
+  propio.
 
 ## Log
 
@@ -95,3 +109,17 @@ S4. No-acción registrada: no se endurece el guard de `/todas` más allá de
   S2 (dos altas), queda como hueco conocido. Se agregó además el pin del
   contrato de error de la ruta que ahora lockea
   (`aTokenForANonExistentBusinessStillAnswersNotFound`).
+
+- **L6** (cierre de `R3-remaining-unserialized-writers`, pedido del dueño: «si
+  dale hacelo como vos recomiendas»): el hueco que anotó L5 lo marcó también,
+  por su cuenta, la lente `reliability` en la revisión nativa del lote
+  (`review-c77980408a4aae8a`, advisory `R3-remaining-unserialized-writers`,
+  WARNING informativo): dos lecturas independientes del mismo cambio
+  convergieron en el mismo punto. Se cerró con un `lockCurrentBusiness()`
+  compartido por las tres escrituras y dos casos nuevos en
+  `CategoryWriteSerializationTests` (edición y reordenamiento), cuyos RED se
+  observaron uno por uno: «the write must wait for the business row instead of
+  racing the order — Expecting value to be false but was true». Backend
+  `mvn -B --no-transfer-progress verify` → **515/515**, BUILD SUCCESS (513
+  previos + los dos casos nuevos).
+
