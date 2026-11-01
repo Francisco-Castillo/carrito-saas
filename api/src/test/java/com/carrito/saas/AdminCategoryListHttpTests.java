@@ -51,6 +51,11 @@ class AdminCategoryListHttpTests {
 
 	private static final String OWNER_USERNAME = "admin-category-list-owner";
 
+	/** Segundo negocio: el anclaje del tenant en la superficie nueva. */
+	private static final Long FOREIGN_BUSINESS_ID = 987_700_407L;
+	private static final String FOREIGN_SLUG = "admin-category-list-foreign-business";
+	private static final String FOREIGN_OWNER_USERNAME = "admin-category-list-foreign-owner";
+
 	@Autowired
 	private WebApplicationContext context;
 
@@ -78,6 +83,7 @@ class AdminCategoryListHttpTests {
 	private MockMvc mockMvc;
 
 	private BusinessAuthSeed.AuthenticatedBusiness owner;
+	private BusinessAuthSeed.AuthenticatedBusiness foreignOwner;
 
 	@BeforeEach
 	void setUpMockMvcAndFixtures() {
@@ -94,6 +100,13 @@ class AdminCategoryListHttpTests {
 		categoryRepository.saveAndFlush(category(business, "Postres", 3, true));
 		categoryRepository.saveAndFlush(category(business, "Bebidas", 1, true));
 		categoryRepository.saveAndFlush(category(business, "Promos viejas", 2, false));
+
+		// El negocio ajeno tiene una categoría INACTIVA a propósito: es la fila
+		// que sólo la superficie nueva expone.
+		foreignOwner = BusinessAuthSeed.seedOwner(businessRepository, userRepository, roleRepository,
+				businessUserRepository, jwtUtil, FOREIGN_BUSINESS_ID, FOREIGN_SLUG, FOREIGN_OWNER_USERNAME);
+		categoryRepository.saveAndFlush(
+				category(businessRepository.findById(FOREIGN_BUSINESS_ID).orElseThrow(), "Categoria Ajena Inactiva", 1, false));
 	}
 
 	@Test
@@ -157,6 +170,21 @@ class AdminCategoryListHttpTests {
 				.andExpect(jsonPath("$[1].name").value("Promos viejas"))
 				.andExpect(jsonPath("$[1].active").value(true))
 				.andExpect(jsonPath("$[1].order").value(2));
+	}
+
+	/**
+	 * La superficie nueva no puede aflojar el anclaje del tenant: `/todas`
+	 * expone también las filas inactivas, así que una fuga acá mostraría
+	 * categorías apagadas de otro negocio. El negocio sale del JWT, como en
+	 * {@code /api/categorias}, y un token de otro negocio no ve estas filas.
+	 */
+	@Test
+	void theAdminListIsAnchoredToTheTokenBusinessEvenForInactiveRows() throws Exception {
+
+		mockMvc.perform(get("/api/categorias/todas").header("Authorization", foreignOwner.authorizationHeader()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].name").value("Categoria Ajena Inactiva"));
 	}
 
 	private Category category(Business business, String name, Integer orden, boolean active) {
